@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# 데이터베이스 (로컬 개발용 — Railway에서 재생성)
+*.db
+**/*.db
+
+# 환경변수
+.env
+.env.*
+!.env.example
+
+# 생성 스크립트 임시파일
+map_viewer/static/codes.txt
+map_viewer/static/simplify_geo.py
+map_viewer/static/generate_city_data.py
+
+# GeoJSON 원본 (용량 큼, simple 버전만 커밋)
+map_viewer/static/skorea_municipalities.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

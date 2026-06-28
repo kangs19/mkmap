@@ -1,0 +1,176 @@
+item_code: onion
+item_name: 양파
+category: 인경채류
+
+units:
+  wholesale: 20kg
+  retail: 망(1kg)
+
+storage:
+  type: long
+  typical_days: 180
+  description: 저장성이 높아 저장 물량이 가격에 큰 영향. 수입 대체재 존재
+
+price_character:
+  volatility: high
+  seasonality: high
+  import_dependency: medium
+
+main_markets:
+  - name: 가락시장
+    priority: 1
+  - name: 대구도매시장
+    priority: 2
+  - name: 광주도매시장
+    priority: 3
+
+substitute_items:
+  - item_code: garlic
+    item_name: 마늘
+    relationship: partial_substitute
+    confidence: low
+  - item_code: green_onion
+    item_name: 대파
+    relationship: partial_substitute
+    confidence: low
+
+weather_sensitivity:
+  heat:
+    level: medium
+    description: 고온 시 조기 수확 유도, 저장성 저하
+  cold:
+    level: high
+    description: 냉해 시 구 비대 불량, 고사 가능
+  heavy_rain:
+    level: high
+    description: 수확기 장마 시 부패·저장성 급락
+  drought:
+    level: low
+    description: 상대적으로 가뭄에 강한 편
+  typhoon:
+    level: medium
+    description: 태풍 직격 시 도복·병해 발생
+
+growth_calendar:
+  autumn:
+    sow: [8, 9]
+    harvest: [5, 6]
+    description: 가을 파종, 이듬해 봄~초여름 수확 (주산지 패턴)
+  spring:
+    sow: [3, 4]
+    harvest: [6, 7]
+    description: 봄 파종, 여름 수확
+
+demand_events:
+  - name: 김장철
+    months: [10, 11, 12]
+    effect: demand_up
+    importance: high
+  - name: 여름 식재료 수요
+    months: [6, 7, 8]
+    effect: demand_up
+    importance: medium
+
+production_regions:
+  spring:
+    description: 조생 양파 주산지 (남부)
+    regions:
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["창녕", "합천", "함양"]
+        base_weight: 0.35
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 창녕 양파 전국 최대 산지
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["무안", "신안", "함평"]
+        base_weight: 0.40
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 무안 양파 전국 2위권
+        center_lat: 34.8161
+        center_lng: 126.4630
+      - region_code: KR-45
+        region_name: 전북
+        sub_regions: ["부안", "고창"]
+        base_weight: 0.15
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.8200
+        center_lng: 127.1087
+  summer:
+    description: 저장 양파 출하 시기
+    regions:
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["창녕", "밀양"]
+        base_weight: 0.40
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["무안", "함평"]
+        base_weight: 0.40
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  autumn:
+    description: 저장 양파 후기 출하
+    regions:
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["창녕"]
+        base_weight: 0.50
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["무안"]
+        base_weight: 0.35
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  winter:
+    description: 제주 월동 양파
+    regions:
+      - region_code: KR-49
+        region_name: 제주
+        sub_regions: ["제주", "서귀포"]
+        base_weight: 0.60
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 겨울 재배 양파
+        center_lat: 33.4890
+        center_lng: 126.4983
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["남해", "고성"]
+        base_weight: 0.25
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.2282
+        center_lng: 128.2520

@@ -1,0 +1,180 @@
+item_code: garlic
+item_name: 마늘
+category: 인경채류
+
+units:
+  wholesale: 10kg
+  retail: 통(100g)
+
+storage:
+  type: long
+  typical_days: 365
+  description: 건조 마늘 기준 1년 이상 저장 가능. 저장 물량 및 수입량이 가격 핵심 변수
+
+price_character:
+  volatility: medium
+  seasonality: high
+  import_dependency: high
+
+main_markets:
+  - name: 가락시장
+    priority: 1
+  - name: 대구도매시장
+    priority: 2
+  - name: 대전도매시장
+    priority: 3
+
+substitute_items:
+  - item_code: onion
+    item_name: 양파
+    relationship: partial_substitute
+    confidence: low
+  - item_code: green_onion
+    item_name: 대파
+    relationship: partial_substitute
+    confidence: low
+
+weather_sensitivity:
+  heat:
+    level: medium
+    description: 고온 시 조기 구 형성, 소구화
+  cold:
+    level: high
+    description: 한파 시 동해, 특히 남도 마늘 취약
+  heavy_rain:
+    level: high
+    description: 수확기 장마 시 부패 및 저장성 급락
+  drought:
+    level: medium
+    description: 적당한 건조는 구 발육에 유리
+  typhoon:
+    level: medium
+    description: 태풍 직격 시 도복·수확 지연
+
+growth_calendar:
+  autumn:
+    sow: [9, 10]
+    harvest: [5, 6]
+    description: 가을 파종, 이듬해 초여름 수확 (주 패턴)
+  spring:
+    sow: [3, 4]
+    harvest: [7, 8]
+    description: 한지형 마늘, 북부 지역
+
+demand_events:
+  - name: 김장철
+    months: [10, 11, 12]
+    effect: demand_up
+    importance: high
+  - name: 수입 마늘 경쟁 시기
+    months: [6, 7, 8]
+    effect: demand_down
+    importance: high
+  - name: 추석
+    months: [9, 10]
+    effect: demand_up
+    importance: medium
+
+production_regions:
+  spring:
+    description: 한지형 마늘 주산지
+    regions:
+      - region_code: KR-43
+        region_name: 충북
+        sub_regions: ["단양", "의성"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 의성 마늘 전국 최대 한지형 산지
+        center_lat: 36.8151
+        center_lng: 127.7866
+      - region_code: KR-47
+        region_name: 경북
+        sub_regions: ["의성", "영천", "경산"]
+        base_weight: 0.50
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 의성 마늘 전국 최대 산지
+        center_lat: 36.5760
+        center_lng: 128.5055
+  summer:
+    description: 저장 마늘 출하, 수입 마늘 경쟁
+    regions:
+      - region_code: KR-47
+        region_name: 경북
+        sub_regions: ["의성", "영천"]
+        base_weight: 0.45
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 36.5760
+        center_lng: 128.5055
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["남해형 난지 마늘"]
+        base_weight: 0.35
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  autumn:
+    description: 저장 마늘 소진, 신마늘 파종기
+    regions:
+      - region_code: KR-47
+        region_name: 경북
+        sub_regions: ["의성", "영천"]
+        base_weight: 0.50
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 36.5760
+        center_lng: 128.5055
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["해남", "고흥"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  winter:
+    description: 난지형 마늘 월동기
+    regions:
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["남해", "창녕"]
+        base_weight: 0.40
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 남해 마늘 대표 난지형 산지
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["해남", "고흥", "무안"]
+        base_weight: 0.40
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+      - region_code: KR-49
+        region_name: 제주
+        sub_regions: ["제주", "서귀포"]
+        base_weight: 0.15
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 33.4890
+        center_lng: 126.4983

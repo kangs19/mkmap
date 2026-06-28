@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>농산물 가격 위험 신호</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  background:transparent;
+  font-size:13px;
+  color:#333;
+}
+
+.widget {
+  border:1px solid #e0e0e0;
+  border-radius:10px;
+  overflow:hidden;
+  background:white;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  max-width:480px;
+}
+
+/* 헤더 */
+.widget-header {
+  background:#1a3a5c;
+  color:white;
+  padding:10px 14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.widget-header .title { font-size:13px; font-weight:bold; }
+.widget-header .date  { font-size:11px; opacity:0.7; }
+
+/* 탭 */
+.item-tabs {
+  display:flex;
+  background:#f8f9fa;
+  border-bottom:1px solid #e8e8e8;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.item-tabs::-webkit-scrollbar { display:none; }
+.tab {
+  padding:8px 14px;
+  font-size:12px;
+  color:#888;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  white-space:nowrap;
+  transition:all 0.15s;
+  flex-shrink:0;
+}
+.tab.active { color:#1a3a5c; border-bottom-color:#1a3a5c; font-weight:bold; background:white; }
+.tab:hover:not(.active) { color:#555; background:#f0f4f8; }
+
+/* 콘텐츠 */
+.widget-body { padding:12px 14px; }
+
+/* 방향 뱃지 */
+.direction-row {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.dir-badge {
+  font-size:22px;
+  font-weight:700;
+  line-height:1;
+}
+.dir-up    { color:#e74c3c; }
+.dir-down  { color:#2980b9; }
+.dir-neutral { color:#888; }
+
+.dir-meta { font-size:11px; color:#888; line-height:1.6; }
+.dir-meta strong { color:#333; }
+
+/* 확률 바 */
+.prob-wrap { margin-bottom:12px; }
+.prob-label { display:flex; justify-content:space-between; font-size:11px; color:#999; margin-bottom:3px; }
+.prob-track { height:5px; background:#eee; border-radius:3px; }
+.prob-fill  { height:100%; border-radius:3px; transition:width 0.5s; }
+
+/* 지표 그리드 */
+.kpi-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  margin-bottom:12px;
+}
+.kpi-card {
+  background:#f8f9fa;
+  border-radius:6px;
+  padding:8px 10px;
+  text-align:center;
+}
+.kpi-label { font-size:10px; color:#999; margin-bottom:3px; }
+.kpi-value { font-size:15px; font-weight:700; color:#1a3a5c; }
+.kpi-value.up   { color:#e74c3c; }
+.kpi-value.down { color:#2980b9; }
+.kpi-value.warn { color:#e67e22; }
+.kpi-sub   { font-size:10px; color:#bbb; margin-top:1px; }
+
+/* 위험 지역 */
+.hotspot-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:#fff8f0;
+  border:1px solid #ffe0b2;
+  border-radius:6px;
+  padding:7px 10px;
+  margin-bottom:10px;
+  font-size:12px;
+}
+.hotspot-icon { font-size:14px; }
+.hotspot-info { flex:1; }
+.hotspot-name { font-weight:bold; color:#c0392b; }
+.hotspot-sub  { color:#999; font-size:11px; }
+
+.risk-pill {
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:bold;
+}
+.risk-normal  { background:#d4edda; color:#155724; }
+.risk-caution { background:#fff3cd; color:#856404; }
+.risk-warning { background:#fde8d8; color:#c0392b; }
+.risk-high    { background:#f8d7da; color:#721c24; }
+
+/* 푸터 */
+.widget-footer {
+  border-top:1px solid #f0f0f0;
+  padding:7px 14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.footer-link {
+  font-size:11px;
+  color:#2e74b5;
+  text-decoration:none;
+}
+.footer-link:hover { text-decoration:underline; }
+.footer-disclaimer { font-size:10px; color:#ccc; }
+
+/* 로딩 */
+.loading { text-align:center; padding:20px; color:#bbb; font-size:12px; }
+
+/* 에러 */
+.error-box { padding:12px; text-align:center; color:#c0392b; font-size:12px; }
+</style>
+</head>
+<body>
+
+<div class="widget">
+  <div class="widget-header">
+    <span class="title">🌾 농산물 가격 위험 신호</span>
+    <span class="date" id="w-date">—</span>
+  </div>
+
+  <div class="item-tabs" id="w-tabs">
+    <div class="loading">로딩 중...</div>
+  </div>
+
+  <div class="widget-body" id="w-body">
+    <div class="loading">데이터를 불러오는 중입니다...</div>
+  </div>
+
+  <div class="widget-footer">
+    <a class="footer-link" id="w-detail-link" href="#" target="_blank">상세 대시보드 →</a>
+    <span class="footer-disclaimer">Mock 데이터</span>
+  </div>
+</div>
+
+<script>
+// ── 설정 ─────────────────────────────────────────────
+// WordPress에서 임베드 시 API_BASE를 실제 서버 URL로 교체
+const API_BASE = (function() {
+  const s = document.currentScript;
+  return s ? s.dataset.api || "" : "";
+})() || "";
+
+const ITEM_NAMES = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
+const DIR_LABEL  = { up:"↑ 14일 내 상승", down:"↓ 14일 내 하락", neutral:"→ 보합" };
+const DIR_CLASS  = { up:"dir-up", down:"dir-down", neutral:"dir-neutral" };
+const RISK_LABEL = { normal:"정상", caution:"주의", warning:"경고", high:"위험" };
+const CONF_LABEL = { high:"신뢰 높음", medium:"신뢰 중간", low:"신뢰 낮음" };
+const VOL_LABEL  = { high:"높음", medium:"보통", low:"낮음" };
+
+let allData = null;
+let currentItem = null;
+
+async function init() {
+  document.getElementById("w-date").textContent = new Date().toLocaleDateString("ko-KR");
+  document.getElementById("w-detail-link").href = API_BASE + "/dashboard";
+
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/signals/today`);
+    if (!r.ok) throw new Error("API 오류");
+    allData = await r.json();
+    renderTabs();
+    if (allData.items?.length) selectItem(allData.items[0].item_code);
+  } catch(e) {
+    document.getElementById("w-tabs").innerHTML = "";
+    document.getElementById("w-body").innerHTML =
+      `<div class="error-box">데이터를 불러올 수 없습니다.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function renderTabs() {
+  const tabs = document.getElementById("w-tabs");
+  tabs.innerHTML = (allData.items || []).map(it =>
+    `<div class="tab" data-code="${it.item_code}" onclick="selectItem('${it.item_code}')">
+      ${ITEM_NAMES[it.item_code] || it.item_code}
+    </div>`
+  ).join("");
+}
+
+async function selectItem(item_code) {
+  currentItem = item_code;
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.code === item_code)
+  );
+
+  const item = (allData.items || []).find(i => i.item_code === item_code);
+  if (!item) return;
+
+  // 개별 예측 상세 (factors 포함)
+  let forecast = null;
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/items/${item_code}/forecast`);
+    if (r.ok) forecast = await r.json();
+  } catch(_) {}
+
+  renderBody(item, forecast);
+}
+
+function renderBody(item, forecast) {
+  const dir = item.direction_14d || "neutral";
+  const upProb = item.up_probability_14d ?? 0.5;
+  const surgeProb = forecast?.forecast?.surge_probability_14d ?? null;
+  const vol = forecast?.forecast?.volatility_risk_30d;
+  const conf = item.confidence || "medium";
+  const rl = item.risk_level || "normal";
+  const hotspot = item.hotspot_region;
+  const riskScore = item.risk_score;
+
+  const barColor = dir === "up" ? "#e74c3c" : (dir === "down" ? "#2980b9" : "#aaa");
+
+  let hotspotHtml = "";
+  if (hotspot) {
+    hotspotHtml = `
+      <div class="hotspot-row">
+        <span class="hotspot-icon">📍</span>
+        <div class="hotspot-info">
+          <div class="hotspot-name">${hotspot} — 최고 위험 지역</div>
+          <div class="hotspot-sub">공급 위험 점수 ${riskScore?.toFixed(0) ?? "—"}점</div>
+        </div>
+        <span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span>
+      </div>`;
+  }
+
+  document.getElementById("w-body").innerHTML = `
+    <div class="direction-row">
+      <div class="dir-badge ${DIR_CLASS[dir]}">${dir === "up" ? "↑" : dir === "down" ? "↓" : "→"}</div>
+      <div class="dir-meta">
+        <strong>${DIR_LABEL[dir]}</strong><br>
+        ${CONF_LABEL[conf] || conf}
+      </div>
+    </div>
+
+    <div class="prob-wrap">
+      <div class="prob-label"><span>상승 확률</span><span>${(upProb*100).toFixed(0)}%</span></div>
+      <div class="prob-track">
+        <div class="prob-fill" style="width:${upProb*100}%; background:${barColor};"></div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">급등 확률</div>
+        <div class="kpi-value ${surgeProb > 0.3 ? 'up' : ''}">${surgeProb != null ? (surgeProb*100).toFixed(0)+'%' : '—'}</div>
+        <div class="kpi-sub">14일 내 +15%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">변동성</div>
+        <div class="kpi-value ${vol === 'high' ? 'warn' : ''}">${VOL_LABEL[vol] || '—'}</div>
+        <div class="kpi-sub">30일 기준</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">지역 위험도</div>
+        <div class="kpi-value"><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></div>
+        <div class="kpi-sub">주산지 기준</div>
+      </div>
+    </div>
+
+    ${hotspotHtml}
+  `;
+}
+
+init();
+</script>
+</body>
+</html>

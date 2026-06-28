@@ -1,0 +1,194 @@
+item_code: radish
+item_name: 무
+category: 근채류
+
+units:
+  wholesale: 20kg
+  retail: 개
+
+storage:
+  type: medium
+  typical_days: 30
+  description: 저장성이 배추보다 높으나 온도·습도 관리 필요
+
+price_character:
+  volatility: high
+  seasonality: high
+  import_dependency: low
+
+main_markets:
+  - name: 가락시장
+    priority: 1
+  - name: 대구도매시장
+    priority: 2
+  - name: 광주도매시장
+    priority: 3
+
+substitute_items:
+  - item_code: cabbage
+    item_name: 배추
+    relationship: partial_substitute
+    confidence: low
+  - item_code: turnip
+    item_name: 순무
+    relationship: substitute
+    confidence: medium
+
+weather_sensitivity:
+  heat:
+    level: high
+    description: 고온 시 도장, 공동화 발생 가능
+  cold:
+    level: medium
+    description: 동해 시 상품성 저하
+  heavy_rain:
+    level: medium
+    description: 집중호우 시 병해 및 수확 지연
+  drought:
+    level: medium
+    description: 가뭄 시 뿌리 비대 불량
+  typhoon:
+    level: medium
+    description: 태풍 직격 시 산지 피해
+
+growth_calendar:
+  spring:
+    sow: [2, 3]
+    harvest: [4, 5]
+    description: 봄무, 온난화로 재배 확대 중
+  summer:
+    sow: [6, 7]
+    harvest: [8, 9]
+    description: 고랭지 여름무
+  autumn:
+    sow: [8, 9]
+    harvest: [10, 11]
+    description: 가을무, 연간 최대 출하 시기
+  winter:
+    sow: [9, 10]
+    harvest: [11, 12, 1]
+    description: 제주·남해 월동무
+
+demand_events:
+  - name: 김장철
+    months: [10, 11, 12]
+    effect: demand_up
+    importance: high
+  - name: 추석
+    months: [9, 10]
+    effect: demand_up
+    importance: medium
+
+production_regions:
+  spring:
+    description: 봄무 주산지
+    regions:
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["무안", "함평", "영암"]
+        base_weight: 0.40
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["창녕", "합천"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-45
+        region_name: 전북
+        sub_regions: ["김제", "부안"]
+        base_weight: 0.20
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.8200
+        center_lng: 127.1087
+  summer:
+    description: 고랭지 여름무
+    regions:
+      - region_code: KR-42
+        region_name: 강원
+        sub_regions: ["평창", "정선", "강릉"]
+        base_weight: 0.70
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 고랭지 대표 주산지
+        center_lat: 37.3705
+        center_lng: 128.3900
+      - region_code: KR-43
+        region_name: 충북
+        sub_regions: ["단양", "제천"]
+        base_weight: 0.20
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 36.8151
+        center_lng: 127.7866
+  autumn:
+    description: 가을무 주산지
+    regions:
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["해남", "무안", "진도"]
+        base_weight: 0.35
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+      - region_code: KR-44
+        region_name: 충남
+        sub_regions: ["아산", "당진"]
+        base_weight: 0.25
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 36.6588
+        center_lng: 126.6729
+      - region_code: KR-41
+        region_name: 경기
+        sub_regions: ["평택", "안성"]
+        base_weight: 0.20
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 37.4138
+        center_lng: 127.5183
+  winter:
+    description: 월동무 주산지
+    regions:
+      - region_code: KR-49
+        region_name: 제주
+        sub_regions: ["제주", "서귀포"]
+        base_weight: 0.55
+        confidence: high
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 겨울 월동무 최대 주산지
+        center_lat: 33.4890
+        center_lng: 126.4983
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["해남", "진도"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630

@@ -1,0 +1,232 @@
+item_code: cabbage
+item_name: 배추
+category: 엽채류
+
+units:
+  wholesale: 10kg
+  retail: 포기
+
+storage:
+  type: short
+  typical_days: 7
+  description: 저장성이 낮아 기상 및 출하량 변화가 가격에 빠르게 반영될 수 있음
+
+price_character:
+  volatility: high
+  seasonality: high
+  import_dependency: low
+
+main_markets:
+  - name: 가락시장
+    priority: 1
+  - name: 대구도매시장
+    priority: 2
+  - name: 부산도매시장
+    priority: 3
+
+substitute_items:
+  - item_code: cabbage_round
+    item_name: 양배추
+    relationship: substitute
+    confidence: medium
+  - item_code: young_cabbage
+    item_name: 얼갈이배추
+    relationship: substitute
+    confidence: medium
+  - item_code: radish
+    item_name: 무
+    relationship: partial_substitute
+    confidence: low
+  - item_code: lettuce
+    item_name: 상추
+    relationship: partial_substitute
+    confidence: low
+
+weather_sensitivity:
+  heat:
+    level: high
+    description: 고온 지속 시 생육 저하 및 품질 저하 가능
+  cold:
+    level: medium
+    description: 한파 및 냉해 시 품질 저하 가능
+  heavy_rain:
+    level: high
+    description: 집중호우 시 병해, 수확 지연, 물류 차질 가능
+  drought:
+    level: medium
+    description: 가뭄 시 생육 저하 가능
+  typhoon:
+    level: high
+    description: 태풍 시 산지 피해와 물류 차질 가능
+  sunlight:
+    level: medium
+    description: 일조 부족 시 생육 지연 가능
+
+demand_events:
+  - event_name: 김장철
+    months: [10, 11, 12]
+    effect: demand_up
+    importance: high
+  - event_name: 추석
+    effect: demand_up
+    importance: medium
+  - event_name: 설
+    effect: demand_up
+    importance: medium
+  - event_name: 급식 재개
+    months: [3, 9]
+    effect: demand_up
+    importance: low
+  - event_name: 장마철
+    months: [6, 7]
+    effect: supply_down
+    importance: medium
+
+growth_calendar:
+  planting_months: [3, 4, 8, 9]
+  harvest_months: [5, 6, 10, 11, 12]
+  high_risk_months: [7, 8, 9, 11]
+
+production_regions:
+  spring:
+    description: 봄배추 주산지
+    regions:
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: [해남, 무안]
+        base_weight: 0.35
+        confidence: medium
+        center_lat: 34.8161
+        center_lng: 126.4630
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "MVP용 임시값. 추후 통계청/농업관측센터 자료로 보정 필요"
+      - region_code: KR-43
+        region_name: 충북
+        sub_regions: [괴산, 제천]
+        base_weight: 0.25
+        confidence: low
+        center_lat: 36.8151
+        center_lng: 127.7866
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+      - region_code: KR-37
+        region_name: 경북
+        sub_regions: [안동, 영양]
+        base_weight: 0.15
+        confidence: low
+        center_lat: 36.5760
+        center_lng: 128.5055
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+
+  summer:
+    description: 여름 고랭지 배추 주산지
+    regions:
+      - region_code: KR-42
+        region_name: 강원
+        sub_regions: [평창, 태백, 정선]
+        base_weight: 0.70
+        confidence: medium
+        center_lat: 37.3705
+        center_lng: 128.3900
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "여름 고랭지 배추 핵심 주산지. 통계청 자료 보정 필요"
+      - region_code: KR-43
+        region_name: 충북
+        sub_regions: [괴산]
+        base_weight: 0.15
+        confidence: low
+        center_lat: 36.8151
+        center_lng: 127.7866
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+
+  autumn:
+    description: 가을배추 주산지
+    regions:
+      - region_code: KR-42
+        region_name: 강원
+        sub_regions: [평창, 정선]
+        base_weight: 0.35
+        confidence: medium
+        center_lat: 37.3705
+        center_lng: 128.3900
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+      - region_code: KR-43
+        region_name: 충북
+        sub_regions: [괴산]
+        base_weight: 0.25
+        confidence: low
+        center_lat: 36.8151
+        center_lng: 127.7866
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: [해남, 진도]
+        base_weight: 0.20
+        confidence: low
+        center_lat: 34.8161
+        center_lng: 126.4630
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+
+  winter:
+    description: 겨울배추 주산지
+    regions:
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: [해남, 진도]
+        base_weight: 0.45
+        confidence: medium
+        center_lat: 34.8161
+        center_lng: 126.4630
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "겨울 해남 배추 핵심 주산지"
+      - region_code: KR-49
+        region_name: 제주
+        sub_regions: [제주, 서귀포]
+        base_weight: 0.30
+        confidence: medium
+        center_lat: 33.4890
+        center_lng: 126.4983
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "겨울 제주 배추 주요 주산지"
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: [진주, 창녕]
+        base_weight: 0.15
+        confidence: low
+        center_lat: 35.2282
+        center_lng: 128.2520
+        source:
+          type: manual_research
+          name: 초기 수동 조사
+          note: "검증 필요"
+
+metadata_quality:
+  owner: manual
+  last_reviewed: "2026-06-28"
+  confidence: draft
+  note: "MVP 초기값. 통계청 KOSIS 농작물생산조사 기준으로 주기적 보정 필요"

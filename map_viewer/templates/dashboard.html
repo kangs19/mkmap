@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>농산물 가격 위험 신호 엔진</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Malgun Gothic', sans-serif; background: #f0f4f8; color: #333; }
+
+    /* ── 헤더 ────────────── */
+    .header {
+      background: #1a3a5c;
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .header h1 { font-size: 18px; }
+    .header-sub { font-size: 12px; opacity: 0.7; margin-left: 4px; }
+
+    /* ── 품목 탭 ─────────── */
+    .item-tabs {
+      background: #1e4475;
+      padding: 0 24px;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+    }
+    .item-tab {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .item-tab.active {
+      color: white;
+      border-bottom-color: #f39c12;
+      background: rgba(255,255,255,0.05);
+    }
+    .item-tab:hover { color: white; background: rgba(255,255,255,0.08); }
+
+    /* ── 메인 레이아웃 ─────── */
+    .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+    .grid { display: grid; gap: 16px; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: 2fr 1fr; }
+    @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 700px)  { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── 카드 ────────────── */
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a3a5c;
+      line-height: 1.2;
+    }
+    .card-sub { font-size: 12px; color: #999; margin-top: 4px; }
+
+    /* ── 방향 배지 ─────────── */
+    .direction-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 22px;
+      font-weight: 700;
+      padding: 4px 0;
+    }
+    .dir-up   { color: #e74c3c; }
+    .dir-down { color: #2980b9; }
+    .dir-neutral { color: #888; }
+
+    .prob-bar {
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      margin-top: 10px;
+    }
+    .prob-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    /* ── 위험 레벨 ─────────── */
+    .risk-pill {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .risk-normal  { background: #d4edda; color: #155724; }
+    .risk-caution { background: #fff3cd; color: #856404; }
+    .risk-warning { background: #fde8d8; color: #c0392b; }
+    .risk-high    { background: #f8d7da; color: #721c24; }
+
+    /* ── 요인 목록 ─────────── */
+    .factor-list { list-style: none; margin-top: 4px; }
+    .factor-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 13px;
+    }
+    .factor-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 3px; height: 5px; }
+    .factor-bar { height: 100%; border-radius: 3px; background: #2e74b5; }
+    .factor-up   .factor-bar { background: #e74c3c; }
+    .factor-down .factor-bar { background: #2980b9; }
+    .factor-name { width: 140px; color: #555; font-size: 12px; }
+    .factor-pct  { width: 36px; text-align: right; font-size: 11px; color: #999; }
+
+    /* ── 차트 ────────────── */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── 전체 현황 표 ─────── */
+    .overview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .overview-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: #f8f9fa;
+      font-size: 11px;
+      color: #888;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .overview-table td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; }
+    .overview-table tr:last-child td { border-bottom: none; }
+    .overview-table tr:hover td { background: #f8f9ff; }
+
+    .conf-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: #e8f4fd;
+      color: #2e74b5;
+    }
+
+    /* ── 지도 iframe ─────── */
+    .map-frame {
+      width: 100%;
+      height: 420px;
+      border: none;
+      border-radius: 8px;
+    }
+
+    /* ── 로딩 ────────────── */
+    .loading { color: #aaa; font-size: 13px; padding: 20px; text-align: center; }
+
+    /* ── 면책고지 ─────────── */
+    .disclaimer {
+      font-size: 11px;
+      color: #bbb;
+      padding: 12px 0 4px;
+      border-top: 1px solid #e8e8e8;
+      margin-top: 20px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🌾 농산물 가격 위험 신호 엔진</h1>
+  <span class="header-sub">Agricultural Price Risk Signal Engine · Mock Data</span>
+</div>
+
+<div class="item-tabs" id="item-tabs">
+  <div class="loading" style="padding:10px">품목 로딩 중...</div>
+</div>
+
+<div class="main">
+  <!-- 상단 요약 카드 -->
+  <div class="grid grid-3" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">14일 가격 방향 예측</div>
+      <div id="kpi-direction" class="direction-badge dir-neutral">— 로딩 중</div>
+      <div class="prob-bar"><div class="prob-fill" id="kpi-prob-bar" style="width:50%; background:#ccc;"></div></div>
+      <div class="card-sub" id="kpi-prob-text">데이터 없음</div>
+    </div>
+    <div class="card">
+      <div class="card-title">급등 확률 (14일 내 +15%)</div>
+      <div id="kpi-surge" class="card-value">—</div>
+      <div class="card-sub" id="kpi-volatility">변동성: —</div>
+    </div>
+    <div class="card">
+      <div class="card-title">최고 위험 지역</div>
+      <div id="kpi-hotspot" class="card-value" style="font-size:20px;">—</div>
+      <div class="card-sub" id="kpi-risk-level">위험도: —</div>
+    </div>
+  </div>
+
+  <!-- 중단: 차트 + 예측 요인 -->
+  <div class="grid grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title" id="chart-title">가격 히스토리 (최근 90일)</div>
+      <div class="chart-wrap">
+        <canvas id="price-chart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">가격 변동 주요 요인 (LightGBM Feature Importance)</div>
+      <ul class="factor-list" id="factor-list">
+        <li class="loading">로딩 중...</li>
+      </ul>
+      <div style="margin-top:12px; font-size:11px; color:#bbb;">※ 모델 AUC: <span id="model-auc">—</span></div>
+    </div>
+  </div>
+
+  <!-- 하단: 지도 + 전체 현황 -->
+  <div class="grid grid-2" style="margin-bottom:16px;">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <iframe id="map-frame" class="map-frame" src="about:blank"></iframe>
+    </div>
+    <div class="card">
+      <div class="card-title">전체 품목 현황</div>
+      <table class="overview-table">
+        <thead>
+          <tr>
+            <th>품목</th>
+            <th>방향</th>
+            <th>상승확률</th>
+            <th>위험도</th>
+            <th>신뢰</th>
+          </tr>
+        </thead>
+        <tbody id="overview-body">
+          <tr><td colspan="5" class="loading">로딩 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    ※ 본 서비스의 예측 결과는 Mock 데이터 기반 시뮬레이션입니다. 실제 KAMIS 연동 전까지는 참고용으로만 활용하세요.
+    실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
+  </div>
+</div>
+
+<script>
+const API = "";  // same origin
+
+const DIR_MAP = { up: "↑ 상승", down: "↓ 하락", neutral: "→ 보합" };
+const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
+const RISK_LABEL = { normal: "정상", caution: "주의", warning: "경고", high: "위험" };
+const VOL_LABEL = { low: "안정", medium: "보통", high: "높음" };
+const CONF_LABEL = { high: "높음", medium: "중간", low: "낮음" };
+
+let items = [];
+let currentItem = null;
+let priceChart = null;
+
+// ── 초기화 ─────────────────────────────────────────────────
+async function init() {
+  const r = await fetch(`${API}/api/v1/items`);
+  items = await r.json();
+  renderItemTabs();
+  loadOverview();
+  selectItem(items[0].item_code);
+}
+
+function renderItemTabs() {
+  const tabs = document.getElementById("item-tabs");
+  tabs.innerHTML = items.map(it => `
+    <button class="item-tab" data-code="${it.item_code}" onclick="selectItem('${it.item_code}')">
+      ${it.item_name}
+    </button>
+  `).join("");
+}
+
+async function selectItem(item_code) {
+  currentItem = item_code;
+  document.querySelectorAll(".item-tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.code === item_code)
+  );
+
+  // 지도 iframe 교체
+  document.getElementById("map-frame").src = `/maps/items/${item_code}`;
+
+  // 병렬 로드
+  const [forecast, history] = await Promise.all([
+    fetch(`${API}/api/v1/items/${item_code}/forecast`).then(r => r.json()).catch(() => null),
+    fetch(`${API}/api/v1/items/${item_code}/price-history?days=90`).then(r => r.json()).catch(() => null),
+  ]);
+
+  renderKPIs(forecast);
+  renderChart(history);
+  renderFactors(forecast);
+}
+
+// ── KPI 카드 ───────────────────────────────────────────────
+function renderKPIs(fc) {
+  if (!fc || !fc.forecast) {
+    document.getElementById("kpi-direction").textContent = "데이터 없음";
+    return;
+  }
+  const f = fc.forecast;
+  const dir = f.direction_14d;
+  const upProb = f.up_probability_14d || 0;
+  const surgeProb = f.surge_probability_14d || 0;
+
+  const dirEl = document.getElementById("kpi-direction");
+  dirEl.className = `direction-badge ${DIR_CLASS[dir] || "dir-neutral"}`;
+  dirEl.textContent = DIR_MAP[dir] || dir;
+
+  const bar = document.getElementById("kpi-prob-bar");
+  const barColor = dir === "up" ? "#e74c3c" : (dir === "down" ? "#2980b9" : "#aaa");
+  bar.style.width = `${upProb * 100}%`;
+  bar.style.background = barColor;
+  document.getElementById("kpi-prob-text").textContent =
+    `상승 확률 ${(upProb * 100).toFixed(0)}% | 신뢰도: ${CONF_LABEL[fc.confidence] || fc.confidence}`;
+
+  document.getElementById("kpi-surge").textContent = `${(surgeProb * 100).toFixed(0)}%`;
+  document.getElementById("kpi-volatility").textContent =
+    `변동성 위험: ${VOL_LABEL[f.volatility_risk_30d] || f.volatility_risk_30d}`;
+
+  // 위험 지역은 신호 API에서
+  loadHotspot();
+}
+
+async function loadHotspot() {
+  try {
+    const r = await fetch(`${API}/api/v1/items/${currentItem}/signals`);
+    const d = await r.json();
+    const sigs = (d.signals || []).sort((a, b) => b.risk_score - a.risk_score);
+    if (sigs.length > 0) {
+      const top = sigs[0];
+      document.getElementById("kpi-hotspot").textContent = top.region_name;
+      const rl = top.risk_level;
+      document.getElementById("kpi-risk-level").innerHTML =
+        `<span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span> 점수 ${top.risk_score.toFixed(0)}점`;
+    }
+  } catch(e) {}
+}
+
+// ── 가격 차트 ─────────────────────────────────────────────
+function renderChart(history) {
+  if (!history || !history.data || history.data.length === 0) return;
+
+  const labels = history.data.map(d => d.date.slice(5));  // MM-DD
+  const prices = history.data.map(d => d.price);
+  const avgYear = history.data.map(d => d.avg_year);
+
+  document.getElementById("chart-title").textContent =
+    `${history.item_name} 가격 히스토리 · 최근 90일 (${history.unit} 기준 도매가)`;
+
+  if (priceChart) { priceChart.destroy(); priceChart = null; }
+
+  const ctx = document.getElementById("price-chart").getContext("2d");
+  priceChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "실제 가격",
+          data: prices,
+          borderColor: "#2e74b5",
+          backgroundColor: "rgba(46,116,181,0.08)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: "평년 가격",
+          data: avgYear,
+          borderColor: "#f39c12",
+          borderWidth: 1.5,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", labels: { font: { size: 11 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 10 }, maxTicksLimit: 12 },
+          grid: { display: false }
+        },
+        y: {
+          ticks: {
+            font: { size: 10 },
+            callback: v => v?.toLocaleString() + "원"
+          },
+          grid: { color: "#f0f0f0" }
+        }
+      }
+    }
+  });
+}
+
+// ── 요인 목록 ─────────────────────────────────────────────
+function renderFactors(fc) {
+  const list = document.getElementById("factor-list");
+  if (!fc || !fc.top_factors || fc.top_factors.length === 0) {
+    list.innerHTML = '<li class="loading">데이터 없음</li>';
+    return;
+  }
+
+  const maxContrib = Math.max(...fc.top_factors.map(f => f.contribution));
+  list.innerHTML = fc.top_factors.map(f => {
+    const pct = ((f.contribution / maxContrib) * 100).toFixed(0);
+    const cls = f.direction === "up" ? "factor-up" : "factor-down";
+    const arrow = f.direction === "up" ? "↑" : "↓";
+    return `
+      <li class="factor-item ${cls}">
+        <span class="factor-name">${f.factor}</span>
+        <div class="factor-bar-wrap">
+          <div class="factor-bar" style="width:${pct}%"></div>
+        </div>
+        <span class="factor-pct">${(f.contribution * 100).toFixed(1)}%</span>
+        <span style="font-size:12px;">${arrow}</span>
+      </li>`;
+  }).join("");
+}
+
+// ── 전체 현황 표 ─────────────────────────────────────────
+async function loadOverview() {
+  const r = await fetch(`${API}/api/v1/signals/today`);
+  const d = await r.json();
+  const tbody = document.getElementById("overview-body");
+
+  if (!d.items || d.items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">데이터 없음</td></tr>';
+    return;
+  }
+
+  const nameMap = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
+  tbody.innerHTML = d.items.map(it => {
+    const dir = it.direction_14d;
+    const dirHtml = dir
+      ? `<span class="${DIR_CLASS[dir]}">${DIR_MAP[dir]}</span>`
+      : "—";
+    const upProb = it.up_probability_14d != null
+      ? `${(it.up_probability_14d * 100).toFixed(0)}%` : "—";
+    const rl = it.risk_level || "normal";
+    const conf = it.confidence || "—";
+    const name = nameMap[it.item_code] || it.item_code;
+    return `
+      <tr onclick="selectItem('${it.item_code}')" style="cursor:pointer;">
+        <td><strong>${name}</strong></td>
+        <td>${dirHtml}</td>
+        <td>${upProb}</td>
+        <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
+        <td><span class="conf-badge">${CONF_LABEL[conf] || conf}</span></td>
+      </tr>`;
+  }).join("");
+}
+
+init();
+</script>
+</body>
+</html>

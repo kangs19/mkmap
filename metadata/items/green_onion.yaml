@@ -1,0 +1,208 @@
+item_code: green_onion
+item_name: 대파
+category: 엽경채류
+
+units:
+  wholesale: 1kg
+  retail: 단
+
+storage:
+  type: short
+  typical_days: 7
+  description: 저장성 매우 낮음. 신선도 유지가 가격 결정 핵심
+
+price_character:
+  volatility: very_high
+  seasonality: medium
+  import_dependency: low
+
+main_markets:
+  - name: 가락시장
+    priority: 1
+  - name: 대구도매시장
+    priority: 2
+  - name: 부산도매시장
+    priority: 3
+
+substitute_items:
+  - item_code: onion
+    item_name: 양파
+    relationship: partial_substitute
+    confidence: low
+  - item_code: garlic
+    item_name: 마늘
+    relationship: partial_substitute
+    confidence: low
+
+weather_sensitivity:
+  heat:
+    level: high
+    description: 고온 시 품질 저하, 도장
+  cold:
+    level: high
+    description: 한파 시 동해, 고사 가능
+  heavy_rain:
+    level: high
+    description: 집중호우 시 도복·병해
+  drought:
+    level: medium
+    description: 가뭄 시 생육 저하
+  typhoon:
+    level: high
+    description: 태풍 시 도복 및 수확 불가
+
+growth_calendar:
+  spring:
+    sow: [2, 3]
+    harvest: [4, 5, 6]
+    description: 봄 대파, 연중 연속 출하
+  summer:
+    sow: [4, 5]
+    harvest: [7, 8]
+    description: 여름 대파
+  autumn:
+    sow: [7, 8]
+    harvest: [9, 10, 11]
+    description: 가을 대파, 수확 성수기
+  winter:
+    sow: [9, 10]
+    harvest: [12, 1, 2]
+    description: 겨울 대파, 남부 지역 중심
+
+demand_events:
+  - name: 추석
+    months: [9, 10]
+    effect: demand_up
+    importance: high
+  - name: 설날
+    months: [1, 2]
+    effect: demand_up
+    importance: high
+  - name: 김장철
+    months: [11, 12]
+    effect: demand_up
+    importance: medium
+
+production_regions:
+  spring:
+    description: 봄 대파 주산지
+    regions:
+      - region_code: KR-41
+        region_name: 경기
+        sub_regions: ["평택", "안성", "화성"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 37.4138
+        center_lng: 127.5183
+      - region_code: KR-44
+        region_name: 충남
+        sub_regions: ["아산", "천안"]
+        base_weight: 0.25
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 36.6588
+        center_lng: 126.6729
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["진도", "해남"]
+        base_weight: 0.25
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  summer:
+    description: 여름 대파 주산지
+    regions:
+      - region_code: KR-42
+        region_name: 강원
+        sub_regions: ["평창", "강릉"]
+        base_weight: 0.40
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 고랭지 여름 대파
+        center_lat: 37.3705
+        center_lng: 128.3900
+      - region_code: KR-41
+        region_name: 경기
+        sub_regions: ["포천", "연천"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 37.4138
+        center_lng: 127.5183
+  autumn:
+    description: 가을 대파 주산지
+    regions:
+      - region_code: KR-41
+        region_name: 경기
+        sub_regions: ["평택", "화성", "안성"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 37.4138
+        center_lng: 127.5183
+      - region_code: KR-45
+        region_name: 전북
+        sub_regions: ["김제", "정읍"]
+        base_weight: 0.25
+        confidence: low
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.8200
+        center_lng: 127.1087
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["진도", "해남"]
+        base_weight: 0.25
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 34.8161
+        center_lng: 126.4630
+  winter:
+    description: 겨울 대파 주산지
+    regions:
+      - region_code: KR-46
+        region_name: 전남
+        sub_regions: ["진도", "해남", "완도"]
+        base_weight: 0.40
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 겨울 대파 핵심 주산지
+        center_lat: 34.8161
+        center_lng: 126.4630
+      - region_code: KR-48
+        region_name: 경남
+        sub_regions: ["남해", "하동"]
+        base_weight: 0.30
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 35.2282
+        center_lng: 128.2520
+      - region_code: KR-49
+        region_name: 제주
+        sub_regions: ["제주", "서귀포"]
+        base_weight: 0.20
+        confidence: medium
+        source_type: manual_research
+        source_name: 초기 조사 자료
+        source_note: 검증 필요
+        center_lat: 33.4890
+        center_lng: 126.4983

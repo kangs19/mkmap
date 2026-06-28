@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ item_name }} 주산지 지도</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Malgun Gothic',sans-serif; background:#f0f4f8; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* ── 툴바 ── */
+.toolbar {
+  background:#1a3a5c;
+  padding:8px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  flex-shrink:0;
+  z-index:1000;
+}
+.toolbar h3 { color:white; font-size:14px; white-space:nowrap; }
+.mode-btns { display:flex; gap:4px; }
+.btn {
+  padding:4px 12px;
+  border:1px solid rgba(255,255,255,0.3);
+  background:transparent;
+  color:rgba(255,255,255,0.75);
+  border-radius:14px;
+  font-size:12px;
+  cursor:pointer;
+  transition:all 0.15s;
+  white-space:nowrap;
+}
+.btn.active { background:white; color:#1a3a5c; border-color:white; font-weight:bold; }
+.btn:hover:not(.active) { background:rgba(255,255,255,0.15); }
+.divider { width:1px; height:20px; background:rgba(255,255,255,0.2); flex-shrink:0; }
+.back-btn {
+  padding:4px 10px; border:1px solid #f39c12; background:rgba(243,156,18,0.2);
+  color:#f39c12; border-radius:14px; font-size:12px; cursor:pointer;
+  display:none; align-items:center; gap:4px;
+}
+.back-btn.show { display:flex; }
+.back-btn:hover { background:rgba(243,156,18,0.35); }
+.breadcrumb { color:rgba(255,255,255,0.6); font-size:12px; white-space:nowrap; }
+.breadcrumb span { color:white; font-weight:bold; }
+
+/* ── 레이아웃 ── */
+.map-layout { display:flex; flex:1; overflow:hidden; }
+#map { flex:1; }
+
+/* ── 사이드패널 ── */
+.side-panel {
+  width:270px; background:white; overflow-y:auto;
+  display:flex; flex-direction:column;
+  box-shadow:-2px 0 8px rgba(0,0,0,0.1); flex-shrink:0;
+}
+.panel-header { background:#1a3a5c; color:white; padding:12px 14px; font-size:13px; font-weight:bold; }
+.panel-header .sub { font-size:11px; opacity:0.7; font-weight:normal; margin-top:2px; }
+.panel-body { padding:12px 14px; flex:1; }
+.panel-hint { color:#aaa; font-size:12px; text-align:center; padding:30px 10px; line-height:1.9; }
+.panel-hint .icon { font-size:28px; display:block; margin-bottom:8px; }
+
+/* 상세 */
+.detail-section { margin-bottom:14px; }
+.detail-title { font-size:10px; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; border-bottom:1px solid #f0f0f0; padding-bottom:4px; }
+.kv { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:12px; }
+.kv .key { color:#666; }
+.kv .val { font-weight:600; color:#1a3a5c; }
+.kv .val.up   { color:#e74c3c; }
+.kv .val.down { color:#2980b9; }
+
+/* 위험도 게이지 */
+.risk-label-row { display:flex; justify-content:space-between; margin-bottom:4px; font-size:11px; color:#666; }
+.risk-bar-bg { background:#eee; border-radius:4px; height:8px; }
+.risk-bar-fill { height:100%; border-radius:4px; transition:width 0.4s; }
+
+/* 생산 비중 바 */
+.prod-bar-bg { background:#e8f4fd; border-radius:4px; height:14px; margin-top:4px; overflow:hidden; }
+.prod-bar-fill { background:#2e74b5; height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px; min-width:30px; }
+.prod-bar-fill span { color:white; font-size:10px; font-weight:bold; white-space:nowrap; }
+
+/* 칩 */
+.chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; margin:1px; }
+.chip-normal  { background:#d4edda; color:#155724; }
+.chip-caution { background:#fff3cd; color:#856404; }
+.chip-warning { background:#fde8d8; color:#c0392b; }
+.chip-high    { background:#f8d7da; color:#721c24; }
+
+/* 범례 */
+.legend {
+  position:absolute; bottom:28px; left:10px; z-index:1000;
+  background:white; border-radius:8px; padding:10px 12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:11px; min-width:140px;
+}
+.legend-title { font-weight:bold; margin-bottom:6px; color:#333; font-size:12px; }
+.legend-row { display:flex; align-items:center; gap:6px; margin:4px 0; color:#444; }
+.legend-swatch { width:16px; height:10px; border-radius:2px; flex-shrink:0; border:1px solid rgba(0,0,0,0.08); }
+
+/* 로딩 */
+#loading {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(255,255,255,0.95); padding:20px 30px; border-radius:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15); text-align:center; font-size:13px; color:#555; z-index:2000;
+}
+.spinner {
+  border:3px solid #eee; border-top-color:#2e74b5; border-radius:50%;
+  width:28px; height:28px; animation:spin 0.8s linear infinite; margin:0 auto 10px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h3>🌾 {{ item_name }} 주산지 지도</h3>
+  <div class="divider"></div>
+  <div class="mode-btns">
+    <button class="btn active" data-mode="production" onclick="setMode('production')">생산지</button>
+    <button class="btn" data-mode="risk"       onclick="setMode('risk')">위험도</button>
+    <button class="btn" data-mode="shipment"   onclick="setMode('shipment')">출하량</button>
+    <button class="btn" data-mode="price"      onclick="setMode('price')">가격변동</button>
+  </div>
+  <div class="divider"></div>
+  <button class="back-btn" id="back-btn" onclick="backToProvince()">← 전국 보기</button>
+  <div class="breadcrumb" id="breadcrumb">전국</div>
+</div>
+
+<div class="map-layout">
+  <div id="map"></div>
+  <div class="side-panel">
+    <div class="panel-header">
+      <div>지역 상세 정보</div>
+      <div class="sub" id="panel-sub">지도에서 지역을 클릭하세요</div>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <div class="panel-hint">
+        <span class="icon">🗺️</span>
+        <strong>도(道)</strong>를 클릭하면<br>
+        시·군 단위로 확대됩니다.<br><br>
+        시·군 클릭 시<br>
+        상세 농업 데이터를<br>
+        확인할 수 있습니다.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+<div id="loading"><div class="spinner"></div>지도 데이터 로딩 중...</div>
+
+<script>
+const ITEM_CODE = "{{ item_code }}";
+const ITEM_NAME = "{{ item_name }}";
+const API_BASE  = "{{ api_base }}";
+
+const PROV_NAME_TO_SIDO = {
+  "서울특별시":"KR-11","부산광역시":"KR-26","대구광역시":"KR-27","인천광역시":"KR-28",
+  "광주광역시":"KR-29","대전광역시":"KR-30","울산광역시":"KR-31","세종특별자치시":"KR-36",
+  "경기도":"KR-41","강원도":"KR-42","충청북도":"KR-43","충청남도":"KR-44",
+  "전라북도":"KR-45","전라남도":"KR-46","경상북도":"KR-47","경상남도":"KR-48","제주특별자치도":"KR-49"
+};
+const SIDO_TO_PREFIX = {
+  "KR-11":"11","KR-26":"21","KR-27":"22","KR-28":"23","KR-29":"24","KR-30":"25",
+  "KR-31":"26","KR-36":"29","KR-41":"31","KR-42":"32","KR-43":"33","KR-44":"34",
+  "KR-45":"35","KR-46":"36","KR-47":"37","KR-48":"38","KR-49":"39"
+};
+
+let currentMode = "production";
+let viewLevel   = "province";
+let currentProv = null;
+let map_, provLayer, cityLayer;
+let provGeo, cityGeo, cityData, provSignals = {};
+
+map_ = L.map("map", { zoomControl:true });
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution:"© OpenStreetMap contributors", opacity:0.4
+}).addTo(map_);
+map_.setView([36.3, 127.8], 7);
+
+loading(true);
+Promise.all([
+  fetch("/static/skorea_provinces.json").then(r=>r.json()),
+  fetch("/static/skorea_municipalities_simple.json").then(r=>r.json()),
+  fetch("/static/city_agri_data.json").then(r=>r.json()),
+  fetch(`${API_BASE}/api/v1/items/${ITEM_CODE}/signals`).then(r=>r.json()).catch(()=>({})),
+]).then(([pGeo, cGeo, cData, sig]) => {
+  provGeo  = pGeo;
+  cityGeo  = cGeo;
+  cityData = cData[ITEM_CODE] || {};
+  (sig.signals || []).forEach(s => { provSignals[s.region_code] = s; });
+  drawProvinces();
+  updateLegend();
+  loading(false);
+}).catch(e => {
+  document.getElementById("loading").innerHTML = "❌ 로딩 실패: " + e.message;
+});
+
+// ── 도 레이어 ──────────────────────────────────────────────
+function drawProvinces() {
+  if (provLayer) map_.removeLayer(provLayer);
+  if (cityLayer) map_.removeLayer(cityLayer);
+  provLayer = cityLayer = null;
+
+  provLayer = L.geoJSON(provGeo, {
+    style: feat => {
+      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || feat.properties.CTP_KOR_NM;
+      const prefix = SIDO_TO_PREFIX[sido] || "";
+      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
+      if (!entries.length) return {fillColor:"#e0e0e0", weight:1.5, color:"#888", fillOpacity:0.5};
+      return {fillColor: modeColor(entries), weight:1.5, color:"#666", fillOpacity:0.72};
+    },
+    onEachFeature: (feat, layer) => {
+      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || "";
+      const prefix = SIDO_TO_PREFIX[sido] || "";
+      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
+      const pname = feat.properties.name;
+
+      layer.on({
+        mouseover: e => {
+          e.target.setStyle({weight:2.5, fillOpacity:0.88});
+          const tot = entries.reduce((s,[,d])=>s+d.shipment_ton,0);
+          const pw  = entries.reduce((s,[,d])=>s+d.production_weight,0);
+          layer.bindTooltip(
+            `<b>${pname}</b><br>주요 산지 ${entries.length}개 시·군<br>생산 비중 ${(pw*100).toFixed(0)}%<br>연간 출하 ${(tot/1000).toFixed(0)}천 톤`,
+            {sticky:true, className:""}
+          ).openTooltip();
+        },
+        mouseout: e => { provLayer.resetStyle(e.target); layer.closeTooltip(); },
+        click: () => zoomToProvince(feat, sido, pname),
+      });
+    }
+  }).addTo(map_);
+}
+
+function modeColor(entries) {
+  if (currentMode === "production") {
+    const v = entries.reduce((s,[,d])=>s+d.production_weight,0);
+    return productionColor(v);
+  }
+  if (currentMode === "risk") {
+    const v = Math.max(...entries.map(([,d])=>d.risk_score));
+    return riskColor(v);
+  }
+  if (currentMode === "shipment") {
+    const v = entries.reduce((s,[,d])=>s+d.shipment_ton,0);
+    return shipmentColor(v);
+  }
+  // price: 평균
+  const v = entries.reduce((s,[,d])=>s+d.price_vs_avg,0) / entries.length;
+  return priceColor(v);
+}
+
+// ── 도 클릭 → 시군구 ───────────────────────────────────────
+function zoomToProvince(feat, sido, pname) {
+  currentProv = {feat, sido, pname};
+  viewLevel = "city";
+  const bounds = L.geoJSON(feat).getBounds();
+  map_.fitBounds(bounds, {padding:[30,30], maxZoom:11});
+  document.getElementById("back-btn").classList.add("show");
+  document.getElementById("breadcrumb").innerHTML = `전국 › <span>${pname}</span>`;
+  drawCities(sido);
+}
+
+function backToProvince() {
+  viewLevel = "province";
+  currentProv = null;
+  document.getElementById("back-btn").classList.remove("show");
+  document.getElementById("breadcrumb").textContent = "전국";
+  map_.setView([36.3,127.8],7);
+  drawProvinces();
+  updateLegend();
+  resetPanel();
+}
+
+// ── 시군구 레이어 ──────────────────────────────────────────
+function drawCities(sido) {
+  if (provLayer) map_.removeLayer(provLayer);
+  if (cityLayer) map_.removeLayer(cityLayer);
+  provLayer = cityLayer = null;
+
+  const prefix = SIDO_TO_PREFIX[sido] || "";
+  const filtered = {
+    type:"FeatureCollection",
+    features: cityGeo.features.filter(f => f.properties.code.startsWith(prefix))
+  };
+
+  cityLayer = L.geoJSON(filtered, {
+    style: feat => {
+      const d = cityData[feat.properties.code];
+      if (!d) return {fillColor:"#e8e8e8", weight:1, color:"#bbb", fillOpacity:0.45};
+      let clr;
+      if (currentMode==="production") clr = productionColor(d.production_weight);
+      else if (currentMode==="risk")  clr = riskColor(d.risk_score);
+      else if (currentMode==="shipment") clr = shipmentColor(d.shipment_ton);
+      else                            clr = priceColor(d.price_vs_avg);
+      return {fillColor:clr, weight:1.5, color:"#555", fillOpacity:0.82};
+    },
+    onEachFeature: (feat, layer) => {
+      const name = feat.properties.name;
+      const code = feat.properties.code;
+      const d = cityData[code];
+
+      layer.on({
+        mouseover: e => {
+          e.target.setStyle({weight:2.5, color:"#222", fillOpacity:0.95});
+          if (!d) { layer.bindTooltip(`<b>${name}</b><br><i>산지 데이터 없음</i>`,{sticky:true}).openTooltip(); return; }
+          const rl = riskLabel(d.risk_level);
+          layer.bindTooltip(
+            `<b>${name}</b><br>` +
+            `생산 비중: ${d.production_pct}%&nbsp;&nbsp;출하: ${(d.shipment_ton/1000).toFixed(1)}천톤<br>` +
+            `도매가: ${d.avg_price?.toLocaleString()}원/${d.unit}&nbsp;&nbsp;위험도: ${rl}`,
+            {sticky:true}
+          ).openTooltip();
+        },
+        mouseout: e => { cityLayer.resetStyle(e.target); layer.closeTooltip(); },
+        click: () => { showDetail(name, code, d); map_.fitBounds(layer.getBounds(), {maxZoom:10, padding:[10,10]}); },
+      });
+    }
+  }).addTo(map_);
+}
+
+// ── 상세 패널 ──────────────────────────────────────────────
+function showDetail(name, code, d) {
+  document.getElementById("panel-sub").textContent = name;
+  if (!d) {
+    document.getElementById("panel-body").innerHTML =
+      `<div class="panel-hint"><span class="icon">ℹ️</span><b>${name}</b><br>산지 데이터 없음<br><small>이 지역은 ${ITEM_NAME} 주요 산지가 아닙니다</small></div>`;
+    return;
+  }
+  const rl = d.risk_level;
+  const sy = d.shipment_yoy;
+  const pv = d.price_vs_avg;
+  const pw = Math.min(d.production_weight * 300, 100);
+
+  document.getElementById("panel-body").innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">📍 기본 정보</div>
+      <div class="kv"><span class="key">주 출하 시기</span><span class="val">${d.main_season}</span></div>
+      <div class="kv"><span class="key">재배 면적</span><span class="val">${(d.area_ha||0).toLocaleString()} ha</span></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">🌾 전국 생산 비중</div>
+      <div class="kv" style="margin-bottom:4px"><span class="key">점유율</span><span class="val" style="font-size:18px;">${d.production_pct}%</span></div>
+      <div class="prod-bar-bg"><div class="prod-bar-fill" style="width:${pw}%"><span>${d.production_pct}%</span></div></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">📦 출하 현황</div>
+      <div class="kv"><span class="key">연간 출하량</span><span class="val">${(d.shipment_ton/1000).toFixed(1)}천 톤</span></div>
+      <div class="kv"><span class="key">전년 대비</span>
+        <span class="val ${sy>0?'up':'down'}">${sy>0?'▲':'▼'} ${Math.abs(sy)}%</span></div>
+      <div class="kv"><span class="key">수확률</span><span class="val">${d.harvest_rate}%</span></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">💰 가격 정보</div>
+      <div class="kv"><span class="key">평균 도매가 (${d.unit})</span><span class="val">${(d.avg_price||0).toLocaleString()}원</span></div>
+      <div class="kv"><span class="key">평년 대비</span>
+        <span class="val ${pv>5?'up':pv<-5?'down':''}">${pv>0?'+':''}${pv}%</span></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">⚠️ 위험도</div>
+      <div class="risk-label-row">
+        <span>공급 위험 점수</span>
+        <span><b>${d.risk_score}</b>점 &nbsp;<span class="chip chip-${rl}">${riskLabel(rl)}</span></span>
+      </div>
+      <div class="risk-bar-bg">
+        <div class="risk-bar-fill" style="width:${d.risk_score}%; background:${riskColor(d.risk_score)};"></div>
+      </div>
+    </div>
+  `;
+}
+
+function resetPanel() {
+  document.getElementById("panel-sub").textContent = "지도에서 지역을 클릭하세요";
+  document.getElementById("panel-body").innerHTML = `
+    <div class="panel-hint">
+      <span class="icon">🗺️</span>
+      <strong>도(道)</strong>를 클릭하면<br>
+      시·군 단위로 확대됩니다.<br><br>
+      시·군 클릭 시<br>
+      상세 농업 데이터를<br>
+      확인할 수 있습니다.
+    </div>`;
+}
+
+// ── 모드 ───────────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll(".btn[data-mode]").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === mode)
+  );
+  if (viewLevel === "province") drawProvinces();
+  else if (currentProv)         drawCities(currentProv.sido);
+  updateLegend();
+}
+
+// ── 범례 ───────────────────────────────────────────────────
+function updateLegend() {
+  const L_CFG = {
+    production: {
+      title:"생산 비중",
+      rows:[["#eaf4fb","없음"],["#a8d4ed","~10%"],["#5baad8","10~20%"],["#2e74b5","20~30%"],["#1a4a80","30%+"]],
+    },
+    risk: {
+      title:"공급 위험도",
+      rows:[["#4caf50","정상 (0~30)"],["#ffc107","주의 (30~50)"],["#ff9800","경고 (50~70)"],["#f44336","위험 (70+)"]],
+    },
+    shipment: {
+      title:"연간 출하량",
+      rows:[["#f3f0ff","~2만톤"],["#c5b3f0","2~5만"],["#9b7fe3","5~10만"],["#7554cb","10~15만"],["#4f2fa0","15만톤+"]],
+    },
+    price: {
+      title:"평년 대비 가격",
+      rows:[["#1a7a4a","-20%↓"],["#7aba80","-10~-20%"],["#e8e8e8","±10% 보합"],["#f09b4a","+10~+20%"],["#c0392b","+20%↑"]],
+    },
+  };
+  const cfg = L_CFG[currentMode];
+  document.getElementById("legend").innerHTML =
+    `<div class="legend-title">${cfg.title}</div>` +
+    cfg.rows.map(([c,l])=>`<div class="legend-row"><div class="legend-swatch" style="background:${c}"></div>${l}</div>`).join("");
+}
+
+// ── 색상 ───────────────────────────────────────────────────
+function productionColor(w) {
+  if (!w)      return "#e0e0e0";
+  if (w<0.05)  return "#eaf4fb";
+  if (w<0.10)  return "#a8d4ed";
+  if (w<0.20)  return "#5baad8";
+  if (w<0.30)  return "#2e74b5";
+  return "#1a4a80";
+}
+function riskColor(s) {
+  if (s<30) return "#4caf50";
+  if (s<50) return "#ffc107";
+  if (s<70) return "#ff9800";
+  return "#f44336";
+}
+function shipmentColor(t) {
+  if (!t)        return "#e0e0e0";
+  if (t<20000)   return "#f3f0ff";
+  if (t<50000)   return "#c5b3f0";
+  if (t<100000)  return "#9b7fe3";
+  if (t<150000)  return "#7554cb";
+  return "#4f2fa0";
+}
+function priceColor(p) {
+  if (p<-20) return "#1a7a4a";
+  if (p<-10) return "#7aba80";
+  if (p<10)  return "#e8e8e8";
+  if (p<20)  return "#f09b4a";
+  return "#c0392b";
+}
+function riskLabel(rl) {
+  return {normal:"정상",caution:"주의",warning:"경고",high:"위험"}[rl]||rl;
+}
+function loading(show) {
+  document.getElementById("loading").style.display = show?"block":"none";
+}
+</script>
+</body>
+</html>
