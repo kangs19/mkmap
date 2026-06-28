@@ -105,10 +105,5 @@ async def index_html():
 
 @app.get("/")
 async def root():
-    return {
-        "service": "AgriDigitalTwin API",
-        "version": "0.2.0",
-        "docs": "/docs",
-        "dashboard": "/dashboard",
-        "map_example": "/maps/items/cabbage",
-    }
+    p = Path(__file__).parent.parent.parent / "index.html"
+    return FileResponse(str(p), media_type="text/html")
