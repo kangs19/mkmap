@@ -6,7 +6,18 @@ cd /app/backend
 echo "=== AgriDigitalTwin 서버 시작 ==="
 echo "환경: ${APP_ENV:-production}"
 
-# DB가 없거나 비어있으면 초기화
+# uvicorn 먼저 백그라운드 시작 (헬스체크 통과용)
+echo "서버 시작: 0.0.0.0:${PORT:-8100}"
+uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port ${PORT:-8100} \
+    --workers 1 &
+UVICORN_PID=$!
+
+# 서버가 뜰 때까지 잠깐 대기
+sleep 5
+
+# DB가 없거나 비어있으면 초기화 (백그라운드)
 if [ ! -f "agri_twin.db" ] || [ ! -s "agri_twin.db" ]; then
     echo "[1/3] DB 초기화 및 품목 메타데이터 시드..."
     python -c "
@@ -36,8 +47,5 @@ asyncio.run(run())
     echo "=== 초기화 완료 ==="
 fi
 
-echo "서버 시작: 0.0.0.0:${PORT:-8100}"
-exec uvicorn app.main:app \
-    --host 0.0.0.0 \
-    --port ${PORT:-8100} \
-    --workers 1
+# uvicorn 프로세스 대기 (foreground 유지)
+wait $UVICORN_PID
