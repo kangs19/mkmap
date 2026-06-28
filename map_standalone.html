@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>농산물 가격 위험 신호 지도 — MK-MAP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a1628;
+  --surface:  #0f1f35;
+  --card:     #132438;
+  --border:   rgba(86,164,216,0.15);
+  --accent:   #3b9ae1;
+  --gold:     #f4b942;
+  --danger:   #e74c3c;
+  --warn:     #e67e22;
+  --ok:       #27ae60;
+  --text:     #e8f0fe;
+  --muted:    rgba(232,240,254,0.45);
+  --dimmed:   rgba(232,240,254,0.2);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Noto Sans KR',sans-serif; overflow:hidden; }
+.page { display:flex; flex-direction:column; height:100vh; }
+
+/* ══════════════════ HEADER ══════════════════ */
+.header {
+  background:linear-gradient(90deg, #081220 0%, #0f1f35 60%, #091829 100%);
+  border-bottom:1px solid var(--border);
+  padding:0 16px;
+  height:52px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-shrink:0;
+  position:relative;
+  z-index:1000;
+}
+.header::after {
+  content:'';
+  position:absolute;
+  bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--gold),var(--accent),transparent);
+  opacity:.5;
+}
+
+/* 로고 */
+.logo-wrap { display:flex; align-items:center; gap:8px; margin-right:6px; }
+.logo-icon {
+  width:32px; height:32px; background:linear-gradient(135deg,#1a4a80,#3b9ae1);
+  border-radius:8px; display:flex; align-items:center; justify-content:center;
+  font-size:16px; box-shadow:0 2px 8px rgba(59,154,225,0.3);
+}
+.logo-text { line-height:1.2; }
+.logo-text .top { font-size:14px; font-weight:700; color:white; letter-spacing:.5px; }
+.logo-text .top span { color:var(--gold); }
+.logo-text .bot { font-size:9px; color:var(--muted); letter-spacing:.3px; }
+
+/* 라이브 배지 */
+.live-badge {
+  display:flex; align-items:center; gap:4px; padding:3px 8px;
+  background:rgba(39,174,96,0.12); border:1px solid rgba(39,174,96,0.25);
+  border-radius:10px; font-size:9px; color:#81d4a0; letter-spacing:.3px;
+}
+.live-dot { width:5px; height:5px; background:#27ae60; border-radius:50%; animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+
+/* 품목 탭 */
+.item-tabs { display:flex; gap:4px; }
+.item-tab {
+  padding:5px 13px; border-radius:16px; font-size:11px; font-weight:500;
+  cursor:pointer; color:var(--muted); border:1px solid var(--border); transition:all .2s; white-space:nowrap;
+}
+.item-tab:hover:not(.active) { background:rgba(59,154,225,0.1); color:var(--text); border-color:rgba(59,154,225,0.3); }
+.item-tab.active { background:var(--gold); color:#0a1628; font-weight:700; border-color:var(--gold); box-shadow:0 2px 8px rgba(244,185,66,0.35); }
+
+/* 모드 토글 */
+.mode-group {
+  margin-left:auto; display:flex; background:rgba(255,255,255,0.04);
+  border:1px solid var(--border); border-radius:18px; overflow:hidden; padding:2px;
+}
+.mode-btn {
+  padding:4px 11px; border-radius:14px; font-size:10px; font-weight:500;
+  cursor:pointer; color:var(--muted); border:none; background:none;
+  transition:all .2s; white-space:nowrap;
+}
+.mode-btn:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.05); }
+.mode-btn.active { background:var(--accent); color:white; box-shadow:0 1px 6px rgba(59,154,225,0.4); }
+
+/* 브레드크럼 + 백 버튼 */
+.nav-area { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--dimmed); }
+.back-btn {
+  padding:3px 9px; border:1px solid var(--gold); background:rgba(244,185,66,0.08);
+  color:var(--gold); border-radius:10px; font-size:10px; cursor:pointer;
+  display:none; transition:all .15s;
+}
+.back-btn.show { display:inline-block; }
+.back-btn:hover { background:rgba(244,185,66,0.2); }
+.breadcrumb b { color:rgba(255,255,255,0.8); }
+
+/* ══════════════════ BODY ══════════════════ */
+.body { display:flex; flex:1; overflow:hidden; }
+#map { flex:1; }
+
+/* Leaflet 오버라이드 */
+.leaflet-container { background:#0a1628; }
+.leaflet-tooltip {
+  background:rgba(10,22,40,0.95) !important; border:1px solid var(--border) !important;
+  color:var(--text) !important; border-radius:8px !important; font-size:11px !important;
+  font-family:'Noto Sans KR',sans-serif !important; box-shadow:0 4px 16px rgba(0,0,0,0.4) !important;
+  padding:7px 10px !important;
+}
+.leaflet-tooltip::before { display:none !important; }
+.leaflet-control-zoom a { background:var(--card) !important; border-color:var(--border) !important; color:var(--text) !important; }
+.leaflet-control-zoom a:hover { background:var(--surface) !important; }
+.leaflet-control-attribution { background:rgba(10,22,40,0.7) !important; color:var(--dimmed) !important; font-size:9px !important; }
+
+/* ══════════════════ SIDEBAR ══════════════════ */
+.side {
+  width:268px; background:var(--surface);
+  display:flex; flex-direction:column;
+  border-left:1px solid var(--border);
+  flex-shrink:0; overflow:hidden;
+}
+
+/* 사이드 헤더 */
+.side-head {
+  padding:12px 14px 10px;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.side-head .sh-top { display:flex; align-items:center; justify-content:space-between; }
+.side-head .sh-title { font-size:12px; font-weight:700; color:white; }
+.side-head .sh-sub { font-size:10px; color:var(--muted); margin-top:3px; }
+.date-badge {
+  font-size:9px; padding:2px 7px; background:rgba(59,154,225,0.1);
+  border:1px solid rgba(59,154,225,0.2); border-radius:8px; color:var(--accent);
+}
+
+/* 품목 예측 카드 */
+.pred-card { padding:12px 14px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.pred-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.dir-icon {
+  width:38px; height:38px; border-radius:10px; display:flex; align-items:center;
+  justify-content:center; font-size:20px; font-weight:900; flex-shrink:0;
+}
+.dir-up   { background:rgba(231,76,60,0.15);  color:#e74c3c; border:1px solid rgba(231,76,60,0.25); }
+.dir-down { background:rgba(52,152,219,0.15); color:#3498db; border:1px solid rgba(52,152,219,0.25); }
+.dir-neu  { background:rgba(149,165,166,.15); color:#95a5a6; border:1px solid rgba(149,165,166,.25); }
+.pred-info .pred-label { font-size:12px; font-weight:700; color:white; margin-bottom:2px; }
+.pred-info .pred-conf { font-size:10px; color:var(--muted); }
+
+.kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.kpi-cell {
+  background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px;
+  padding:7px 9px; text-align:center; transition:border-color .2s;
+}
+.kpi-cell:hover { border-color:rgba(59,154,225,0.3); }
+.kpi-lbl { font-size:9px; color:var(--dimmed); margin-bottom:3px; text-transform:uppercase; letter-spacing:.3px; }
+.kpi-val { font-size:17px; font-weight:700; color:white; line-height:1; }
+.kpi-val.red  { color:#e74c3c; }
+.kpi-val.gold { color:var(--gold); }
+.kpi-val.blue { color:var(--accent); }
+.kpi-sub { font-size:9px; color:var(--dimmed); margin-top:2px; }
+
+.risk-chip {
+  display:inline-flex; align-items:center; gap:3px;
+  padding:2px 7px; border-radius:8px; font-size:9px; font-weight:700;
+}
+.rc-normal  { background:rgba(39,174,96,.15);  color:#81d4a0; border:1px solid rgba(39,174,96,.2); }
+.rc-caution { background:rgba(244,185,66,.15); color:var(--gold); border:1px solid rgba(244,185,66,.2); }
+.rc-warning { background:rgba(230,126,34,.15); color:#f0a454; border:1px solid rgba(230,126,34,.2); }
+.rc-high    { background:rgba(231,76,60,.15);  color:#ef9a9a; border:1px solid rgba(231,76,60,.2); }
+
+/* 스크롤 영역 */
+.side-scroll { flex:1; overflow-y:auto; }
+.side-scroll::-webkit-scrollbar { width:3px; }
+.side-scroll::-webkit-scrollbar-track { background:transparent; }
+.side-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* 지역 상세 */
+.detail-wrap { padding:12px 14px; }
+.sec { margin-bottom:12px; }
+.sec-head {
+  font-size:9px; color:var(--dimmed); text-transform:uppercase; letter-spacing:.5px;
+  margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:5px;
+}
+.kv { display:flex; justify-content:space-between; align-items:center; padding:3px 0; }
+.kv-k { font-size:11px; color:var(--muted); }
+.kv-v { font-size:11px; font-weight:600; color:white; }
+.kv-v.up   { color:#e74c3c; }
+.kv-v.down { color:#3498db; }
+.kv-v.big  { font-size:18px; color:var(--accent); }
+
+.bar-wrap { margin:5px 0 8px; }
+.bar-track { background:rgba(255,255,255,0.06); border-radius:4px; height:10px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:5px; transition:width .5s cubic-bezier(.4,0,.2,1); min-width:32px; }
+.bar-fill-prod { background:linear-gradient(90deg,#1a4a80,#3b9ae1); }
+.bar-fill-risk { }
+.bar-fill span { font-size:9px; color:white; font-weight:700; }
+.bar-thin { background:rgba(255,255,255,0.05); border-radius:3px; height:5px; margin-top:4px; overflow:hidden; }
+.bar-thin-fill { height:100%; border-radius:3px; transition:width .5s; }
+
+.hint-wrap { padding:32px 14px; text-align:center; }
+.hint-ico { font-size:32px; margin-bottom:12px; opacity:.35; }
+.hint-txt { font-size:11px; color:var(--dimmed); line-height:2; }
+
+/* ══════════════════ LEGEND ══════════════════ */
+.legend {
+  position:absolute; bottom:22px; left:12px; z-index:1000;
+  background:rgba(10,22,40,0.93); border-radius:10px; padding:10px 13px;
+  border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,0.4); min-width:138px;
+}
+.legend-title { font-size:10px; font-weight:700; color:white; margin-bottom:6px; letter-spacing:.3px; }
+.legend-row { display:flex; align-items:center; gap:7px; margin:3.5px 0; }
+.legend-sw { width:14px; height:8px; border-radius:2px; flex-shrink:0; border:1px solid rgba(255,255,255,0.06); }
+.legend-lbl { font-size:10px; color:var(--muted); }
+
+/* ══════════════════ LOADING ══════════════════ */
+#loading {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  background:rgba(10,22,40,0.96); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:3000;
+}
+.loading-inner { text-align:center; }
+.spin-ring {
+  width:48px; height:48px; border-radius:50%; margin:0 auto 16px;
+  border:3px solid rgba(59,154,225,0.15); border-top-color:var(--accent);
+  animation:spin .9s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-title { font-size:15px; font-weight:700; color:white; margin-bottom:4px; }
+.loading-sub { font-size:11px; color:var(--muted); }
+
+/* ══════════════════ FOOTER BRAND ══════════════════ */
+.map-brand {
+  position:absolute; bottom:8px; right:270px; z-index:1000;
+  display:flex; align-items:center; gap:5px;
+  background:rgba(10,22,40,0.82); border:1px solid var(--border);
+  border-radius:12px; padding:4px 10px; font-size:9px; color:var(--dimmed);
+}
+.map-brand span { color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══ HEADER ══ -->
+<div class="header">
+  <div class="logo-wrap">
+    <div class="logo-icon">🌾</div>
+    <div class="logo-text">
+      <div class="top">MK<span>-</span>MAP</div>
+      <div class="bot">농산물 가격 위험 신호 엔진</div>
+    </div>
+  </div>
+
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    MOCK DATA
+  </div>
+
+  <div class="item-tabs" id="item-tabs"></div>
+
+  <div class="mode-group">
+    <button class="mode-btn active" data-mode="production" onclick="setMode('production')">🌾 생산지</button>
+    <button class="mode-btn" data-mode="risk"       onclick="setMode('risk')">⚠️ 위험도</button>
+    <button class="mode-btn" data-mode="shipment"   onclick="setMode('shipment')">📦 출하량</button>
+    <button class="mode-btn" data-mode="price"      onclick="setMode('price')">💰 가격변동</button>
+  </div>
+
+  <div class="nav-area">
+    <button class="back-btn" id="back-btn" onclick="backToProvince()">← 전국</button>
+    <div class="breadcrumb" id="breadcrumb">전국</div>
+  </div>
+</div>
+
+<!-- ══ BODY ══ -->
+<div class="body">
+  <div id="map"></div>
+
+  <!-- SIDEBAR -->
+  <div class="side">
+    <div class="side-head">
+      <div class="sh-top">
+        <div class="sh-title">📊 가격 예측 현황</div>
+        <div class="date-badge" id="date-badge"></div>
+      </div>
+      <div class="sh-sub" id="side-sub">품목을 선택하세요</div>
+    </div>
+
+    <div class="pred-card" id="pred-card"></div>
+
+    <div class="side-scroll">
+      <div id="region-detail">
+        <div class="hint-wrap">
+          <div class="hint-ico">🗺️</div>
+          <div class="hint-txt">도(道)를 클릭하면<br>시·군 단위로 확대됩니다<br><br>각 지역의 생산·출하·가격<br>상세 정보를 확인하세요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ LEGEND ══ -->
+<div class="legend" id="legend"></div>
+
+<!-- ══ LOADING ══ -->
+<div id="loading">
+  <div class="loading-inner">
+    <div class="spin-ring"></div>
+    <div class="loading-title">지도 데이터 로딩 중</div>
+    <div class="loading-sub">한국 행정구역 GeoJSON 로딩...</div>
+  </div>
+</div>
+
+<!-- ══ BRAND ══ -->
+<div class="map-brand">
+  <span>MK-MAP</span> mk-map.com © 2026 &nbsp;|&nbsp; Mock Data
+</div>
+
+<script>
+/* ─ 품목 데이터 ─ */
+const ITEMS = {
+  cabbage:{name:"배추",emoji:"🥬",unit:"10kg",direction:"down",up_prob:.39,surge_prob:.28,volatility:"high",confidence:"medium",hotspot:"강원도",risk_level:"normal",risk_score:22},
+  radish:{name:"무",emoji:"🌿",unit:"20kg",direction:"neutral",up_prob:.51,surge_prob:.18,volatility:"medium",confidence:"medium",hotspot:"제주도",risk_level:"normal",risk_score:19},
+  onion:{name:"양파",emoji:"🧅",unit:"20kg",direction:"up",up_prob:.59,surge_prob:.48,volatility:"high",confidence:"medium",hotspot:"경상남도",risk_level:"caution",risk_score:52},
+  green_onion:{name:"대파",emoji:"🌱",unit:"1kg",direction:"down",up_prob:.38,surge_prob:.32,volatility:"high",confidence:"low",hotspot:"전라남도",risk_level:"warning",risk_score:62},
+  garlic:{name:"마늘",emoji:"🧄",unit:"10kg",direction:"down",up_prob:.26,surge_prob:.12,volatility:"low",confidence:"high",hotspot:"경상북도",risk_level:"normal",risk_score:24},
+};
+
+const CITY_DATA = {"cabbage":{"32340":{"name":"평창군","province_code":"KR-42","production_weight":.18,"production_pct":18,"shipment_ton":85000,"shipment_yoy":35.6,"risk_score":22,"risk_level":"normal","avg_price":5763,"unit":"10kg","price_vs_avg":-16.7,"harvest_rate":83.1,"area_ha":16243,"main_season":"여름"},"32350":{"name":"정선군","province_code":"KR-42","production_weight":.08,"production_pct":8,"shipment_ton":38000,"shipment_yoy":22.4,"risk_score":18,"risk_level":"normal","avg_price":5004,"unit":"10kg","price_vs_avg":14.3,"harvest_rate":78,"area_ha":7423,"main_season":"여름"},"32050":{"name":"태백시","province_code":"KR-42","production_weight":.06,"production_pct":6,"shipment_ton":28000,"shipment_yoy":-8.2,"risk_score":25,"risk_level":"normal","avg_price":5312,"unit":"10kg","price_vs_avg":5.1,"harvest_rate":91.2,"area_ha":5600,"main_season":"여름"},"36400":{"name":"해남군","province_code":"KR-46","production_weight":.22,"production_pct":22,"shipment_ton":105000,"shipment_yoy":13.1,"risk_score":35,"risk_level":"caution","avg_price":6534,"unit":"10kg","price_vs_avg":-7,"harvest_rate":92.2,"area_ha":41621,"main_season":"겨울"},"36470":{"name":"진도군","province_code":"KR-46","production_weight":.09,"production_pct":9,"shipment_ton":43000,"shipment_yoy":6.8,"risk_score":30,"risk_level":"normal","avg_price":5180,"unit":"10kg","price_vs_avg":18.2,"harvest_rate":88.4,"area_ha":8600,"main_season":"겨울"},"33360":{"name":"괴산군","province_code":"KR-43","production_weight":.07,"production_pct":7,"shipment_ton":33000,"shipment_yoy":-3.5,"risk_score":20,"risk_level":"normal","avg_price":5050,"unit":"10kg","price_vs_avg":8.9,"harvest_rate":85.7,"area_ha":6600,"main_season":"가을"},"39010":{"name":"제주시","province_code":"KR-49","production_weight":.12,"production_pct":12,"shipment_ton":57000,"shipment_yoy":24.3,"risk_score":28,"risk_level":"normal","avg_price":5242,"unit":"10kg","price_vs_avg":-15.7,"harvest_rate":79.2,"area_ha":20509,"main_season":"겨울"}},"radish":{"39010":{"name":"제주시","province_code":"KR-49","production_weight":.28,"production_pct":28,"shipment_ton":120000,"shipment_yoy":8.4,"risk_score":20,"risk_level":"normal","avg_price":12500,"unit":"20kg","price_vs_avg":5.2,"harvest_rate":91,"area_ha":24000,"main_season":"겨울"},"39020":{"name":"서귀포시","province_code":"KR-49","production_weight":.15,"production_pct":15,"shipment_ton":64000,"shipment_yoy":-4.2,"risk_score":18,"risk_level":"normal","avg_price":11800,"unit":"20kg","price_vs_avg":2.8,"harvest_rate":93.5,"area_ha":12800,"main_season":"겨울"},"36400":{"name":"해남군","province_code":"KR-46","production_weight":.18,"production_pct":18,"shipment_ton":77000,"shipment_yoy":15.6,"risk_score":30,"risk_level":"normal","avg_price":13200,"unit":"20kg","price_vs_avg":-8.4,"harvest_rate":87.2,"area_ha":15400,"main_season":"가을"},"32340":{"name":"평창군","province_code":"KR-42","production_weight":.09,"production_pct":9,"shipment_ton":38000,"shipment_yoy":3.2,"risk_score":22,"risk_level":"normal","avg_price":12100,"unit":"20kg","price_vs_avg":6.7,"harvest_rate":82.3,"area_ha":7600,"main_season":"여름"},"31200":{"name":"파주시","province_code":"KR-41","production_weight":.06,"production_pct":6,"shipment_ton":26000,"shipment_yoy":-9.1,"risk_score":15,"risk_level":"normal","avg_price":11500,"unit":"20kg","price_vs_avg":12.3,"harvest_rate":95.2,"area_ha":5200,"main_season":"봄"}},"onion":{"36420":{"name":"무안군","province_code":"KR-46","production_weight":.28,"production_pct":28,"shipment_ton":145000,"shipment_yoy":18.3,"risk_score":45,"risk_level":"caution","avg_price":19200,"unit":"20kg","price_vs_avg":14.2,"harvest_rate":88.5,"area_ha":29000,"main_season":"봄"},"36480":{"name":"신안군","province_code":"KR-46","production_weight":.12,"production_pct":12,"shipment_ton":62000,"shipment_yoy":9.7,"risk_score":38,"risk_level":"caution","avg_price":18500,"unit":"20kg","price_vs_avg":8.6,"harvest_rate":91.2,"area_ha":12400,"main_season":"봄"},"38330":{"name":"창녕군","province_code":"KR-48","production_weight":.18,"production_pct":18,"shipment_ton":93000,"shipment_yoy":22.1,"risk_score":52,"risk_level":"warning","avg_price":20100,"unit":"20kg","price_vs_avg":22.5,"harvest_rate":84.3,"area_ha":18600,"main_season":"봄"},"38400":{"name":"합천군","province_code":"KR-48","production_weight":.08,"production_pct":8,"shipment_ton":41000,"shipment_yoy":6.4,"risk_score":40,"risk_level":"caution","avg_price":18800,"unit":"20kg","price_vs_avg":11.3,"harvest_rate":86.7,"area_ha":8200,"main_season":"봄"},"39010":{"name":"제주시","province_code":"KR-49","production_weight":.10,"production_pct":10,"shipment_ton":52000,"shipment_yoy":4.2,"risk_score":35,"risk_level":"caution","avg_price":18200,"unit":"20kg","price_vs_avg":6.8,"harvest_rate":92.1,"area_ha":10400,"main_season":"봄"},"37360":{"name":"청도군","province_code":"KR-47","production_weight":.07,"production_pct":7,"shipment_ton":36000,"shipment_yoy":-5.8,"risk_score":30,"risk_level":"normal","avg_price":17900,"unit":"20kg","price_vs_avg":3.4,"harvest_rate":90.5,"area_ha":7200,"main_season":"봄"}},"green_onion":{"36470":{"name":"진도군","province_code":"KR-46","production_weight":.20,"production_pct":20,"shipment_ton":58000,"shipment_yoy":28.4,"risk_score":62,"risk_level":"warning","avg_price":2800,"unit":"1kg","price_vs_avg":28.5,"harvest_rate":82.6,"area_ha":11600,"main_season":"연중"},"36440":{"name":"영광군","province_code":"KR-46","production_weight":.10,"production_pct":10,"shipment_ton":29000,"shipment_yoy":14.2,"risk_score":55,"risk_level":"warning","avg_price":2650,"unit":"1kg","price_vs_avg":18.3,"harvest_rate":85.4,"area_ha":5800,"main_season":"연중"},"38080":{"name":"밀양시","province_code":"KR-48","production_weight":.12,"production_pct":12,"shipment_ton":35000,"shipment_yoy":-3.5,"risk_score":48,"risk_level":"caution","avg_price":2720,"unit":"1kg","price_vs_avg":10.2,"harvest_rate":87.3,"area_ha":7000,"main_season":"연중"},"31070":{"name":"평택시","province_code":"KR-41","production_weight":.09,"production_pct":9,"shipment_ton":26000,"shipment_yoy":5.6,"risk_score":40,"risk_level":"caution","avg_price":2600,"unit":"1kg","price_vs_avg":6.8,"harvest_rate":91.5,"area_ha":5200,"main_season":"연중"},"32010":{"name":"춘천시","province_code":"KR-42","production_weight":.06,"production_pct":6,"shipment_ton":17000,"shipment_yoy":-6.8,"risk_score":30,"risk_level":"normal","avg_price":2480,"unit":"1kg","price_vs_avg":-2.8,"harvest_rate":89.7,"area_ha":3400,"main_season":"연중"}},"garlic":{"37320":{"name":"의성군","province_code":"KR-47","production_weight":.22,"production_pct":22,"shipment_ton":52000,"shipment_yoy":6.4,"risk_score":28,"risk_level":"normal","avg_price":26200,"unit":"10kg","price_vs_avg":7.1,"harvest_rate":91.3,"area_ha":10400,"main_season":"봄"},"38350":{"name":"남해군","province_code":"KR-48","production_weight":.15,"production_pct":15,"shipment_ton":35000,"shipment_yoy":11.8,"risk_score":32,"risk_level":"caution","avg_price":26800,"unit":"10kg","price_vs_avg":12.5,"harvest_rate":88.6,"area_ha":7000,"main_season":"봄"},"34050":{"name":"서산시","province_code":"KR-44","production_weight":.12,"production_pct":12,"shipment_ton":28000,"shipment_yoy":8.9,"risk_score":20,"risk_level":"normal","avg_price":25200,"unit":"10kg","price_vs_avg":2.8,"harvest_rate":93.7,"area_ha":5600,"main_season":"봄"},"39010":{"name":"제주시","province_code":"KR-49","production_weight":.10,"production_pct":10,"shipment_ton":24000,"shipment_yoy":5.3,"risk_score":15,"risk_level":"normal","avg_price":24800,"unit":"10kg","price_vs_avg":-3.5,"harvest_rate":96.1,"area_ha":4800,"main_season":"봄"}}};
+
+const PROV_NAME_MAP = {
+  "서울특별시":"KR-11","서울":"KR-11","부산광역시":"KR-26","부산":"KR-26",
+  "대구광역시":"KR-27","대구":"KR-27","인천광역시":"KR-28","인천":"KR-28",
+  "광주광역시":"KR-29","광주":"KR-29","대전광역시":"KR-30","대전":"KR-30",
+  "울산광역시":"KR-31","울산":"KR-31","세종특별자치시":"KR-36","세종":"KR-36",
+  "경기도":"KR-41","경기":"KR-41","강원도":"KR-42","강원":"KR-42","강원특별자치도":"KR-42",
+  "충청북도":"KR-43","충북":"KR-43","충청남도":"KR-44","충남":"KR-44",
+  "전라북도":"KR-45","전북":"KR-45","전북특별자치도":"KR-45",
+  "전라남도":"KR-46","전남":"KR-46","경상북도":"KR-47","경북":"KR-47",
+  "경상남도":"KR-48","경남":"KR-48","제주특별자치도":"KR-49","제주":"KR-49",
+};
+const SIDO_PREFIX = {"KR-11":"11","KR-26":"21","KR-27":"22","KR-28":"23","KR-29":"24","KR-30":"25","KR-31":"26","KR-36":"29","KR-41":"31","KR-42":"32","KR-43":"33","KR-44":"34","KR-45":"35","KR-46":"36","KR-47":"37","KR-48":"38","KR-49":"39"};
+
+const GEO = "map_viewer/static/";
+
+let curItem="cabbage", curMode="production", viewLevel="province", curProv=null;
+let map_, provLayer, cityLayer, provGeo, cityGeo;
+let codeProp="code", nameProp="name";
+
+/* ── 초기화 ── */
+window.onload = () => {
+  // 날짜
+  const now = new Date();
+  document.getElementById("date-badge").textContent =
+    `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+  renderTabs(); renderPredCard();
+
+  map_ = L.map("map", {zoomControl:true, preferCanvas:true});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution:"© OpenStreetMap © CARTO", opacity:.55, maxZoom:18
+  }).addTo(map_);
+  map_.setView([36.3,127.9], 7);
+
+  Promise.all([
+    fetch(GEO+"skorea_provinces.json").then(r=>r.json()),
+    fetch(GEO+"skorea_municipalities_simple.json").then(r=>r.json()),
+  ]).then(([p,c]) => {
+    provGeo=p; cityGeo=c;
+    // 코드·이름 프로퍼티 자동 감지
+    const s=c.features[0]?.properties||{};
+    codeProp=["code","SIG_CD","adm_cd"].find(k=>s[k])||"code";
+    nameProp=["name","SIG_KOR_NM"].find(k=>s[k])||"name";
+    drawProvinces(); updateLegend();
+    document.getElementById("loading").style.display="none";
+  }).catch(e => {
+    document.getElementById("loading").innerHTML =
+      `<div class="loading-inner"><div style="font-size:32px">❌</div><div class="loading-title" style="margin-top:12px">로딩 실패</div><div class="loading-sub">${e.message}</div></div>`;
+  });
+};
+
+function renderTabs() {
+  document.getElementById("item-tabs").innerHTML =
+    Object.entries(ITEMS).map(([k,it])=>
+      `<div class="item-tab${k===curItem?' active':''}" onclick="selectItem('${k}')">${it.emoji} ${it.name}</div>`
+    ).join("");
+}
+
+function selectItem(k) {
+  curItem=k; renderTabs(); renderPredCard();
+  if (viewLevel==="province") drawProvinces(); else drawCities(curProv.sido);
+  setHint();
+}
+
+function renderPredCard() {
+  const it = ITEMS[curItem];
+  const DA={up:"↑",down:"↓",neutral:"→"};
+  const DC={up:"dir-up",down:"dir-down",neutral:"dir-neu"};
+  const DL={up:"14일 내 <b>상승</b> 예상",down:"14일 내 <b>하락</b> 예상",neutral:"<b>보합</b> 예상"};
+  const CL={high:"신뢰도 높음 ★★★",medium:"신뢰도 중간 ★★☆",low:"신뢰도 낮음 ★☆☆"};
+  const VL={high:"높음",medium:"보통",low:"낮음"};
+  const RC={normal:"rc-normal",caution:"rc-caution",warning:"rc-warning",high:"rc-high"};
+  const RL2={normal:"정상",caution:"주의",warning:"경고",high:"위험"};
+  document.getElementById("pred-card").innerHTML = `
+    <div class="pred-row">
+      <div class="dir-icon ${DC[it.direction]}">${DA[it.direction]}</div>
+      <div class="pred-info">
+        <div class="pred-label">${DL[it.direction]}</div>
+        <div class="pred-conf">${CL[it.confidence]}</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-cell">
+        <div class="kpi-lbl">상승 확률</div>
+        <div class="kpi-val ${it.up_prob>.5?'red':''}">${(it.up_prob*100).toFixed(0)}%</div>
+        <div class="kpi-sub">14일 기준</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-lbl">급등 확률</div>
+        <div class="kpi-val ${it.surge_prob>.3?'gold':''}">${(it.surge_prob*100).toFixed(0)}%</div>
+        <div class="kpi-sub">+15% 이상</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-lbl">가격 변동성</div>
+        <div class="kpi-val ${it.volatility==='high'?'red':it.volatility==='low'?'blue':''}">${VL[it.volatility]}</div>
+        <div class="kpi-sub">30일 기준</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-lbl">최고 위험 지역</div>
+        <div class="kpi-val" style="font-size:11px;color:white;margin-top:2px">${it.hotspot.replace(/도|광역시|특별자치도/g,'')}</div>
+        <div class="kpi-sub"><span class="risk-chip ${RC[it.risk_level]}">${RL2[it.risk_level]}</span></div>
+      </div>
+    </div>`;
+  document.getElementById("side-sub").textContent = `${it.name} — 전국 주산지 현황`;
+}
+
+function setHint() {
+  document.getElementById("region-detail").innerHTML =
+    `<div class="hint-wrap"><div class="hint-ico">🗺️</div><div class="hint-txt">도(道)를 클릭하면<br>시·군 단위로 확대됩니다<br><br>각 지역의 생산·출하·가격<br>상세 정보를 확인하세요</div></div>`;
+}
+
+/* ── 도 레이어 ── */
+function drawProvinces() {
+  if (provLayer) map_.removeLayer(provLayer);
+  if (cityLayer) map_.removeLayer(cityLayer);
+  cityLayer=null;
+  const cd=CITY_DATA[curItem]||{};
+  provLayer=L.geoJSON(provGeo,{
+    style:f=>{
+      const sido=getSido(f), pfx=SIDO_PREFIX[sido]||"";
+      const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
+      if(!ents.length) return {fillColor:"#111c2a",weight:1.2,color:"#1e3a55",fillOpacity:.5,dashArray:"3"};
+      return {fillColor:modeColor(ents),weight:1.5,color:"rgba(86,164,216,0.5)",fillOpacity:.82};
+    },
+    onEachFeature:(f,layer)=>{
+      const sido=getSido(f), pfx=SIDO_PREFIX[sido]||"";
+      const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
+      const pname=f.properties.name||f.properties.name_eng||"";
+      layer.on({
+        mouseover:e=>{
+          e.target.setStyle({weight:2.5,color:"#f4b942",fillOpacity:.95});
+          const tot=ents.reduce((s,[,d])=>s+d.shipment_ton,0);
+          const pw=ents.reduce((s,[,d])=>s+d.production_weight,0);
+          layer.bindTooltip(
+            `<b>${pname}</b><br>주요 산지 ${ents.length}개 시·군<br>전국 생산 비중 ${(pw*100).toFixed(0)}%<br>연간 출하 약 ${(tot/1000).toFixed(0)}천 톤`,
+            {sticky:true}
+          ).openTooltip();
+        },
+        mouseout:e=>{provLayer.resetStyle(e.target);layer.closeTooltip();},
+        click:()=>ents.length&&zoomProv(f,sido,pname),
+      });
+    }
+  }).addTo(map_);
+}
+
+function getSido(f){
+  const n=f.properties.name||f.properties.name_kor||"";
+  return PROV_NAME_MAP[n]||"";
+}
+
+function zoomProv(f,sido,pname) {
+  curProv={f,sido,pname}; viewLevel="city";
+  map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
+  document.getElementById("back-btn").classList.add("show");
+  document.getElementById("breadcrumb").innerHTML=`전국 › <b>${pname}</b>`;
+  drawCities(sido); setHint();
+}
+
+function backToProvince() {
+  viewLevel="province"; curProv=null;
+  document.getElementById("back-btn").classList.remove("show");
+  document.getElementById("breadcrumb").textContent="전국";
+  map_.setView([36.3,127.9],7);
+  drawProvinces(); updateLegend(); setHint();
+}
+
+/* ── 시군구 레이어 ── */
+function drawCities(sido) {
+  if (provLayer) map_.removeLayer(provLayer);
+  if (cityLayer) map_.removeLayer(cityLayer);
+  provLayer=cityLayer=null;
+  const cd=CITY_DATA[curItem]||{}, pfx=SIDO_PREFIX[sido]||"";
+  const filtered={type:"FeatureCollection",
+    features:cityGeo.features.filter(f=>String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5).startsWith(pfx))};
+  cityLayer=L.geoJSON(filtered,{
+    style:f=>{
+      const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
+      const d=cd[code];
+      if(!d) return {fillColor:"#111c2a",weight:1,color:"#1e3a55",fillOpacity:.3,dashArray:"2"};
+      let clr;
+      if(curMode==="production") clr=pColor(d.production_weight);
+      else if(curMode==="risk")  clr=rColor(d.risk_score);
+      else if(curMode==="shipment") clr=sColor(d.shipment_ton);
+      else clr=prColor(d.price_vs_avg);
+      return {fillColor:clr,weight:1.5,color:"rgba(86,164,216,0.6)",fillOpacity:.9};
+    },
+    onEachFeature:(f,layer)=>{
+      const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
+      const name=f.properties[nameProp]||code, d=CITY_DATA[curItem]?.[code];
+      layer.on({
+        mouseover:e=>{
+          e.target.setStyle({weight:2.5,color:"#f4b942",fillOpacity:1});
+          if(!d){layer.bindTooltip(`<b>${name}</b><br><span style="color:#888">산지 데이터 없음</span>`,{sticky:true}).openTooltip();return;}
+          layer.bindTooltip(
+            `<b>${name}</b><br>생산 비중 ${d.production_pct}% &nbsp;|&nbsp; 출하 ${(d.shipment_ton/1000).toFixed(1)}천톤<br>도매가 ${d.avg_price?.toLocaleString()}원/${d.unit} &nbsp; 위험 <span style="color:${rColor(d.risk_score)}">${RL(d.risk_level)}</span>`,
+            {sticky:true}
+          ).openTooltip();
+        },
+        mouseout:e=>{cityLayer.resetStyle(e.target);layer.closeTooltip();},
+        click:()=>{showDetail(name,code,d);d&&map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});},
+      });
+    }
+  }).addTo(map_);
+}
+
+/* ── 지역 상세 패널 ── */
+function showDetail(name,code,d) {
+  document.getElementById("side-sub").textContent=name;
+  if(!d){
+    document.getElementById("region-detail").innerHTML=
+      `<div class="hint-wrap"><div class="hint-ico">ℹ️</div><div class="hint-txt"><b>${name}</b><br>${ITEMS[curItem].emoji} ${ITEMS[curItem].name}의<br>주요 산지가 아닙니다</div></div>`;
+    return;
+  }
+  const pw=Math.min(d.production_weight*280,100);
+  const RC2={normal:"rc-normal",caution:"rc-caution",warning:"rc-warning",high:"rc-high"};
+  document.getElementById("region-detail").innerHTML=`
+  <div class="detail-wrap">
+    <div class="sec">
+      <div class="sec-head">📍 기본 정보</div>
+      <div class="kv"><span class="kv-k">주 출하 시기</span><span class="kv-v">${d.main_season}</span></div>
+      <div class="kv"><span class="kv-k">재배 면적</span><span class="kv-v">${d.area_ha?.toLocaleString()} ha</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head">🌾 전국 생산 비중</div>
+      <div class="kv"><span class="kv-k">점유율</span><span class="kv-v big">${d.production_pct}%</span></div>
+      <div class="bar-wrap">
+        <div class="bar-track"><div class="bar-fill bar-fill-prod" style="width:${pw}%"><span>${d.production_pct}%</span></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head">📦 출하 현황</div>
+      <div class="kv"><span class="kv-k">연간 출하량</span><span class="kv-v">${(d.shipment_ton/1000).toFixed(1)}천 톤</span></div>
+      <div class="kv"><span class="kv-k">전년 대비</span><span class="kv-v ${d.shipment_yoy>0?'up':'down'}">${d.shipment_yoy>0?'▲':'▼'} ${Math.abs(d.shipment_yoy)}%</span></div>
+      <div class="kv"><span class="kv-k">수확률</span><span class="kv-v">${d.harvest_rate}%</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head">💰 가격 정보</div>
+      <div class="kv"><span class="kv-k">평균 도매가</span><span class="kv-v" style="color:var(--gold)">${d.avg_price?.toLocaleString()}원/${d.unit}</span></div>
+      <div class="kv"><span class="kv-k">평년 대비</span><span class="kv-v ${d.price_vs_avg>5?'up':d.price_vs_avg<-5?'down':''}">${d.price_vs_avg>0?'+':''}${d.price_vs_avg}%</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head">⚠️ 공급 위험도</div>
+      <div class="kv" style="margin-bottom:5px">
+        <span class="kv-k">위험 점수</span>
+        <span class="kv-v">${d.risk_score}점 &nbsp;<span class="risk-chip ${RC2[d.risk_level]}">${RL(d.risk_level)}</span></span>
+      </div>
+      <div class="bar-thin"><div class="bar-thin-fill" style="width:${d.risk_score}%;background:${rColor(d.risk_score)}"></div></div>
+    </div>
+  </div>`;
+}
+
+/* ── 모드 ── */
+function setMode(m) {
+  curMode=m;
+  document.querySelectorAll(".mode-btn").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));
+  if(viewLevel==="province") drawProvinces(); else if(curProv) drawCities(curProv.sido);
+  updateLegend();
+}
+
+function modeColor(ents) {
+  if(curMode==="production") return pColor(ents.reduce((s,[,d])=>s+d.production_weight,0));
+  if(curMode==="risk") return rColor(Math.max(...ents.map(([,d])=>d.risk_score)));
+  if(curMode==="shipment") return sColor(ents.reduce((s,[,d])=>s+d.shipment_ton,0));
+  return prColor(ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length);
+}
+
+function updateLegend() {
+  const C={
+    production:{title:"🌾 생산 비중",rows:[["#111c2a","없음"],["#2a5080","~10%"],["#3b7ab5","10~20%"],["#3b9ae1","20~30%"],["#1a4a80","30%+"]]},
+    risk:{title:"⚠️ 공급 위험도",rows:[["#1b5e20","정상 (0~30)"],["#f9a825","주의 (30~50)"],["#e65100","경고 (50~70)"],["#c62828","위험 (70+)"]]},
+    shipment:{title:"📦 연간 출하량",rows:[["#111c2a","없음"],["#4a3580","~2만톤"],["#7e57c2","2~5만"],["#7554cb","5~10만"],["#4f2fa0","10만톤+"]]},
+    price:{title:"💰 평년 대비 가격",rows:[["#1b5e20","-20%↓"],["#388e3c","-10~-20%"],["#37474f","±10%"],["#e65100","+10~+20%"],["#c62828","+20%↑"]]},
+  };
+  const c=C[curMode];
+  document.getElementById("legend").innerHTML=
+    `<div class="legend-title">${c.title}</div>`+
+    c.rows.map(([col,lbl])=>`<div class="legend-row"><div class="legend-sw" style="background:${col}"></div><span class="legend-lbl">${lbl}</span></div>`).join("");
+}
+
+/* ── 색상 ── */
+function pColor(w){if(!w)return"#111c2a";if(w<.05)return"#1a3048";if(w<.10)return"#2a5080";if(w<.20)return"#3b7ab5";if(w<.30)return"#3b9ae1";return"#1a4a80";}
+function rColor(s){if(s<30)return"#1b5e20";if(s<50)return"#f9a825";if(s<70)return"#e65100";return"#c62828";}
+function sColor(t){if(!t)return"#111c2a";if(t<20000)return"#4a3580";if(t<50000)return"#7e57c2";if(t<100000)return"#7554cb";return"#4f2fa0";}
+function prColor(p){if(p<-20)return"#1b5e20";if(p<-10)return"#388e3c";if(p<10)return"#37474f";if(p<20)return"#e65100";return"#c62828";}
+function RL(r){return{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[r]||r;}
+</script>
+</body>
+</html>
