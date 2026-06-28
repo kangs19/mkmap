@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 import time, logging
@@ -89,6 +89,18 @@ async def health():
         "env": settings.app_env,
         "scheduler": scheduler.running,
     }
+
+
+@app.get("/map_standalone.html")
+async def map_standalone():
+    p = Path(__file__).parent.parent.parent / "map_standalone.html"
+    return FileResponse(str(p), media_type="text/html")
+
+
+@app.get("/index.html")
+async def index_html():
+    p = Path(__file__).parent.parent.parent / "index.html"
+    return FileResponse(str(p), media_type="text/html")
 
 
 @app.get("/")

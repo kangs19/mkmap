@@ -17,7 +17,7 @@ from app.models.api_key import ApiKey, ApiUsageLog
 _rate_counter: dict[str, dict[str, int]] = defaultdict(dict)  # key_hash → {date: count}
 
 # 인증 불필요 경로 (지도·대시보드 UI)
-PUBLIC_PATHS = {"/", "/dashboard", "/widget", "/docs", "/openapi.json", "/redoc", "/health"}
+PUBLIC_PATHS = {"/", "/dashboard", "/widget", "/docs", "/openapi.json", "/redoc", "/health", "/map_standalone.html", "/index.html"}
 PUBLIC_PREFIXES = ("/maps/", "/static/", "/admin/", "/api/")  # /api/ 는 키 배포 전까지 공개
 
 
