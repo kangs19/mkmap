@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY map_viewer/ ./map_viewer/
 COPY metadata/ ./metadata/
+COPY map_standalone.html ./map_standalone.html
+COPY index.html ./index.html
 
 # 작업 디렉토리를 backend로 설정 (SQLite, 상대경로 기준)
 WORKDIR /app/backend
