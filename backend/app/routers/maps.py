@@ -47,10 +47,72 @@ async def get_dashboard(request: Request):
 
 
 @router.get("/widget", response_class=HTMLResponse)
-async def get_widget(request: Request):
-    """WordPress iframe 임베드용 위젯"""
+async def get_widget(request: Request, item: str = "cabbage"):
+    """WordPress iframe 임베드용 위젯 — ?item=cabbage|radish|onion|green_onion|garlic"""
     html = WIDGET_PATH.read_text(encoding="utf-8")
+    # API_BASE를 서버 자신의 URL로 주입
+    api_base = str(request.base_url).rstrip("/")
+    html = html.replace(
+        'const API_BASE = (function() {',
+        f'const _INJECTED_API_BASE = "{api_base}";\nconst API_BASE = (function() {{'
+    ).replace(
+        '})() || "";',
+        f'}})() || _INJECTED_API_BASE;'
+    )
     return HTMLResponse(content=html)
+
+
+@router.get("/widget/embed", response_class=HTMLResponse)
+async def get_widget_embed_guide(request: Request):
+    """WordPress 임베드 가이드 — iframe 코드 + 단축코드 예시"""
+    base = str(request.base_url).rstrip("/")
+    guide = f"""<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><title>WordPress 임베드 가이드</title>
+<style>body{{font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;}}
+pre{{background:#f4f4f4;padding:16px;border-radius:6px;overflow-x:auto;font-size:13px;}}
+h2{{margin-top:32px;}}code{{background:#eee;padding:2px 6px;border-radius:3px;}}</style>
+</head><body>
+<h1>🌾 WordPress iframe 임베드 가이드</h1>
+<p>아래 코드를 WordPress 페이지 편집기(HTML 모드)에 붙여넣으세요.</p>
+
+<h2>📌 기본 위젯 (배추 기본값)</h2>
+<pre>&lt;iframe src="{base}/widget"
+  width="100%" height="380"
+  frameborder="0" scrolling="no"
+  style="border-radius:10px;max-width:480px;display:block;"&gt;
+&lt;/iframe&gt;</pre>
+
+<h2>📌 품목 지정 임베드</h2>
+<pre>&lt;!-- 배추 --&gt;
+&lt;iframe src="{base}/widget?item=cabbage" width="480" height="380" frameborder="0"&gt;&lt;/iframe&gt;
+
+&lt;!-- 양파 --&gt;
+&lt;iframe src="{base}/widget?item=onion" width="480" height="380" frameborder="0"&gt;&lt;/iframe&gt;
+
+&lt;!-- 마늘 --&gt;
+&lt;iframe src="{base}/widget?item=garlic" width="480" height="380" frameborder="0"&gt;&lt;/iframe&gt;</pre>
+
+<h2>📌 반응형 임베드 (권장)</h2>
+<pre>&lt;div style="position:relative;padding-bottom:80%;height:0;overflow:hidden;max-width:480px;"&gt;
+  &lt;iframe src="{base}/widget"
+    style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:10px;"
+    frameborder="0"&gt;&lt;/iframe&gt;
+&lt;/div&gt;</pre>
+
+<h2>📡 API 직접 연동</h2>
+<pre>// 전체 예측 데이터
+GET {base}/api/v1/signals/today
+
+// 품목별 예측
+GET {base}/api/v1/items/cabbage/forecast
+
+// 지역 위험 신호
+GET {base}/api/v1/map/signals?item_code=cabbage
+
+// 일일 리포트
+GET {base}/api/v1/report/today</pre>
+</body></html>"""
+    return HTMLResponse(content=guide)
 
 
 @router.get("/api/v1/map/signals")

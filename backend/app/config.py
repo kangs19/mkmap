@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-this-jwt-secret"
 
     wordpress_base_url: str = ""
+    discord_webhook_url: str = ""
     default_rate_limit_per_day: int = 100
 
     class Config:
