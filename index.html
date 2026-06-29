@@ -87,17 +87,40 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-container{background:#e8e4dc;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
 .leaflet-tooltip::before{display:none!important;}
+.leaflet-tooltip.rhc-tip{background:white!important;border:1.5px solid #d8e0cc!important;border-radius:14px!important;padding:0!important;box-shadow:0 8px 28px rgba(0,0,0,.18)!important;min-width:210px!important;max-width:250px!important;}
 .leaflet-control-zoom a{background:white!important;border-color:var(--border)!important;color:var(--text)!important;}
 .leaflet-control-zoom a:hover{background:var(--bg)!important;}
 .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--dimmed)!important;font-size:9px!important;}
 
-/* Map bubble labels */
-.map-bubble{background:white;border:1px solid var(--border);border-radius:10px;padding:8px 11px;min-width:120px;pointer-events:none;box-shadow:0 2px 10px rgba(40,60,20,.15);}
-.mb-region{font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;}
-.mb-label{font-size:9px;color:var(--dimmed);margin-bottom:1px;}
-.mb-price{font-size:13px;font-weight:700;color:var(--text);}
-.mb-change{font-size:12px;font-weight:700;}
-.mb-change.up{color:#c02828;}.mb-change.down{color:#1a8a1a;}
+/* 항상표시 지역 핀 */
+.region-pin{background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:none;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;}
+.rp-name{font-size:11px;font-weight:700;color:#1a2410;white-space:nowrap;}
+.rp-chg{font-size:13px;font-weight:800;line-height:1.3;}
+.rp-chg.up{color:#c02828;}.rp-chg.down{color:#1a8a1a;}.rp-chg.flat{color:#6a1e9a;}
+.rp-price{font-size:10px;color:#6a7a5a;}
+
+/* 호버 카드 내부 */
+.rhc{padding:13px 15px;font-family:'Noto Sans KR',sans-serif;}
+.rhc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.rhc-title{font-size:14px;font-weight:800;color:#1a2410;}
+.rhc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.rhc-badge.high{background:#fde8e8;color:#c02828;}
+.rhc-badge.warning{background:#fef0e2;color:#b86010;}
+.rhc-badge.caution{background:#fefce2;color:#8a6010;}
+.rhc-badge.normal{background:#e8f5e9;color:#1a8a1a;}
+.rhc-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;}
+.rhc-price{font-size:19px;font-weight:800;color:#1a2410;}
+.rhc-chg{font-size:13px;font-weight:700;}
+.rhc-chg.up{color:#c02828;}.rhc-chg.down{color:#1a8a1a;}.rhc-chg.flat{color:#6a1e9a;}
+.rhc-div{border:none;border-top:1px solid #e8eee0;margin:8px 0;}
+.rhc-stat{display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;color:#6a7a5a;}
+.rhc-stat b{color:#1a2410;font-weight:700;}
+.rhc-risks{background:#f7f9f4;border-radius:7px;padding:7px 9px;margin-top:7px;}
+.rhc-ritem{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;color:#6a7a5a;}
+.rhc-ritem:last-child{margin-bottom:0;}
+.rhc-ritem .lv-high{color:#c02828;font-weight:700;}
+.rhc-ritem .lv-mid{color:#b86010;font-weight:700;}
+.rhc-hint{text-align:center;font-size:10px;color:#9aaa8a;margin-top:9px;font-style:italic;}
 
 /* ── RIGHT PANEL ── */
 #fm-right{
@@ -762,10 +785,13 @@ function drawProvinces(){
       const pname=f.properties.name||"";
       layer.on({
         mouseover:e=>{
-          e.target.setStyle({weight:2,color:"#f4b942",fillOpacity:.95});
+          e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95});
           const tot=ents.reduce((s,[,d])=>s+d.shipment_ton,0);
           const pw=ents.reduce((s,[,d])=>s+d.production_weight,0);
-          layer.bindTooltip(`<b>${pname}</b><br>주요 산지 ${ents.length}개 시·군<br>전국 생산 비중 ${(pw*100).toFixed(0)}%<br>연간 출하 ${(tot/1000).toFixed(0)}천 톤`,{sticky:true}).openTooltip();
+          const avgChg=ents.length?ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length:0;
+          const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
+          const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal'}:null;
+          layer.bindTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),{sticky:true,className:'rhc-tip',offset:[18,0]}).openTooltip();
         },
         mouseout:e=>{provLayer.resetStyle(e.target);layer.closeTooltip();},
         click:()=>ents.length&&zoomProv(f,sido,pname),
@@ -836,13 +862,8 @@ function drawCities(sido){
       const name=f.properties[nameProp]||code,d=cd[code];
       layer.on({
         mouseover:e=>{
-          e.target.setStyle({weight:2.5,color:"#f4b942",fillOpacity:1});
-          if(!d){layer.bindTooltip(`<b>${name}</b><br><span style="color:var(--dimmed)">산지 데이터 없음</span>`,{sticky:true}).openTooltip();return;}
-          const chg=d.price_vs_avg;
-          layer.bindTooltip(
-            `<b>${name}</b><br>예상 가격 변동 <span style="color:${chg>0?'#e05050':'#3ab878'}">${chg>0?'+':''}${chg}%</span><br>출하 ${(d.shipment_ton/1000).toFixed(1)}천톤 | 위험 ${riskLvlText(d.risk_level)}`,
-            {sticky:true}
-          ).openTooltip();
+          e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:1});
+          layer.bindTooltip(makeHoverCard(name,d),{sticky:true,className:'rhc-tip',offset:[18,0]}).openTooltip();
         },
         mouseout:e=>{cityLayer.resetStyle(e.target);layer.closeTooltip();},
         click:()=>{showRegionDetail(name,code,d);if(d)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});},
@@ -850,20 +871,53 @@ function drawCities(sido){
     }
   }).addTo(map_);
 
-  // 주요 산지에 버블 레이블 추가
-  Object.entries(cd).filter(([c])=>c.startsWith(pfx)).sort((a,b)=>b[1].production_weight-a[1].production_weight).slice(0,5).forEach(([code,d])=>{
+  // 데이터 있는 모든 시군에 compact 핀 라벨 추가
+  Object.entries(cd).filter(([c])=>c.startsWith(pfx)).forEach(([code,d])=>{
     const feat=filtered.features.find(f=>String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5)===code);
     if(!feat)return;
     try{
       const center=L.geoJSON(feat).getBounds().getCenter();
-      const chg=d.price_vs_avg;
-      const html=`<div class="map-bubble"><div class="mb-region">${d.name}</div><div class="mb-label">예상 가격 (${curPeriod}일 후)</div><div style="display:flex;align-items:baseline;gap:6px;"><div class="mb-price">${d.avg_price?.toLocaleString()}원</div><div class="mb-change ${chg>0?'up':'down'}">${chg>0?'+':''}${chg}%</div></div></div>`;
-      L.marker(center,{icon:L.divIcon({html,className:'',iconSize:[0,0]})}).addTo(map_).on("click",()=>showRegionDetail(d.name,code,d));
+      L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d),className:'',iconSize:[0,0],iconAnchor:[40,40]})})
+        .addTo(map_).on("click",()=>showRegionDetail(d.name,code,d));
     }catch(e){}
   });
 }
 
 function riskLvlText(r){return{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[r]||r;}
+
+// ── 인터랙션 헬퍼 ─────────────────────────────────────────────────────────
+function makePinHtml(name,d){
+  if(!d)return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">-</div></div>`;
+  const chg=d.price_vs_avg,sign=chg>0?'+':'',cls=chg>10?'up':chg<-10?'down':'flat';
+  return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-chg ${cls}">${sign}${chg}%</div><div class="rp-price">${(d.avg_price||0).toLocaleString()}원</div></div>`;
+}
+
+function makeHoverCard(name,d){
+  if(!d)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:4px 0">산지 데이터 없음</div></div>`;
+  const chg=d.price_vs_avg,sign=chg>0?'+':'',chgCls=chg>10?'up':chg<-10?'down':'flat';
+  const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
+  const risk=riskMap[d.risk_level]||{l:d.risk_level||'?',c:'normal'};
+  const ship=(d.shipment_ton/1000).toFixed(1);
+  const pw=d.production_weight!=null?`${(d.production_weight*100).toFixed(1)}%`:'-';
+  const risks=[];
+  if(chg>15)risks.push(['📈 공급 감소 우려','lv-high']);
+  else if(chg>5)risks.push(['📈 가격 상승세','lv-mid']);
+  else if(chg<-15)risks.push(['📉 공급 과잉','lv-mid']);
+  if(d.risk_level==='high')risks.push(['🌧 기상 위험','lv-high']);
+  else if(d.risk_level==='warning')risks.push(['🌧 기상 주의','lv-mid']);
+  if(d.shipment_ton<500)risks.push(['📦 출하 감소','lv-mid']);
+  if(!risks.length)risks.push(['✅ 정상 범위','']);
+  const rHtml=risks.map(([t,c])=>`<div class="rhc-ritem"><span>${t}</span><span class="${c}">${c==='lv-high'?'높음':c==='lv-mid'?'주의':'정상'}</span></div>`).join('');
+  return`<div class="rhc">
+    <div class="rhc-header"><span class="rhc-title">${name}</span><span class="rhc-badge ${risk.c}">${risk.l}</span></div>
+    <div class="rhc-price-row"><span class="rhc-price">${(d.avg_price||0).toLocaleString()}원/kg</span><span class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span></div>
+    <hr class="rhc-div">
+    <div class="rhc-stat"><span>출하량</span><b>${ship}천 톤</b></div>
+    <div class="rhc-stat"><span>전국 비중</span><b>${pw}</b></div>
+    <div class="rhc-risks">${rHtml}</div>
+    <div class="rhc-hint">클릭하여 상세 분석 →</div>
+  </div>`;
+}
 </script>
 </body>
 </html>
