@@ -307,3 +307,14 @@ async def debug_kamis(_=Depends(check_admin)):
         }
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
+
+
+@router.post("/seed")
+async def run_seed(_=Depends(check_admin)):
+    """Item 시드 수동 실행"""
+    from app.main import _seed_items
+    try:
+        await _seed_items()
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
