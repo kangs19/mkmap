@@ -643,6 +643,7 @@ function showRegionDetail(name,code,d){
     document.getElementById("right-detail").style.display="none";
     return;
   }
+  navLevel="city";updateBackBtn();
   document.getElementById("right-hint").style.display="none";
   document.getElementById("right-detail").style.display="block";
 
@@ -771,20 +772,45 @@ function drawProvinces(){
   }).addTo(map_);
 }
 
+// 탐색 단계: "national" → "province" → "city"
+let navLevel="national"; // national / province / city
+
 function zoomProv(f,sido,pname){
-  curProv={f,sido,pname};viewLevel="city";
+  curProv={f,sido,pname};viewLevel="city";navLevel="province";
   map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
   drawCities(sido);
-  document.getElementById("back-btn").style.display="flex";
+  updateBackBtn();
 }
 
 function goBack(){
-  viewLevel="province";curProv=null;
-  map_.setView([36.3,127.9],7);
-  drawProvinces();
-  document.getElementById("back-btn").style.display="none";
-  document.getElementById("right-hint").style.display="flex";
-  document.getElementById("right-detail").style.display="none";
+  if(navLevel==="city"){
+    // 시군 상세 → 시군 목록 (도 뷰 유지)
+    navLevel="province";
+    document.getElementById("right-hint").style.display="flex";
+    document.getElementById("right-detail").style.display="none";
+    // 지도는 현재 도 뷰 유지
+  } else if(navLevel==="province"){
+    // 도 뷰 → 전국 뷰
+    navLevel="national";viewLevel="province";curProv=null;
+    map_.setView([36.3,127.9],7);
+    drawProvinces();
+    document.getElementById("right-hint").style.display="flex";
+    document.getElementById("right-detail").style.display="none";
+  }
+  updateBackBtn();
+}
+
+function updateBackBtn(){
+  const btn=document.getElementById("back-btn");
+  if(navLevel==="national"){
+    btn.style.display="none";
+  } else if(navLevel==="province"){
+    btn.style.display="flex";
+    btn.innerHTML="← 전국 보기";
+  } else if(navLevel==="city"){
+    btn.style.display="flex";
+    btn.innerHTML=`← ${curProv?.pname||"도"} 목록`;
+  }
 }
 
 function drawCities(sido){
