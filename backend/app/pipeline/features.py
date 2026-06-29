@@ -194,9 +194,9 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
     if market_df is not None and not market_df.empty:
         m = market_df.add_prefix("mkt_")
         df = df.join(m, how="left")
-        df["mkt_volume_kg"] = df["mkt_volume_kg"].fillna(method="ffill").fillna(0)
-        df["mkt_volume_ma7"]    = df["mkt_volume_kg"].rolling(7).mean()
-        df["mkt_volume_ma28"]   = df["mkt_volume_kg"].rolling(28).mean()
+        df["mkt_volume_kg"] = df["mkt_volume_kg"].ffill().fillna(0)
+        df["mkt_volume_ma7"]  = df["mkt_volume_kg"].rolling(7,  min_periods=1).mean()
+        df["mkt_volume_ma28"] = df["mkt_volume_kg"].rolling(28, min_periods=1).mean()
         # 평균 대비 거래량 편차 (공급 과잉/부족 신호)
         df["mkt_volume_vs_avg"] = (df["mkt_volume_kg"] / df["mkt_volume_ma28"].replace(0, np.nan)) - 1
         df["mkt_volume_trend"]  = df["mkt_volume_kg"].pct_change(7)

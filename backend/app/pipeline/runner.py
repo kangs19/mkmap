@@ -9,6 +9,7 @@
 - 무:  14일 예측, 여름 고온 손실 + 월동 피처
 """
 import numpy as np
+import pandas as pd
 from datetime import date, timedelta
 from sqlalchemy import delete
 
