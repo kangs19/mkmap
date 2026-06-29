@@ -136,16 +136,17 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
     df = price_df.copy()
 
     # ── 가격 피처 ──────────────────────────────────────────────
-    df["price_ma7"] = df["price"].rolling(7).mean()
-    df["price_ma14"] = df["price"].rolling(14).mean()
-    df["price_ma28"] = df["price"].rolling(28).mean()
+    # min_periods=1 로 초기 데이터 부족 시에도 NaN 없이 근사값 생성
+    df["price_ma7"]  = df["price"].rolling(7,  min_periods=1).mean()
+    df["price_ma14"] = df["price"].rolling(14, min_periods=1).mean()
+    df["price_ma28"] = df["price"].rolling(28, min_periods=1).mean()
 
-    df["ret_1d"] = df["price"].pct_change(1)
-    df["ret_7d"] = df["price"].pct_change(7)
-    df["ret_14d"] = df["price"].pct_change(14)
+    df["ret_1d"]  = df["price"].pct_change(1).fillna(0)
+    df["ret_7d"]  = df["price"].pct_change(7).fillna(0)
+    df["ret_14d"] = df["price"].pct_change(14).fillna(0)
 
-    df["volatility_7d"] = df["ret_1d"].rolling(7).std()
-    df["volatility_14d"] = df["ret_1d"].rolling(14).std()
+    df["volatility_7d"]  = df["ret_1d"].rolling(7,  min_periods=1).std().fillna(0)
+    df["volatility_14d"] = df["ret_1d"].rolling(14, min_periods=1).std().fillna(0)
 
     # 평년 대비 편차
     df["price_vs_avg_year"] = (df["price"] / df["avg_year_price"].replace(0, np.nan)) - 1
@@ -168,11 +169,11 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
         w = weather_df.add_prefix("w_")
         df = df.join(w, how="left")
 
-        df["w_temp_ma7"] = df["w_avg_temp"].rolling(7).mean()
-        df["w_precip_ma7"] = df["w_precipitation"].rolling(7).sum()
-        df["w_heat_alert_7d"] = df["w_heat_alert"].rolling(7).sum()
-        df["w_cold_alert_7d"] = df["w_cold_alert"].rolling(7).sum()
-        df["w_heavy_rain_7d"] = df["w_heavy_rain_alert"].rolling(7).sum()
+        df["w_temp_ma7"]      = df["w_avg_temp"].rolling(7, min_periods=1).mean()
+        df["w_precip_ma7"]    = df["w_precipitation"].rolling(7, min_periods=1).sum()
+        df["w_heat_alert_7d"] = df["w_heat_alert"].rolling(7, min_periods=1).sum()
+        df["w_cold_alert_7d"] = df["w_cold_alert"].rolling(7, min_periods=1).sum()
+        df["w_heavy_rain_7d"] = df["w_heavy_rain_alert"].rolling(7, min_periods=1).sum()
     else:
         for col in ["w_avg_temp", "w_precipitation", "w_temp_dev",
                     "w_temp_ma7", "w_precip_ma7",
@@ -215,7 +216,8 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
     future_max = df["price"].rolling(14, min_periods=1).max().shift(-14)
     df["target_surge"] = (future_max > df["price"] * 1.15).astype(int)
 
-    df = df.dropna(subset=["price_ma28", "ret_14d", "target_direction"])
+    # target_direction 이 NaN인 마지막 14행만 제거 (미래 데이터 없는 구간)
+    df = df.dropna(subset=["target_direction"])
     return df
 
 
