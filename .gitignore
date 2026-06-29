@@ -26,7 +26,9 @@ data/features/
 data/signals/
 data/model/
 config/external_mappings/_tmp_*.csv
+config/external_mappings/_tmp_*
 config/external_mappings/kamis_item_codes_download
+config/external_mappings/kma_crop_weather_guide.zip
 _tmp_*.env
 
 # Generated map helper files

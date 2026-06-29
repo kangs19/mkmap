@@ -10,7 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mkmap_meta.connectors.cached import CachedEventConnector, CachedOrManualProductionConnector, CachedPriceConnector
+from mkmap_meta.connectors.cached import CachedEventConnector, CachedOrManualProductionConnector, CachedPriceConnector, CachedWeatherConnector
 from mkmap_meta.connectors.production import ManualProductionConnector
 from mkmap_meta.engines.risk_signal import build_region_risk_signals
 from mkmap_meta.factory import build_default_pipeline
@@ -38,10 +38,12 @@ def main() -> int:
         if not args.live_prices:
             pipeline.price_connectors = [CachedPriceConnector()]
         pipeline.production_connectors = [CachedOrManualProductionConnector()]
+        pipeline.weather_connectors = [CachedWeatherConnector()]
     else:
         pipeline = ItemFeaturePipeline(
             price_connectors=[CachedPriceConnector()],
             production_connectors=[CachedOrManualProductionConnector()],
+            weather_connectors=[CachedWeatherConnector()],
             event_connectors=[CachedEventConnector()],
         )
     rows: list[dict[str, object]] = []

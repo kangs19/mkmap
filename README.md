@@ -33,6 +33,7 @@ Copy-Item .env.example .env
 
 가격 예측 1차 파이프라인은 [docs/PRICE_MODEL_PIPELINE.md](docs/PRICE_MODEL_PIPELINE.md)에 정리되어 있습니다.
 KOSIS 생산통계 수집 파이프라인은 [docs/KOSIS_PRODUCTION_PIPELINE.md](docs/KOSIS_PRODUCTION_PIPELINE.md)에 정리되어 있습니다.
+KMA 작물별 농업주산지 상세날씨 파이프라인은 [docs/KMA_CROP_WEATHER_PIPELINE.md](docs/KMA_CROP_WEATHER_PIPELINE.md)에 정리되어 있습니다.
 
 ## Checks
 
@@ -45,9 +46,11 @@ python scripts/preview_api_requests.py
 python scripts/smoke_api_services.py
 python scripts/show_external_mapping_status.py
 python scripts/validate_external_mappings.py
+python scripts/extract_kma_crop_weather_mapping.py --download
 python scripts/import_kma_crop_weather_mapping.py
 python scripts/smoke_kma_mapping_import.py
 python scripts/test_live_kma_crop_weather.py --item cabbage --date 2026-06-29
+python scripts/collect_live_weather_features.py --date 2025-06-29
 python scripts/test_live_weather_alert.py --date 2026-06-29
 python scripts/test_live_typhoon.py --date 2026-06-29
 python scripts/test_live_midterm_forecast.py --date 2026-06-29

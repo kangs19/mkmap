@@ -5,11 +5,368 @@
   "aliases": [],
   "external_mappings": {
     "kma_crop_weather": {
-      "mapping_status": "candidate_regions_only",
+      "mapping_status": "verified",
       "pa_crop_spe_id": null,
-      "area_ids": [],
-      "candidate_regions": ["고흥", "남해", "서귀포", "서산", "신안", "의성", "창녕", "태안", "해남"],
-      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+      "pa_crop_spe_ids": [
+        "PA120101",
+        "PA120201",
+        "PA120301"
+      ],
+      "area_ids": [
+        "4215000000",
+        "4217051000",
+        "4221051000",
+        "4223000000",
+        "4282000000",
+        "4283032000",
+        "4380000000",
+        "4421000000",
+        "4421000000",
+        "4427000000",
+        "4481000000",
+        "4482500000",
+        "4482500000",
+        "4677000000",
+        "4682000000",
+        "4684000000",
+        "4686000000",
+        "4689000000",
+        "4691000000",
+        "4723000000",
+        "4772000000",
+        "4773000000",
+        "4783000000",
+        "4824000000",
+        "4874000000",
+        "4884000000",
+        "4889000000",
+        "5011000000",
+        "5013000000"
+      ],
+      "area_mappings": [
+        {
+          "area_id": "4215000000",
+          "area_name": "강릉",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "강원특별자치도 강릉시 용강동",
+          "latitude": "37.7515",
+          "longitude": "128.891",
+          "elevation_m": "27.12"
+        },
+        {
+          "area_id": "4217051000",
+          "area_name": "동해",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "강원특별자치도 동해시 용정동",
+          "latitude": "37.5071",
+          "longitude": "129.1243",
+          "elevation_m": "40.46"
+        },
+        {
+          "area_id": "4221051000",
+          "area_name": "속초",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "강원특별자치도 고성군 토성면 봉포리",
+          "latitude": "38.2509",
+          "longitude": "128.5647",
+          "elevation_m": "17.53"
+        },
+        {
+          "area_id": "4223000000",
+          "area_name": "삼척",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "강원특별자치도 삼척시 교동",
+          "latitude": "37.45",
+          "longitude": "129.1621",
+          "elevation_m": "57.07"
+        },
+        {
+          "area_id": "4282000000",
+          "area_name": "고성",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "경상남도 고성군 고성읍 죽계리",
+          "latitude": "34.9905",
+          "longitude": "128.3309",
+          "elevation_m": "7.03"
+        },
+        {
+          "area_id": "4283032000",
+          "area_name": "양양",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "강원특별자치도 양양군 양양읍 송암리",
+          "latitude": "38.0887",
+          "longitude": "128.6295",
+          "elevation_m": "7"
+        },
+        {
+          "area_id": "4380000000",
+          "area_name": "단양",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "충청북도 단양군 단양읍 도담리",
+          "latitude": "37.002",
+          "longitude": "128.3469",
+          "elevation_m": "147.07"
+        },
+        {
+          "area_id": "4421000000",
+          "area_name": "서산",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "충청남도 서산시 수석동",
+          "latitude": "36.7766",
+          "longitude": "126.4939",
+          "elevation_m": "25.25"
+        },
+        {
+          "area_id": "4421000000",
+          "area_name": "서산",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "충청남도 서산시 수석동",
+          "latitude": "36.7766",
+          "longitude": "126.4939",
+          "elevation_m": "25.25"
+        },
+        {
+          "area_id": "4427000000",
+          "area_name": "당진",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "충청남도 당진시 채운동",
+          "latitude": "36.8894",
+          "longitude": "126.6174",
+          "elevation_m": "52.4"
+        },
+        {
+          "area_id": "4481000000",
+          "area_name": "예산",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "충청남도 예산군 신암면 종경리",
+          "latitude": "36.7421",
+          "longitude": "126.8144",
+          "elevation_m": "38.84"
+        },
+        {
+          "area_id": "4482500000",
+          "area_name": "태안",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "충청남도 태안군 태안읍 평천리",
+          "latitude": "36.754",
+          "longitude": "126.3295",
+          "elevation_m": "14.94"
+        },
+        {
+          "area_id": "4482500000",
+          "area_name": "태안",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "충청남도 태안군 태안읍 평천리",
+          "latitude": "36.754",
+          "longitude": "126.3295",
+          "elevation_m": "14.94"
+        },
+        {
+          "area_id": "4677000000",
+          "area_name": "고흥",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 고흥군 고흥읍 행정리",
+          "latitude": "34.6183",
+          "longitude": "127.2757",
+          "elevation_m": "51.91"
+        },
+        {
+          "area_id": "4682000000",
+          "area_name": "해남",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 해남군 해남읍 남천리",
+          "latitude": "34.5538",
+          "longitude": "126.5691",
+          "elevation_m": "16.36"
+        },
+        {
+          "area_id": "4684000000",
+          "area_name": "무안",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 무안군 무안읍 교촌리",
+          "latitude": "34.9838",
+          "longitude": "126.4611",
+          "elevation_m": "37.85"
+        },
+        {
+          "area_id": "4686000000",
+          "area_name": "함평",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 함평군 함평읍 기각리",
+          "latitude": "35.0604",
+          "longitude": "126.5273",
+          "elevation_m": "10.42"
+        },
+        {
+          "area_id": "4689000000",
+          "area_name": "완도",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 완도군 군외면 불목리",
+          "latitude": "34.3959",
+          "longitude": "126.7018",
+          "elevation_m": "35.37"
+        },
+        {
+          "area_id": "4691000000",
+          "area_name": "신안",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "전라남도 신안군 하의면 후광리",
+          "latitude": "34.6307",
+          "longitude": "126.032",
+          "elevation_m": "2.58"
+        },
+        {
+          "area_id": "4723000000",
+          "area_name": "영천",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "경상북도 영천시 망정동",
+          "latitude": "35.9774",
+          "longitude": "128.9514",
+          "elevation_m": "96.12"
+        },
+        {
+          "area_id": "4772000000",
+          "area_name": "군위",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "대구광역시 군위군 내량리",
+          "latitude": "36.2493",
+          "longitude": "128.5558",
+          "elevation_m": "81.56"
+        },
+        {
+          "area_id": "4773000000",
+          "area_name": "의성",
+          "pa_crop_spe_id": "PA120101",
+          "pa_crop_spe_name": "한지형",
+          "address": "경상북도 의성군 의성읍 원당리",
+          "latitude": "36.3561",
+          "longitude": "128.6886",
+          "elevation_m": "81.44"
+        },
+        {
+          "area_id": "4783000000",
+          "area_name": "고령",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "경상북도 고령군 고령읍 내곡리",
+          "latitude": "35.696",
+          "longitude": "128.2821",
+          "elevation_m": "41.19"
+        },
+        {
+          "area_id": "4824000000",
+          "area_name": "사천",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "경상남도 사천시 용현면 신복리",
+          "latitude": "35.0369",
+          "longitude": "128.0677",
+          "elevation_m": "25.79"
+        },
+        {
+          "area_id": "4874000000",
+          "area_name": "창녕",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "경상남도 창녕군 대지면 효정리",
+          "latitude": "35.5514",
+          "longitude": "128.4767",
+          "elevation_m": "30"
+        },
+        {
+          "area_id": "4884000000",
+          "area_name": "남해",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "경상남도 남해군 이동면 다정리",
+          "latitude": "34.8166",
+          "longitude": "127.9264",
+          "elevation_m": "45.71"
+        },
+        {
+          "area_id": "4889000000",
+          "area_name": "합천",
+          "pa_crop_spe_id": "PA120201",
+          "pa_crop_spe_name": "난지형 대서",
+          "address": "경상남도 합천군 합천읍 합천리",
+          "latitude": "35.5651",
+          "longitude": "128.1699",
+          "elevation_m": "26.72"
+        },
+        {
+          "area_id": "5011000000",
+          "area_name": "제주",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "제주특별자치도 제주시 건입동",
+          "latitude": "33.5141",
+          "longitude": "126.5297",
+          "elevation_m": "20.79"
+        },
+        {
+          "area_id": "5013000000",
+          "area_name": "서귀포",
+          "pa_crop_spe_id": "PA120301",
+          "pa_crop_spe_name": "난지형 남도",
+          "address": "제주특별자치도 서귀포시 서귀동",
+          "latitude": "33.2462",
+          "longitude": "126.5653",
+          "elevation_m": "51.86"
+        }
+      ],
+      "candidate_regions": [
+        "강릉",
+        "동해",
+        "속초",
+        "삼척",
+        "고성",
+        "양양",
+        "단양",
+        "서산",
+        "서산",
+        "당진",
+        "예산",
+        "태안",
+        "태안",
+        "고흥",
+        "해남",
+        "무안",
+        "함평",
+        "완도",
+        "신안",
+        "영천",
+        "군위",
+        "의성",
+        "고령",
+        "사천",
+        "창녕",
+        "남해",
+        "합천",
+        "제주",
+        "서귀포"
+      ],
+      "notes": "Official data.go.kr KMA crop main-area weather guide code table, 2026-01-05."
     },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
@@ -17,11 +374,26 @@
       "itemcode": "258",
       "productrankcode": "04",
       "variants": [
-        { "kindcode": "01", "kind_name": "깐마늘(국산)", "primary": false },
-        { "kindcode": "03", "kind_name": "깐마늘(대서)", "primary": true },
-        { "kindcode": "05", "kind_name": "깐마늘(남도)", "primary": true }
+        {
+          "kindcode": "01",
+          "kind_name": "깐마늘(국산)",
+          "primary": false
+        },
+        {
+          "kindcode": "03",
+          "kind_name": "깐마늘(대서)",
+          "primary": true
+        },
+        {
+          "kindcode": "05",
+          "kind_name": "깐마늘(남도)",
+          "primary": true
+        }
       ],
-      "product_classes": ["01", "02"],
+      "product_classes": [
+        "01",
+        "02"
+      ],
       "notes": "KAMIS 가격 기본 품목은 깐마늘(대서/남도). 깐마늘(국산) 258/01은 코드표에는 있으나 일부 기간 응답이 없어서 보조 후보로 유지"
     },
     "kosis_production": {
@@ -35,26 +407,79 @@
   },
   "crop_profile": {
     "storage_type": "processed_or_storage",
-    "cultivation_type": ["open_field", "winter", "stored"],
+    "cultivation_type": [
+      "open_field",
+      "winter",
+      "stored"
+    ],
     "growth_calendar": {
-      "wintering": [10, 11, 12, 1, 2, 3],
-      "bulb_expansion": [4, 5, 6]
+      "wintering": [
+        10,
+        11,
+        12,
+        1,
+        2,
+        3
+      ],
+      "bulb_expansion": [
+        4,
+        5,
+        6
+      ]
     },
     "harvest_calendar": {
-      "main": [5, 6, 7]
+      "main": [
+        5,
+        6,
+        7
+      ]
     },
     "demand_events": [
-      { "name": "new_crop_transition", "months": [5, 6, 7], "effect": "down" },
-      { "name": "kimjang_season", "months": [10, 11, 12], "effect": "up" }
+      {
+        "name": "new_crop_transition",
+        "months": [
+          5,
+          6,
+          7
+        ],
+        "effect": "down"
+      },
+      {
+        "name": "kimjang_season",
+        "months": [
+          10,
+          11,
+          12
+        ],
+        "effect": "up"
+      }
     ],
-    "substitute_items": ["onion", "green_onion"]
+    "substitute_items": [
+      "onion",
+      "green_onion"
+    ]
   },
   "production_profile": {
     "region_strategy": "hybrid",
     "manual_regions": [
-      { "region_code": "48", "region_name": "경남", "base_weight": 0.26, "notes": "남부권 마늘 주요 권역" },
-      { "region_code": "46", "region_name": "전남", "base_weight": 0.24, "notes": "난지형 마늘 주요 권역" },
-      { "region_code": "47", "region_name": "경북", "base_weight": 0.18, "notes": "한지형·저장 마늘 보조 권역" }
+      {
+        "region_code": "48",
+        "region_name": "경남",
+        "base_weight": 0.26,
+        "notes": "남부권 마늘 주요 권역"
+      },
+      {
+        "region_code": "46",
+        "region_name": "전남",
+        "base_weight": 0.24,
+        "notes": "난지형 마늘 주요 권역"
+      },
+      {
+        "region_code": "47",
+        "region_name": "경북",
+        "base_weight": 0.18,
+        "notes": "한지형·저장 마늘 보조 권역"
+      }
     ]
   },
   "market_profile": {
@@ -77,12 +502,37 @@
       "snow": 0.65
     },
     "critical_windows": [
-      { "name": "wintering", "months": [12, 1, 2], "risk_factors": ["cold", "snow"] },
-      { "name": "harvest_drying", "months": [5, 6], "risk_factors": ["heavy_rain", "humidity"] }
+      {
+        "name": "wintering",
+        "months": [
+          12,
+          1,
+          2
+        ],
+        "risk_factors": [
+          "cold",
+          "snow"
+        ]
+      },
+      {
+        "name": "harvest_drying",
+        "months": [
+          5,
+          6
+        ],
+        "risk_factors": [
+          "heavy_rain",
+          "humidity"
+        ]
+      }
     ]
   },
   "event_profile": {
-    "enabled_events": ["weather_alert", "impact_forecast", "midterm_forecast"],
+    "enabled_events": [
+      "weather_alert",
+      "impact_forecast",
+      "midterm_forecast"
+    ],
     "event_weights": {
       "weather_alert": 0.3,
       "impact_forecast": 0.18,
@@ -91,7 +541,15 @@
     }
   },
   "feature_engine_profile": {
-    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "engine_set": [
+      "item_meta",
+      "production_region",
+      "price_market",
+      "agri_weather",
+      "disaster_event",
+      "forecast_context",
+      "risk_signal"
+    ],
     "feature_overrides": {
       "risk_signal": {
         "market_pressure_weight": 0.4,
@@ -102,7 +560,13 @@
   "source_coverage": {
     "kamis": true,
     "kosis": true,
-    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "midterm_forecast"],
+    "data_go_kr": [
+      "crop_weather",
+      "agri_weather_observation",
+      "weather_alert",
+      "impact_forecast",
+      "midterm_forecast"
+    ],
     "manual_review_required": true
   }
 }

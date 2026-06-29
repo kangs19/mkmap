@@ -29,8 +29,10 @@ def validate_kma_crop_weather(path: Path, item: dict[str, Any]) -> list[str]:
         errors.append(f"{path.name}: candidate_regions_only requires candidate_regions")
 
     if status == "verified":
-        if not mapping.get("pa_crop_spe_id"):
-            errors.append(f"{path.name}: verified mapping requires pa_crop_spe_id")
+        has_single_crop_id = bool(mapping.get("pa_crop_spe_id"))
+        has_row_crop_ids = all(row.get("pa_crop_spe_id") for row in mapping.get("area_mappings", []))
+        if not has_single_crop_id and not has_row_crop_ids:
+            errors.append(f"{path.name}: verified mapping requires pa_crop_spe_id or per-row area_mappings.pa_crop_spe_id")
         if not mapping.get("area_ids"):
             errors.append(f"{path.name}: verified mapping requires area_ids")
 

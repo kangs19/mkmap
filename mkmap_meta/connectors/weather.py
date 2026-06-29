@@ -6,7 +6,7 @@ from typing import Any
 
 from mkmap_meta.connectors.base import WeatherConnector
 from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV, DataGoKrClient, DataGoKrService
-from mkmap_meta.connectors.normalizers import extract_rows, first_present, parse_date, parse_float
+from mkmap_meta.connectors.normalizers import extract_rows, first_present, parse_date, parse_float, public_api_error
 from mkmap_meta.models import WeatherFeature
 from mkmap_meta.registry import ItemMetadataRegistry, default_registry
 
@@ -83,7 +83,20 @@ class CropMainAreaWeatherConnector(DataGoKrWeatherConnector):
         mappings = item.get("external_mappings", {}).get("kma_crop_weather", {})
         crop_spe_id = mappings.get("pa_crop_spe_id")
         area_ids = mappings.get("area_ids", [])
-        if not crop_spe_id or not area_ids:
+        area_mappings = mappings.get("area_mappings", [])
+
+        pairs: list[tuple[str, str]] = []
+        if area_mappings:
+            pairs = [
+                (str(row["area_id"]), str(row.get("pa_crop_spe_id") or crop_spe_id))
+                for row in area_mappings
+                if row.get("area_id") and (row.get("pa_crop_spe_id") or crop_spe_id)
+            ]
+        elif crop_spe_id and area_ids:
+            pairs = [(str(area_id), str(crop_spe_id)) for area_id in area_ids]
+
+        deduped_pairs = list(dict.fromkeys(pairs))
+        if not deduped_pairs:
             return []
 
         return [
@@ -94,9 +107,9 @@ class CropMainAreaWeatherConnector(DataGoKrWeatherConnector):
                 os.getenv("KMA_CROP_WEATHER_START_DATE_PARAM", "ST_YMD"): target_date.strftime("%Y%m%d"),
                 os.getenv("KMA_CROP_WEATHER_END_DATE_PARAM", "ED_YMD"): target_date.strftime("%Y%m%d"),
                 os.getenv("KMA_CROP_WEATHER_AREA_PARAM", "AREA_ID"): area_id,
-                os.getenv("KMA_CROP_WEATHER_CROP_PARAM", "PA_CROP_SPE_ID"): crop_spe_id,
+                os.getenv("KMA_CROP_WEATHER_CROP_PARAM", "PA_CROP_SPE_ID"): pair_crop_spe_id,
             }
-            for area_id in area_ids
+            for area_id, pair_crop_spe_id in deduped_pairs
         ]
 
     def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
@@ -107,6 +120,8 @@ class CropMainAreaWeatherConnector(DataGoKrWeatherConnector):
         features: list[WeatherFeature] = []
         for params in param_sets:
             payload = self.client.get(self.service, self.operation_path, **params)
+            if public_api_error(payload):
+                continue
             features.extend(
                 normalize_weather_rows(
                     payload,
@@ -145,8 +160,8 @@ def normalize_weather_rows(
             first_present(row, "base_date", "date", "ymd", "tm", "obsrDe", "관측일"),
             default=default_date,
         )
-        region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId")
-        region_name = first_present(row, "region_name", "regionName", "areaName", "areaNm", "stnNm")
+        region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId", "AREA_ID")
+        region_name = first_present(row, "region_name", "regionName", "areaName", "areaNm", "stnNm", "AREA_NM")
 
         features.append(
             WeatherFeature(
@@ -154,12 +169,12 @@ def normalize_weather_rows(
                 region_code=str(region_code or region_name or ""),
                 base_date=base_date,
                 temperature=parse_float(
-                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "기온", "평균기온")
+                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "AVG_TA", "MIN_TA", "MAX_TA", "기온", "평균기온")
                 ),
-                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "강수량")),
-                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "습도", "평균습도")),
-                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "풍속")),
-                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "일조", "일조시간")),
+                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "SUM_RN", "강수량")),
+                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "AVG_RHM", "습도", "평균습도")),
+                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "AVG_WS", "풍속")),
+                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "SUM_SS_HR", "일조", "일조시간")),
                 source=source,
                 raw=row,
             )

@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV
 from mkmap_meta.connectors.weather import CropMainAreaWeatherConnector
+from mkmap_meta.env import ensure_env_loaded
 from mkmap_meta.registry import default_registry
 
 
@@ -44,13 +45,15 @@ def mapping_status(item_code: str) -> dict[str, Any]:
     mapping = item.get("external_mappings", {}).get("kma_crop_weather", {})
     return {
         "mapping_status": mapping.get("mapping_status", "missing"),
-        "has_pa_crop_spe_id": bool(mapping.get("pa_crop_spe_id")),
+        "has_pa_crop_spe_id": bool(mapping.get("pa_crop_spe_id") or mapping.get("pa_crop_spe_ids")),
         "area_id_count": len(mapping.get("area_ids", [])),
+        "area_mapping_count": len(mapping.get("area_mappings", [])),
         "candidate_regions": mapping.get("candidate_regions", []),
     }
 
 
 def main() -> int:
+    ensure_env_loaded()
     args = parse_args()
     target_date = date.fromisoformat(args.date)
     status = mapping_status(args.item)

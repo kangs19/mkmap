@@ -2,14 +2,783 @@
   "item_code": "cabbage",
   "item_name": "배추",
   "category": "채소류",
-  "aliases": ["kimchi_cabbage", "napa_cabbage"],
+  "aliases": [
+    "kimchi_cabbage",
+    "napa_cabbage"
+  ],
   "external_mappings": {
     "kma_crop_weather": {
-      "mapping_status": "candidate_regions_only",
+      "mapping_status": "verified",
       "pa_crop_spe_id": null,
-      "area_ids": [],
-      "candidate_regions": ["강릉", "고창", "당진", "문경", "삼척", "영월", "정선", "진도", "태백", "평창", "해남"],
-      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+      "pa_crop_spe_ids": [
+        "PA170101",
+        "PA170201",
+        "PA170301",
+        "PA170401"
+      ],
+      "area_ids": [
+        "2611000000",
+        "2614000000",
+        "2617000000",
+        "2620000000",
+        "2623000000",
+        "2626000000",
+        "2629000000",
+        "2632000000",
+        "2635000000",
+        "2638000000",
+        "2641000000",
+        "2644000000",
+        "2647000000",
+        "2650000000",
+        "2653000000",
+        "2671000000",
+        "3011000000",
+        "3014000000",
+        "3017000000",
+        "3020000000",
+        "3023000000",
+        "3111000000",
+        "3114000000",
+        "3117000000",
+        "3120000000",
+        "3171000000",
+        "4167000000",
+        "4211000000",
+        "4215000000",
+        "4219000000",
+        "4223000000",
+        "4273000000",
+        "4275000000",
+        "4276000000",
+        "4277000000",
+        "4311100000",
+        "4315000000",
+        "4376000000",
+        "4380000000",
+        "4420000000",
+        "4420000000",
+        "4421000000",
+        "4421000000",
+        "4427000000",
+        "4480000000",
+        "4481000000",
+        "4518000000",
+        "4521000000",
+        "4579000000",
+        "4579000000",
+        "4617000000",
+        "4617000000",
+        "4682000000",
+        "4682000000",
+        "4683000000",
+        "4684000000",
+        "4684000000",
+        "4690000000",
+        "4728000000",
+        "4792000000",
+        "4811000000",
+        "4872000000",
+        "5011000000"
+      ],
+      "area_mappings": [
+        {
+          "area_id": "2611000000",
+          "area_name": "중구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 중구 대청동1가",
+          "latitude": "35.1047",
+          "longitude": "129.032",
+          "elevation_m": "69.56"
+        },
+        {
+          "area_id": "2614000000",
+          "area_name": "서구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 서구 서대신동3가",
+          "latitude": "35.1188",
+          "longitude": "129",
+          "elevation_m": "512"
+        },
+        {
+          "area_id": "2617000000",
+          "area_name": "동구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 중구 대청동1가",
+          "latitude": "35.1047",
+          "longitude": "129.032",
+          "elevation_m": "69.56"
+        },
+        {
+          "area_id": "2620000000",
+          "area_name": "영도구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 영도구 동삼동",
+          "latitude": "35.0661",
+          "longitude": "129.0742",
+          "elevation_m": "138.96"
+        },
+        {
+          "area_id": "2623000000",
+          "area_name": "부산진구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 부산진구 개금동",
+          "latitude": "35.1589",
+          "longitude": "129.0193",
+          "elevation_m": "114.38"
+        },
+        {
+          "area_id": "2626000000",
+          "area_name": "동래구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 동래구 복천동",
+          "latitude": "35.2091",
+          "longitude": "129.0901",
+          "elevation_m": "70.07"
+        },
+        {
+          "area_id": "2629000000",
+          "area_name": "남구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 남구 감만동",
+          "latitude": "35.1186",
+          "longitude": "129.0884",
+          "elevation_m": "124.26"
+        },
+        {
+          "area_id": "2632000000",
+          "area_name": "북구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 북구 덕천동",
+          "latitude": "35.213",
+          "longitude": "129.0026",
+          "elevation_m": "6.94"
+        },
+        {
+          "area_id": "2635000000",
+          "area_name": "해운대구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 해운대구 우동",
+          "latitude": "35.1772",
+          "longitude": "129.1607",
+          "elevation_m": "81.87"
+        },
+        {
+          "area_id": "2638000000",
+          "area_name": "사하구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 사하구 신평동",
+          "latitude": "35.09",
+          "longitude": "128.9839",
+          "elevation_m": "127"
+        },
+        {
+          "area_id": "2641000000",
+          "area_name": "금정구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 금정구 두구동",
+          "latitude": "35.2932",
+          "longitude": "129.1035",
+          "elevation_m": "49.26"
+        },
+        {
+          "area_id": "2644000000",
+          "area_name": "강서구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 강서구 대저1동",
+          "latitude": "35.2178",
+          "longitude": "128.9602",
+          "elevation_m": "3"
+        },
+        {
+          "area_id": "2647000000",
+          "area_name": "연제구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 부산진구 개금동",
+          "latitude": "35.1589",
+          "longitude": "129.0193",
+          "elevation_m": "114.38"
+        },
+        {
+          "area_id": "2650000000",
+          "area_name": "수영구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 해운대구 우동",
+          "latitude": "35.1772",
+          "longitude": "129.1607",
+          "elevation_m": "81.87"
+        },
+        {
+          "area_id": "2653000000",
+          "area_name": "사상구",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 사상구 삼락동",
+          "latitude": "35.1694",
+          "longitude": "128.9751",
+          "elevation_m": "0.73"
+        },
+        {
+          "area_id": "2671000000",
+          "area_name": "기장군",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "부산광역시 기장군 장안읍 길천리",
+          "latitude": "35.2751",
+          "longitude": "129.2511",
+          "elevation_m": "65.99"
+        },
+        {
+          "area_id": "3011000000",
+          "area_name": "동구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "대전광역시 동구 세천동",
+          "latitude": "36.3402",
+          "longitude": "127.4938",
+          "elevation_m": "91.34"
+        },
+        {
+          "area_id": "3014000000",
+          "area_name": "중구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "대전광역시 중구 사정동",
+          "latitude": "36.2913",
+          "longitude": "127.3959",
+          "elevation_m": "148.61"
+        },
+        {
+          "area_id": "3017000000",
+          "area_name": "서구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "대전광역시 서구 정림동",
+          "latitude": "36.3036",
+          "longitude": "127.3628",
+          "elevation_m": "71.19"
+        },
+        {
+          "area_id": "3020000000",
+          "area_name": "유성구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "대전광역시 유성구 구성동",
+          "latitude": "36.372",
+          "longitude": "127.3721",
+          "elevation_m": "67.79"
+        },
+        {
+          "area_id": "3023000000",
+          "area_name": "대덕구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "대전광역시 대덕구 장동",
+          "latitude": "36.4135",
+          "longitude": "127.4382",
+          "elevation_m": "99.9"
+        },
+        {
+          "area_id": "3111000000",
+          "area_name": "중구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "울산광역시 중구 약사동",
+          "latitude": "35.5824",
+          "longitude": "129.3347",
+          "elevation_m": "81.14"
+        },
+        {
+          "area_id": "3114000000",
+          "area_name": "남구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "울산광역시 남구 매암동",
+          "latitude": "35.5048",
+          "longitude": "129.386",
+          "elevation_m": "1.57"
+        },
+        {
+          "area_id": "3117000000",
+          "area_name": "동구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "울산광역시 동구 방어동",
+          "latitude": "35.4868",
+          "longitude": "129.4353",
+          "elevation_m": "67.64"
+        },
+        {
+          "area_id": "3120000000",
+          "area_name": "북구",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "울산광역시 북구 매곡동",
+          "latitude": "35.6671",
+          "longitude": "129.375",
+          "elevation_m": "460.23"
+        },
+        {
+          "area_id": "3171000000",
+          "area_name": "울주군",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "울산광역시 울주군 두서면 구량리",
+          "latitude": "35.6203",
+          "longitude": "129.1436",
+          "elevation_m": "117.49"
+        },
+        {
+          "area_id": "4167000000",
+          "area_name": "여주",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "경기도 여주시",
+          "latitude": "37.2688",
+          "longitude": "127.6396",
+          "elevation_m": "118.56"
+        },
+        {
+          "area_id": "4211000000",
+          "area_name": "춘천",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "강원특별자치도 춘천시 우두동",
+          "latitude": "37.9026",
+          "longitude": "127.7357",
+          "elevation_m": "75.82"
+        },
+        {
+          "area_id": "4215000000",
+          "area_name": "강릉",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 강릉시 용강동",
+          "latitude": "37.7515",
+          "longitude": "128.891",
+          "elevation_m": "27.12"
+        },
+        {
+          "area_id": "4219000000",
+          "area_name": "태백",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "(산지)강원특별자치도 태백시 황지동",
+          "latitude": "37.1704",
+          "longitude": "128.9893",
+          "elevation_m": "714.45"
+        },
+        {
+          "area_id": "4223000000",
+          "area_name": "삼척",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 삼척시 교동",
+          "latitude": "37.45",
+          "longitude": "129.1621",
+          "elevation_m": "57.07"
+        },
+        {
+          "area_id": "4273000000",
+          "area_name": "횡성",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 횡성군 횡성읍 읍하리",
+          "latitude": "37.4876",
+          "longitude": "127.9724",
+          "elevation_m": "114.35"
+        },
+        {
+          "area_id": "4275000000",
+          "area_name": "영월",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 영월군 영월읍 하송리",
+          "latitude": "37.1813",
+          "longitude": "128.4574",
+          "elevation_m": "240.54"
+        },
+        {
+          "area_id": "4276000000",
+          "area_name": "평창",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 평창군 평창읍 여만리",
+          "latitude": "37.3775",
+          "longitude": "128.3947",
+          "elevation_m": "303.18"
+        },
+        {
+          "area_id": "4277000000",
+          "area_name": "정선",
+          "pa_crop_spe_id": "PA170301",
+          "pa_crop_spe_name": "고랭지",
+          "address": "강원특별자치도 정선군 정선읍 애산리",
+          "latitude": "37.3807",
+          "longitude": "128.6731",
+          "elevation_m": "312"
+        },
+        {
+          "area_id": "4311100000",
+          "area_name": "청주",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청북도 청주시흥덕구 복대동",
+          "latitude": "36.6392",
+          "longitude": "127.4407",
+          "elevation_m": "58.7"
+        },
+        {
+          "area_id": "4315000000",
+          "area_name": "제천",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청북도 제천시 신월동",
+          "latitude": "37.1593",
+          "longitude": "128.1943",
+          "elevation_m": "264.62"
+        },
+        {
+          "area_id": "4376000000",
+          "area_name": "괴산",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청북도 괴산군 괴산읍 서부리",
+          "latitude": "36.8161",
+          "longitude": "127.7776",
+          "elevation_m": "120.2"
+        },
+        {
+          "area_id": "4380000000",
+          "area_name": "단양",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청북도 단양군 단양읍 도담리",
+          "latitude": "37.002",
+          "longitude": "128.3469",
+          "elevation_m": "147.07"
+        },
+        {
+          "area_id": "4420000000",
+          "area_name": "아산",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "충청남도 아산시 인주면 금성리",
+          "latitude": "36.8458",
+          "longitude": "126.8654",
+          "elevation_m": "29.5"
+        },
+        {
+          "area_id": "4420000000",
+          "area_name": "아산",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청남도 아산시 인주면 금성리",
+          "latitude": "36.8458",
+          "longitude": "126.8654",
+          "elevation_m": "29.5"
+        },
+        {
+          "area_id": "4421000000",
+          "area_name": "서산",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "충청남도 서산시 수석동",
+          "latitude": "36.7766",
+          "longitude": "126.4939",
+          "elevation_m": "25.25"
+        },
+        {
+          "area_id": "4421000000",
+          "area_name": "서산",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청남도 서산시 수석동",
+          "latitude": "36.7766",
+          "longitude": "126.4939",
+          "elevation_m": "25.25"
+        },
+        {
+          "area_id": "4427000000",
+          "area_name": "당진",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청남도 당진시 채운동",
+          "latitude": "36.8894",
+          "longitude": "126.6174",
+          "elevation_m": "52.4"
+        },
+        {
+          "area_id": "4480000000",
+          "area_name": "홍성",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "충청남도 홍성군 광천읍 월림리",
+          "latitude": "36.6576",
+          "longitude": "126.6877",
+          "elevation_m": "27.74"
+        },
+        {
+          "area_id": "4481000000",
+          "area_name": "예산",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "충청남도 예산군 신암면 종경리",
+          "latitude": "36.7421",
+          "longitude": "126.8144",
+          "elevation_m": "38.84"
+        },
+        {
+          "area_id": "4518000000",
+          "area_name": "정읍",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "전북특별자치도 정읍시 상평동",
+          "latitude": "35.5634",
+          "longitude": "126.839",
+          "elevation_m": "68.7"
+        },
+        {
+          "area_id": "4521000000",
+          "area_name": "김제",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "전북특별자치도 김제시 서암동",
+          "latitude": "35.8091",
+          "longitude": "126.8777",
+          "elevation_m": "54.61"
+        },
+        {
+          "area_id": "4579000000",
+          "area_name": "고창",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "전북특별자치도 고창군 대산면 매산리",
+          "latitude": "35.3482",
+          "longitude": "126.599",
+          "elevation_m": "52.42"
+        },
+        {
+          "area_id": "4579000000",
+          "area_name": "고창",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "전북특별자치도 고창군 대산면 매산리",
+          "latitude": "35.3482",
+          "longitude": "126.599",
+          "elevation_m": "52.42"
+        },
+        {
+          "area_id": "4617000000",
+          "area_name": "나주",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "전라남도 나주시 금천면 오강리",
+          "latitude": "35.025",
+          "longitude": "126.744",
+          "elevation_m": "7.82"
+        },
+        {
+          "area_id": "4617000000",
+          "area_name": "나주",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "전라남도 나주시 금천면 오강리",
+          "latitude": "35.025",
+          "longitude": "126.744",
+          "elevation_m": "7.82"
+        },
+        {
+          "area_id": "4682000000",
+          "area_name": "해남",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "전라남도 해남군 해남읍 남천리",
+          "latitude": "34.5538",
+          "longitude": "126.5691",
+          "elevation_m": "16.36"
+        },
+        {
+          "area_id": "4682000000",
+          "area_name": "해남",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "전라남도 해남군 해남읍 남천리",
+          "latitude": "34.5538",
+          "longitude": "126.5691",
+          "elevation_m": "16.36"
+        },
+        {
+          "area_id": "4683000000",
+          "area_name": "영암",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "전라남도 영암군 영암읍 망호리",
+          "latitude": "34.8167",
+          "longitude": "126.6863",
+          "elevation_m": "4.58"
+        },
+        {
+          "area_id": "4684000000",
+          "area_name": "무안",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "전라남도 무안군 무안읍 교촌리",
+          "latitude": "34.9838",
+          "longitude": "126.4611",
+          "elevation_m": "37.85"
+        },
+        {
+          "area_id": "4684000000",
+          "area_name": "무안",
+          "pa_crop_spe_id": "PA170401",
+          "pa_crop_spe_name": "가을",
+          "address": "전라남도 무안군 무안읍 교촌리",
+          "latitude": "34.9838",
+          "longitude": "126.4611",
+          "elevation_m": "37.85"
+        },
+        {
+          "area_id": "4690000000",
+          "area_name": "진도",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "전라남도 진도군 진도읍 남동리",
+          "latitude": "34.473",
+          "longitude": "126.2585",
+          "elevation_m": "9.82"
+        },
+        {
+          "area_id": "4728000000",
+          "area_name": "문경",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "경상북도 문경시 유곡동",
+          "latitude": "36.6273",
+          "longitude": "128.1488",
+          "elevation_m": "173.01"
+        },
+        {
+          "area_id": "4792000000",
+          "area_name": "봉화",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "경상북도 봉화군 춘양면 의양리",
+          "latitude": "36.9436",
+          "longitude": "128.9145",
+          "elevation_m": "324.67"
+        },
+        {
+          "area_id": "4811000000",
+          "area_name": "창원",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "경상남도 창원시 마산합포구 가포동",
+          "latitude": "35.1702",
+          "longitude": "128.5728",
+          "elevation_m": "34.97"
+        },
+        {
+          "area_id": "4872000000",
+          "area_name": "의령",
+          "pa_crop_spe_id": "PA170201",
+          "pa_crop_spe_name": "봄",
+          "address": "경상남도 의령군 의령읍 무전리",
+          "latitude": "35.3226",
+          "longitude": "128.2881",
+          "elevation_m": "14.1"
+        },
+        {
+          "area_id": "5011000000",
+          "area_name": "제주",
+          "pa_crop_spe_id": "PA170101",
+          "pa_crop_spe_name": "겨울",
+          "address": "제주특별자치도 제주시 건입동",
+          "latitude": "33.5141",
+          "longitude": "126.5297",
+          "elevation_m": "20.79"
+        }
+      ],
+      "candidate_regions": [
+        "중구",
+        "서구",
+        "동구",
+        "영도구",
+        "부산진구",
+        "동래구",
+        "남구",
+        "북구",
+        "해운대구",
+        "사하구",
+        "금정구",
+        "강서구",
+        "연제구",
+        "수영구",
+        "사상구",
+        "기장군",
+        "동구",
+        "중구",
+        "서구",
+        "유성구",
+        "대덕구",
+        "중구",
+        "남구",
+        "동구",
+        "북구",
+        "울주군",
+        "여주",
+        "춘천",
+        "강릉",
+        "태백",
+        "삼척",
+        "횡성",
+        "영월",
+        "평창",
+        "정선",
+        "청주",
+        "제천",
+        "괴산",
+        "단양",
+        "아산",
+        "아산",
+        "서산",
+        "서산",
+        "당진",
+        "홍성",
+        "예산",
+        "정읍",
+        "김제",
+        "고창",
+        "고창",
+        "나주",
+        "나주",
+        "해남",
+        "해남",
+        "영암",
+        "무안",
+        "무안",
+        "진도",
+        "문경",
+        "봉화",
+        "창원",
+        "의령",
+        "제주"
+      ],
+      "notes": "Official data.go.kr KMA crop main-area weather guide code table, 2026-01-05."
     },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
@@ -17,12 +786,31 @@
       "itemcode": "211",
       "productrankcode": "04",
       "variants": [
-        { "kindcode": "01", "kind_name": "봄", "primary": true },
-        { "kindcode": "02", "kind_name": "여름(고랭지)", "primary": true },
-        { "kindcode": "03", "kind_name": "가을", "primary": true },
-        { "kindcode": "06", "kind_name": "월동", "primary": true }
+        {
+          "kindcode": "01",
+          "kind_name": "봄",
+          "primary": true
+        },
+        {
+          "kindcode": "02",
+          "kind_name": "여름(고랭지)",
+          "primary": true
+        },
+        {
+          "kindcode": "03",
+          "kind_name": "가을",
+          "primary": true
+        },
+        {
+          "kindcode": "06",
+          "kind_name": "월동",
+          "primary": true
+        }
       ],
-      "product_classes": ["01", "02"],
+      "product_classes": [
+        "01",
+        "02"
+      ],
       "notes": "KAMIS 코드통합표 기준. 소매 1포기, 중도매 10kg 단위가 혼재하므로 엔진에서 product_cls별 피처로 분리"
     },
     "kosis_production": {
@@ -36,31 +824,99 @@
   },
   "crop_profile": {
     "storage_type": "fresh",
-    "cultivation_type": ["open_field", "highland", "winter", "autumn"],
+    "cultivation_type": [
+      "open_field",
+      "highland",
+      "winter",
+      "autumn"
+    ],
     "growth_calendar": {
-      "spring": [3, 4, 5],
-      "highland": [5, 6, 7, 8],
-      "autumn": [8, 9, 10],
-      "winter": [10, 11, 12]
+      "spring": [
+        3,
+        4,
+        5
+      ],
+      "highland": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "autumn": [
+        8,
+        9,
+        10
+      ],
+      "winter": [
+        10,
+        11,
+        12
+      ]
     },
     "harvest_calendar": {
-      "spring": [5, 6],
-      "highland": [7, 8, 9],
-      "autumn": [10, 11],
-      "winter": [12, 1, 2]
+      "spring": [
+        5,
+        6
+      ],
+      "highland": [
+        7,
+        8,
+        9
+      ],
+      "autumn": [
+        10,
+        11
+      ],
+      "winter": [
+        12,
+        1,
+        2
+      ]
     },
     "demand_events": [
-      { "name": "kimjang", "months": [10, 11, 12], "effect": "up" },
-      { "name": "summer_supply_gap", "months": [7, 8], "effect": "up" }
+      {
+        "name": "kimjang",
+        "months": [
+          10,
+          11,
+          12
+        ],
+        "effect": "up"
+      },
+      {
+        "name": "summer_supply_gap",
+        "months": [
+          7,
+          8
+        ],
+        "effect": "up"
+      }
     ],
-    "substitute_items": ["radish"]
+    "substitute_items": [
+      "radish"
+    ]
   },
   "production_profile": {
     "region_strategy": "hybrid",
     "manual_regions": [
-      { "region_code": "42", "region_name": "강원", "base_weight": 0.35, "notes": "고랭지 여름 배추 핵심 권역" },
-      { "region_code": "46", "region_name": "전남", "base_weight": 0.25, "notes": "겨울 배추 주요 권역" },
-      { "region_code": "47", "region_name": "경북", "base_weight": 0.15, "notes": "가을 작형 보조 권역" }
+      {
+        "region_code": "42",
+        "region_name": "강원",
+        "base_weight": 0.35,
+        "notes": "고랭지 여름 배추 핵심 권역"
+      },
+      {
+        "region_code": "46",
+        "region_name": "전남",
+        "base_weight": 0.25,
+        "notes": "겨울 배추 주요 권역"
+      },
+      {
+        "region_code": "47",
+        "region_name": "경북",
+        "base_weight": 0.15,
+        "notes": "가을 작형 보조 권역"
+      }
     ]
   },
   "market_profile": {
@@ -82,12 +938,38 @@
       "humidity": 0.6
     },
     "critical_windows": [
-      { "name": "highland_summer_growth", "months": [7, 8], "risk_factors": ["heat", "heavy_rain", "humidity"] },
-      { "name": "kimjang_supply", "months": [10, 11], "risk_factors": ["cold", "heavy_rain"] }
+      {
+        "name": "highland_summer_growth",
+        "months": [
+          7,
+          8
+        ],
+        "risk_factors": [
+          "heat",
+          "heavy_rain",
+          "humidity"
+        ]
+      },
+      {
+        "name": "kimjang_supply",
+        "months": [
+          10,
+          11
+        ],
+        "risk_factors": [
+          "cold",
+          "heavy_rain"
+        ]
+      }
     ]
   },
   "event_profile": {
-    "enabled_events": ["weather_alert", "impact_forecast", "typhoon", "midterm_forecast"],
+    "enabled_events": [
+      "weather_alert",
+      "impact_forecast",
+      "typhoon",
+      "midterm_forecast"
+    ],
     "event_weights": {
       "weather_alert": 0.35,
       "impact_forecast": 0.2,
@@ -96,7 +978,15 @@
     }
   },
   "feature_engine_profile": {
-    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "engine_set": [
+      "item_meta",
+      "production_region",
+      "price_market",
+      "agri_weather",
+      "disaster_event",
+      "forecast_context",
+      "risk_signal"
+    ],
     "feature_overrides": {
       "risk_signal": {
         "weather_pressure_weight": 0.3,
@@ -107,7 +997,14 @@
   "source_coverage": {
     "kamis": true,
     "kosis": true,
-    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "typhoon", "midterm_forecast"],
+    "data_go_kr": [
+      "crop_weather",
+      "agri_weather_observation",
+      "weather_alert",
+      "impact_forecast",
+      "typhoon",
+      "midterm_forecast"
+    ],
     "manual_review_required": true
   }
 }

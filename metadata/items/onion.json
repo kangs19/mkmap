@@ -5,11 +5,187 @@
   "aliases": [],
   "external_mappings": {
     "kma_crop_weather": {
-      "mapping_status": "candidate_regions_only",
+      "mapping_status": "verified",
       "pa_crop_spe_id": null,
-      "area_ids": [],
-      "candidate_regions": ["무안", "신안", "창녕", "함평", "해남"],
-      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+      "pa_crop_spe_ids": [
+        "PA250101",
+        "PA250201"
+      ],
+      "area_ids": [
+        "4677000000",
+        "4682000000",
+        "4684000000",
+        "4684000000",
+        "4686000000",
+        "4691000000",
+        "4715000000",
+        "4723000000",
+        "4772000000",
+        "4773000000",
+        "4872000000",
+        "4874000000",
+        "4887000000",
+        "4889000000"
+      ],
+      "area_mappings": [
+        {
+          "area_id": "4677000000",
+          "area_name": "고흥",
+          "pa_crop_spe_id": "PA250101",
+          "pa_crop_spe_name": "조생종",
+          "address": "전라남도 고흥군 고흥읍 행정리",
+          "latitude": "34.6183",
+          "longitude": "127.2757",
+          "elevation_m": "51.91"
+        },
+        {
+          "area_id": "4682000000",
+          "area_name": "해남",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "전라남도 해남군 해남읍 남천리",
+          "latitude": "34.5538",
+          "longitude": "126.5691",
+          "elevation_m": "16.36"
+        },
+        {
+          "area_id": "4684000000",
+          "area_name": "무안",
+          "pa_crop_spe_id": "PA250101",
+          "pa_crop_spe_name": "조생종",
+          "address": "전라남도 무안군 무안읍 교촌리",
+          "latitude": "34.9838",
+          "longitude": "126.4611",
+          "elevation_m": "37.85"
+        },
+        {
+          "area_id": "4684000000",
+          "area_name": "무안",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "전라남도 무안군 무안읍 교촌리",
+          "latitude": "34.9838",
+          "longitude": "126.4611",
+          "elevation_m": "37.85"
+        },
+        {
+          "area_id": "4686000000",
+          "area_name": "함평",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "전라남도 함평군 함평읍 기각리",
+          "latitude": "35.0604",
+          "longitude": "126.5273",
+          "elevation_m": "10.42"
+        },
+        {
+          "area_id": "4691000000",
+          "area_name": "신안",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "전라남도 신안군 하의면 후광리",
+          "latitude": "34.6307",
+          "longitude": "126.032",
+          "elevation_m": "2.58"
+        },
+        {
+          "area_id": "4715000000",
+          "area_name": "김천",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상북도 김천시 덕곡동",
+          "latitude": "36.1199",
+          "longitude": "128.1552",
+          "elevation_m": "79.24"
+        },
+        {
+          "area_id": "4723000000",
+          "area_name": "영천",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상북도 영천시 망정동",
+          "latitude": "35.9774",
+          "longitude": "128.9514",
+          "elevation_m": "96.12"
+        },
+        {
+          "area_id": "4772000000",
+          "area_name": "군위",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "대구광역시 군위군 내량리",
+          "latitude": "36.2493",
+          "longitude": "128.5558",
+          "elevation_m": "81.56"
+        },
+        {
+          "area_id": "4773000000",
+          "area_name": "의성",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상북도 의성군 의성읍 원당리",
+          "latitude": "36.3561",
+          "longitude": "128.6886",
+          "elevation_m": "81.44"
+        },
+        {
+          "area_id": "4872000000",
+          "area_name": "의령",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상남도 의령군 의령읍 무전리",
+          "latitude": "35.3226",
+          "longitude": "128.2881",
+          "elevation_m": "14.1"
+        },
+        {
+          "area_id": "4874000000",
+          "area_name": "창녕",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상남도 창녕군 대지면 효정리",
+          "latitude": "35.5514",
+          "longitude": "128.4767",
+          "elevation_m": "30"
+        },
+        {
+          "area_id": "4887000000",
+          "area_name": "함양",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상남도 함양군 함양읍 용평리",
+          "latitude": "35.5114",
+          "longitude": "127.7454",
+          "elevation_m": "152.07"
+        },
+        {
+          "area_id": "4889000000",
+          "area_name": "합천",
+          "pa_crop_spe_id": "PA250201",
+          "pa_crop_spe_name": "중만생종",
+          "address": "경상남도 합천군 합천읍 합천리",
+          "latitude": "35.5651",
+          "longitude": "128.1699",
+          "elevation_m": "26.72"
+        }
+      ],
+      "candidate_regions": [
+        "고흥",
+        "해남",
+        "무안",
+        "무안",
+        "함평",
+        "신안",
+        "김천",
+        "영천",
+        "군위",
+        "의성",
+        "의령",
+        "창녕",
+        "함양",
+        "합천"
+      ],
+      "notes": "Official data.go.kr KMA crop main-area weather guide code table, 2026-01-05."
     },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
@@ -17,10 +193,21 @@
       "itemcode": "245",
       "productrankcode": "04",
       "variants": [
-        { "kindcode": "00", "kind_name": "양파", "primary": true },
-        { "kindcode": "02", "kind_name": "햇양파", "primary": false }
+        {
+          "kindcode": "00",
+          "kind_name": "양파",
+          "primary": true
+        },
+        {
+          "kindcode": "02",
+          "kind_name": "햇양파",
+          "primary": false
+        }
       ],
-      "product_classes": ["01", "02"],
+      "product_classes": [
+        "01",
+        "02"
+      ],
       "notes": "KAMIS 코드통합표 기준. 햇양파는 시즌 보조 후보로 유지"
     },
     "kosis_production": {
@@ -34,27 +221,85 @@
   },
   "crop_profile": {
     "storage_type": "storage",
-    "cultivation_type": ["open_field", "winter", "stored"],
+    "cultivation_type": [
+      "open_field",
+      "winter",
+      "stored"
+    ],
     "growth_calendar": {
-      "wintering": [10, 11, 12, 1, 2, 3, 4],
-      "bulb_expansion": [4, 5, 6]
+      "wintering": [
+        10,
+        11,
+        12,
+        1,
+        2,
+        3,
+        4
+      ],
+      "bulb_expansion": [
+        4,
+        5,
+        6
+      ]
     },
     "harvest_calendar": {
-      "early": [4, 5],
-      "main": [6, 7]
+      "early": [
+        4,
+        5
+      ],
+      "main": [
+        6,
+        7
+      ]
     },
     "demand_events": [
-      { "name": "storage_release", "months": [8, 9, 10, 11, 12], "effect": "mixed" },
-      { "name": "new_crop_transition", "months": [4, 5, 6], "effect": "down" }
+      {
+        "name": "storage_release",
+        "months": [
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "effect": "mixed"
+      },
+      {
+        "name": "new_crop_transition",
+        "months": [
+          4,
+          5,
+          6
+        ],
+        "effect": "down"
+      }
     ],
-    "substitute_items": ["green_onion", "garlic"]
+    "substitute_items": [
+      "green_onion",
+      "garlic"
+    ]
   },
   "production_profile": {
     "region_strategy": "hybrid",
     "manual_regions": [
-      { "region_code": "46", "region_name": "전남", "base_weight": 0.34, "notes": "양파 주요 생산 권역" },
-      { "region_code": "48", "region_name": "경남", "base_weight": 0.22, "notes": "남부권 생산 권역" },
-      { "region_code": "50", "region_name": "제주", "base_weight": 0.16, "notes": "조생 양파 권역" }
+      {
+        "region_code": "46",
+        "region_name": "전남",
+        "base_weight": 0.34,
+        "notes": "양파 주요 생산 권역"
+      },
+      {
+        "region_code": "48",
+        "region_name": "경남",
+        "base_weight": 0.22,
+        "notes": "남부권 생산 권역"
+      },
+      {
+        "region_code": "50",
+        "region_name": "제주",
+        "base_weight": 0.16,
+        "notes": "조생 양파 권역"
+      }
     ]
   },
   "market_profile": {
@@ -77,12 +322,37 @@
       "snow": 0.6
     },
     "critical_windows": [
-      { "name": "wintering", "months": [12, 1, 2], "risk_factors": ["cold", "snow"] },
-      { "name": "harvest_drying", "months": [5, 6], "risk_factors": ["heavy_rain", "humidity"] }
+      {
+        "name": "wintering",
+        "months": [
+          12,
+          1,
+          2
+        ],
+        "risk_factors": [
+          "cold",
+          "snow"
+        ]
+      },
+      {
+        "name": "harvest_drying",
+        "months": [
+          5,
+          6
+        ],
+        "risk_factors": [
+          "heavy_rain",
+          "humidity"
+        ]
+      }
     ]
   },
   "event_profile": {
-    "enabled_events": ["weather_alert", "impact_forecast", "midterm_forecast"],
+    "enabled_events": [
+      "weather_alert",
+      "impact_forecast",
+      "midterm_forecast"
+    ],
     "event_weights": {
       "weather_alert": 0.32,
       "impact_forecast": 0.2,
@@ -91,7 +361,15 @@
     }
   },
   "feature_engine_profile": {
-    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "engine_set": [
+      "item_meta",
+      "production_region",
+      "price_market",
+      "agri_weather",
+      "disaster_event",
+      "forecast_context",
+      "risk_signal"
+    ],
     "feature_overrides": {
       "risk_signal": {
         "market_pressure_weight": 0.42,
@@ -102,7 +380,13 @@
   "source_coverage": {
     "kamis": true,
     "kosis": true,
-    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "midterm_forecast"],
+    "data_go_kr": [
+      "crop_weather",
+      "agri_weather_observation",
+      "weather_alert",
+      "impact_forecast",
+      "midterm_forecast"
+    ],
     "manual_review_required": true
   }
 }

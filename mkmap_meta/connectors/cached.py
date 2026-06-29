@@ -4,9 +4,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from mkmap_meta.connectors.base import EventConnector, PriceConnector, ProductionConnector
+from mkmap_meta.connectors.base import EventConnector, PriceConnector, ProductionConnector, WeatherConnector
 from mkmap_meta.connectors.production import ManualProductionConnector
-from mkmap_meta.models import EventFeature, PriceFeature, ProductionFeature
+from mkmap_meta.models import EventFeature, PriceFeature, ProductionFeature, WeatherFeature
 from mkmap_meta.storage import dated_path, read_json
 
 
@@ -52,6 +52,19 @@ class CachedProductionConnector(ProductionConnector):
             if latest_path and latest_path != path:
                 production.extend(_load_production(latest_path))
         return _dedupe_production(production)
+
+
+class CachedWeatherConnector(WeatherConnector):
+    def __init__(self, source_names: list[str] | None = None) -> None:
+        self.source_names = source_names or ["kma_crop_weather"]
+
+    def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
+        weather: list[WeatherFeature] = []
+        for source_name in self.source_names:
+            path = dated_path("features", f"{source_name}_{item_code}", target_date)
+            if path.exists():
+                weather.extend(_load_weather(path))
+        return weather
 
 
 class CachedOrManualProductionConnector(ProductionConnector):
@@ -139,6 +152,32 @@ def _load_production(path: Path) -> list[ProductionFeature]:
             )
         )
     return production
+
+
+def _load_weather(path: Path) -> list[WeatherFeature]:
+    rows = read_json(path)
+    if not isinstance(rows, list):
+        return []
+
+    weather: list[WeatherFeature] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        weather.append(
+            WeatherFeature(
+                item_code=row["item_code"],
+                region_code=str(row.get("region_code") or ""),
+                base_date=date.fromisoformat(row["base_date"]),
+                temperature=_optional_float(row.get("temperature")),
+                rainfall=_optional_float(row.get("rainfall")),
+                humidity=_optional_float(row.get("humidity")),
+                wind_speed=_optional_float(row.get("wind_speed")),
+                sunshine=_optional_float(row.get("sunshine")),
+                source=row.get("source", "cached"),
+                raw=row.get("raw") if isinstance(row.get("raw"), dict) else {},
+            )
+        )
+    return weather
 
 
 def _latest_feature_path(name: str, year: int) -> Path | None:

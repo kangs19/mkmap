@@ -11,7 +11,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ITEMS_DIR = REPO_ROOT / "metadata" / "items"
-DEFAULT_CSV = REPO_ROOT / "config" / "external_mappings" / "kma_crop_weather_template.csv"
+DEFAULT_CSV = REPO_ROOT / "config" / "external_mappings" / "kma_crop_weather_mapping.csv"
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,26 +54,40 @@ def load_item(item_code: str) -> tuple[Path, dict[str, Any]]:
 
 def build_mapping(rows: list[dict[str, str | None]]) -> dict[str, Any]:
     candidate_regions = [row["candidate_region"] for row in rows if row.get("candidate_region")]
-    area_rows = [
-        {
-            "area_id": row["area_id"],
-            "area_name": row.get("area_name") or row.get("candidate_region"),
-        }
-        for row in rows
-        if row.get("area_id")
-    ]
+    area_rows = []
+    seen_pairs: set[tuple[str, str | None]] = set()
+    for row in rows:
+        area_id = row.get("area_id")
+        crop_id = row.get("pa_crop_spe_id")
+        if not area_id:
+            continue
+        pair = (area_id, crop_id)
+        if pair in seen_pairs:
+            continue
+        seen_pairs.add(pair)
+        area_rows.append(
+            {
+                "area_id": area_id,
+                "area_name": row.get("area_name") or row.get("candidate_region"),
+                "pa_crop_spe_id": crop_id,
+                "pa_crop_spe_name": row.get("pa_crop_spe_name"),
+                "address": row.get("address"),
+                "latitude": row.get("latitude"),
+                "longitude": row.get("longitude"),
+                "elevation_m": row.get("elevation_m"),
+            }
+        )
     area_ids = [row["area_id"] for row in area_rows if row.get("area_id")]
     crop_ids = sorted({row["pa_crop_spe_id"] for row in rows if row.get("pa_crop_spe_id")})
 
     mapping_status = "verified" if crop_ids and area_ids else "candidate_regions_only"
-    if len(crop_ids) > 1:
-        mapping_status = "candidate_regions_only"
 
     notes = "; ".join(sorted({row["notes"] for row in rows if row.get("notes")})) or None
 
     return {
         "mapping_status": mapping_status,
         "pa_crop_spe_id": crop_ids[0] if len(crop_ids) == 1 else None,
+        "pa_crop_spe_ids": crop_ids,
         "area_ids": area_ids,
         "area_mappings": area_rows,
         "candidate_regions": candidate_regions,
