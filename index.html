@@ -718,11 +718,11 @@ function redrawMap(){
   else if(curProv)drawCities(curProv.sido);
 }
 function priceColor(pct){
-  if(pct>=20)return"rgba(200,30,30,.6)";    /* 짙은 빨강 — 급등 */
-  if(pct>=10)return"rgba(220,100,0,.55)";   /* 주황 — 상승 */
-  if(pct>=-10)return"rgba(100,60,200,.45)"; /* 보라 — 보합 */
-  if(pct>=-20)return"rgba(0,110,200,.5)";   /* 파랑 — 하락 */
-  return"rgba(0,60,160,.55)";               /* 짙은 파랑 — 급락 */
+  if(pct>=20)return"rgba(210,20,20,.78)";   /* 빨강 — 급등 */
+  if(pct>=10)return"rgba(215,90,0,.75)";    /* 주황 — 상승 */
+  if(pct>=-10)return"rgba(130,50,210,.72)"; /* 보라 — 보합 */
+  if(pct>=-20)return"rgba(0,100,210,.72)";  /* 파랑 — 하락 */
+  return"rgba(0,40,160,.78)";               /* 짙은 파랑 — 급락 */
 }
 function riskColor(s){
   if(s>=70)return"rgba(200,30,30,.6)";
@@ -742,7 +742,7 @@ function drawProvinces(){
       const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
       if(!ents.length)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"3"};
       const avgPct=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
-      return{fillColor:priceColor(avgPct),weight:1.5,color:"rgba(40,80,20,.5)",fillOpacity:1};
+      return{fillColor:priceColor(avgPct),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -780,7 +780,7 @@ function drawCities(sido){
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=cd[code];
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
-      return{fillColor:priceColor(d.price_vs_avg),weight:1.5,color:"rgba(40,80,20,.6)",fillOpacity:1};
+      return{fillColor:priceColor(d.price_vs_avg),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
