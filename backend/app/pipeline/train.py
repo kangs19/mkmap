@@ -93,10 +93,34 @@ def walk_forward_train(df: pd.DataFrame, target_col: str,
 
 
 def compute_shap(model: lgb.Booster, X: pd.DataFrame, top_n: int = 5) -> list[dict]:
-    """LightGBM feature importance 기반 상위 기여 피처 반환 (shap 대체)"""
+    """LightGBM feature importance 기반 상위 기여 피처 반환
+    영문 피처명 원본을 factor에 유지 → explain.py에서 한국어 변환
+    """
     if X.empty:
         return []
 
+    importances = model.feature_importance(importance_type="gain")
+    last_pred = float(model.predict(X.tail(1))[0])
+    pred_direction = "up" if last_pred > 0.5 else "down"
+
+    feature_importance = []
+    total = max(importances.sum(), 1e-10)
+    for i, feat in enumerate(FEATURE_COLS):
+        if i >= len(importances):
+            break
+        contrib = float(importances[i]) / total
+        feature_importance.append({
+            "factor": feat,           # 영문 원본 유지 (explain.py가 매핑)
+            "importance": round(contrib, 4),
+            "direction": pred_direction,
+        })
+
+    feature_importance.sort(key=lambda x: x["importance"], reverse=True)
+    return feature_importance[:top_n]
+
+
+def _compute_shap_legacy(model: lgb.Booster, X: pd.DataFrame, top_n: int = 5) -> list[dict]:
+    """구버전 호환용 — 사용 안 함"""
     importances = model.feature_importance(importance_type="gain")
     last_pred = float(model.predict(X.tail(1))[0])
 
@@ -104,17 +128,14 @@ def compute_shap(model: lgb.Booster, X: pd.DataFrame, top_n: int = 5) -> list[di
     total = max(importances.sum(), 1e-10)
     for i, feat in enumerate(FEATURE_COLS):
         contrib = float(importances[i]) / total
-        # 예측 방향을 기준으로 direction 할당 (단순 근사)
         feature_importance.append({
             "factor": feat,
             "contribution": round(contrib, 4),
             "direction": "up" if last_pred > 0.5 else "down",
         })
 
-    # 기여도 절댓값 기준 정렬
     feature_importance.sort(key=lambda x: x["contribution"], reverse=True)
 
-    # 피처명 한글화
     name_map = {
         "price_ma7": "7일 이동평균가격",
         "price_ma14": "14일 이동평균가격",
@@ -142,3 +163,4 @@ def compute_shap(model: lgb.Booster, X: pd.DataFrame, top_n: int = 5) -> list[di
         f["factor"] = name_map.get(f["factor"], f["factor"])
 
     return feature_importance[:top_n]
+
