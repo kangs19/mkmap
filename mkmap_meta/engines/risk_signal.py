@@ -41,7 +41,7 @@ def build_region_risk_signals(bundle: ItemFeatureBundle) -> list[RegionRiskSigna
 
     signals: list[RegionRiskSignal] = []
     for region_code, production in production_by_region.items():
-        weather_pressure = _weather_pressure(weather_by_region.get(region_code, []), weather_sensitivity)
+        weather_pressure = _weather_pressure(_weather_for_production_region(production, weather_by_region), weather_sensitivity)
         event_pressure = _event_pressure(events_by_region.get(region_code, []) + events_by_region.get("*", []), event_weights)
         production_pressure = production.production_share or 0.0
 
@@ -89,8 +89,68 @@ def _production_by_region(production: list[ProductionFeature]) -> dict[str, Prod
 def _weather_by_region(weather: list[WeatherFeature]) -> dict[str, list[WeatherFeature]]:
     grouped: dict[str, list[WeatherFeature]] = {}
     for feature in weather:
-        grouped.setdefault(feature.region_code, []).append(feature)
+        for key in _weather_region_keys(feature.region_code):
+            grouped.setdefault(key, []).append(feature)
     return grouped
+
+
+def _weather_region_keys(region_code: str) -> list[str]:
+    keys = [region_code]
+    if len(region_code) >= 2:
+        keys.append(region_code[:2])
+    return list(dict.fromkeys(key for key in keys if key))
+
+
+def _weather_for_production_region(
+    production: ProductionFeature,
+    weather_by_region: dict[str, list[WeatherFeature]],
+) -> list[WeatherFeature]:
+    features: list[WeatherFeature] = []
+    seen: set[tuple[str, str]] = set()
+    for key in _production_weather_keys(production):
+        for feature in weather_by_region.get(key, []):
+            feature_key = (feature.region_code, feature.source)
+            if feature_key in seen:
+                continue
+            seen.add(feature_key)
+            features.append(feature)
+    return features
+
+
+def _production_weather_keys(production: ProductionFeature) -> list[str]:
+    keys = [production.region_code]
+    keys.extend(_province_weather_prefixes(production.region_name))
+    return list(dict.fromkeys(key for key in keys if key))
+
+
+def _province_weather_prefixes(region_name: str) -> list[str]:
+    normalized = region_name.replace("특별자치도", "").replace("광역시", "").replace("특별시", "").replace("도", "")
+    mapping = {
+        "서울": ["11"],
+        "부산": ["26"],
+        "대구": ["27"],
+        "인천": ["28"],
+        "광주": ["29"],
+        "대전": ["30"],
+        "울산": ["31"],
+        "세종": ["36"],
+        "경기": ["41"],
+        "강원": ["42", "51"],
+        "충북": ["43"],
+        "충청북": ["43"],
+        "충남": ["44"],
+        "충청남": ["44"],
+        "전북": ["45", "52"],
+        "전라북": ["45", "52"],
+        "전남": ["46"],
+        "전라남": ["46"],
+        "경북": ["47"],
+        "경상북": ["47"],
+        "경남": ["48"],
+        "경상남": ["48"],
+        "제주": ["50"],
+    }
+    return mapping.get(normalized, [])
 
 
 def _events_by_region(events: list[EventFeature]) -> dict[str, list[EventFeature]]:
