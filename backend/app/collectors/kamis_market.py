@@ -39,7 +39,7 @@ async def fetch_market_volume(
         "p_startday": start_date.strftime("%Y-%m-%d"),
         "p_endday": end_date.strftime("%Y-%m-%d"),
         "p_itemcategorycode": code_map["category"],
-        "p_itemcode": code_map["item"],
+        "p_itemcode": code_map["productno"],
         "p_kindcode": "01",
         "p_productrankcode": "04",
         "p_countrycode": MARKET_CODE,
