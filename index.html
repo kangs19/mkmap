@@ -517,10 +517,11 @@ window.onload=async()=>{
   renderMiniCards();
 
   // 지도 초기화
-  map_=L.map("map",{zoomControl:true,preferCanvas:true});
+  map_=L.map("map",{zoomControl:true,preferCanvas:true,minZoom:6});
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
-  map_.setView([36.3,127.9],7);
+  // 남한 경계에 딱 맞게
+  map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
 
   Promise.all([
     fetch(GEO+"skorea_provinces.json").then(r=>r.json()),
@@ -854,18 +855,16 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
       const pname=f.properties.name||"";
+      const tot=ents.reduce((s,[,d])=>s+d.shipment_ton,0);
+      const pw=ents.reduce((s,[,d])=>s+d.production_weight,0);
+      const avgChg=ents.length?ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length:0;
+      const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
+      const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',risk_score:Math.round(Math.abs(avgChg)*3+30)}:null;
+      layer.bindTooltip(()=>makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),{sticky:true,className:'rhc-tip',offset:[14,-160],direction:'top'});
       layer.on({
-        mouseover:e=>{
-          e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95});
-          const tot=ents.reduce((s,[,d])=>s+d.shipment_ton,0);
-          const pw=ents.reduce((s,[,d])=>s+d.production_weight,0);
-          const avgChg=ents.length?ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length:0;
-          const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
-          const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal'}:null;
-          layer.bindTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),{sticky:true,className:'rhc-tip',offset:[18,0]}).openTooltip();
-        },
-        mouseout:e=>{provLayer.resetStyle(e.target);layer.closeTooltip();},
-        click:()=>ents.length&&zoomProv(f,sido,pname),
+        mouseover:e=>e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95}),
+        mouseout:e=>provLayer.resetStyle(e.target),
+        click:()=>ents.length&&zoomProv(f,sido,pname)
       });
     }
   }).addTo(map_);
@@ -891,7 +890,7 @@ function goBack(){
   } else if(navLevel==="province"){
     // 도 뷰 → 전국 뷰
     navLevel="national";viewLevel="province";curProv=null;
-    map_.setView([36.3,127.9],7);
+    map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
     drawProvinces();
     document.getElementById("right-hint").style.display="flex";
     document.getElementById("right-detail").style.display="none";
@@ -931,12 +930,10 @@ function drawCities(sido){
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const name=f.properties[nameProp]||code,d=cd[code];
+      layer.bindTooltip(()=>makeHoverCard(name,d),{sticky:true,className:'rhc-tip',offset:[14,-160],direction:'top'});
       layer.on({
-        mouseover:e=>{
-          e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:1});
-          layer.bindTooltip(makeHoverCard(name,d),{sticky:true,className:'rhc-tip',offset:[18,0]}).openTooltip();
-        },
-        mouseout:e=>{cityLayer.resetStyle(e.target);layer.closeTooltip();},
+        mouseover:e=>e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:1}),
+        mouseout:e=>cityLayer.resetStyle(e.target),
         click:()=>{showRegionDetail(name,code,d);if(d)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});},
       });
     }
