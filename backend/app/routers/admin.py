@@ -355,6 +355,19 @@ async def debug_kamis(days_ago: int = 0, _=Depends(check_admin)):
         return {"error": str(e), "type": type(e).__name__}
 
 
+@router.get("/debug/fetch-prices")
+async def debug_fetch_prices(_=Depends(check_admin)):
+    """fetch_all_prices_for_date(today) 실제 반환값 확인"""
+    from datetime import date
+    from app.collectors.kamis import fetch_all_prices_for_date
+    result = await fetch_all_prices_for_date(date.today())
+    return {
+        "date": str(date.today()),
+        "items_found": list(result.keys()),
+        "data": {k: {"price": v.get("wholesale_price")} for k, v in result.items()},
+    }
+
+
 @router.post("/init-data")
 async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """Item 시드 수동 실행 — 재배포 후 빈 items 테이블 복구"""
