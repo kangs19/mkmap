@@ -192,15 +192,16 @@ async def admin_status(
     from sqlalchemy import func
     from app.models.price import DailyPrice
     from app.models.weather import DailyWeather
-    from app.models.signal import ForecastSignal
+    from app.models.signal import RegionSignal
+    from app.models.forecast import Forecast
     from app.scheduler import scheduler
 
     price_count = (await db.execute(select(func.count()).select_from(DailyPrice))).scalar()
     weather_count = (await db.execute(select(func.count()).select_from(DailyWeather))).scalar()
-    signal_count = (await db.execute(select(func.count()).select_from(ForecastSignal))).scalar()
+    signal_count = (await db.execute(select(func.count()).select_from(RegionSignal))).scalar()
 
     latest_signal = (await db.execute(
-        select(ForecastSignal.base_date).order_by(desc(ForecastSignal.base_date)).limit(1)
+        select(Forecast.base_date).order_by(desc(Forecast.base_date)).limit(1)
     )).scalar()
 
     return {
@@ -208,7 +209,7 @@ async def admin_status(
         "db": {
             "daily_prices": price_count,
             "daily_weather": weather_count,
-            "forecast_signals": signal_count,
+            "region_signals": signal_count,
             "latest_forecast": str(latest_signal) if latest_signal else None,
         },
         "scheduler": {
