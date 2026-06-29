@@ -141,12 +141,30 @@ async def admin_health(_=Depends(check_admin)):
 @router.post("/pipeline/run")
 async def manual_run_pipeline(
     item_code: Optional[str] = None,
+    background: bool = True,
     _=Depends(check_admin),
 ):
-    """수동 파이프라인 실행 — 특정 품목 또는 전체 (기획서 17번)"""
+    """수동 파이프라인 실행 — background=True(기본): 즉시 202 반환 후 백그라운드 실행"""
     import asyncio
     from app.pipeline.batch import run_batch
     from app.pipeline.runner import run_pipeline
+
+    async def _run_bg():
+        try:
+            if item_code:
+                await run_pipeline(item_code=item_code, verbose=True)
+            else:
+                await run_batch(verbose=True)
+        except Exception as e:
+            print(f"[pipeline bg error] {e}")
+
+    if background:
+        asyncio.create_task(_run_bg())
+        return {
+            "status": "started",
+            "item_code": item_code or "all",
+            "message": "백그라운드에서 실행 중. /admin/status 로 결과 확인"
+        }
 
     try:
         if item_code:
