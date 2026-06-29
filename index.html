@@ -265,11 +265,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <!-- 가격 범례 -->
     <div class="fm-sb-section">
       <div class="fm-sb-label">가격 범례 (예상 변동률)</div>
-      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#8b1a1a"></div><span class="fm-legend-lbl">20% 이상 상승</span></div>
-      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#8b4a1a"></div><span class="fm-legend-lbl">10% ~ 20% 상승</span></div>
-      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#3a4a2a"></div><span class="fm-legend-lbl">-10% ~ 10% 보합</span></div>
-      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#1a4a5a"></div><span class="fm-legend-lbl">-10% ~ -20% 하락</span></div>
-      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#0a2a3a"></div><span class="fm-legend-lbl">-20% 이상 하락</span></div>
+      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#c81e1e"></div><span class="fm-legend-lbl">20% 이상 상승</span></div>
+      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#dc6400"></div><span class="fm-legend-lbl">10% ~ 20% 상승</span></div>
+      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#643cc8"></div><span class="fm-legend-lbl">-10% ~ 10% 보합</span></div>
+      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#006ec8"></div><span class="fm-legend-lbl">-10% ~ -20% 하락</span></div>
+      <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#003ca0"></div><span class="fm-legend-lbl">-20% 이상 하락</span></div>
     </div>
 
     <!-- 품목 현황 미니 카드 -->
@@ -718,17 +718,17 @@ function redrawMap(){
   else if(curProv)drawCities(curProv.sido);
 }
 function priceColor(pct){
-  if(pct>=20)return"rgba(180,30,30,.55)";
-  if(pct>=10)return"rgba(200,110,20,.5)";
-  if(pct>=-10)return"rgba(60,140,30,.4)";
-  if(pct>=-20)return"rgba(20,120,160,.45)";
-  return"rgba(10,70,120,.5)";
+  if(pct>=20)return"rgba(200,30,30,.6)";    /* 짙은 빨강 — 급등 */
+  if(pct>=10)return"rgba(220,100,0,.55)";   /* 주황 — 상승 */
+  if(pct>=-10)return"rgba(100,60,200,.45)"; /* 보라 — 보합 */
+  if(pct>=-20)return"rgba(0,110,200,.5)";   /* 파랑 — 하락 */
+  return"rgba(0,60,160,.55)";               /* 짙은 파랑 — 급락 */
 }
 function riskColor(s){
-  if(s>=70)return"rgba(180,30,30,.55)";
-  if(s>=50)return"rgba(200,110,20,.5)";
-  if(s>=30)return"rgba(180,160,20,.45)";
-  return"rgba(60,140,30,.4)";
+  if(s>=70)return"rgba(200,30,30,.6)";
+  if(s>=50)return"rgba(220,100,0,.55)";
+  if(s>=30)return"rgba(180,140,0,.5)";
+  return"rgba(100,60,200,.45)";
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
