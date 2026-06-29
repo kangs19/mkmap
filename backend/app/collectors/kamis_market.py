@@ -9,7 +9,7 @@ import asyncio
 from datetime import date, timedelta
 from typing import Optional
 from app.config import get_settings
-from app.collectors.kamis import ITEM_CODE_MAP, GARLIC_ITEM_CODE, MARKET_CODE
+from app.collectors.kamis import ITEM_CODE_MAP, MARKET_CODE
 
 KAMIS_BASE = "https://www.kamis.or.kr/service/price/xml.do"
 
@@ -31,10 +31,6 @@ async def fetch_market_volume(
     if not code_map:
         return []
 
-    kamis_code, item_name, unit = code_map
-    if item_code == "garlic":
-        kamis_code = GARLIC_ITEM_CODE
-
     params = {
         "action": ACTION_MARKET,
         "p_cert_key": settings.kamis_api_key,
@@ -42,8 +38,8 @@ async def fetch_market_volume(
         "p_returntype": "json",
         "p_startday": start_date.strftime("%Y-%m-%d"),
         "p_endday": end_date.strftime("%Y-%m-%d"),
-        "p_itemcategorycode": "100",
-        "p_itemcode": kamis_code,
+        "p_itemcategorycode": code_map["category"],
+        "p_itemcode": code_map["item"],
         "p_kindcode": "01",
         "p_productrankcode": "04",
         "p_countrycode": MARKET_CODE,

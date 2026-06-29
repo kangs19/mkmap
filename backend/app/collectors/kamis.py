@@ -10,17 +10,15 @@ from app.config import get_settings
 
 KAMIS_BASE = "https://www.kamis.or.kr/service/price/xml.do"
 
-# 품목코드 (KAMIS 기준)
+# 품목별 KAMIS 코드 (item_code, category_code, item_name, unit)
+# category: 100=엽채류, 200=양채류, 400=근채류, 600=양념류
 ITEM_CODE_MAP = {
-    "cabbage":     ("100", "배추",  "10kg"),
-    "radish":      ("200", "무",    "20kg"),
-    "onion":       ("222", "양파",  "20kg"),
-    "green_onion": ("214", "대파",  "1kg"),
-    "garlic":      ("100", "마늘",  "10kg"),  # 깐마늘 기준
+    "cabbage":     {"item": "112", "category": "100", "name": "배추",  "unit": "10kg"},
+    "radish":      {"item": "150", "category": "100", "name": "무",    "unit": "20kg"},
+    "onion":       {"item": "222", "category": "200", "name": "양파",  "unit": "20kg"},
+    "green_onion": {"item": "214", "category": "100", "name": "대파",  "unit": "1kg"},
+    "garlic":      {"item": "211", "category": "100", "name": "마늘",  "unit": "10kg"},
 }
-
-# 마늘은 별도 itemCategoryCode
-GARLIC_ITEM_CODE = "211"
 
 # 경락가격(가락시장) 조회 action
 ACTION_DAILY = "dailySalesList"
@@ -43,21 +41,17 @@ async def fetch_daily_price(
     if not code_map:
         return None
 
-    kamis_code, item_name, unit = code_map
-    if item_code == "garlic":
-        kamis_code = GARLIC_ITEM_CODE
-
     date_str = target_date.strftime("%Y-%m-%d")
 
     params = {
         "action": ACTION_DAILY,
         "p_cert_key": settings.kamis_api_key,
-        "p_cert_id": "5300",  # KAMIS 공개 cert_id
+        "p_cert_id": "5300",
         "p_returntype": "json",
         "p_startday": date_str,
         "p_endday": date_str,
-        "p_itemcategorycode": "100" if item_code != "garlic" else "100",
-        "p_itemcode": kamis_code,
+        "p_itemcategorycode": code_map["category"],
+        "p_itemcode": code_map["item"],
         "p_kindcode": "01",
         "p_productrankcode": "04",  # 상품
         "p_countrycode": MARKET_CODE,
@@ -72,7 +66,7 @@ async def fetch_daily_price(
                 data = r.json()
 
             # 응답 파싱
-            price = _parse_response(data, item_code, target_date, unit)
+            price = _parse_response(data, item_code, target_date, code_map["unit"])
             return price
         except Exception:
             if attempt == retries - 1:
@@ -87,7 +81,7 @@ async def fetch_price_range(
     start_date: date,
     end_date: date,
 ) -> list[dict]:
-    """기간별 일별 도매가격 수집 (날짜별 순차 요청)"""
+    """기간별 일별 도매가격 수집"""
     settings = get_settings()
     if not settings.kamis_api_key:
         return []
@@ -96,22 +90,15 @@ async def fetch_price_range(
     if not code_map:
         return []
 
-    kamis_code, item_name, unit = code_map
-    if item_code == "garlic":
-        kamis_code = GARLIC_ITEM_CODE
-
-    start_str = start_date.strftime("%Y-%m-%d")
-    end_str = end_date.strftime("%Y-%m-%d")
-
     params = {
         "action": ACTION_DAILY,
         "p_cert_key": settings.kamis_api_key,
         "p_cert_id": "5300",
         "p_returntype": "json",
-        "p_startday": start_str,
-        "p_endday": end_str,
-        "p_itemcategorycode": "100",
-        "p_itemcode": kamis_code,
+        "p_startday": start_date.strftime("%Y-%m-%d"),
+        "p_endday": end_date.strftime("%Y-%m-%d"),
+        "p_itemcategorycode": code_map["category"],
+        "p_itemcode": code_map["item"],
         "p_kindcode": "01",
         "p_productrankcode": "04",
         "p_countrycode": MARKET_CODE,
@@ -123,7 +110,7 @@ async def fetch_price_range(
             r = await client.get(KAMIS_BASE, params=params)
             r.raise_for_status()
             data = r.json()
-        return _parse_range_response(data, item_code, unit)
+        return _parse_range_response(data, item_code, code_map["unit"])
     except Exception:
         return []
 

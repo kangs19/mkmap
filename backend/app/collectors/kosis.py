@@ -7,9 +7,21 @@ API: https://kosis.kr/openapi/Param/statisticsParamData.do
 """
 import httpx
 import asyncio
+import base64
 from datetime import date
 from typing import Optional
 from app.config import get_settings
+
+
+import re as _re
+
+def _kosis_api_key(raw: str) -> str:
+    """KOSIS API는 Base64 인코딩된 키를 요구.
+    hex 문자열(32자 소문자 hex)이면 bytes→base64 변환, 이미 base64면 그대로."""
+    if _re.fullmatch(r'[0-9a-f]+', raw) and len(raw) % 2 == 0:
+        # hex → bytes → base64
+        return base64.b64encode(bytes.fromhex(raw)).decode()
+    return raw  # 이미 base64
 
 KOSIS_BASE = "https://kosis.kr/openapi/Param/statisticsParamData.do"
 
@@ -53,7 +65,7 @@ async def fetch_crop_production(
 
     params = {
         "method": "getList",
-        "apiKey": settings.kosis_api_key,
+        "apiKey": _kosis_api_key(settings.kosis_api_key),
         "itmId": "T10+T20",       # T10=재배면적, T20=생산량
         "objL1": "ALL",            # 품목 전체
         "objL2": "ALL",            # 지역 전체
