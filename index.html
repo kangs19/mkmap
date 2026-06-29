@@ -280,7 +280,16 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </aside>
 
   <!-- MAP -->
-  <div id="map"></div>
+  <div id="map">
+    <button id="back-btn" onclick="goBack()" style="display:none;position:absolute;top:12px;left:12px;z-index:1000;
+      display:none;align-items:center;gap:7px;padding:8px 14px;
+      background:white;border:1.5px solid #d8e0cc;border-radius:8px;
+      font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:700;
+      color:#1a2410;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);
+      transition:all .15s;">
+      ← 전체 지도로
+    </button>
+  </div>
 
   <!-- RIGHT PANEL -->
   <aside id="fm-right">
@@ -766,6 +775,16 @@ function zoomProv(f,sido,pname){
   curProv={f,sido,pname};viewLevel="city";
   map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
   drawCities(sido);
+  document.getElementById("back-btn").style.display="flex";
+}
+
+function goBack(){
+  viewLevel="province";curProv=null;
+  map_.setView([36.3,127.9],7);
+  drawProvinces();
+  document.getElementById("back-btn").style.display="none";
+  document.getElementById("right-hint").style.display="flex";
+  document.getElementById("right-detail").style.display="none";
 }
 
 function drawCities(sido){
