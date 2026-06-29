@@ -12,6 +12,7 @@ from app.models.weather import DailyWeather
 from app.collectors.kamis import fetch_price_range, ITEM_CODE_MAP
 from app.collectors.kma import fetch_forecast, REGION_GRID
 from app.collectors.kma_agri import fetch_crop_weather, CROP_REGION_MAP
+from app.collectors.kosis import fetch_all_crops_production
 from app.config import get_settings
 
 import logging
@@ -99,13 +100,30 @@ async def sync_weather(days_back: int = 3) -> dict:
     return {"saved": saved, "regions": ALL_REGIONS}
 
 
+async def sync_kosis(years: int = 3) -> dict:
+    """KOSIS 생산통계 동기화 (연간 데이터 — 매월 1회 정도면 충분)"""
+    settings = get_settings()
+    if not settings.kosis_api_key:
+        log.warning("KOSIS_API_KEY 없음 — 생산통계 동기화 스킵")
+        return {"skipped": True}
+    try:
+        result = await fetch_all_crops_production(years=years)
+        total = sum(len(v) for v in result.values())
+        log.info(f"KOSIS 생산통계: {total}건 수집")
+        return {"fetched": total, "items": list(result.keys())}
+    except Exception as e:
+        log.warning(f"KOSIS 동기화 실패: {e}")
+        return {"error": str(e)}
+
+
 async def run_full_sync(days_back: int = 30) -> dict:
     """초기 구동 시 전체 동기화 (최근 N일)"""
     log.info(f"전체 실데이터 동기화 시작 (최근 {days_back}일)")
     price_result = await sync_prices(days_back=days_back)
     weather_result = await sync_weather(days_back=min(days_back, 3))
-    log.info(f"동기화 완료: 가격={price_result}, 기상={weather_result}")
-    return {"prices": price_result, "weather": weather_result}
+    kosis_result = await sync_kosis(years=3)
+    log.info(f"동기화 완료: 가격={price_result}, 기상={weather_result}, 생산통계={kosis_result}")
+    return {"prices": price_result, "weather": weather_result, "kosis": kosis_result}
 
 
 async def sync_agri_weather(days_back: int = 1) -> dict:

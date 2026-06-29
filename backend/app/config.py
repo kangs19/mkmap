@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     kamis_api_key: str = ""
     kma_api_key: str = ""
+    kosis_api_key: str = ""
     ecos_api_key: str = ""
 
     api_secret_key: str = "change-this-secret-key"
