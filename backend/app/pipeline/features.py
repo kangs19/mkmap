@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
+from app.models.market import DailyMarket
 from app.models.production import CropProduction
+from app.pipeline.events import add_event_features, EVENT_FEATURE_COLS
 
 
 async def load_price_df(db: AsyncSession, item_code: str,
@@ -72,6 +74,32 @@ async def load_production_stats(db: AsyncSession, item_code: str, base_year: int
     }
 
 
+async def load_market_df(db: AsyncSession, item_code: str,
+                         start_date: date, end_date: date) -> pd.DataFrame:
+    """거래량 데이터 로드 (daily_market 테이블)"""
+    result = await db.execute(
+        select(DailyMarket).where(
+            and_(
+                DailyMarket.item_code == item_code,
+                DailyMarket.date >= start_date,
+                DailyMarket.date <= end_date,
+            )
+        ).order_by(DailyMarket.date)
+    )
+    rows = result.scalars().all()
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame([{
+        "date": r.date,
+        "volume_kg": r.volume_kg,
+        "trade_amount": r.trade_amount,
+    } for r in rows])
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+    return df
+
+
 async def load_weather_df(db: AsyncSession, region_code: str,
                           start_date: date, end_date: date) -> pd.DataFrame:
     result = await db.execute(
@@ -102,7 +130,8 @@ async def load_weather_df(db: AsyncSession, region_code: str,
 
 
 def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
-                   production_stats: dict = None) -> pd.DataFrame:
+                   production_stats: dict = None,
+                   market_df: pd.DataFrame = None) -> pd.DataFrame:
     """가격 + 날씨 피처 조합 → 모델 입력 DataFrame"""
     df = price_df.copy()
 
@@ -152,13 +181,31 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
 
     # ── KOSIS 생산통계 피처 (연간 → 전체 기간에 상수로 적용) ──
     if production_stats and production_stats.get("has_kosis"):
-        df["kosis_area_dev"] = production_stats["area_dev"]      # 재배면적 전년비 편차
-        df["kosis_prod_dev"] = production_stats["prod_dev"]      # 생산량 전년비 편차
-        df["kosis_supply_risk"] = -production_stats["prod_dev"]  # 생산↓ → 공급위험↑
+        df["kosis_area_dev"] = production_stats["area_dev"]
+        df["kosis_prod_dev"] = production_stats["prod_dev"]
+        df["kosis_supply_risk"] = -production_stats["prod_dev"]
     else:
         df["kosis_area_dev"] = 0.0
         df["kosis_prod_dev"] = 0.0
         df["kosis_supply_risk"] = 0.0
+
+    # ── 거래량 피처 ────────────────────────────────────────────
+    if market_df is not None and not market_df.empty:
+        m = market_df.add_prefix("mkt_")
+        df = df.join(m, how="left")
+        df["mkt_volume_kg"] = df["mkt_volume_kg"].fillna(method="ffill").fillna(0)
+        df["mkt_volume_ma7"]    = df["mkt_volume_kg"].rolling(7).mean()
+        df["mkt_volume_ma28"]   = df["mkt_volume_kg"].rolling(28).mean()
+        # 평균 대비 거래량 편차 (공급 과잉/부족 신호)
+        df["mkt_volume_vs_avg"] = (df["mkt_volume_kg"] / df["mkt_volume_ma28"].replace(0, np.nan)) - 1
+        df["mkt_volume_trend"]  = df["mkt_volume_kg"].pct_change(7)
+    else:
+        for col in ["mkt_volume_kg", "mkt_volume_ma7", "mkt_volume_ma28",
+                    "mkt_volume_vs_avg", "mkt_volume_trend"]:
+            df[col] = 0.0
+
+    # ── 수요 이벤트 피처 (김장철, 추석, 설, 개학) ──────────────
+    df = add_event_features(df)
 
     # ── 타겟 ──────────────────────────────────────────────────
     # 14일 후 가격 방향 (1=상승, 0=하락/보합)
@@ -173,14 +220,25 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
 
 
 FEATURE_COLS = [
+    # 가격 피처 (13)
     "price_ma7", "price_ma14", "price_ma28",
     "ret_1d", "ret_7d", "ret_14d",
     "volatility_7d", "volatility_14d",
     "price_vs_avg_year", "price_vs_prev_year",
     "ma7_vs_ma28",
     "sin_month", "cos_month",
+    # 날씨 피처 (8)
     "w_avg_temp", "w_precipitation", "w_temp_dev",
     "w_temp_ma7", "w_precip_ma7",
     "w_heat_alert_7d", "w_cold_alert_7d", "w_heavy_rain_7d",
+    # KOSIS 생산통계 피처 (3)
     "kosis_area_dev", "kosis_prod_dev", "kosis_supply_risk",
+    # 거래량 피처 (5)
+    "mkt_volume_kg", "mkt_volume_ma7", "mkt_volume_ma28",
+    "mkt_volume_vs_avg", "mkt_volume_trend",
+    # 수요 이벤트 피처 (9)
+    "days_to_kimjang", "is_kimjang_season", "kimjang_proximity",
+    "days_to_chuseok", "chuseok_proximity",
+    "days_to_seol", "seol_proximity",
+    "is_school_demand", "is_summer_break",
 ]

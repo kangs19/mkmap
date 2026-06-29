@@ -16,7 +16,8 @@ from sqlalchemy import delete
 from app.database import AsyncSessionLocal, engine, Base
 from app.models.forecast import Forecast
 from app.pipeline.features import (
-    load_price_df, load_weather_df, load_production_stats, build_features, FEATURE_COLS
+    load_price_df, load_weather_df, load_market_df, load_production_stats,
+    build_features, FEATURE_COLS
 )
 from app.pipeline.train import walk_forward_train, compute_shap
 
@@ -44,6 +45,7 @@ async def run_pipeline(item_code: str = ITEM_CODE,
             print("  [1/4] 데이터 로드...")
         price_df = await load_price_df(db, item_code, start_date, base_date)
         weather_df = await load_weather_df(db, PRIMARY_WEATHER_REGION, start_date, base_date)
+        market_df = await load_market_df(db, item_code, start_date, base_date)
         prod_stats = await load_production_stats(db, item_code, base_date.year)
 
         if price_df.empty:
@@ -51,12 +53,13 @@ async def run_pipeline(item_code: str = ITEM_CODE,
 
         if verbose:
             kosis_ok = "✓" if prod_stats.get("has_kosis") else "-"
-            print(f"    가격: {len(price_df)}일, 날씨: {len(weather_df)}일, KOSIS: {kosis_ok}")
+            mkt_ok = "✓" if not market_df.empty else "-"
+            print(f"    가격: {len(price_df)}일, 날씨: {len(weather_df)}일, 거래량: {len(market_df)}일, KOSIS: {kosis_ok}")
 
         # 2. 피처 엔지니어링
         if verbose:
             print("  [2/4] 피처 엔지니어링...")
-        df = build_features(price_df, weather_df, prod_stats)
+        df = build_features(price_df, weather_df, prod_stats, market_df)
 
         if len(df) < 100:
             raise ValueError(f"피처 생성 후 데이터 부족: {len(df)}행")
