@@ -23,7 +23,8 @@ PUBLIC_PATHS = {
     "/docs", "/openapi.json", "/redoc", "/health",
     "/map_standalone.html", "/index.html",
 }
-PUBLIC_PREFIXES = ("/maps/", "/static/")
+# /admin/ 은 X-Admin-Key로 자체 보호 — API키 미들웨어는 통과시킴
+PUBLIC_PREFIXES = ("/maps/", "/static/", "/admin/")
 
 # REQUIRE_API_KEY=true 환경변수로 API 키 인증 활성화
 # false(기본)이면 /api/ 경로는 공개 — 위젯·WordPress 임베드 호환
@@ -32,7 +33,7 @@ _API_AUTH_ENABLED = _os.environ.get("REQUIRE_API_KEY", "false").lower() == "true
 
 if not _API_AUTH_ENABLED:
     # 키 배포 전까지 /api/ 전체 공개 (rate limit 로깅만 동작)
-    PUBLIC_PREFIXES = ("/maps/", "/static/", "/api/")
+    PUBLIC_PREFIXES = ("/maps/", "/static/", "/admin/", "/api/")
 
 
 def hash_key(raw: str) -> str:
