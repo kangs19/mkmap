@@ -52,7 +52,7 @@ async def sync_prices(days_back: int = 7) -> dict:
                         DailyPrice.source == "kamis",
                     )
                 )
-                if existing.scalar_one_or_none():
+                if existing.scalars().first():
                     continue
                 db.add(DailyPrice(**row))
                 saved += 1
@@ -86,7 +86,7 @@ async def sync_weather(days_back: int = 3) -> dict:
                         DailyWeather.source.in_(["kma_forecast", "kma_ultra"]),
                     )
                 )
-                if existing.scalar_one_or_none():
+                if existing.scalars().first():
                     continue
 
             row = await fetch_forecast(region_code, target)
@@ -123,7 +123,7 @@ async def sync_kosis(years: int = 3) -> dict:
                             CropProduction.year == row["year"],
                         )
                     )
-                    if existing.scalar_one_or_none():
+                    if existing.scalars().first():
                         continue
                     yield_per_ha = None
                     if row.get("area_ha") and row.get("production_ton"):
@@ -171,7 +171,7 @@ async def sync_market_volume(days_back: int = 7) -> dict:
                         DailyMarket.source == "kamis",
                     )
                 )
-                if existing.scalar_one_or_none():
+                if existing.scalars().first():
                     continue
                 db.add(DailyMarket(**row))
                 saved += 1
@@ -213,7 +213,7 @@ async def sync_agri_weather(days_back: int = 1) -> dict:
                             DailyWeather.source == "kma_agri",
                         )
                     )
-                    if existing.scalar_one_or_none():
+                    if existing.scalars().first():
                         continue
                     db.add(DailyWeather(**row))
                     saved += 1
