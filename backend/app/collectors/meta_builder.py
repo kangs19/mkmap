@@ -60,12 +60,10 @@ async def build_item_meta(db: AsyncSession, item_code: str) -> dict:
     """품목 1개 메타데이터 피처 계산"""
     today = date.today()
 
-    # 병렬 데이터 수집
-    price_rows, prod_rows, weather_rows = await asyncio.gather(
-        _fetch_price_history(db, item_code, days=400),
-        _fetch_production(db, item_code),
-        _fetch_weather(db, item_code, days=30),
-    )
+    # 순차 DB 조회 (async session은 동시 쿼리 불가)
+    price_rows   = await _fetch_price_history(db, item_code, days=400)
+    prod_rows    = await _fetch_production(db, item_code)
+    weather_rows = await _fetch_weather(db, item_code, days=30)
 
     meta = {}
     info = ITEM_INFO.get(item_code, {})
