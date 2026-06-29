@@ -171,13 +171,23 @@ async def manual_run_pipeline(
 @router.post("/sync/run")
 async def manual_run_sync(
     source: str = "all",
+    days_back: int = 7,
+    include_kosis: bool = True,
     _=Depends(check_admin),
 ):
-    """수동 데이터 수집 실행 — kamis | kma | kosis | all"""
-    from app.collectors.sync import run_full_sync, daily_sync
+    """수동 데이터 수집 — days_back: 수집 기간(일), include_kosis: 생산통계 포함 여부"""
+    from app.collectors.sync import sync_prices, sync_weather, sync_kosis, sync_market_volume
     try:
-        result = await daily_sync()
-        return {"status": "ok", "source": source, "result": result}
+        result = {}
+        if source in ("all", "kamis"):
+            result["prices"] = await sync_prices(days_back=days_back)
+        if source in ("all", "kma"):
+            result["weather"] = await sync_weather(days_back=min(days_back, 3))
+        if source in ("all", "kamis"):
+            result["market"] = await sync_market_volume(days_back=days_back)
+        if include_kosis and source in ("all", "kosis"):
+            result["kosis"] = await sync_kosis(years=3)
+        return {"status": "ok", "source": source, "days_back": days_back, "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
