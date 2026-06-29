@@ -1,0 +1,117 @@
+{
+  "kamis": {
+    "regional_price": {
+      "display_name": "KAMIS 지역별 품목별 도소매 가격정보",
+      "engine_role": "price_market",
+      "required_env": ["KAMIS_API_KEY", "KAMIS_PRICE_BASE_URL"],
+      "status": "endpoint_required",
+      "source_url": "https://www.kamis.or.kr/customer/reference/openapi_list.do",
+      "notes": "KAMIS 상세 명세에서 request URL과 item/category code mapping 확인 필요"
+    }
+  },
+  "kosis": {
+    "production_stats": {
+      "display_name": "KOSIS 품목별 생산/재배면적 통계",
+      "engine_role": "production_region",
+      "required_env": ["KOSIS_API_KEY", "KOSIS_PRODUCTION_BASE_URL", "KOSIS_PRODUCTION_ORG_ID", "KOSIS_PRODUCTION_TBL_ID"],
+      "status": "table_mapping_required",
+      "source_url": "https://kosis.kr/openapi/",
+      "notes": "품목별 생산량/재배면적 통계표 ID와 분류 코드 매핑 필요"
+    }
+  },
+  "data_go_kr": {
+    "at_market_settlement": {
+      "display_name": "한국농수산식품유통공사 전국 공영도매시장 정산정보",
+      "engine_role": "price_market",
+      "required_env": ["DATA_GO_KR_API_KEY", "AT_MARKET_SETTLEMENT_BASE_URL"],
+      "status": "endpoint_required",
+      "source_url": "https://www.data.go.kr/",
+      "notes": "공공데이터포털 첨부 명세에서 endpoint/operation 확인 필요"
+    },
+    "at_regional_price": {
+      "display_name": "한국농수산식품유통공사 지역별 품목별 도소매 가격정보 조회",
+      "engine_role": "price_market",
+      "required_env": ["DATA_GO_KR_API_KEY", "AT_REGIONAL_PRICE_BASE_URL"],
+      "status": "endpoint_required",
+      "source_url": "https://www.data.go.kr/data/15156062/openapi.do",
+      "notes": "공식 상세 페이지는 데이터 항목을 제공하지만 endpoint는 첨부 API 명세 확인 필요"
+    },
+    "rda_agri_weather": {
+      "display_name": "농촌진흥청 국립농업과학원 농업기상 상세 관측데이터 조회",
+      "engine_role": "agri_weather",
+      "required_env": ["DATA_GO_KR_API_KEY", "RDA_AGRI_WEATHER_BASE_URL"],
+      "status": "endpoint_required",
+      "source_url": "https://www.data.go.kr/data/15078194/openapi.do",
+      "notes": "관측지점 코드와 조회 단위 매핑 필요"
+    },
+    "kma_crop_weather": {
+      "display_name": "기상청 작물별 농업주산지 상세날씨 조회서비스",
+      "engine_role": "agri_weather",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_CROP_WEATHER_BASE_URL"],
+      "status": "endpoint_verified_mapping_required",
+      "source_url": "https://www.data.go.kr/data/15059518/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/FmlandWthrInfoService",
+      "operation": "getDayStatistics",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "ST_YMD", "ED_YMD", "AREA_ID", "PA_CROP_SPE_ID"],
+      "response_fields": ["ymd", "areaId", "areaName", "paCropName", "paCropSpeId", "dayAvgTa", "dayAvgRhm", "daySumRn", "dayAvgWs", "daySumSs", "wmCount", "wmCd"],
+      "notes": "품목별 PA_CROP_SPE_ID와 주산지별 AREA_ID 매핑이 있어야 live 호출 가능"
+    },
+    "kma_weather_alert": {
+      "display_name": "기상청 기상특보 조회서비스",
+      "engine_role": "disaster_event",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_WEATHER_ALERT_BASE_URL"],
+      "status": "endpoint_verified",
+      "source_url": "https://www.data.go.kr/data/15000415/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/WthrWrnInfoService",
+      "operation": "getWthrWrnList",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "fromTmFc", "toTmFc", "stnId"],
+      "notes": "지역 단위 필터링은 stnId 또는 특보구역 코드 매핑 필요"
+    },
+    "kma_impact_forecast": {
+      "display_name": "기상청 영향예보 조회서비스",
+      "engine_role": "disaster_event",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_IMPACT_FORECAST_BASE_URL"],
+      "status": "endpoint_required",
+      "source_url": "https://www.data.go.kr/data/15095149/openapi.do",
+      "notes": "폭염/한파 영향예보 상세 operation 및 지역코드 확인 필요"
+    },
+    "kma_typhoon": {
+      "display_name": "기상청 태풍정보 조회서비스",
+      "engine_role": "disaster_event",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_TYPHOON_BASE_URL"],
+      "status": "endpoint_verified",
+      "source_url": "https://www.data.go.kr/data/15043565/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/TyphoonInfoService",
+      "operation": "getTyphoonInfoList",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "tmFc"],
+      "notes": "초기 리스크 감지는 getTyphoonInfoList 목록조회로 시작하고, 상세 경로는 추가 키 확인 후 getTyphoonInfo로 확장"
+    },
+    "kma_midterm_forecast": {
+      "display_name": "기상청 중기예보 조회서비스",
+      "engine_role": "forecast_context",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_MIDTERM_FORECAST_BASE_URL"],
+      "status": "endpoint_verified",
+      "source_url": "https://www.data.go.kr/data/15059468/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/MidFcstInfoService",
+      "operation": "getMidFcst",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "stnId", "tmFc"],
+      "notes": "중기육상예보/기온예보는 별도 operation으로 확장 가능"
+    },
+    "kma_satellite": {
+      "display_name": "기상청 위성영상 조회서비스",
+      "engine_role": "forecast_context",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_SATELLITE_BASE_URL"],
+      "status": "optional_after_core",
+      "source_url": "https://www.data.go.kr/",
+      "notes": "초기 리스크 신호에는 선택 사항"
+    },
+    "kma_weather_chart": {
+      "display_name": "기상청 일기도 조회서비스",
+      "engine_role": "forecast_context",
+      "required_env": ["DATA_GO_KR_API_KEY", "KMA_WEATHER_CHART_BASE_URL"],
+      "status": "optional_after_core",
+      "source_url": "https://www.data.go.kr/",
+      "notes": "초기 리스크 신호에는 선택 사항"
+    }
+  }
+}

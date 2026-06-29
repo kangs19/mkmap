@@ -1,0 +1,104 @@
+{
+  "item_code": "radish",
+  "item_name": "무",
+  "category": "채소류",
+  "aliases": ["korean_radish"],
+  "external_mappings": {
+    "kma_crop_weather": {
+      "mapping_status": "candidate_regions_only",
+      "pa_crop_spe_id": null,
+      "area_ids": [],
+      "candidate_regions": ["강릉", "고창", "당진", "서귀포", "영암", "정선", "평창", "홍천"],
+      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+    },
+    "kamis_price": {
+      "mapping_status": "mapped_from_kamis_code_table",
+      "itemcategorycode": "200",
+      "itemcode": "231",
+      "productrankcode": "04",
+      "variants": [
+        { "kindcode": "01", "kind_name": "봄", "primary": true },
+        { "kindcode": "02", "kind_name": "고랭지", "primary": true },
+        { "kindcode": "03", "kind_name": "가을", "primary": true },
+        { "kindcode": "06", "kind_name": "월동", "primary": true }
+      ],
+      "product_classes": ["01", "02"],
+      "notes": "KAMIS 코드통합표 기준. 소매 1개, 중도매 20kg 단위가 혼재하므로 product_cls별 피처로 분리"
+    }
+  },
+  "crop_profile": {
+    "storage_type": "fresh",
+    "cultivation_type": ["open_field", "highland", "winter", "autumn"],
+    "growth_calendar": {
+      "spring": [3, 4, 5],
+      "highland": [5, 6, 7, 8],
+      "autumn": [8, 9, 10],
+      "winter": [10, 11, 12]
+    },
+    "harvest_calendar": {
+      "spring": [5, 6],
+      "highland": [7, 8, 9],
+      "autumn": [10, 11],
+      "winter": [12, 1, 2]
+    },
+    "demand_events": [
+      { "name": "kimjang", "months": [10, 11, 12], "effect": "up" },
+      { "name": "summer_supply_gap", "months": [7, 8], "effect": "up" }
+    ],
+    "substitute_items": ["cabbage"]
+  },
+  "production_profile": {
+    "region_strategy": "hybrid",
+    "manual_regions": [
+      { "region_code": "42", "region_name": "강원", "base_weight": 0.28, "notes": "고랭지 여름 무 주요 권역" },
+      { "region_code": "50", "region_name": "제주", "base_weight": 0.3, "notes": "월동 무 핵심 권역" },
+      { "region_code": "46", "region_name": "전남", "base_weight": 0.18, "notes": "겨울·가을 작형 보조 권역" }
+    ]
+  },
+  "market_profile": {
+    "price_volatility": "high",
+    "price_lag_days": 3,
+    "market_sensitivity": {
+      "retail_price": 0.3,
+      "wholesale_price": 0.42,
+      "settlement_volume": 0.28
+    }
+  },
+  "weather_profile": {
+    "sensitivity": {
+      "heat": 0.75,
+      "cold": 0.55,
+      "heavy_rain": 0.8,
+      "drought": 0.6,
+      "wind": 0.5,
+      "humidity": 0.55
+    },
+    "critical_windows": [
+      { "name": "root_expansion", "months": [8, 9, 10], "risk_factors": ["heavy_rain", "drought"] },
+      { "name": "winter_jeju_supply", "months": [12, 1, 2], "risk_factors": ["cold", "wind"] }
+    ]
+  },
+  "event_profile": {
+    "enabled_events": ["weather_alert", "impact_forecast", "typhoon", "midterm_forecast"],
+    "event_weights": {
+      "weather_alert": 0.3,
+      "impact_forecast": 0.18,
+      "typhoon": 0.32,
+      "midterm_forecast": 0.2
+    }
+  },
+  "feature_engine_profile": {
+    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "feature_overrides": {
+      "risk_signal": {
+        "event_pressure_weight": 0.2
+      }
+    }
+  },
+  "source_coverage": {
+    "kamis": true,
+    "kosis": true,
+    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "typhoon", "midterm_forecast"],
+    "manual_review_required": true
+  }
+}

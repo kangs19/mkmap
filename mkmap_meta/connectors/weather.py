@@ -1,0 +1,167 @@
+from __future__ import annotations
+
+import os
+from datetime import date
+from typing import Any
+
+from mkmap_meta.connectors.base import WeatherConnector
+from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV, DataGoKrClient, DataGoKrService
+from mkmap_meta.connectors.normalizers import extract_rows, first_present, parse_date, parse_float
+from mkmap_meta.models import WeatherFeature
+from mkmap_meta.registry import ItemMetadataRegistry, default_registry
+
+
+KMA_CROP_WEATHER_BASE_URL = "http://apis.data.go.kr/1360000/FmlandWthrInfoService"
+KMA_CROP_WEATHER_OPERATION = "getDayStatistics"
+
+
+class DataGoKrWeatherConnector(WeatherConnector):
+    def __init__(
+        self,
+        service_name: str,
+        base_url: str,
+        operation_path: str = "",
+        registry: ItemMetadataRegistry | None = None,
+        api_key: str | None = None,
+        default_params: dict[str, Any] | None = None,
+    ) -> None:
+        self.registry = registry or default_registry()
+        self.operation_path = operation_path
+        self.service = DataGoKrService(
+            name=service_name,
+            base_url=base_url,
+            default_params=default_params
+            or {
+                "dataType": os.getenv("DATA_GO_KR_WEATHER_DATA_TYPE", "JSON"),
+                "type": os.getenv("DATA_GO_KR_WEATHER_TYPE", "json"),
+            },
+            api_key_param=os.getenv("DATA_GO_KR_KEY_PARAM", "serviceKey"),
+        )
+        self.client = DataGoKrClient(api_key=api_key or os.getenv(DATA_GO_KR_API_KEY_ENV))
+
+    def build_params(self, item_code: str, target_date: date) -> dict[str, Any]:
+        return {
+            os.getenv("DATA_GO_KR_WEATHER_ITEM_PARAM", "item_code"): item_code,
+            os.getenv("DATA_GO_KR_WEATHER_DATE_PARAM", "date"): target_date.strftime("%Y%m%d"),
+        }
+
+    def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
+        if not self.service.base_url:
+            return []
+
+        payload = self.client.get(
+            self.service,
+            self.operation_path,
+            **self.build_params(item_code, target_date),
+        )
+        return normalize_weather_rows(
+            payload,
+            item_code=item_code,
+            default_date=target_date,
+            source=self.service.name,
+        )
+
+
+class CropMainAreaWeatherConnector(DataGoKrWeatherConnector):
+    """KMA crop main-area weather connector.
+
+    This API requires external KMA mapping codes per item/region:
+    AREA_ID and PA_CROP_SPE_ID. Until those are added to metadata, the
+    connector returns no live rows instead of making invalid calls.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(
+            service_name="기상청 작물별 농업주산지 상세날씨 조회서비스",
+            base_url=os.getenv("KMA_CROP_WEATHER_BASE_URL", KMA_CROP_WEATHER_BASE_URL),
+            operation_path=os.getenv("KMA_CROP_WEATHER_OPERATION", KMA_CROP_WEATHER_OPERATION),
+            **kwargs,
+        )
+
+    def build_param_sets(self, item_code: str, target_date: date) -> list[dict[str, Any]]:
+        item = self.registry.get_item(item_code)
+        mappings = item.get("external_mappings", {}).get("kma_crop_weather", {})
+        crop_spe_id = mappings.get("pa_crop_spe_id")
+        area_ids = mappings.get("area_ids", [])
+        if not crop_spe_id or not area_ids:
+            return []
+
+        return [
+            {
+                "pageNo": 1,
+                "numOfRows": 10,
+                "dataType": "JSON",
+                os.getenv("KMA_CROP_WEATHER_START_DATE_PARAM", "ST_YMD"): target_date.strftime("%Y%m%d"),
+                os.getenv("KMA_CROP_WEATHER_END_DATE_PARAM", "ED_YMD"): target_date.strftime("%Y%m%d"),
+                os.getenv("KMA_CROP_WEATHER_AREA_PARAM", "AREA_ID"): area_id,
+                os.getenv("KMA_CROP_WEATHER_CROP_PARAM", "PA_CROP_SPE_ID"): crop_spe_id,
+            }
+            for area_id in area_ids
+        ]
+
+    def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
+        param_sets = self.build_param_sets(item_code, target_date)
+        if not param_sets:
+            return []
+
+        features: list[WeatherFeature] = []
+        for params in param_sets:
+            payload = self.client.get(self.service, self.operation_path, **params)
+            features.extend(
+                normalize_weather_rows(
+                    payload,
+                    item_code=item_code,
+                    default_date=target_date,
+                    source=self.service.name,
+                )
+            )
+        return features
+
+
+class RdaAgriWeatherConnector(DataGoKrWeatherConnector):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(
+            service_name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터 조회",
+            base_url=os.getenv("RDA_AGRI_WEATHER_BASE_URL", ""),
+            operation_path=os.getenv("RDA_AGRI_WEATHER_OPERATION", ""),
+            **kwargs,
+        )
+
+
+def normalize_weather_rows(
+    payload: Any,
+    item_code: str,
+    default_date: date,
+    source: str,
+) -> list[WeatherFeature]:
+    features: list[WeatherFeature] = []
+    for row in extract_rows(payload):
+        row_item_code = first_present(row, "item_code", "itemCode", "cropCode", "paCropName", "paCropSpeId")
+        if row_item_code and str(row_item_code) != item_code:
+            if any(key in row for key in ("item_code", "itemCode", "cropCode")):
+                continue
+
+        base_date = parse_date(
+            first_present(row, "base_date", "date", "ymd", "tm", "obsrDe", "관측일"),
+            default=default_date,
+        )
+        region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId")
+        region_name = first_present(row, "region_name", "regionName", "areaName", "areaNm", "stnNm")
+
+        features.append(
+            WeatherFeature(
+                item_code=item_code,
+                region_code=str(region_code or region_name or ""),
+                base_date=base_date,
+                temperature=parse_float(
+                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "기온", "평균기온")
+                ),
+                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "강수량")),
+                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "습도", "평균습도")),
+                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "풍속")),
+                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "일조", "일조시간")),
+                source=source,
+                raw=row,
+            )
+        )
+    return features

@@ -1,0 +1,29 @@
+item_code,item_name,product_cls,product_cls_name,itemcategorycode,itemcode,item_name_kamis,kindcode,kind_name,productrankcode,productrank_name,unit,primary_variant,notes
+cabbage,배추,01,소매,200,211,배추,01,봄,04,상품,1포기,true,KAMIS 코드통합표 기준
+cabbage,배추,01,소매,200,211,배추,02,여름(고랭지),04,상품,1포기,true,KAMIS 코드통합표 기준
+cabbage,배추,01,소매,200,211,배추,03,가을,04,상품,1포기,true,KAMIS 코드통합표 기준
+cabbage,배추,01,소매,200,211,배추,06,월동,04,상품,1포기,true,KAMIS 코드통합표 기준
+cabbage,배추,02,중도매,200,211,배추,01,봄,04,상품,10kg(그물망 3포기),true,KAMIS 코드통합표 기준
+cabbage,배추,02,중도매,200,211,배추,02,여름(고랭지),04,상품,10kg(그물망 3포기),true,KAMIS 코드통합표 기준
+cabbage,배추,02,중도매,200,211,배추,03,가을,04,상품,10kg(그물망 3포기),true,KAMIS 코드통합표 기준
+cabbage,배추,02,중도매,200,211,배추,06,월동,04,상품,10kg(그물망 3포기),true,KAMIS 코드통합표 기준
+radish,무,01,소매,200,231,무,01,봄,04,상품,1개,true,KAMIS 코드통합표 기준
+radish,무,01,소매,200,231,무,02,고랭지,04,상품,1개,true,KAMIS 코드통합표 기준
+radish,무,01,소매,200,231,무,03,가을,04,상품,1개,true,KAMIS 코드통합표 기준
+radish,무,01,소매,200,231,무,06,월동,04,상품,1개,true,KAMIS 코드통합표 기준
+radish,무,02,중도매,200,231,무,01,봄,04,상품,20kg,true,KAMIS 코드통합표 기준
+radish,무,02,중도매,200,231,무,02,고랭지,04,상품,20kg,true,KAMIS 코드통합표 기준
+radish,무,02,중도매,200,231,무,03,가을,04,상품,20kg,true,KAMIS 코드통합표 기준
+radish,무,02,중도매,200,231,무,06,월동,04,상품,20kg,true,KAMIS 코드통합표 기준
+onion,양파,01,소매,200,245,양파,00,양파,04,상품,1kg,true,KAMIS 코드통합표 기준
+onion,양파,01,소매,200,245,양파,02,햇양파,04,상품,1kg,false,KAMIS 코드통합표 기준
+onion,양파,02,중도매,200,245,양파,00,양파,04,상품,15kg,true,KAMIS 코드통합표 기준
+onion,양파,02,중도매,200,245,양파,02,햇양파,04,상품,15kg,false,KAMIS 코드통합표 기준
+green_onion,대파,01,소매,200,246,파,00,대파,04,상품,1kg,true,KAMIS 코드통합표 기준
+green_onion,대파,02,중도매,200,246,파,00,대파,04,상품,1kg,true,KAMIS 코드통합표 기준
+garlic,마늘,01,소매,200,258,깐마늘(국산),01,깐마늘(국산),04,상품,1kg,false,KAMIS 코드통합표 기준. 일부 기간 응답 없음
+garlic,마늘,02,중도매,200,258,깐마늘(국산),01,깐마늘(국산),04,상품,20kg,false,KAMIS 코드통합표 기준. 일부 기간 응답 없음
+garlic,마늘,01,소매,200,258,깐마늘(국산),03,깐마늘(대서),04,상품,20kg,true,KAMIS 실응답 확인됨
+garlic,마늘,02,중도매,200,258,깐마늘(국산),03,깐마늘(대서),04,상품,20kg,true,KAMIS 실응답 확인됨
+garlic,마늘,01,소매,200,258,깐마늘(국산),05,깐마늘(남도),04,상품,20kg,true,KAMIS 실응답 확인됨
+garlic,마늘,02,중도매,200,258,깐마늘(국산),05,깐마늘(남도),04,상품,20kg,true,KAMIS 실응답 확인됨

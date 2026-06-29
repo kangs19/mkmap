@@ -1,0 +1,38 @@
+item_code,item_name,candidate_region,pa_crop_spe_id,area_id,area_name,mapping_status,notes
+cabbage,배추,강릉,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,고창,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,당진,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,문경,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,삼척,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,영월,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,정선,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,진도,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,태백,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,평창,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+cabbage,배추,해남,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,강릉,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,고창,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,당진,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,서귀포,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,영암,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,정선,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,평창,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+radish,무,홍천,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+onion,양파,무안,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+onion,양파,신안,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+onion,양파,창녕,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+onion,양파,함평,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+onion,양파,해남,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,고흥,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,남해,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,서귀포,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,서산,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,신안,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,의성,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,창녕,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,태안,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+garlic,마늘,해남,,,,candidate_regions_only,KMA 활용가이드 코드표 확인 필요
+green_onion,대파,전남,,,,candidate_regions_only,KMA 활용가이드 코드표와 세부 주산지 확인 필요
+green_onion,대파,경기,,,,candidate_regions_only,KMA 활용가이드 코드표와 세부 주산지 확인 필요
+green_onion,대파,경남,,,,candidate_regions_only,KMA 활용가이드 코드표와 세부 주산지 확인 필요
+

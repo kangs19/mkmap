@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import json
+import sys
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from mkmap_meta.connectors.service_catalog import load_service_catalog
+
+
+SAMPLE_DATE = date(2026, 6, 29)
+
+
+def sample_params(service_code: str) -> dict[str, Any]:
+    if service_code == "kma_crop_weather":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            "ST_YMD": SAMPLE_DATE.strftime("%Y%m%d"),
+            "ED_YMD": SAMPLE_DATE.strftime("%Y%m%d"),
+            "AREA_ID": "<each metadata.external_mappings.kma_crop_weather.area_ids[]>",
+            "PA_CROP_SPE_ID": "<metadata.external_mappings.kma_crop_weather.pa_crop_spe_id>",
+        }
+    if service_code == "kma_weather_alert":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 100,
+            "dataType": "JSON",
+            "fromTmFc": f"{SAMPLE_DATE:%Y%m%d}0000",
+            "toTmFc": f"{SAMPLE_DATE:%Y%m%d}2359",
+            "stnId": "0",
+        }
+    if service_code == "kma_typhoon":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 100,
+            "dataType": "JSON",
+            "tmFc": f"{SAMPLE_DATE:%Y%m%d}0000",
+        }
+    if service_code == "kma_midterm_forecast":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            "stnId": "108",
+            "tmFc": f"{SAMPLE_DATE:%Y%m%d}0600",
+        }
+    return {}
+
+
+def main() -> int:
+    previews = []
+    for service in load_service_catalog():
+        if not service.base_url or not service.operation:
+            continue
+        previews.append(
+            {
+                "provider": service.provider,
+                "code": service.code,
+                "display_name": service.display_name,
+                "url": f"{service.base_url.rstrip('/')}/{service.operation.lstrip('/')}",
+                "status": service.status,
+                "sample_params": sample_params(service.code),
+                "notes": service.notes,
+            }
+        )
+
+    print(json.dumps(previews, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

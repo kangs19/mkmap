@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mk-map.com/schemas/item_meta.schema.json",
+  "title": "MK-MAP Item Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "item_code",
+    "item_name",
+    "category",
+    "crop_profile",
+    "production_profile",
+    "market_profile",
+    "weather_profile",
+    "event_profile",
+    "feature_engine_profile",
+    "source_coverage"
+  ],
+  "properties": {
+    "item_code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "item_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "external_mappings": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "External provider-specific item and region codes, such as KMA AREA_ID and PA_CROP_SPE_ID."
+    },
+    "crop_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_type",
+        "cultivation_type",
+        "growth_calendar",
+        "harvest_calendar",
+        "demand_events",
+        "substitute_items"
+      ],
+      "properties": {
+        "storage_type": {
+          "type": "string",
+          "enum": ["fresh", "semi_storage", "storage", "processed_or_storage"]
+        },
+        "cultivation_type": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["open_field", "facility", "highland", "winter", "spring", "summer", "autumn", "stored"]
+          }
+        },
+        "growth_calendar": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+          }
+        },
+        "harvest_calendar": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+          }
+        },
+        "demand_events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "months", "effect"],
+            "properties": {
+              "name": { "type": "string" },
+              "months": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+              },
+              "effect": { "type": "string", "enum": ["up", "down", "mixed"] }
+            }
+          }
+        },
+        "substitute_items": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "production_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_strategy", "manual_regions"],
+      "properties": {
+        "region_strategy": {
+          "type": "string",
+          "enum": ["kosis_weighted", "manual_weighted", "hybrid"]
+        },
+        "manual_regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["region_code", "region_name", "base_weight", "notes"],
+            "properties": {
+              "region_code": { "type": "string" },
+              "region_name": { "type": "string" },
+              "base_weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "market_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["price_volatility", "price_lag_days", "market_sensitivity"],
+      "properties": {
+        "price_volatility": { "type": "string", "enum": ["low", "medium", "high", "very_high"] },
+        "price_lag_days": { "type": "integer", "minimum": 0, "maximum": 30 },
+        "market_sensitivity": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "weather_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sensitivity", "critical_windows"],
+      "properties": {
+        "sensitivity": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "critical_windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "months", "risk_factors"],
+            "properties": {
+              "name": { "type": "string" },
+              "months": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+              },
+              "risk_factors": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["heat", "cold", "heavy_rain", "drought", "wind", "snow", "humidity", "sunshine"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "event_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled_events", "event_weights"],
+      "properties": {
+        "enabled_events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["weather_alert", "impact_forecast", "typhoon", "midterm_forecast", "satellite", "weather_chart"]
+          }
+        },
+        "event_weights": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "feature_engine_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_set", "feature_overrides"],
+      "properties": {
+        "engine_set": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "item_meta",
+              "production_region",
+              "price_market",
+              "agri_weather",
+              "disaster_event",
+              "forecast_context",
+              "risk_signal"
+            ]
+          }
+        },
+        "feature_overrides": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "source_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kamis", "kosis", "data_go_kr", "manual_review_required"],
+      "properties": {
+        "kamis": { "type": "boolean" },
+        "kosis": { "type": "boolean" },
+        "data_go_kr": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "manual_review_required": { "type": "boolean" }
+      }
+    }
+  }
+}

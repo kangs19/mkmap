@@ -1,0 +1,100 @@
+{
+  "item_code": "garlic",
+  "item_name": "마늘",
+  "category": "채소류",
+  "aliases": [],
+  "external_mappings": {
+    "kma_crop_weather": {
+      "mapping_status": "candidate_regions_only",
+      "pa_crop_spe_id": null,
+      "area_ids": [],
+      "candidate_regions": ["고흥", "남해", "서귀포", "서산", "신안", "의성", "창녕", "태안", "해남"],
+      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+    },
+    "kamis_price": {
+      "mapping_status": "mapped_from_kamis_code_table",
+      "itemcategorycode": "200",
+      "itemcode": "258",
+      "productrankcode": "04",
+      "variants": [
+        { "kindcode": "01", "kind_name": "깐마늘(국산)", "primary": false },
+        { "kindcode": "03", "kind_name": "깐마늘(대서)", "primary": true },
+        { "kindcode": "05", "kind_name": "깐마늘(남도)", "primary": true }
+      ],
+      "product_classes": ["01", "02"],
+      "notes": "KAMIS 가격 기본 품목은 깐마늘(대서/남도). 깐마늘(국산) 258/01은 코드표에는 있으나 일부 기간 응답이 없어서 보조 후보로 유지"
+    }
+  },
+  "crop_profile": {
+    "storage_type": "processed_or_storage",
+    "cultivation_type": ["open_field", "winter", "stored"],
+    "growth_calendar": {
+      "wintering": [10, 11, 12, 1, 2, 3],
+      "bulb_expansion": [4, 5, 6]
+    },
+    "harvest_calendar": {
+      "main": [5, 6, 7]
+    },
+    "demand_events": [
+      { "name": "new_crop_transition", "months": [5, 6, 7], "effect": "down" },
+      { "name": "kimjang_season", "months": [10, 11, 12], "effect": "up" }
+    ],
+    "substitute_items": ["onion", "green_onion"]
+  },
+  "production_profile": {
+    "region_strategy": "hybrid",
+    "manual_regions": [
+      { "region_code": "48", "region_name": "경남", "base_weight": 0.26, "notes": "남부권 마늘 주요 권역" },
+      { "region_code": "46", "region_name": "전남", "base_weight": 0.24, "notes": "난지형 마늘 주요 권역" },
+      { "region_code": "47", "region_name": "경북", "base_weight": 0.18, "notes": "한지형·저장 마늘 보조 권역" }
+    ]
+  },
+  "market_profile": {
+    "price_volatility": "medium",
+    "price_lag_days": 10,
+    "market_sensitivity": {
+      "retail_price": 0.25,
+      "wholesale_price": 0.3,
+      "settlement_volume": 0.45
+    }
+  },
+  "weather_profile": {
+    "sensitivity": {
+      "heat": 0.45,
+      "cold": 0.7,
+      "heavy_rain": 0.75,
+      "drought": 0.45,
+      "wind": 0.35,
+      "humidity": 0.75,
+      "snow": 0.65
+    },
+    "critical_windows": [
+      { "name": "wintering", "months": [12, 1, 2], "risk_factors": ["cold", "snow"] },
+      { "name": "harvest_drying", "months": [5, 6], "risk_factors": ["heavy_rain", "humidity"] }
+    ]
+  },
+  "event_profile": {
+    "enabled_events": ["weather_alert", "impact_forecast", "midterm_forecast"],
+    "event_weights": {
+      "weather_alert": 0.3,
+      "impact_forecast": 0.18,
+      "typhoon": 0.14,
+      "midterm_forecast": 0.38
+    }
+  },
+  "feature_engine_profile": {
+    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "feature_overrides": {
+      "risk_signal": {
+        "market_pressure_weight": 0.4,
+        "storage_buffer": true
+      }
+    }
+  },
+  "source_coverage": {
+    "kamis": true,
+    "kosis": true,
+    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "midterm_forecast"],
+    "manual_review_required": true
+  }
+}

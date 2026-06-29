@@ -9,22 +9,30 @@ build/
 .venv/
 venv/
 env/
+.pytest_cache/
 
-# 데이터베이스 (로컬 개발용 — Railway에서 재생성)
+# Local databases
 *.db
 **/*.db
 
-# 환경변수
+# Environment variables
 .env
 .env.*
 !.env.example
 
-# 생성 스크립트 임시파일
+# Generated pipeline data
+data/raw/
+data/features/
+data/signals/
+data/model/
+config/external_mappings/_tmp_*.csv
+config/external_mappings/kamis_item_codes_download
+_tmp_*.env
+
+# Generated map helper files
 map_viewer/static/codes.txt
 map_viewer/static/simplify_geo.py
 map_viewer/static/generate_city_data.py
-
-# GeoJSON 원본 (용량 큼, simple 버전만 커밋)
 map_viewer/static/skorea_municipalities.json
 
 # IDE

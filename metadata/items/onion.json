@@ -1,0 +1,100 @@
+{
+  "item_code": "onion",
+  "item_name": "양파",
+  "category": "채소류",
+  "aliases": [],
+  "external_mappings": {
+    "kma_crop_weather": {
+      "mapping_status": "candidate_regions_only",
+      "pa_crop_spe_id": null,
+      "area_ids": [],
+      "candidate_regions": ["무안", "신안", "창녕", "함평", "해남"],
+      "notes": "KMA 활용가이드의 PA_CROP_SPE_ID와 AREA_ID 코드표 확인 후 채움"
+    },
+    "kamis_price": {
+      "mapping_status": "mapped_from_kamis_code_table",
+      "itemcategorycode": "200",
+      "itemcode": "245",
+      "productrankcode": "04",
+      "variants": [
+        { "kindcode": "00", "kind_name": "양파", "primary": true },
+        { "kindcode": "02", "kind_name": "햇양파", "primary": false }
+      ],
+      "product_classes": ["01", "02"],
+      "notes": "KAMIS 코드통합표 기준. 햇양파는 시즌 보조 후보로 유지"
+    }
+  },
+  "crop_profile": {
+    "storage_type": "storage",
+    "cultivation_type": ["open_field", "winter", "stored"],
+    "growth_calendar": {
+      "wintering": [10, 11, 12, 1, 2, 3, 4],
+      "bulb_expansion": [4, 5, 6]
+    },
+    "harvest_calendar": {
+      "early": [4, 5],
+      "main": [6, 7]
+    },
+    "demand_events": [
+      { "name": "storage_release", "months": [8, 9, 10, 11, 12], "effect": "mixed" },
+      { "name": "new_crop_transition", "months": [4, 5, 6], "effect": "down" }
+    ],
+    "substitute_items": ["green_onion", "garlic"]
+  },
+  "production_profile": {
+    "region_strategy": "hybrid",
+    "manual_regions": [
+      { "region_code": "46", "region_name": "전남", "base_weight": 0.34, "notes": "양파 주요 생산 권역" },
+      { "region_code": "48", "region_name": "경남", "base_weight": 0.22, "notes": "남부권 생산 권역" },
+      { "region_code": "50", "region_name": "제주", "base_weight": 0.16, "notes": "조생 양파 권역" }
+    ]
+  },
+  "market_profile": {
+    "price_volatility": "medium",
+    "price_lag_days": 7,
+    "market_sensitivity": {
+      "retail_price": 0.25,
+      "wholesale_price": 0.35,
+      "settlement_volume": 0.4
+    }
+  },
+  "weather_profile": {
+    "sensitivity": {
+      "heat": 0.45,
+      "cold": 0.65,
+      "heavy_rain": 0.7,
+      "drought": 0.55,
+      "wind": 0.35,
+      "humidity": 0.65,
+      "snow": 0.6
+    },
+    "critical_windows": [
+      { "name": "wintering", "months": [12, 1, 2], "risk_factors": ["cold", "snow"] },
+      { "name": "harvest_drying", "months": [5, 6], "risk_factors": ["heavy_rain", "humidity"] }
+    ]
+  },
+  "event_profile": {
+    "enabled_events": ["weather_alert", "impact_forecast", "midterm_forecast"],
+    "event_weights": {
+      "weather_alert": 0.32,
+      "impact_forecast": 0.2,
+      "typhoon": 0.18,
+      "midterm_forecast": 0.3
+    }
+  },
+  "feature_engine_profile": {
+    "engine_set": ["item_meta", "production_region", "price_market", "agri_weather", "disaster_event", "forecast_context", "risk_signal"],
+    "feature_overrides": {
+      "risk_signal": {
+        "market_pressure_weight": 0.42,
+        "storage_buffer": true
+      }
+    }
+  },
+  "source_coverage": {
+    "kamis": true,
+    "kosis": true,
+    "data_go_kr": ["crop_weather", "agri_weather_observation", "weather_alert", "impact_forecast", "midterm_forecast"],
+    "manual_review_required": true
+  }
+}
