@@ -10,10 +10,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#080e1c;--surface:#0d1628;--card:#111e32;--border:rgba(60,120,200,.15);
-  --accent:#4a9fe0;--gold:#f4b942;--danger:#e05050;--warn:#e0882a;--ok:#3ab878;
-  --text:#e4eeff;--muted:rgba(200,220,255,.5);--dimmed:rgba(200,220,255,.2);
-  --sidebar:#0a1220;--right-panel:#0c1628;
+  --bg:#0c1208;--surface:#111a09;--card:#182a0e;--border:rgba(80,160,40,.18);
+  --accent:#7abf2a;--gold:#d4a820;--danger:#c84030;--warn:#c87820;--ok:#4ab840;
+  --text:#e8f0d8;--muted:rgba(180,220,130,.55);--dimmed:rgba(180,220,130,.25);
+  --sidebar:#0e1a08;--right-panel:#0f1a09;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);}
@@ -21,7 +21,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 /* ── FARM MAP HEADER ── */
 #fm-header{
   height:50px;display:flex;align-items:center;padding:0 20px;gap:16px;
-  background:rgba(8,14,28,.97);border-bottom:1px solid var(--border);
+  background:rgba(12,18,8,.98);border-bottom:1px solid var(--border);
   position:relative;z-index:1000;flex-shrink:0;
 }
 .fm-logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:900;color:white;letter-spacing:.5px;white-space:nowrap;}
@@ -30,13 +30,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-nav{display:flex;gap:2px;margin-left:16px;}
 .fm-nav-item{padding:5px 13px;border-radius:4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s;white-space:nowrap;}
 .fm-nav-item:hover{color:var(--text);background:rgba(255,255,255,.06);}
-.fm-nav-item.active{color:white;background:rgba(74,159,224,.15);border-bottom:2px solid var(--accent);}
+.fm-nav-item.active{color:white;background:rgba(122,191,42,.12);border-bottom:2px solid var(--accent);}
 .fm-header-right{display:flex;align-items:center;gap:10px;margin-left:auto;}
 .fm-date-box{display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);}
 .fm-weather-box{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);}
 .fm-bell{width:30px;height:30px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:14px;}
-.fm-login-btn{padding:5px 14px;border-radius:6px;background:rgba(74,159,224,.15);border:1px solid rgba(74,159,224,.3);color:var(--accent);font-size:12px;cursor:pointer;transition:all .15s;}
-.fm-login-btn:hover{background:rgba(74,159,224,.25);}
+.fm-login-btn{padding:5px 14px;border-radius:6px;background:rgba(122,191,42,.15);border:1px solid rgba(122,191,42,.3);color:var(--accent);font-size:12px;cursor:pointer;transition:all .15s;}
+.fm-login-btn:hover{background:rgba(122,191,42,.25);}
 
 /* ── MAIN LAYOUT ── */
 #fm-main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 90px);}
@@ -57,14 +57,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   padding:8px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);
   border-radius:8px;cursor:pointer;transition:all .15s;
 }
-.fm-item-dropdown:hover{border-color:rgba(74,159,224,.4);background:rgba(74,159,224,.06);}
+.fm-item-dropdown:hover{border-color:rgba(122,191,42,.4);background:rgba(122,191,42,.06);}
 .fm-item-dropdown-val{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:white;}
 .fm-item-dropdown-arr{color:var(--dimmed);font-size:10px;}
-.fm-item-menu{display:none;position:absolute;left:14px;right:14px;background:#0d1628;border:1px solid var(--border);border-radius:8px;z-index:500;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.fm-item-menu{display:none;position:absolute;left:14px;right:14px;background:#111a09;border:1px solid var(--border);border-radius:8px;z-index:500;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5);}
 .fm-item-menu.open{display:block;}
 .fm-item-option{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:background .1s;}
-.fm-item-option:hover{background:rgba(74,159,224,.1);color:white;}
-.fm-item-option.sel{background:rgba(74,159,224,.12);color:var(--accent);}
+.fm-item-option:hover{background:rgba(122,191,42,.1);color:white;}
+.fm-item-option.sel{background:rgba(122,191,42,.12);color:var(--accent);}
 /* Layer checkboxes */
 .fm-layer-item{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;}
 .fm-layer-item label{font-size:12px;color:var(--muted);cursor:pointer;flex:1;}
@@ -74,8 +74,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-period-group{display:flex;gap:4px;}
 .fm-period-btn{flex:1;padding:6px 0;border-radius:6px;font-size:11px;font-weight:600;
   border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
-.fm-period-btn:hover{border-color:rgba(74,159,224,.3);color:var(--text);}
-.fm-period-btn.active{background:rgba(74,159,224,.18);border-color:var(--accent);color:var(--accent);}
+.fm-period-btn:hover{border-color:rgba(122,191,42,.3);color:var(--text);}
+.fm-period-btn.active{background:rgba(122,191,42,.18);border-color:var(--accent);color:var(--accent);}
 /* Legend */
 .fm-legend-row{display:flex;align-items:center;gap:8px;padding:3.5px 0;}
 .fm-legend-sw{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
@@ -83,20 +83,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* ── MAP ── */
 #map{flex:1;min-width:0;}
-.leaflet-container{background:#050c18;}
-.leaflet-tooltip{background:rgba(8,14,28,.97)!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(0,0,0,.5)!important;padding:8px 11px!important;}
+.leaflet-container{background:#e8e0d0;}
+.leaflet-tooltip{background:rgba(12,18,8,.97)!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(0,0,0,.4)!important;padding:8px 11px!important;}
 .leaflet-tooltip::before{display:none!important;}
 .leaflet-control-zoom a{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important;}
 .leaflet-control-zoom a:hover{background:var(--surface)!important;}
-.leaflet-control-attribution{background:rgba(5,10,20,.7)!important;color:var(--dimmed)!important;font-size:9px!important;}
+.leaflet-control-attribution{background:rgba(8,14,6,.7)!important;color:var(--dimmed)!important;font-size:9px!important;}
 
 /* Map bubble labels */
-.map-bubble{background:rgba(8,14,28,.92);border:1px solid rgba(60,120,200,.35);border-radius:10px;padding:8px 11px;min-width:110px;pointer-events:none;}
+.map-bubble{background:rgba(12,18,8,.93);border:1px solid rgba(80,160,40,.35);border-radius:10px;padding:8px 11px;min-width:110px;pointer-events:none;}
 .mb-region{font-size:11px;font-weight:700;color:white;margin-bottom:4px;}
 .mb-label{font-size:9px;color:var(--dimmed);margin-bottom:1px;}
 .mb-price{font-size:13px;font-weight:700;color:white;}
 .mb-change{font-size:12px;font-weight:700;}
-.mb-change.up{color:#e05050;}.mb-change.down{color:#3ab878;}
+.mb-change.up{color:#c84030;}.mb-change.down{color:#4ab840;}
 
 /* ── RIGHT PANEL ── */
 #fm-right{
@@ -109,13 +109,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-rp-scroll::-webkit-scrollbar-thumb{background:var(--border);}
 /* Region header */
 .fm-region-hd{padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
-.fm-region-icon{width:44px;height:44px;border-radius:10px;background:rgba(74,159,224,.12);border:1px solid rgba(74,159,224,.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.fm-region-icon{width:44px;height:44px;border-radius:10px;background:rgba(122,191,42,.12);border:1px solid rgba(122,191,42,.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
 .fm-region-name{font-size:14px;font-weight:700;color:white;line-height:1.3;}
 .fm-region-sub{font-size:10px;color:var(--muted);margin-top:2px;}
 /* Price forecast card */
 .fm-price-card{padding:14px 16px;border-bottom:1px solid var(--border);}
 .fm-price-card-label{font-size:10px;color:var(--dimmed);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
-.fm-price-badge{padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(74,159,224,.15);color:var(--accent);border:1px solid rgba(74,159,224,.2);}
+.fm-price-badge{padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(122,191,42,.15);color:var(--accent);border:1px solid rgba(122,191,42,.2);}
 .fm-price-row{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
 .fm-price-val{font-size:26px;font-weight:900;color:white;line-height:1;}
 .fm-price-unit{font-size:12px;color:var(--muted);}
@@ -162,7 +162,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-mkt-sub.up{color:#e05050;}.fm-mkt-sub.down{color:#3ab878;}
 /* News */
 .fm-news-section{padding:12px 16px;}
-.fm-news-item{padding:7px 0;border-bottom:1px solid rgba(60,120,200,.08);}
+.fm-news-item{padding:7px 0;border-bottom:1px solid rgba(80,160,40,.08);}
 .fm-news-item:last-child{border-bottom:none;}
 .fm-news-title{font-size:11px;color:var(--muted);line-height:1.5;}
 .fm-news-date{font-size:9px;color:var(--dimmed);margin-top:2px;}
@@ -173,23 +173,23 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* ── BOTTOM TIMELINE ── */
 #fm-timeline{
-  height:40px;background:rgba(8,14,28,.97);border-top:1px solid var(--border);
+  height:40px;background:rgba(12,18,8,.97);border-top:1px solid var(--border);
   display:flex;align-items:center;gap:12px;padding:0 16px;flex-shrink:0;
 }
-.fm-play-btn{width:26px;height:26px;border-radius:50%;background:rgba(74,159,224,.15);border:1px solid rgba(74,159,224,.3);color:var(--accent);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.fm-play-btn{width:26px;height:26px;border-radius:50%;background:rgba(122,191,42,.15);border:1px solid rgba(122,191,42,.3);color:var(--accent);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .fm-timeline-bar{flex:1;display:flex;align-items:center;gap:8px;}
 .fm-tl-dates{display:flex;justify-content:space-between;font-size:9px;color:var(--dimmed);position:absolute;width:calc(100% - 24px);}
 .fm-tl-track{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;position:relative;cursor:pointer;}
 .fm-tl-fill{height:100%;background:var(--accent);border-radius:2px;width:40%;}
-.fm-tl-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;position:absolute;top:50%;transform:translate(-50%,-50%);left:40%;box-shadow:0 0 6px rgba(74,159,224,.5);}
+.fm-tl-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;position:absolute;top:50%;transform:translate(-50%,-50%);left:40%;box-shadow:0 0 6px rgba(122,191,42,.5);}
 .fm-tl-labels{display:flex;gap:16px;font-size:9px;color:var(--dimmed);}
 .fm-view-toggle{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-left:auto;}
 .fm-vt-btn{padding:4px 10px;font-size:10px;background:none;border:none;color:var(--muted);cursor:pointer;}
-.fm-vt-btn.active{background:rgba(74,159,224,.15);color:var(--accent);}
+.fm-vt-btn.active{background:rgba(122,191,42,.15);color:var(--accent);}
 
 /* Loading */
-#loading{position:absolute;top:50px;left:195px;right:320px;bottom:40px;background:rgba(8,14,28,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
-.spin-ring{width:44px;height:44px;border-radius:50%;margin:0 auto 14px;border:3px solid rgba(74,159,224,.15);border-top-color:var(--accent);animation:spin .9s linear infinite;}
+#loading{position:absolute;top:50px;left:195px;right:320px;bottom:40px;background:rgba(12,18,8,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
+.spin-ring{width:44px;height:44px;border-radius:50%;margin:0 auto 14px;border:3px solid rgba(122,191,42,.15);border-top-color:var(--accent);animation:spin .9s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-title{font-size:14px;font-weight:700;color:white;margin-bottom:4px;}
 .loading-sub{font-size:11px;color:var(--muted);}
@@ -446,8 +446,8 @@ window.onload=async()=>{
 
   // 지도 초기화
   map_=L.map("map",{zoomControl:true,preferCanvas:true});
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    {attribution:"© OpenStreetMap © CARTO",opacity:.6,maxZoom:18}).addTo(map_);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {attribution:"© OpenStreetMap © CARTO",opacity:1,maxZoom:18}).addTo(map_);
   map_.setView([36.3,127.9],7);
 
   Promise.all([
@@ -541,10 +541,10 @@ function setView(type,el){
   el.classList.add("active");
   if(type==="satellite"&&map_){
     map_.eachLayer(l=>{if(l._url)map_.removeLayer(l);});
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{opacity:.7}).addTo(map_);
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{opacity:.85}).addTo(map_);
   } else if(map_){
     map_.eachLayer(l=>{if(l._url)map_.removeLayer(l);});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{opacity:.6}).addTo(map_);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{opacity:1}).addTo(map_);
   }
   redrawMap();
 }
@@ -717,17 +717,17 @@ function redrawMap(){
   else if(curProv)drawCities(curProv.sido);
 }
 function priceColor(pct){
-  if(pct>=20)return"#7a1515";
-  if(pct>=10)return"#7a3a10";
-  if(pct>=-10)return"#2a3a1a";
-  if(pct>=-20)return"#0a2a3a";
-  return"#051a25";
+  if(pct>=20)return"rgba(180,30,30,.55)";
+  if(pct>=10)return"rgba(200,110,20,.5)";
+  if(pct>=-10)return"rgba(60,140,30,.4)";
+  if(pct>=-20)return"rgba(20,120,160,.45)";
+  return"rgba(10,70,120,.5)";
 }
 function riskColor(s){
-  if(s>=70)return"#7a1515";
-  if(s>=50)return"#7a3a10";
-  if(s>=30)return"#6a5a10";
-  return"#1a3a20";
+  if(s>=70)return"rgba(180,30,30,.55)";
+  if(s>=50)return"rgba(200,110,20,.5)";
+  if(s>=30)return"rgba(180,160,20,.45)";
+  return"rgba(60,140,30,.4)";
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
@@ -739,9 +739,9 @@ function drawProvinces(){
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
-      if(!ents.length)return{fillColor:"#0d1828",weight:1,color:"rgba(60,120,200,.2)",fillOpacity:.5,dashArray:"3"};
+      if(!ents.length)return{fillColor:"transparent",weight:1,color:"rgba(80,160,40,.2)",fillOpacity:.1,dashArray:"3"};
       const avgPct=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
-      return{fillColor:priceColor(avgPct),weight:1.2,color:"rgba(60,120,200,.35)",fillOpacity:.85};
+      return{fillColor:priceColor(avgPct),weight:1.5,color:"rgba(40,80,20,.5)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -778,8 +778,8 @@ function drawCities(sido){
     style:f=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=cd[code];
-      if(!d)return{fillColor:"#0d1828",weight:1,color:"rgba(60,120,200,.15)",fillOpacity:.3,dashArray:"2"};
-      return{fillColor:priceColor(d.price_vs_avg),weight:1.5,color:"rgba(60,120,200,.5)",fillOpacity:.9};
+      if(!d)return{fillColor:"transparent",weight:1,color:"rgba(80,160,40,.15)",fillOpacity:.1,dashArray:"2"};
+      return{fillColor:priceColor(d.price_vs_avg),weight:1.5,color:"rgba(40,80,20,.6)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
