@@ -219,6 +219,20 @@ async def admin_status(
     }
 
 
+@router.post("/meta/build")
+async def build_meta(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """품목별 메타데이터 빌드 — KAMIS/KOSIS/KMA 실데이터 피처 집계"""
+    from app.collectors.meta_builder import build_all_meta
+    try:
+        results = await build_all_meta(db)
+        return {"status": "ok", "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/debug/kamis")
 async def debug_kamis(_=Depends(check_admin)):
     """KAMIS API 직접 테스트 — 실제 응답 반환"""

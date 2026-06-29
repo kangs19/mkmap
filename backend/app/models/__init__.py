@@ -6,11 +6,12 @@ from app.models.signal import RegionSignal
 from app.models.forecast import Forecast
 from app.models.api import ApiKey, ApiUsage
 from app.models.production import CropProduction
+from app.models.meta import ItemMeta
 
 __all__ = [
     "Item", "ItemRegion", "ItemEvent",
     "DailyPrice", "DailyWeather", "DailyMarket",
     "RegionSignal", "Forecast",
     "ApiKey", "ApiUsage",
-    "CropProduction",
+    "CropProduction", "ItemMeta",
 ]

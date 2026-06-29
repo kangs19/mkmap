@@ -4,6 +4,7 @@ from sqlalchemy import select, and_
 from app.database import get_db
 from app.models.item import Item, ItemRegion
 from app.models.price import DailyPrice
+from app.models.meta import ItemMeta
 from app.schemas.item import ItemListResponse, ItemResponse, ItemRegionsResponse, ItemRegionResponse
 from app.utils.season import get_current_season
 from datetime import date, timedelta
@@ -132,3 +133,91 @@ async def get_price_history(
             for r in rows
         ]
     }
+
+
+@router.get("/{item_code}/meta")
+async def get_item_meta(item_code: str, db: AsyncSession = Depends(get_db)):
+    """품목별 메타데이터 — 실데이터 기반 가격/생산/기상/위험도 피처 전체"""
+    meta = await db.get(ItemMeta, item_code)
+    if not meta:
+        raise HTTPException(status_code=404, detail={"error": "meta_not_built", "message": "메타데이터가 아직 생성되지 않았습니다. /admin/meta/build 를 먼저 실행하세요."})
+    return {
+        "item_code": item_code,
+        "updated_at": str(meta.updated_at),
+        "confidence": meta.confidence,
+        "basic": {
+            "name": meta.item_name, "unit": meta.unit,
+            "category": meta.category_name, "main_region": meta.main_region,
+            "kamis_productno": meta.kamis_productno,
+        },
+        "price": {
+            "today":           meta.price_today,
+            "avg_7d":          meta.price_avg_7d,
+            "avg_30d":         meta.price_avg_30d,
+            "avg_90d":         meta.price_avg_90d,
+            "std_30d":         meta.price_std_30d,
+            "cv_30d":          meta.price_cv_30d,
+            "min_52w":         meta.price_min_52w,
+            "max_52w":         meta.price_max_52w,
+            "pct_of_52w_range": meta.price_pct_of_52w_range,
+            "prev_year":       meta.price_prev_year,
+            "yoy_change_pct":  meta.yoy_change_pct,
+            "mom_7d":          meta.mom_7d,
+            "mom_30d":         meta.mom_30d,
+            "vs_ma30_pct":     meta.price_vs_ma30_pct,
+            "trend_slope_30d": meta.trend_slope_30d,
+            "seasonal_index":  meta.seasonal_index,
+            "data_days":       meta.data_days_count,
+            "data_from":       meta.price_data_from,
+            "data_to":         meta.price_data_to,
+        },
+        "production": {
+            "latest_year":      meta.kosis_latest_year,
+            "area_ha_y1":       meta.area_ha_y1,
+            "area_ha_y2":       meta.area_ha_y2,
+            "area_ha_y3":       meta.area_ha_y3,
+            "production_ton_y1": meta.production_ton_y1,
+            "production_ton_y2": meta.production_ton_y2,
+            "production_ton_y3": meta.production_ton_y3,
+            "yield_per_ha_y1":  meta.yield_per_ha_y1,
+            "area_yoy_pct":     meta.area_yoy_change_pct,
+            "prod_yoy_pct":     meta.prod_yoy_change_pct,
+        },
+        "weather": {
+            "region": meta.main_region,
+            "temp_avg_7d":    meta.weather_temp_avg_7d,
+            "precip_7d_mm":   meta.weather_precip_7d,
+            "temp_anomaly_7d": meta.weather_temp_anomaly_7d,
+            "stress_score":   meta.weather_stress_score,
+            "alert_count_7d": meta.weather_alert_count_7d,
+        },
+        "risk": {
+            "level":         meta.risk_level,
+            "overall_score": meta.overall_risk_score,
+            "price_score":   meta.price_risk_score,
+            "supply_score":  meta.supply_risk_score,
+            "factors":       meta.risk_factors,
+        },
+    }
+
+
+@router.get("/meta/all")
+async def get_all_meta(db: AsyncSession = Depends(get_db)):
+    """전 품목 메타데이터 요약 (지도·대시보드용)"""
+    result = await db.execute(select(ItemMeta).order_by(ItemMeta.item_code))
+    metas = result.scalars().all()
+    return [
+        {
+            "item_code":    m.item_code,
+            "name":         m.item_name,
+            "price_today":  m.price_today,
+            "yoy_pct":      m.yoy_change_pct,
+            "mom_7d":       m.mom_7d,
+            "risk_level":   m.risk_level,
+            "risk_score":   m.overall_risk_score,
+            "seasonal_idx": m.seasonal_index,
+            "confidence":   m.confidence,
+            "updated_at":   str(m.updated_at),
+        }
+        for m in metas
+    ]

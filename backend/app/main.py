@@ -7,6 +7,10 @@ from pathlib import Path
 import time, logging
 
 from app.database import init_db
+from app.models import (  # noqa: F401 — Base.metadata.create_all 위해 모두 로드
+    Item, ItemRegion, ItemEvent, DailyPrice, DailyWeather, DailyMarket,
+    RegionSignal, Forecast, ApiKey, ApiUsage, CropProduction, ItemMeta,
+)
 from app.routers import items, forecasts, signals, maps, admin
 from app.config import get_settings
 from app.scheduler import start_scheduler, stop_scheduler
