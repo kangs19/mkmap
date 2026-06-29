@@ -31,16 +31,17 @@ async def lifespan(app: FastAPI):
 
 async def _seed_items():
     """재배포 후 Item 기본 데이터 자동 삽입 (없는 경우만)"""
+    import logging
     from sqlalchemy import select
     from app.database import AsyncSessionLocal
     from app.models.item import Item, ItemRegion
 
     ITEMS = [
-        {"item_code": "cabbage",     "item_name": "배추", "category": "채소류", "unit": "10kg",  "is_active": True},
-        {"item_code": "radish",      "item_name": "무",   "category": "채소류", "unit": "20kg",  "is_active": True},
-        {"item_code": "onion",       "item_name": "양파", "category": "채소류", "unit": "20kg",  "is_active": True},
-        {"item_code": "green_onion", "item_name": "대파", "category": "채소류", "unit": "1kg",   "is_active": True},
-        {"item_code": "garlic",      "item_name": "마늘", "category": "채소류", "unit": "10kg",  "is_active": True},
+        {"item_code": "cabbage",     "item_name": "배추", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
+        {"item_code": "radish",      "item_name": "무",   "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "onion",       "item_name": "양파", "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "green_onion", "item_name": "대파", "category": "채소류", "wholesale_unit": "1kg",   "is_active": True},
+        {"item_code": "garlic",      "item_name": "마늘", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
     ]
     REGIONS = [
         ("cabbage",     "KR-46", "전남", "해남",   True),
@@ -77,6 +78,9 @@ async def _seed_items():
                 ))
 
         await db.commit()
+        logging.info("[seed] Item 시드 완료")
+    except Exception as e:
+        logging.error(f"[seed] 실패: {e}")
 
 
 app = FastAPI(
