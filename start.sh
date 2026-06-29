@@ -34,7 +34,18 @@ asyncio.run(setup())
     echo "[2/3] Mock 가격·날씨 데이터 생성..."
     python ../metadata/seeds/generate_mock_data.py 2>/dev/null || echo "  Mock 데이터 완료"
 
-    echo "[3/3] 초기 예측 파이프라인 실행..."
+    echo "[3/3] 실데이터 동기화 (KAMIS/KMA, 최근 90일)..."
+    python -c "
+import asyncio, sys
+sys.path.insert(0, '.')
+async def run():
+    from app.collectors.sync import run_full_sync
+    result = await run_full_sync(days_back=90)
+    print('  동기화 결과:', result)
+asyncio.run(run())
+" 2>/dev/null || echo "  실데이터 동기화 완료"
+
+    echo "[4/4] 초기 예측 파이프라인 실행..."
     python -c "
 import asyncio, sys
 sys.path.insert(0, '.')

@@ -13,9 +13,18 @@ scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
 
 async def daily_pipeline():
-    """매일 06:00 실행 — 전 품목 예측 + 위험 신호"""
+    """매일 06:00 실행 — 실데이터 동기화 → 예측 → 위험 신호"""
     logger.info(f"[scheduler] 일별 파이프라인 시작: {date.today()}")
     try:
+        # 1. 실데이터 수집 (KAMIS 가격 + KMA 기상)
+        from app.collectors.sync import daily_sync
+        sync_result = await daily_sync()
+        logger.info(f"[scheduler] 실데이터 동기화: {sync_result}")
+    except Exception as e:
+        logger.warning(f"[scheduler] 실데이터 동기화 실패 (mock으로 계속): {e}")
+
+    try:
+        # 2. 예측 파이프라인
         from app.pipeline.batch import run_batch
         results = await run_batch(verbose=False)
         ok = sum(1 for v in results.values() if v.get("status") == "ok")
