@@ -145,7 +145,7 @@ async def health():
     from app.scheduler import scheduler
     return {
         "status": "ok",
-        "version": "0.2.0",
+        "version": app.version,
         "env": settings.app_env,
         "scheduler": scheduler.running,
     }
