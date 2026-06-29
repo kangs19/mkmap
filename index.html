@@ -87,7 +87,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-container{background:#e8e4dc;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
 .leaflet-tooltip::before{display:none!important;}
-.leaflet-tooltip.rhc-tip{background:white!important;border:1.5px solid #d8e0cc!important;border-radius:14px!important;padding:0!important;box-shadow:0 8px 28px rgba(0,0,0,.18)!important;min-width:270px!important;max-width:300px!important;max-height:calc(100vh - 160px)!important;overflow-y:auto!important;}
+/* 커스텀 맵 툴팁 — position:fixed로 어느 위치도 짤림 없음 */
+#map-tooltip{
+  position:fixed;display:none;z-index:9999;pointer-events:none;
+  background:white;border:1.5px solid #d8e0cc;border-radius:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.2);
+  min-width:270px;max-width:300px;
+  max-height:calc(100vh - 32px);overflow-y:auto;
+  transition:opacity .1s;
+}
 .leaflet-control-zoom a{background:white!important;border-color:var(--border)!important;color:var(--text)!important;}
 .leaflet-control-zoom a:hover{background:var(--bg)!important;}
 .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--dimmed)!important;font-size:9px!important;}
@@ -258,6 +266,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <button class="fm-login-btn">로그인</button>
   </div>
 </header>
+
+<!-- 커스텀 맵 툴팁 -->
+<div id="map-tooltip"></div>
 
 <!-- 뒤로가기 버튼 (zoom 아래 위치) -->
 <button id="back-btn" onclick="goBack()" style="
@@ -860,10 +871,10 @@ function drawProvinces(){
       const avgChg=ents.length?ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length:0;
       const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
       const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',risk_score:Math.round(Math.abs(avgChg)*3+30)}:null;
-      layer.bindTooltip(()=>makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),{sticky:true,className:'rhc-tip',offset:[16,0],direction:'auto'});
       layer.on({
-        mouseover:e=>e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95}),
-        mouseout:e=>provLayer.resetStyle(e.target),
+        mouseover:e=>{e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),e);},
+        mousemove:e=>moveMapTooltip(e),
+        mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
         click:()=>ents.length&&zoomProv(f,sido,pname)
       });
     }
@@ -930,11 +941,11 @@ function drawCities(sido){
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const name=f.properties[nameProp]||code,d=cd[code];
-      layer.bindTooltip(()=>makeHoverCard(name,d),{sticky:true,className:'rhc-tip',offset:[16,0],direction:'auto'});
       layer.on({
-        mouseover:e=>e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:1}),
-        mouseout:e=>cityLayer.resetStyle(e.target),
-        click:()=>{showRegionDetail(name,code,d);if(d)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});},
+        mouseover:e=>{e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:1});showMapTooltip(makeHoverCard(name,d),e);},
+        mousemove:e=>moveMapTooltip(e),
+        mouseout:e=>{cityLayer.resetStyle(e.target);hideMapTooltip();},
+        click:()=>{hideMapTooltip();showRegionDetail(name,code,d);if(d)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});},
       });
     }
   }).addTo(map_);
@@ -952,6 +963,38 @@ function drawCities(sido){
 }
 
 function riskLvlText(r){return{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[r]||r;}
+
+// ── 커스텀 툴팁 (position:fixed, 자동 최적 위치) ──────────────────────────
+function showMapTooltip(html, e){
+  const tip=document.getElementById('map-tooltip');
+  tip.innerHTML=html;
+  tip.style.display='block';
+  _positionTooltip(e);
+}
+function hideMapTooltip(){
+  document.getElementById('map-tooltip').style.display='none';
+}
+function moveMapTooltip(e){ _positionTooltip(e); }
+
+function _positionTooltip(e){
+  const tip=document.getElementById('map-tooltip');
+  const oe=e.originalEvent||e;
+  const cx=oe.clientX, cy=oe.clientY;
+  const tw=tip.offsetWidth, th=tip.offsetHeight;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const gap=18;
+
+  // 좌우: 오른쪽 공간 우선, 부족하면 왼쪽
+  let left = (cx + gap + tw + 8 <= vw) ? cx + gap : cx - gap - tw;
+
+  // 상하: 커서 기준 중앙 정렬 후 화면 안으로 클램프
+  let top = cy - th / 2;
+  const margin = 8;
+  top = Math.max(margin, Math.min(top, vh - th - margin));
+
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+}
 
 // ── 인터랙션 헬퍼 ─────────────────────────────────────────────────────────
 function makePinHtml(name,d){
