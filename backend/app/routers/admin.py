@@ -217,3 +217,40 @@ async def admin_status(
             "jobs": [{"id": j.id, "next_run": str(j.next_run_time)} for j in scheduler.get_jobs()],
         },
     }
+
+
+@router.get("/debug/kamis")
+async def debug_kamis(_=Depends(check_admin)):
+    """KAMIS API 직접 테스트 — 실제 응답 반환"""
+    import httpx
+    from app.config import get_settings
+    from datetime import date, timedelta
+
+    settings = get_settings()
+    end = date.today()
+    start = end - timedelta(days=3)
+
+    params = {
+        "action": "dailySalesList",
+        "p_cert_key": settings.kamis_api_key,
+        "p_cert_id": "5300",
+        "p_returntype": "json",
+        "p_startday": start.strftime("%Y-%m-%d"),
+        "p_endday": end.strftime("%Y-%m-%d"),
+        "p_itemcategorycode": "100",
+        "p_itemcode": "112",
+        "p_kindcode": "01",
+        "p_productrankcode": "04",
+        "p_countrycode": "1101",
+        "p_convert_kg_yn": "N",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://www.kamis.or.kr/service/price/xml.do", params=params)
+        return {
+            "http_status": r.status_code,
+            "response": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text[:500],
+            "api_key_set": bool(settings.kamis_api_key),
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
