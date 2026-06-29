@@ -25,6 +25,8 @@ async def lifespan(app: FastAPI):
     await init_db()
     await _seed_items()
     start_scheduler()
+    import asyncio
+    asyncio.create_task(_auto_recover())
     yield
     stop_scheduler()
 
@@ -82,6 +84,40 @@ async def _seed_items():
             logging.info("[seed] Item 시드 완료")
     except Exception as e:
         logging.error(f"[seed] 실패: {e}")
+
+
+async def _auto_recover():
+    """재배포 후 가격 데이터 없으면 자동 90일 sync + 전 품목 파이프라인 실행"""
+    import asyncio
+    import logging
+    from sqlalchemy import select, func
+    from app.database import AsyncSessionLocal
+    from app.models.price import DailyPrice
+
+    await asyncio.sleep(5)  # 서버 완전 기동 대기
+
+    async with AsyncSessionLocal() as db:
+        price_count = (await db.execute(select(func.count()).select_from(DailyPrice))).scalar()
+
+    if price_count > 0:
+        logging.info(f"[auto_recover] 가격 데이터 {price_count}건 존재 — 스킵")
+        return
+
+    logging.info("[auto_recover] 가격 데이터 없음 — 90일 sync 시작")
+    try:
+        from app.collectors.sync import sync_prices
+        await sync_prices(days_back=90)
+        logging.info("[auto_recover] sync 완료 — 파이프라인 실행 시작")
+    except Exception as e:
+        logging.error(f"[auto_recover] sync 실패: {e}")
+        return
+
+    try:
+        from app.pipeline.batch import run_batch
+        await run_batch(verbose=True)
+        logging.info("[auto_recover] 파이프라인 완료")
+    except Exception as e:
+        logging.error(f"[auto_recover] 파이프라인 실패: {e}")
 
 
 app = FastAPI(
