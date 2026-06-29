@@ -11,6 +11,7 @@ from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
 from app.collectors.kamis import fetch_price_range, ITEM_CODE_MAP
 from app.collectors.kma import fetch_forecast, REGION_GRID
+from app.collectors.kma_agri import fetch_crop_weather, CROP_REGION_MAP
 from app.config import get_settings
 
 import logging
@@ -107,8 +108,39 @@ async def run_full_sync(days_back: int = 30) -> dict:
     return {"prices": price_result, "weather": weather_result}
 
 
+async def sync_agri_weather(days_back: int = 1) -> dict:
+    """농업주산지 상세날씨 동기화 (kma_agri — 403이면 자동 스킵)"""
+    saved = 0
+    end_date = date.today()
+
+    for item_code in CROP_REGION_MAP:
+        for offset in range(days_back, -1, -1):
+            target = end_date - timedelta(days=offset)
+            rows = await fetch_crop_weather(item_code, target)
+            if not rows:
+                continue
+            async with AsyncSessionLocal() as db:
+                for row in rows:
+                    existing = await db.execute(
+                        select(DailyWeather).where(
+                            DailyWeather.region_code == row["region_code"],
+                            DailyWeather.date == row["date"],
+                            DailyWeather.source == "kma_agri",
+                        )
+                    )
+                    if existing.scalar_one_or_none():
+                        continue
+                    db.add(DailyWeather(**row))
+                    saved += 1
+                await db.commit()
+            await asyncio.sleep(0.3)
+
+    return {"saved": saved}
+
+
 async def daily_sync() -> dict:
     """스케줄러용 일별 동기화"""
     price_result = await sync_prices(days_back=3)
     weather_result = await sync_weather(days_back=1)
-    return {"prices": price_result, "weather": weather_result}
+    agri_result = await sync_agri_weather(days_back=1)
+    return {"prices": price_result, "weather": weather_result, "agri_weather": agri_result}
