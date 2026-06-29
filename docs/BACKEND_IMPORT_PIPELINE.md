@@ -51,3 +51,17 @@ The existing backend routes then read these tables:
 - `GET /api/v1/items/{item_code}/forecast`
 
 If the server has already cached `/api/v1/signals/today`, wait up to 5 minutes or restart the API process after import.
+
+## End-To-End Runner
+
+For a full daily run:
+
+```powershell
+python scripts\run_meta_pipeline.py --date 2026-06-30
+```
+
+To reuse already collected `data/features` files and only rebuild downstream outputs:
+
+```powershell
+python scripts\run_meta_pipeline.py --date 2026-06-30 --skip-collect
+```

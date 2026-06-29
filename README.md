@@ -59,4 +59,5 @@ python scripts/collect_live_event_features.py --date 2026-06-29
 python scripts/export_live_signals.py --date 2026-06-29
 python scripts/build_model_dataset.py --date 2026-06-29
 python scripts/import_meta_outputs_to_backend.py --date 2026-06-30
+python scripts/run_meta_pipeline.py --date 2026-06-30
 ```
