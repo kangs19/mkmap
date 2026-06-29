@@ -310,41 +310,46 @@ async def build_meta(
 
 
 @router.get("/debug/kamis")
-async def debug_kamis(_=Depends(check_admin)):
-    """KAMIS API 직접 테스트 — 실제 응답 반환"""
+async def debug_kamis(days_ago: int = 0, _=Depends(check_admin)):
+    """KAMIS API 직접 테스트 — days_ago=0이면 오늘, days_ago=30이면 30일 전"""
     import httpx
     from app.config import get_settings
     from datetime import date, timedelta
 
     settings = get_settings()
-    end = date.today()
-    start = end - timedelta(days=3)
+    target = date.today() - timedelta(days=days_ago)
 
     params = {
         "action": "dailySalesList",
         "p_cert_key": settings.kamis_api_key,
         "p_cert_id": "5300",
         "p_returntype": "json",
-        "p_startday": start.strftime("%Y-%m-%d"),
-        "p_endday": end.strftime("%Y-%m-%d"),
-        "p_itemcategorycode": "100",
-        "p_itemcode": "112",
-        "p_kindcode": "01",
-        "p_productrankcode": "04",
+        "p_startday": target.strftime("%Y-%m-%d"),
+        "p_endday": target.strftime("%Y-%m-%d"),
         "p_countrycode": "1101",
         "p_convert_kg_yn": "N",
     }
+    TARGETS = {"28": "배추", "64": "무", "117": "양파", "122": "대파", "1003": "마늘"}
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get("https://www.kamis.or.kr/service/price/xml.do", params=params)
-        try:
-            resp_data = r.json()
-        except Exception:
-            resp_data = r.text
+        data = r.json()
+        # 우리 5개 품목만 필터
+        filtered = [
+            {
+                "productno": str(row.get("productno","")),
+                "name": TARGETS.get(str(row.get("productno","")), "?"),
+                "cls": row.get("product_cls_code",""),
+                "dpr1": row.get("dpr1",""),
+            }
+            for row in data.get("price", [])
+            if str(row.get("productno","")) in TARGETS and row.get("product_cls_code") == "02"
+        ]
         return {
+            "target_date": str(target),
             "http_status": r.status_code,
-            "response": resp_data,
-            "api_key_set": bool(settings.kamis_api_key),
+            "our_items": filtered,
+            "total_rows": len(data.get("price", [])),
         }
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
