@@ -138,6 +138,10 @@ async def admin_health(_=Depends(check_admin)):
     }
 
 
+import asyncio as _asyncio
+_pipeline_sem = _asyncio.Semaphore(1)  # 동시 파이프라인 1개 제한
+
+
 @router.post("/pipeline/run")
 async def manual_run_pipeline(
     item_code: Optional[str] = None,
@@ -150,13 +154,14 @@ async def manual_run_pipeline(
     from app.pipeline.runner import run_pipeline
 
     async def _run_bg():
-        try:
-            if item_code:
-                await run_pipeline(item_code=item_code, verbose=True)
-            else:
-                await run_batch(verbose=True)
-        except Exception as e:
-            print(f"[pipeline bg error] {e}")
+        async with _pipeline_sem:
+            try:
+                if item_code:
+                    await run_pipeline(item_code=item_code, verbose=True)
+                else:
+                    await run_batch(verbose=True)
+            except Exception as e:
+                print(f"[pipeline bg error] {e}")
 
     if background:
         asyncio.create_task(_run_bg())
