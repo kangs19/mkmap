@@ -86,7 +86,7 @@ async def _seed_items():
 app = FastAPI(
     title="AgriDigitalTwin API",
     description="농산물 가격 위험 신호 엔진 — 품목별 주산지·기상·거래량 기반 가격 방향 예측",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
