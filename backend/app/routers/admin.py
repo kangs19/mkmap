@@ -173,23 +173,48 @@ async def manual_run_sync(
     source: str = "all",
     days_back: int = 7,
     include_kosis: bool = True,
+    background: bool = True,
     _=Depends(check_admin),
 ):
-    """수동 데이터 수집 — days_back: 수집 기간(일), include_kosis: 생산통계 포함 여부"""
+    """수동 데이터 수집 — background=True(기본): 202 즉시 반환 후 백그라운드 실행"""
+    import asyncio
     from app.collectors.sync import sync_prices, sync_weather, sync_kosis, sync_market_volume
-    try:
-        result = {}
-        if source in ("all", "kamis"):
-            result["prices"] = await sync_prices(days_back=days_back)
-        if source in ("all", "kma"):
-            result["weather"] = await sync_weather(days_back=min(days_back, 3))
-        if source in ("all", "kamis"):
-            result["market"] = await sync_market_volume(days_back=days_back)
-        if include_kosis and source in ("all", "kosis"):
-            result["kosis"] = await sync_kosis(years=3)
-        return {"status": "ok", "source": source, "days_back": days_back, "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    async def _run():
+        try:
+            if source in ("all", "kamis"):
+                await sync_prices(days_back=days_back)
+            if source in ("all", "kma"):
+                await sync_weather(days_back=min(days_back, 14))
+            if source in ("all", "kamis"):
+                await sync_market_volume(days_back=days_back)
+            if include_kosis and source in ("all", "kosis"):
+                await sync_kosis(years=3)
+        except Exception as e:
+            print(f"[sync background error] {e}")
+
+    if background:
+        asyncio.create_task(_run())
+        return {
+            "status": "started",
+            "source": source,
+            "days_back": days_back,
+            "message": "백그라운드에서 실행 중. /admin/status 로 진행 확인"
+        }
+    else:
+        try:
+            result = {}
+            if source in ("all", "kamis"):
+                result["prices"] = await sync_prices(days_back=days_back)
+            if source in ("all", "kma"):
+                result["weather"] = await sync_weather(days_back=min(days_back, 14))
+            if source in ("all", "kamis"):
+                result["market"] = await sync_market_volume(days_back=days_back)
+            if include_kosis and source in ("all", "kosis"):
+                result["kosis"] = await sync_kosis(years=3)
+            return {"status": "ok", "source": source, "days_back": days_back, "result": result}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status")

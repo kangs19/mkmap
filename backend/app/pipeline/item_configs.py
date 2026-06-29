@@ -94,7 +94,7 @@ ITEM_ENGINE_CONFIGS = {
         "secondary_weather_region": "KR-42",  # 강원 — 여름고랭지
         # 학습 파라미터
         "data_lookback_days": 730,
-        "min_training_rows":  60,
+        "min_training_rows":  20,
         "target_horizon":     14,    # 14일 후 방향 예측
         # LightGBM 하이퍼파라미터 — 계절성 패턴 강한 품목
         "lgbm_params": {
@@ -119,7 +119,7 @@ ITEM_ENGINE_CONFIGS = {
         "primary_weather_region":   "KR-46",  # 전남 무안
         "secondary_weather_region": "KR-48",  # 경남 창원
         "data_lookback_days": 730,
-        "min_training_rows":  60,
+        "min_training_rows":  20,
         "target_horizon":     21,    # 저장성 고려 — 21일 예측
         # LightGBM — 저장 고갈 패턴(비선형 급등) 포착에 깊은 트리
         "lgbm_params": {
@@ -142,7 +142,7 @@ ITEM_ENGINE_CONFIGS = {
         "primary_weather_region":   "KR-47",  # 경북 의성 (한지형)
         "secondary_weather_region": "KR-46",  # 전남 해남 (난지형)
         "data_lookback_days": 730,
-        "min_training_rows":  60,
+        "min_training_rows":  20,
         "target_horizon":     21,    # 저장성 높음 — 21일 예측
         "lgbm_params": {
             "n_estimators": 350,
@@ -164,7 +164,7 @@ ITEM_ENGINE_CONFIGS = {
         "primary_weather_region":   "KR-46",  # 전남 진도·신안
         "secondary_weather_region": "KR-41",  # 경기 (겨울 대파)
         "data_lookback_days": 540,    # 대파는 빠른 패턴 — 1.5년으로 충분
-        "min_training_rows":  45,
+        "min_training_rows":  20,
         "target_horizon":     7,      # 저장성 없음 — 단기 7일 예측
         # LightGBM — 기상 반응 빠른 품목, 얕은 트리 + 강한 정규화
         "lgbm_params": {
@@ -187,7 +187,7 @@ ITEM_ENGINE_CONFIGS = {
         "primary_weather_region":   "KR-46",  # 전남 (가을·월동)
         "secondary_weather_region": "KR-42",  # 강원 (여름고랭지)
         "data_lookback_days": 730,
-        "min_training_rows":  60,
+        "min_training_rows":  20,
         "target_horizon":     14,
         "lgbm_params": {
             "n_estimators": 300,

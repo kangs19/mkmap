@@ -54,6 +54,13 @@ def walk_forward_train(
 
     metrics_list = []
     model = None
+
+    # 데이터 부족 시 자동 조정
+    if n < test_days * 2:
+        test_days = max(5, n // 3)
+    if n < 40:
+        n_splits = 1
+
     fold_size = (n - test_days) // max(n_splits, 1)
 
     for fold in range(n_splits):
