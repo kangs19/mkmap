@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
+from app.models.production import CropProduction
 
 
 async def load_price_df(db: AsyncSession, item_code: str,
@@ -35,6 +36,40 @@ async def load_price_df(db: AsyncSession, item_code: str,
     df["date"] = pd.to_datetime(df["date"])
     df = df.set_index("date").sort_index()
     return df
+
+
+async def load_production_stats(db: AsyncSession, item_code: str, base_year: int) -> dict:
+    """KOSIS 재배면적·생산량: 최근 3년 평균 대비 당해 편차 반환"""
+    result = await db.execute(
+        select(CropProduction)
+        .where(
+            CropProduction.item_code == item_code,
+            CropProduction.year >= base_year - 3,
+            CropProduction.year <= base_year,
+        )
+        .order_by(CropProduction.year)
+    )
+    rows = result.scalars().all()
+
+    if not rows:
+        return {"area_dev": 0.0, "prod_dev": 0.0, "has_kosis": False}
+
+    latest = max(rows, key=lambda r: r.year)
+    hist = [r for r in rows if r.year < latest.year]
+
+    avg_area = sum(r.area_ha for r in hist if r.area_ha) / max(len([r for r in hist if r.area_ha]), 1)
+    avg_prod = sum(r.production_ton for r in hist if r.production_ton) / max(len([r for r in hist if r.production_ton]), 1)
+
+    area_dev = ((latest.area_ha or avg_area) - avg_area) / max(avg_area, 1) if avg_area else 0.0
+    prod_dev = ((latest.production_ton or avg_prod) - avg_prod) / max(avg_prod, 1) if avg_prod else 0.0
+
+    return {
+        "area_dev": round(area_dev, 4),
+        "prod_dev": round(prod_dev, 4),
+        "area_ha": latest.area_ha,
+        "production_ton": latest.production_ton,
+        "has_kosis": True,
+    }
 
 
 async def load_weather_df(db: AsyncSession, region_code: str,
@@ -66,7 +101,8 @@ async def load_weather_df(db: AsyncSession, region_code: str,
     return df
 
 
-def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame) -> pd.DataFrame:
+def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
+                   production_stats: dict = None) -> pd.DataFrame:
     """가격 + 날씨 피처 조합 → 모델 입력 DataFrame"""
     df = price_df.copy()
 
@@ -114,6 +150,16 @@ def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame) -> pd.DataF
                     "w_heat_alert_7d", "w_cold_alert_7d", "w_heavy_rain_7d"]:
             df[col] = 0.0
 
+    # ── KOSIS 생산통계 피처 (연간 → 전체 기간에 상수로 적용) ──
+    if production_stats and production_stats.get("has_kosis"):
+        df["kosis_area_dev"] = production_stats["area_dev"]      # 재배면적 전년비 편차
+        df["kosis_prod_dev"] = production_stats["prod_dev"]      # 생산량 전년비 편차
+        df["kosis_supply_risk"] = -production_stats["prod_dev"]  # 생산↓ → 공급위험↑
+    else:
+        df["kosis_area_dev"] = 0.0
+        df["kosis_prod_dev"] = 0.0
+        df["kosis_supply_risk"] = 0.0
+
     # ── 타겟 ──────────────────────────────────────────────────
     # 14일 후 가격 방향 (1=상승, 0=하락/보합)
     future_price = df["price"].shift(-14)
@@ -136,4 +182,5 @@ FEATURE_COLS = [
     "w_avg_temp", "w_precipitation", "w_temp_dev",
     "w_temp_ma7", "w_precip_ma7",
     "w_heat_alert_7d", "w_cold_alert_7d", "w_heavy_rain_7d",
+    "kosis_area_dev", "kosis_prod_dev", "kosis_supply_risk",
 ]

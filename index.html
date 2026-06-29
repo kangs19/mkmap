@@ -425,9 +425,59 @@ function renderItemCards(){
     </div>`).join("");
 }
 
-window.onload=()=>{
+// 실데이터 캐시 — API 응답 저장
+let LIVE_SIGNALS={};  // item_code → {region_code → signal}
+let LIVE_ITEMS={};    // item_code → 예측 데이터
+
+async function fetchLiveData(){
+  try{
+    const res=await fetch("/api/v1/signals/today");
+    if(!res.ok) return;
+    const d=await res.json();
+    (d.items||[]).forEach(it=>{
+      if(!it.item_code) return;
+      const dir=it.up_probability_14d>0.55?"up":it.up_probability_14d<0.45?"down":"neutral";
+      LIVE_ITEMS[it.item_code]={
+        direction:it.direction_14d||dir,
+        up_prob:it.up_probability_14d??ITEMS[it.item_code]?.up_prob,
+        surge_prob:ITEMS[it.item_code]?.surge_prob,
+        volatility:it.volatility_risk>0.3?"high":it.volatility_risk>0.15?"medium":"low",
+        confidence:it.confidence||"medium",
+        hotspot:it.hotspot_region||ITEMS[it.item_code]?.hotspot,
+        risk_level:it.risk_level||ITEMS[it.item_code]?.risk_level,
+        risk_score:it.risk_score||ITEMS[it.item_code]?.risk_score,
+      };
+      // ITEMS에 merge (fallback 유지)
+      Object.assign(ITEMS[it.item_code], LIVE_ITEMS[it.item_code]);
+    });
+  }catch(e){console.warn("실데이터 예측 로드 실패, mock 사용:",e.message);}
+}
+
+async function fetchSignalsByItem(item_code){
+  try{
+    const res=await fetch(`/api/v1/map/signals?item_code=${item_code}`);
+    if(!res.ok) return;
+    const d=await res.json();
+    LIVE_SIGNALS[item_code]={};
+    (d.regions||[]).forEach(r=>{
+      LIVE_SIGNALS[item_code][r.region_code]={
+        risk_score:r.risk_score,risk_level:r.risk_level,
+        price_effect:r.price_effect,summary:r.summary,
+      };
+    });
+  }catch(e){console.warn(`신호 로드 실패(${item_code}):`,e.message);}
+}
+
+window.onload=async()=>{
   const now=new Date();
   document.getElementById("date-badge").textContent=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+  // 실데이터 병렬 fetch (실패해도 mock으로 계속 작동)
+  await Promise.allSettled([
+    fetchLiveData(),
+    fetchSignalsByItem("cabbage"),
+  ]);
+
   renderTabs();renderPredCard();renderItemCards();
   map_=L.map("map",{zoomControl:true,preferCanvas:true});
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",opacity:.55,maxZoom:18}).addTo(map_);
@@ -443,7 +493,15 @@ window.onload=()=>{
 };
 
 function renderTabs(){document.getElementById("item-tabs").innerHTML=Object.entries(ITEMS).map(([k,it])=>`<div class="item-tab${k===curItem?' active':''}" onclick="selectItem('${k}')">${it.emoji} ${it.name}</div>`).join("");}
-function selectItem(k){curItem=k;renderTabs();renderPredCard();if(viewLevel==="province")drawProvinces();else drawCities(curProv.sido);setHint();}
+function selectItem(k){
+  curItem=k;renderTabs();renderPredCard();setHint();
+  // 해당 품목 신호 없으면 fetch 후 재렌더
+  if(!LIVE_SIGNALS[k]){
+    fetchSignalsByItem(k).then(()=>{if(viewLevel==="province")drawProvinces();else drawCities(curProv.sido);});
+  } else {
+    if(viewLevel==="province")drawProvinces();else drawCities(curProv.sido);
+  }
+}
 function renderPredCard(){
   const it=ITEMS[curItem];
   const DA2={up:"↑",down:"↓",neutral:"→"};const DC2={up:"dir-up",down:"dir-down",neutral:"dir-neu"};
@@ -456,11 +514,36 @@ function renderPredCard(){
   document.getElementById("side-sub").textContent=`${it.name} — 전국 주산지 현황`;
 }
 function setHint(){document.getElementById("region-detail").innerHTML=`<div class="hint-wrap"><div class="hint-ico">🗺️</div><div class="hint-txt">도(道)를 클릭하면<br>시·군 단위로 확대됩니다<br><br>각 지역의 생산·출하·가격<br>상세 정보를 확인하세요</div></div>`;}
+// 실데이터 신호 → 도 색상 반환 (없으면 null)
+function liveProvinceColor(sido){
+  const sigs=LIVE_SIGNALS[curItem]||{};
+  const sig=sigs[sido];
+  if(!sig) return null;
+  const sc=sig.risk_score||0;
+  if(curMode==="risk"){
+    if(sc>=70) return"#e74c3c";
+    if(sc>=50) return"#e67e22";
+    if(sc>=30) return"#f1c40f";
+    return"#27ae60";
+  }
+  const ef=sig.price_effect;
+  if(curMode==="price") return ef==="up"?"#e74c3c":ef==="down"?"#27ae60":"#3b9ae1";
+  return null;
+}
+
 function drawProvinces(){
   if(provLayer)map_.removeLayer(provLayer);if(cityLayer)map_.removeLayer(cityLayer);cityLayer=null;
   const cd=CITY_DATA[curItem]||{};
   provLayer=L.geoJSON(provGeo,{
-    style:f=>{const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));if(!ents.length)return{fillColor:"#111c2a",weight:1.2,color:"#1e3a55",fillOpacity:.5,dashArray:"3"};return{fillColor:modeColor(ents),weight:1.5,color:"rgba(86,164,216,0.5)",fillOpacity:.82};},
+    style:f=>{
+      const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
+      // 실데이터 우선, 없으면 mock fallback
+      const liveColor=liveProvinceColor(sido);
+      if(liveColor) return{fillColor:liveColor,weight:1.5,color:"rgba(86,164,216,0.5)",fillOpacity:.82};
+      const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
+      if(!ents.length)return{fillColor:"#111c2a",weight:1.2,color:"#1e3a55",fillOpacity:.5,dashArray:"3"};
+      return{fillColor:modeColor(ents),weight:1.5,color:"rgba(86,164,216,0.5)",fillOpacity:.82};
+    },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));

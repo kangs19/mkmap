@@ -14,6 +14,7 @@ from app.models.item import Item, ItemRegion
 from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
 from app.models.signal import RegionSignal
+from app.models.production import CropProduction
 
 
 LOOKBACK = 30  # 기준일 기준 최근 30일 데이터 사용
@@ -144,6 +145,38 @@ async def compute_weather_signal(db, region_code: str, base_date: date) -> dict:
     }
 
 
+async def compute_production_signal(db, item_code: str, base_year: int) -> dict:
+    """KOSIS 생산량 기반 공급 위험 신호"""
+    result = await db.execute(
+        select(CropProduction)
+        .where(CropProduction.item_code == item_code,
+               CropProduction.year >= base_year - 3)
+        .order_by(CropProduction.year)
+    )
+    rows = result.scalars().all()
+    if not rows or len(rows) < 2:
+        return {"score": 0, "prod_dev_pct": 0, "area_dev_pct": 0, "note": "KOSIS 데이터 없음"}
+
+    latest = max(rows, key=lambda r: r.year)
+    hist = [r for r in rows if r.year < latest.year]
+
+    avg_prod = sum(r.production_ton for r in hist if r.production_ton) / max(len([r for r in hist if r.production_ton]), 1)
+    avg_area = sum(r.area_ha for r in hist if r.area_ha) / max(len([r for r in hist if r.area_ha]), 1)
+
+    prod_dev = ((latest.production_ton or avg_prod) - avg_prod) / max(avg_prod, 1)
+    area_dev = ((latest.area_ha or avg_area) - avg_area) / max(avg_area, 1)
+
+    # 생산↓ or 재배면적↓ → 공급위험↑
+    supply_risk_score = min(max(-prod_dev * 80, -area_dev * 50), 30)
+
+    return {
+        "score": round(max(supply_risk_score, 0), 1),
+        "prod_dev_pct": round(prod_dev * 100, 1),
+        "area_dev_pct": round(area_dev * 100, 1),
+        "year": latest.year,
+    }
+
+
 async def compute_region_signals(item_code: str, base_date: date = None, verbose=True):
     """품목 전체 지역의 RegionSignal 계산 및 저장"""
     if base_date is None:
@@ -180,15 +213,18 @@ async def compute_region_signals(item_code: str, base_date: date = None, verbose
                 print(f"  지역 데이터 없음 (계절: {season})")
             return []
 
-        # 가격 신호 한 번만 계산 (전국 공통)
+        # 가격 신호 + KOSIS 생산량 신호 (전국 공통)
         price_sig = await compute_price_signal(db, item_code, base_date)
+        prod_sig = await compute_production_signal(db, item_code, base_date.year)
 
         results = []
         for region in regions:
             weather_sig = await compute_weather_signal(db, region.region_code, base_date)
 
-            # 종합 점수: 가격 60% + 날씨 40%
-            combined_score = price_sig["score"] * 0.6 + weather_sig["score"] * 0.4
+            # 종합 점수: 가격 50% + 날씨 35% + 생산량 15%
+            combined_score = (price_sig["score"] * 0.50
+                              + weather_sig["score"] * 0.35
+                              + prod_sig["score"] * 0.15)
             combined_score = min(combined_score, 100)
 
             risk_lvl = _risk_level(combined_score)
