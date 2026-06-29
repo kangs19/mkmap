@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriTwin 관리자</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#f0f2f5;color:#333;font-size:14px;}
+
+/* 레이아웃 */
+.layout{display:flex;min-height:100vh;}
+.sidebar{width:220px;background:#1a2f48;color:#cdd;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;}
+.main{margin-left:220px;padding:24px;flex:1;}
+
+/* 사이드바 */
+.sidebar-title{padding:20px 16px 12px;font-size:15px;font-weight:700;color:#fff;border-bottom:1px solid #2a4060;letter-spacing:-0.5px;}
+.sidebar-title span{font-size:11px;display:block;color:#678;margin-top:2px;font-weight:400;}
+.nav-item{padding:11px 18px;cursor:pointer;font-size:13px;color:#aac;border-left:3px solid transparent;transition:all 0.15s;}
+.nav-item:hover{background:#233f5e;color:#fff;}
+.nav-item.active{background:#1e4070;color:#fff;border-left-color:#4d9ef5;}
+.nav-section{padding:10px 16px 4px;font-size:10px;color:#567;text-transform:uppercase;letter-spacing:1px;margin-top:8px;}
+
+/* 상단 바 */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.page-title{font-size:20px;font-weight:700;color:#1a2f48;}
+.admin-key-row{display:flex;gap:8px;align-items:center;}
+.admin-key-row input{padding:6px 12px;border:1px solid #d0d8e4;border-radius:6px;font-size:12px;width:260px;font-family:monospace;}
+.btn{padding:7px 16px;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;transition:opacity 0.15s;}
+.btn:hover{opacity:0.85;}
+.btn-primary{background:#2e74b5;color:#fff;}
+.btn-success{background:#27ae60;color:#fff;}
+.btn-danger{background:#e74c3c;color:#fff;}
+.btn-warn{background:#e67e22;color:#fff;}
+.btn-sm{padding:5px 10px;font-size:11px;}
+
+/* 카드 */
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:20px;}
+.card-header{padding:14px 18px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;justify-content:space-between;}
+.card-header h3{font-size:14px;font-weight:700;color:#1a2f48;}
+.card-body{padding:18px;}
+
+/* 그리드 */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.07);padding:16px 18px;}
+.stat-label{font-size:11px;color:#999;margin-bottom:6px;}
+.stat-value{font-size:26px;font-weight:700;color:#1a2f48;}
+.stat-sub{font-size:11px;color:#bbb;margin-top:4px;}
+.stat-value.green{color:#27ae60;}
+.stat-value.red{color:#e74c3c;}
+.stat-value.blue{color:#2e74b5;}
+
+/* 테이블 */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#f8f9fb;padding:9px 12px;text-align:left;color:#667;font-weight:600;border-bottom:1px solid #e8edf3;}
+td{padding:9px 12px;border-bottom:1px solid #f2f4f7;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafbfd;}
+
+/* 배지 */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-ok{background:#d4edda;color:#155724;}
+.badge-err{background:#f8d7da;color:#721c24;}
+.badge-warn{background:#fff3cd;color:#856404;}
+.badge-off{background:#e9ecef;color:#6c757d;}
+
+/* 예측 방향 */
+.dir-up{color:#e74c3c;font-weight:700;}
+.dir-down{color:#2980b9;font-weight:700;}
+.dir-neutral{color:#888;}
+
+/* 로그 */
+.log-box{background:#1a2030;color:#a8c0d8;border-radius:8px;padding:14px 16px;font-family:monospace;font-size:12px;height:260px;overflow-y:auto;line-height:1.8;}
+.log-box .log-ok{color:#4ec970;}
+.log-box .log-err{color:#f07070;}
+.log-box .log-warn{color:#f4c842;}
+.log-box .log-info{color:#7ab8f5;}
+
+/* 스피너 */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:#2e74b5;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:6px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* 탭 */
+.tab-bar{display:flex;gap:4px;margin-bottom:16px;}
+.tab-btn{padding:7px 16px;border:1px solid #d0d8e4;border-radius:6px;font-size:12px;cursor:pointer;background:#fff;color:#667;font-weight:600;}
+.tab-btn.active{background:#2e74b5;color:#fff;border-color:#2e74b5;}
+
+/* 반응형 */
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}}
+
+/* 섹션 숨기기 */
+.section{display:none;}
+.section.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+<!-- 사이드바 -->
+<aside class="sidebar">
+  <div class="sidebar-title">AgriTwin Admin<span>농산물 디지털트윈</span></div>
+  <div class="nav-section">모니터링</div>
+  <div class="nav-item active" onclick="showSection('status')">📊 시스템 상태</div>
+  <div class="nav-item" onclick="showSection('forecast')">🌾 예측 현황</div>
+  <div class="nav-section">실행</div>
+  <div class="nav-item" onclick="showSection('pipeline')">⚡ 파이프라인</div>
+  <div class="nav-item" onclick="showSection('sync')">🔄 데이터 수집</div>
+  <div class="nav-section">관리</div>
+  <div class="nav-item" onclick="showSection('apikeys')">🔑 API 키</div>
+  <div class="nav-item" onclick="showSection('usage')">📋 사용 로그</div>
+</aside>
+
+<!-- 메인 -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">시스템 상태</div>
+    <div class="admin-key-row">
+      <input type="password" id="admin-key-input" placeholder="Admin Key 입력" value="">
+      <button class="btn btn-primary" onclick="refreshAll()">새로고침</button>
+    </div>
+  </div>
+
+  <!-- 시스템 상태 -->
+  <div class="section active" id="section-status">
+    <div class="grid-4">
+      <div class="stat-card"><div class="stat-label">가격 데이터</div><div class="stat-value blue" id="s-prices">—</div><div class="stat-sub">DailyPrice 레코드</div></div>
+      <div class="stat-card"><div class="stat-label">기상 데이터</div><div class="stat-value blue" id="s-weather">—</div><div class="stat-sub">DailyWeather 레코드</div></div>
+      <div class="stat-card"><div class="stat-label">예측 신호</div><div class="stat-value blue" id="s-signals">—</div><div class="stat-sub">ForecastSignal 레코드</div></div>
+      <div class="stat-card"><div class="stat-label">최신 예측일</div><div class="stat-value" id="s-latest" style="font-size:16px;padding-top:4px;">—</div><div class="stat-sub">base_date</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>스케줄러 상태</h3><span id="s-sched-badge" class="badge badge-off">미확인</span></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>Job ID</th><th>다음 실행 시각</th></tr></thead>
+          <tbody id="s-jobs-body"><tr><td colspan="2" style="color:#bbb">데이터 없음</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 예측 현황 -->
+  <div class="section" id="section-forecast">
+    <div class="card">
+      <div class="card-header"><h3>오늘의 예측 현황</h3><button class="btn btn-sm btn-primary" onclick="loadForecast()">새로고침</button></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>품목</th><th>방향(14일)</th><th>상승확률</th><th>신뢰도</th><th>위험지역</th><th>위험수준</th></tr></thead>
+          <tbody id="forecast-body"><tr><td colspan="6" style="color:#bbb">로딩 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 파이프라인 실행 -->
+  <div class="section" id="section-pipeline">
+    <div class="card">
+      <div class="card-header"><h3>파이프라인 수동 실행</h3></div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn btn-success" onclick="runPipeline()">전체 실행 (5개 품목)</button>
+          <button class="btn btn-primary btn-sm" onclick="runPipeline('cabbage')">배추</button>
+          <button class="btn btn-primary btn-sm" onclick="runPipeline('radish')">무</button>
+          <button class="btn btn-primary btn-sm" onclick="runPipeline('onion')">양파</button>
+          <button class="btn btn-primary btn-sm" onclick="runPipeline('green_onion')">대파</button>
+          <button class="btn btn-primary btn-sm" onclick="runPipeline('garlic')">마늘</button>
+        </div>
+        <div id="pipeline-status" style="color:#bbb;margin-bottom:12px;">실행 전</div>
+        <div class="log-box" id="pipeline-log"><span class="log-info">파이프라인 실행 로그가 여기 표시됩니다.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 데이터 수집 -->
+  <div class="section" id="section-sync">
+    <div class="card">
+      <div class="card-header"><h3>데이터 수집 수동 실행</h3></div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <button class="btn btn-warn" onclick="runSync()">전체 수집 실행</button>
+        </div>
+        <div id="sync-status" style="color:#bbb;margin-bottom:12px;">실행 전</div>
+        <div class="log-box" id="sync-log"><span class="log-info">수집 로그가 여기 표시됩니다.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API 키 관리 -->
+  <div class="section" id="section-apikeys">
+    <div class="card">
+      <div class="card-header"><h3>API 키 발급</h3></div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end;flex-wrap:wrap;">
+          <div><div style="font-size:11px;color:#999;margin-bottom:4px;">이름</div><input id="key-name" placeholder="서비스명" style="padding:6px 10px;border:1px solid #d0d8e4;border-radius:6px;font-size:13px;"></div>
+          <div><div style="font-size:11px;color:#999;margin-bottom:4px;">플랜</div>
+            <select id="key-plan" style="padding:7px 10px;border:1px solid #d0d8e4;border-radius:6px;font-size:13px;">
+              <option value="free">free (100/일)</option>
+              <option value="basic">basic (1000/일)</option>
+              <option value="pro">pro (무제한)</option>
+            </select>
+          </div>
+          <div><div style="font-size:11px;color:#999;margin-bottom:4px;">만료(일, 비워두면 무제한)</div><input id="key-expires" type="number" placeholder="365" style="padding:6px 10px;border:1px solid #d0d8e4;border-radius:6px;font-size:13px;width:100px;"></div>
+          <button class="btn btn-success" onclick="createKey()">발급</button>
+        </div>
+        <div id="key-result" style="background:#f0fff4;border:1px solid #c3e6cb;border-radius:6px;padding:12px;margin-bottom:16px;font-family:monospace;font-size:13px;display:none;"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>발급된 키 목록</h3><button class="btn btn-sm btn-primary" onclick="loadKeys()">새로고침</button></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>ID</th><th>이름</th><th>플랜</th><th>총 호출</th><th>마지막 사용</th><th>만료</th><th>상태</th><th>액션</th></tr></thead>
+          <tbody id="keys-body"><tr><td colspan="8" style="color:#bbb">로딩 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 사용 로그 -->
+  <div class="section" id="section-usage">
+    <div class="card">
+      <div class="card-header"><h3>최근 API 사용 로그</h3><button class="btn btn-sm btn-primary" onclick="loadUsage()">새로고침</button></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>시각</th><th>메서드</th><th>엔드포인트</th><th>상태</th><th>응답시간</th></tr></thead>
+          <tbody id="usage-body"><tr><td colspan="5" style="color:#bbb">로딩 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const API_BASE = "";   // 같은 서버에서 서빙
+const ITEM_NAME = {cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘"};
+const DIR_MAP = {up:"<span class='dir-up'>↑ 상승</span>", down:"<span class='dir-down'>↓ 하락</span>", neutral:"<span class='dir-neutral'>→ 보합</span>"};
+const RISK_MAP = {normal:"<span class='badge badge-ok'>정상</span>", caution:"<span class='badge badge-warn'>주의</span>", warning:"<span class='badge badge-err'>경고</span>", high:"<span class='badge badge-err'>위험</span>"};
+
+function adminKey() { return document.getElementById("admin-key-input").value || "agri-admin-dev-key-change-in-prod"; }
+
+function headers() { return {"X-Admin-Key": adminKey(), "Content-Type": "application/json"}; }
+
+function showSection(name) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("section-" + name).classList.add("active");
+  event.currentTarget.classList.add("active");
+  const titles = {status:"시스템 상태", forecast:"예측 현황", pipeline:"파이프라인", sync:"데이터 수집", apikeys:"API 키 관리", usage:"사용 로그"};
+  document.getElementById("page-title").textContent = titles[name] || name;
+  if (name === "status") loadStatus();
+  if (name === "forecast") loadForecast();
+  if (name === "apikeys") loadKeys();
+  if (name === "usage") loadUsage();
+}
+
+// ── 시스템 상태 ─────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/admin/status`, {headers: headers()});
+    if (!r.ok) { alert("인증 실패 — Admin Key를 확인하세요."); return; }
+    const d = await r.json();
+    document.getElementById("s-prices").textContent = d.db.daily_prices?.toLocaleString() ?? "—";
+    document.getElementById("s-weather").textContent = d.db.daily_weather?.toLocaleString() ?? "—";
+    document.getElementById("s-signals").textContent = d.db.forecast_signals?.toLocaleString() ?? "—";
+    document.getElementById("s-latest").textContent = d.db.latest_forecast ?? "없음";
+
+    const running = d.scheduler?.running;
+    const badge = document.getElementById("s-sched-badge");
+    badge.textContent = running ? "실행 중" : "중지";
+    badge.className = "badge " + (running ? "badge-ok" : "badge-err");
+
+    const jobs = d.scheduler?.jobs || [];
+    document.getElementById("s-jobs-body").innerHTML = jobs.length
+      ? jobs.map(j => `<tr><td>${j.id}</td><td>${j.next_run}</td></tr>`).join("")
+      : "<tr><td colspan='2' style='color:#bbb'>등록된 Job 없음</td></tr>";
+  } catch(e) {
+    alert("오류: " + e.message);
+  }
+}
+
+// ── 예측 현황 ─────────────────────────────────────────
+async function loadForecast() {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/signals/today`);
+    const d = await r.json();
+    const items = d.items || [];
+    if (!items.length) {
+      document.getElementById("forecast-body").innerHTML = "<tr><td colspan='6' style='color:#bbb'>예측 데이터 없음 — 파이프라인을 실행하세요.</td></tr>";
+      return;
+    }
+    document.getElementById("forecast-body").innerHTML = items.map(it => `
+      <tr>
+        <td><strong>${ITEM_NAME[it.item_code] || it.item_code}</strong></td>
+        <td>${DIR_MAP[it.direction_14d] || it.direction_14d || "—"}</td>
+        <td>${it.up_probability_14d != null ? (it.up_probability_14d*100).toFixed(0)+"%" : "—"}</td>
+        <td>${it.confidence || "—"}</td>
+        <td>${it.hotspot_region || "—"}</td>
+        <td>${RISK_MAP[it.risk_level] || it.risk_level || "—"}</td>
+      </tr>`).join("");
+  } catch(e) {
+    document.getElementById("forecast-body").innerHTML = `<tr><td colspan='6' style='color:#e74c3c'>${e.message}</td></tr>`;
+  }
+}
+
+// ── 파이프라인 ─────────────────────────────────────────
+async function runPipeline(item_code) {
+  const logEl = document.getElementById("pipeline-log");
+  const statEl = document.getElementById("pipeline-status");
+  const url = item_code
+    ? `${API_BASE}/api/v1/admin/pipeline/run?item_code=${item_code}`
+    : `${API_BASE}/api/v1/admin/pipeline/run`;
+
+  statEl.innerHTML = `<span class='spinner'></span> 실행 중... (${item_code || "전체"})`;
+  logEl.innerHTML = `<span class='log-info'>[${new Date().toLocaleTimeString()}] 파이프라인 시작: ${item_code || "전체 5개 품목"}</span>\n`;
+
+  try {
+    const r = await fetch(url, {method:"POST", headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "서버 오류");
+
+    logEl.innerHTML += `<span class='log-ok'>[완료] ${JSON.stringify(d, null, 2)}</span>`;
+    statEl.innerHTML = `<span class='badge badge-ok'>완료</span> ${item_code || "전체"} — ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    logEl.innerHTML += `<span class='log-err'>[오류] ${e.message}</span>`;
+    statEl.innerHTML = `<span class='badge badge-err'>실패</span> ${e.message}`;
+  }
+}
+
+// ── 데이터 수집 ─────────────────────────────────────────
+async function runSync() {
+  const logEl = document.getElementById("sync-log");
+  const statEl = document.getElementById("sync-status");
+
+  statEl.innerHTML = `<span class='spinner'></span> 수집 중...`;
+  logEl.innerHTML = `<span class='log-info'>[${new Date().toLocaleTimeString()}] 데이터 수집 시작</span>\n`;
+
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/admin/sync/run`, {method:"POST", headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "서버 오류");
+
+    logEl.innerHTML += `<span class='log-ok'>[완료]\n${JSON.stringify(d.result, null, 2)}</span>`;
+    statEl.innerHTML = `<span class='badge badge-ok'>완료</span> — ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    logEl.innerHTML += `<span class='log-err'>[오류] ${e.message}</span>`;
+    statEl.innerHTML = `<span class='badge badge-err'>실패</span> ${e.message}`;
+  }
+}
+
+// ── API 키 ─────────────────────────────────────────
+async function createKey() {
+  const name = document.getElementById("key-name").value.trim();
+  const plan = document.getElementById("key-plan").value;
+  const expires = document.getElementById("key-expires").value;
+  if (!name) { alert("이름을 입력하세요."); return; }
+
+  let url = `${API_BASE}/api/v1/admin/keys?name=${encodeURIComponent(name)}&plan=${plan}`;
+  if (expires) url += `&expires_days=${expires}`;
+
+  try {
+    const r = await fetch(url, {method:"POST", headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    const el = document.getElementById("key-result");
+    el.style.display = "block";
+    el.innerHTML = `✅ 발급 완료<br><strong>API Key:</strong> ${d.api_key}<br><span style='color:#e74c3c;font-size:11px;'>⚠️ 이 키는 다시 조회할 수 없습니다. 즉시 저장하세요.</span>`;
+    loadKeys();
+  } catch(e) { alert("오류: " + e.message); }
+}
+
+async function loadKeys() {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/admin/keys`, {headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    document.getElementById("keys-body").innerHTML = d.length
+      ? d.map(k => `<tr>
+          <td>${k.id}</td>
+          <td>${k.name}</td>
+          <td>${k.plan}</td>
+          <td>${(k.total_calls||0).toLocaleString()}</td>
+          <td>${k.last_used ? k.last_used.split(".")[0] : "없음"}</td>
+          <td>${k.expires_at ? k.expires_at.split(".")[0] : "무제한"}</td>
+          <td>${k.is_active ? "<span class='badge badge-ok'>활성</span>" : "<span class='badge badge-off'>비활성</span>"}</td>
+          <td>${k.is_active ? `<button class='btn btn-danger btn-sm' onclick='revokeKey(${k.id})'>비활성화</button>` : ""}</td>
+        </tr>`).join("")
+      : "<tr><td colspan='8' style='color:#bbb'>발급된 키 없음</td></tr>";
+  } catch(e) {
+    document.getElementById("keys-body").innerHTML = `<tr><td colspan='8' style='color:#e74c3c'>${e.message}</td></tr>`;
+  }
+}
+
+async function revokeKey(id) {
+  if (!confirm("정말 비활성화하시겠습니까?")) return;
+  await fetch(`${API_BASE}/api/v1/admin/keys/${id}`, {method:"DELETE", headers: headers()});
+  loadKeys();
+}
+
+// ── 사용 로그 ─────────────────────────────────────────
+async function loadUsage() {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/admin/usage`, {headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    document.getElementById("usage-body").innerHTML = d.length
+      ? d.map(l => `<tr>
+          <td style='font-family:monospace;font-size:12px'>${(l.called_at||"").split(".")[0]}</td>
+          <td><span class='badge ${l.method==="GET"?"badge-ok":"badge-warn"}'>${l.method}</span></td>
+          <td style='font-family:monospace;font-size:12px'>${l.endpoint}</td>
+          <td><span class='badge ${l.status<400?"badge-ok":"badge-err"}'>${l.status}</span></td>
+          <td>${l.latency_ms != null ? l.latency_ms+"ms" : "—"}</td>
+        </tr>`).join("")
+      : "<tr><td colspan='5' style='color:#bbb'>로그 없음</td></tr>";
+  } catch(e) {
+    document.getElementById("usage-body").innerHTML = `<tr><td colspan='5' style='color:#e74c3c'>${e.message}</td></tr>`;
+  }
+}
+
+function refreshAll() {
+  const active = document.querySelector(".section.active");
+  if (!active) return;
+  const id = active.id.replace("section-", "");
+  if (id === "status") loadStatus();
+  else if (id === "forecast") loadForecast();
+  else if (id === "apikeys") loadKeys();
+  else if (id === "usage") loadUsage();
+}
+
+// 초기 로드
+loadStatus();
+</script>
+</body>
+</html>

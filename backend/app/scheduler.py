@@ -35,6 +35,9 @@ async def daily_pipeline():
         results = await run_batch(verbose=False)
         ok = sum(1 for v in results.values() if v.get("status") == "ok")
         logger.info(f"[scheduler] 완료: {ok}/{len(results)}개 품목 성공")
+        from app import cache
+        cache.clear_prefix("signals:")
+        cache.clear_prefix("report:")
         await notify_pipeline_success(results)
     except Exception as e:
         logger.error(f"[scheduler] 파이프라인 오류: {e}", exc_info=True)

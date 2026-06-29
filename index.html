@@ -219,6 +219,53 @@ h1.hero-title{font-size:clamp(32px,6vw,62px);font-weight:900;line-height:1.15;ma
 .footer-link:hover{color:var(--accent);}
 .footer-copy{font-size:10px;color:var(--dimmed);margin-top:16px;opacity:.6;}
 .container{max-width:1140px;margin:0 auto;}
+
+/* ── 모바일 반응형 ── */
+@media(max-width:768px){
+  /* 네비게이션 */
+  #gnav{padding:0 16px;gap:10px;}
+  .nav-links{gap:2px;}
+  .nav-links a{padding:5px 8px;font-size:11px;}
+  .nav-badge{display:none;}
+
+  /* 히어로 */
+  #hero{padding:80px 16px 60px;}
+  .hero-stats{flex-direction:column;}
+  .hero-stat{padding:14px 24px;}
+  .hero-stat+.hero-stat{border-left:none;border-top:1px solid var(--border);}
+
+  /* 지도 앱 */
+  #map-app{height:auto;flex-direction:column;}
+  .map-app-header{padding:0 12px;height:48px;flex-wrap:wrap;height:auto;padding:10px 12px;}
+  #map-body{flex-direction:column!important;}
+  #map-container{height:55vw;min-height:260px;}
+  #side-panel{width:100%!important;max-width:100%!important;border-left:none;border-top:1px solid var(--border);}
+
+  /* 설명 / 차트 패널 */
+  #explain-panel,#price-chart-panel{margin:8px 8px 0;}
+
+  /* 품목 셀렉터 */
+  .mah-left{gap:6px;}
+  #item-select{font-size:12px;padding:4px 8px;}
+
+  /* 섹션 헤더 */
+  .map-section-header{padding:20px 16px 12px;flex-direction:column;align-items:flex-start;}
+
+  /* CTA */
+  #cta{padding:60px 16px;}
+  .cta-title{font-size:22px;}
+
+  /* 푸터 */
+  #footer{padding:28px 16px;}
+  .footer-links{gap:12px;}
+}
+
+@media(max-width:480px){
+  .hero-title{font-size:28px!important;}
+  .hero-sub{font-size:14px;}
+  .btn-primary,.btn-outline{padding:12px 20px;font-size:13px;}
+  #map-container{height:65vw;}
+}
 </style>
 </head>
 <body>

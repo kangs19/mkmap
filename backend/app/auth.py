@@ -16,9 +16,23 @@ from app.models.api_key import ApiKey, ApiUsageLog
 # ── 인메모리 rate limiter (일별 카운터) ─────────────────────
 _rate_counter: dict[str, dict[str, int]] = defaultdict(dict)  # key_hash → {date: count}
 
-# 인증 불필요 경로 (지도·대시보드 UI)
-PUBLIC_PATHS = {"/", "/dashboard", "/widget", "/docs", "/openapi.json", "/redoc", "/health", "/map_standalone.html", "/index.html"}
-PUBLIC_PREFIXES = ("/maps/", "/static/", "/admin/", "/api/")  # /api/ 는 키 배포 전까지 공개
+# 인증 불필요 경로 (지도·대시보드 UI + 위젯)
+PUBLIC_PATHS = {
+    "/", "/dashboard", "/widget", "/widget/embed",
+    "/admin/ui",  # 관리자 HTML UI (API 호출은 X-Admin-Key로 별도 보호)
+    "/docs", "/openapi.json", "/redoc", "/health",
+    "/map_standalone.html", "/index.html",
+}
+PUBLIC_PREFIXES = ("/maps/", "/static/")
+
+# REQUIRE_API_KEY=true 환경변수로 API 키 인증 활성화
+# false(기본)이면 /api/ 경로는 공개 — 위젯·WordPress 임베드 호환
+import os as _os
+_API_AUTH_ENABLED = _os.environ.get("REQUIRE_API_KEY", "false").lower() == "true"
+
+if not _API_AUTH_ENABLED:
+    # 키 배포 전까지 /api/ 전체 공개 (rate limit 로깅만 동작)
+    PUBLIC_PREFIXES = ("/maps/", "/static/", "/api/")
 
 
 def hash_key(raw: str) -> str:

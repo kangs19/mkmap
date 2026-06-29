@@ -17,6 +17,7 @@ TEMPLATES = Path(__file__).parent.parent.parent.parent / "map_viewer" / "templat
 TEMPLATE_PATH = TEMPLATES / "item_map.html"
 DASHBOARD_PATH = TEMPLATES / "dashboard.html"
 WIDGET_PATH    = TEMPLATES / "widget.html"
+ADMIN_PATH     = TEMPLATES / "admin.html"
 
 ITEM_NAMES = {
     "cabbage": "배추",
@@ -25,6 +26,15 @@ ITEM_NAMES = {
     "green_onion": "대파",
     "garlic": "마늘",
 }
+
+
+@router.get("/admin/ui", response_class=HTMLResponse)
+async def get_admin_ui(request: Request):
+    """관리자 대시보드 UI"""
+    html = ADMIN_PATH.read_text(encoding="utf-8")
+    api_base = str(request.base_url).rstrip("/")
+    html = html.replace('const API_BASE = "";', f'const API_BASE = "{api_base}";')
+    return HTMLResponse(content=html)
 
 
 @router.get("/maps/items/{item_code}", response_class=HTMLResponse)

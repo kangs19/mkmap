@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+
+      - name: Run pipeline unit tests
+        run: pytest tests/test_pipeline.py -v --tb=short
+
+      - name: Run API smoke tests
+        run: pytest tests/test_api.py -v --tb=short
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./test_agri.db
+          KAMIS_API_KEY: ""
+          KMA_API_KEY: ""
+          KOSIS_API_KEY: ""
+          DISCORD_WEBHOOK_URL: ""
+          ADMIN_KEY: test-admin-key

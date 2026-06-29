@@ -8,6 +8,7 @@ from app.models.price import DailyPrice
 from app.schemas.signal import RegionSignalResponse
 from app.pipeline.explain import build_summary_text, factors_to_display, ITEM_NAMES
 from datetime import date, timedelta
+from app import cache
 
 router = APIRouter(tags=["signals"])
 
@@ -92,6 +93,9 @@ async def get_item_signals(
 @router.get("/api/v1/signals/today")
 async def get_today_signals(db: AsyncSession = Depends(get_db)):
     """모든 품목의 오늘 예측 + 위험 신호 요약"""
+    cached = cache.get("signals:today")
+    if cached:
+        return cached
     today = date.today()
 
     fc_result = await db.execute(
@@ -131,7 +135,9 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
             "hotspot_region": risk.get("hotspot_region"),
         })
 
-    return {"base_date": str(today), "items": items_out}
+    result = {"base_date": str(today), "items": items_out}
+    cache.set("signals:today", result, ttl=300)  # 5분 캐시
+    return result
 
 
 @router.get("/api/v1/report/today")
@@ -139,6 +145,9 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
     """일일 리포트 — 기획서 26번 (JSON)
     오늘의 위험 품목 순위 + 지역 + 가격 변동 + 14일 예측 + 자연어 요약
     """
+    cached = cache.get("report:today")
+    if cached:
+        return cached
     today = date.today()
     start_30d = today - timedelta(days=30)
 
@@ -226,9 +235,11 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
         key=lambda x: x["hotspot"].get("risk_score", 0), reverse=True
     )
 
-    return {
+    result = {
         "report_date": str(today),
         "generated_at": str(date.today()),
         "item_count": len(items_report),
         "items": items_report,
     }
+    cache.set("report:today", result, ttl=600)  # 10분 캐시
+    return result
