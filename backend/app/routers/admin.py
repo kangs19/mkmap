@@ -309,7 +309,7 @@ async def debug_kamis(_=Depends(check_admin)):
         return {"error": str(e), "type": type(e).__name__}
 
 
-@router.post("/seed")
+@router.post("/init-data")
 async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """Item 시드 수동 실행 — 재배포 후 빈 items 테이블 복구"""
     from app.models.item import Item, ItemRegion
