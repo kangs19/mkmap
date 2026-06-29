@@ -1,58 +1,84 @@
-"""
-일별 자동 파이프라인 스케줄러
-매일 06:00 가격예측 + 지역위험도 자동 계산
-"""
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import date
+from pathlib import Path
+import asyncio
 import logging
+import sys
 
 logger = logging.getLogger("scheduler")
 
 scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
 
+async def _run_meta_pipeline_for_today() -> list[str]:
+    repo_root = Path(__file__).resolve().parents[2]
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "scripts/run_meta_pipeline.py",
+        "--date",
+        date.today().isoformat(),
+        "--weather-lookback-days",
+        "7",
+        cwd=str(repo_root),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+
+    assert process.stdout is not None
+    output_lines: list[str] = []
+    while True:
+        line = await process.stdout.readline()
+        if not line:
+            break
+        text = line.decode("utf-8", errors="replace").rstrip()
+        output_lines.append(text)
+        logger.info("[mkmap_meta] %s", text)
+
+    return_code = await process.wait()
+    if return_code != 0:
+        tail = "\n".join(output_lines[-40:])
+        raise RuntimeError(f"meta pipeline exited with code {return_code}: {tail}")
+
+    return output_lines
+
+
 async def daily_pipeline():
-    """매일 06:00 실행 — 실데이터 동기화 → 예측 → 위험 신호 → Discord 알림"""
-    from app.notify import notify_sync_result, notify_pipeline_success, notify_pipeline_error, notify_daily_report
+    """Run the metadata-driven daily pipeline and send the daily report."""
+    from app.notify import notify_daily_report, notify_pipeline_error, notify_pipeline_success
 
-    logger.info(f"[scheduler] 일별 파이프라인 시작: {date.today()}")
+    today = date.today()
+    logger.info("[scheduler] mkmap_meta daily pipeline start: %s", today)
 
-    # 1. 실데이터 수집
-    sync_result = {}
     try:
-        from app.collectors.sync import daily_sync
-        sync_result = await daily_sync()
-        logger.info(f"[scheduler] 실데이터 동기화: {sync_result}")
-        await notify_sync_result(sync_result)
-    except Exception as e:
-        logger.warning(f"[scheduler] 실데이터 동기화 실패 (mock으로 계속): {e}")
-        await notify_pipeline_error(str(e), "데이터 수집")
-
-    # 2. 예측 파이프라인
-    try:
-        from app.pipeline.batch import run_batch
-        results = await run_batch(verbose=False)
-        ok = sum(1 for v in results.values() if v.get("status") == "ok")
-        logger.info(f"[scheduler] 완료: {ok}/{len(results)}개 품목 성공")
+        output_lines = await _run_meta_pipeline_for_today()
         from app import cache
+
         cache.clear_prefix("signals:")
         cache.clear_prefix("report:")
-        await notify_pipeline_success(results)
-    except Exception as e:
-        logger.error(f"[scheduler] 파이프라인 오류: {e}", exc_info=True)
-        await notify_pipeline_error(str(e), "예측 파이프라인")
+        await notify_pipeline_success(
+            {
+                "mkmap_meta": {
+                    "status": "ok",
+                    "date": today.isoformat(),
+                    "log_tail": output_lines[-10:],
+                }
+            }
+        )
+    except Exception as exc:
+        logger.error("[scheduler] mkmap_meta pipeline error: %s", exc, exc_info=True)
+        await notify_pipeline_error(str(exc), "mkmap_meta pipeline")
         return
 
-    # 3. 일일 리포트 Discord 알림
     try:
-        from app.routers.signals import get_today_report
         from app.database import AsyncSessionLocal
+        from app.routers.signals import get_today_report
+
         async with AsyncSessionLocal() as db:
             report = await get_today_report(db)
         await notify_daily_report(report)
-    except Exception as e:
-        logger.warning(f"[scheduler] 리포트 알림 실패: {e}")
+    except Exception as exc:
+        logger.warning("[scheduler] daily report notification failed: %s", exc)
 
 
 def start_scheduler():
@@ -61,13 +87,13 @@ def start_scheduler():
         trigger=CronTrigger(hour=6, minute=0),
         id="daily_pipeline",
         replace_existing=True,
-        misfire_grace_time=3600,   # 1시간 내 놓친 실행 허용
+        misfire_grace_time=3600,
     )
     scheduler.start()
-    logger.info("[scheduler] 스케줄러 시작 — 매일 06:00 KST 실행")
+    logger.info("[scheduler] started: daily 06:00 KST")
 
 
 def stop_scheduler():
     if scheduler.running:
         scheduler.shutdown(wait=False)
-        logger.info("[scheduler] 스케줄러 종료")
+        logger.info("[scheduler] stopped")

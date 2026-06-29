@@ -158,12 +158,9 @@ tr:hover td{background:#fafbfd;}
       <div class="card-header"><h3>파이프라인 수동 실행</h3></div>
       <div class="card-body">
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn btn-success" onclick="runPipeline()">전체 실행 (5개 품목)</button>
-          <button class="btn btn-primary btn-sm" onclick="runPipeline('cabbage')">배추</button>
-          <button class="btn btn-primary btn-sm" onclick="runPipeline('radish')">무</button>
-          <button class="btn btn-primary btn-sm" onclick="runPipeline('onion')">양파</button>
-          <button class="btn btn-primary btn-sm" onclick="runPipeline('green_onion')">대파</button>
-          <button class="btn btn-primary btn-sm" onclick="runPipeline('garlic')">마늘</button>
+          <button class="btn btn-success" onclick="runMetaPipeline()">메타 파이프라인 실행</button>
+          <button class="btn btn-primary btn-sm" onclick="runMetaPipeline(true)">캐시 재사용 실행</button>
+          <button class="btn btn-success" onclick="runPipeline()">호환 전체 실행</button>
         </div>
         <div id="pipeline-status" style="color:#bbb;margin-bottom:12px;">실행 전</div>
         <div class="log-box" id="pipeline-log"><span class="log-info">파이프라인 실행 로그가 여기 표시됩니다.</span></div>
@@ -305,6 +302,52 @@ async function loadForecast() {
 }
 
 // ── 파이프라인 ─────────────────────────────────────────
+async function runMetaPipeline(skipCollect=false) {
+  const logEl = document.getElementById("pipeline-log");
+  const statEl = document.getElementById("pipeline-status");
+  const url = `${API_BASE}/api/v1/admin/meta-pipeline/run?skip_collect=${skipCollect}&background=true`;
+
+  statEl.innerHTML = `<span class='spinner'></span> 메타 파이프라인 실행 중...`;
+  logEl.innerHTML = `<span class='log-info'>[${new Date().toLocaleTimeString()}] 메타 파이프라인 시작${skipCollect ? " (캐시 재사용)" : ""}</span>\n`;
+
+  try {
+    const r = await fetch(url, {method:"POST", headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "서버 오류");
+
+    logEl.innerHTML += `<span class='log-ok'>[시작됨] ${JSON.stringify(d, null, 2)}</span>\n`;
+    statEl.innerHTML = `<span class='badge badge-ok'>실행 중</span> 백그라운드 실행 — 상태 확인 중`;
+    pollMetaPipeline();
+  } catch(e) {
+    logEl.innerHTML += `<span class='log-err'>[오류] ${e.message}</span>`;
+    statEl.innerHTML = `<span class='badge badge-err'>실패</span> ${e.message}`;
+  }
+}
+
+async function pollMetaPipeline() {
+  const logEl = document.getElementById("pipeline-log");
+  const statEl = document.getElementById("pipeline-status");
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/admin/meta-pipeline/status`, {headers: headers()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "상태 조회 실패");
+
+    const lines = (d.last_output_tail || []).slice(-18).join("\n");
+    logEl.innerHTML = `<span class='log-info'>${lines || "로그 대기 중..."}</span>`;
+    if (d.running) {
+      statEl.innerHTML = `<span class='spinner'></span> 메타 파이프라인 실행 중... ${d.last_date || ""}`;
+      setTimeout(pollMetaPipeline, 3000);
+    } else {
+      const ok = d.last_status === "ok";
+      statEl.innerHTML = `<span class='badge ${ok ? "badge-ok" : "badge-err"}'>${ok ? "완료" : "실패"}</span> ${d.last_finished_at || ""}`;
+      await loadStatus();
+      await loadForecast();
+    }
+  } catch(e) {
+    logEl.innerHTML += `\n<span class='log-err'>[상태 오류] ${e.message}</span>`;
+  }
+}
+
 async function runPipeline(item_code) {
   const logEl = document.getElementById("pipeline-log");
   const statEl = document.getElementById("pipeline-status");

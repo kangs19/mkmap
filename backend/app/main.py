@@ -87,37 +87,45 @@ async def _seed_items():
 
 
 async def _auto_recover():
-    """재배포 후 가격 데이터 없으면 자동 90일 sync + 전 품목 파이프라인 실행"""
+    """Backfill today's signal/forecast tables after a fresh deployment."""
     import asyncio
     import logging
+    from datetime import date
     from sqlalchemy import select, func
     from app.database import AsyncSessionLocal
-    from app.models.price import DailyPrice
+    from app.models.signal import RegionSignal
+    from app.models.forecast import Forecast
 
-    await asyncio.sleep(5)  # 서버 완전 기동 대기
+    await asyncio.sleep(5)
 
     async with AsyncSessionLocal() as db:
-        price_count = (await db.execute(select(func.count()).select_from(DailyPrice))).scalar()
+        today = date.today()
+        signal_count = (
+            await db.execute(
+                select(func.count()).select_from(RegionSignal).where(RegionSignal.date == today)
+            )
+        ).scalar()
+        forecast_count = (
+            await db.execute(
+                select(func.count()).select_from(Forecast).where(Forecast.base_date == today)
+            )
+        ).scalar()
 
-    if price_count > 0:
-        logging.info(f"[auto_recover] 가격 데이터 {price_count}건 존재 — 스킵")
+    if signal_count and forecast_count:
+        logging.info(
+            "[auto_recover] today's outputs exist: signals=%s forecasts=%s; skip",
+            signal_count,
+            forecast_count,
+        )
         return
 
-    logging.info("[auto_recover] 가격 데이터 없음 — 90일 sync 시작")
+    logging.info("[auto_recover] today's outputs missing; running mkmap_meta pipeline")
     try:
-        from app.collectors.sync import sync_prices
-        await sync_prices(days_back=90)
-        logging.info("[auto_recover] sync 완료 — 파이프라인 실행 시작")
-    except Exception as e:
-        logging.error(f"[auto_recover] sync 실패: {e}")
-        return
-
-    try:
-        from app.pipeline.batch import run_batch
-        await run_batch(verbose=True)
-        logging.info("[auto_recover] 파이프라인 완료")
-    except Exception as e:
-        logging.error(f"[auto_recover] 파이프라인 실패: {e}")
+        from app.scheduler import _run_meta_pipeline_for_today
+        await _run_meta_pipeline_for_today()
+        logging.info("[auto_recover] mkmap_meta pipeline completed")
+    except Exception as exc:
+        logging.error("[auto_recover] mkmap_meta pipeline failed: %s", exc)
 
 
 app = FastAPI(
@@ -174,6 +182,7 @@ app.include_router(forecasts.router)
 app.include_router(signals.router)
 app.include_router(maps.router)
 app.include_router(admin.router)
+app.include_router(admin.router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -3,6 +3,7 @@
 X-Admin-Key 헤더로 보호
 """
 import os
+import sys
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -142,6 +143,146 @@ async def admin_health(_=Depends(check_admin)):
 
 import asyncio as _asyncio
 _pipeline_sem = _asyncio.Semaphore(1)  # 동시 파이프라인 1개 제한
+_meta_pipeline_status = {
+    "running": False,
+    "last_status": None,
+    "last_started_at": None,
+    "last_finished_at": None,
+    "last_date": None,
+    "last_output_tail": [],
+    "last_error": None,
+}
+
+
+def _repo_root():
+    from pathlib import Path
+    return Path(__file__).resolve().parents[3]
+
+
+async def _run_meta_pipeline_process(
+    target_date: str | None,
+    skip_collect: bool,
+    weather_lookback_days: int,
+) -> dict:
+    from datetime import date, datetime
+    from app import cache
+
+    pipeline_date = target_date or date.today().isoformat()
+    cmd = [
+        sys.executable,
+        "scripts/run_meta_pipeline.py",
+        "--date",
+        pipeline_date,
+        "--weather-lookback-days",
+        str(weather_lookback_days),
+    ]
+    if skip_collect:
+        cmd.append("--skip-collect")
+
+    _meta_pipeline_status.update(
+        {
+            "running": True,
+            "last_status": "running",
+            "last_started_at": datetime.now().isoformat(timespec="seconds"),
+            "last_finished_at": None,
+            "last_date": pipeline_date,
+            "last_output_tail": [],
+            "last_error": None,
+        }
+    )
+
+    try:
+        process = await _asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=str(_repo_root()),
+            stdout=_asyncio.subprocess.PIPE,
+            stderr=_asyncio.subprocess.STDOUT,
+        )
+        assert process.stdout is not None
+        output_lines: list[str] = []
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", errors="replace").rstrip()
+            output_lines.append(text)
+            _meta_pipeline_status["last_output_tail"] = output_lines[-80:]
+
+        return_code = await process.wait()
+        finished_at = datetime.now().isoformat(timespec="seconds")
+        if return_code == 0:
+            cache.clear_prefix("signals:")
+            cache.clear_prefix("report:")
+            _meta_pipeline_status.update(
+                {
+                    "running": False,
+                    "last_status": "ok",
+                    "last_finished_at": finished_at,
+                    "last_error": None,
+                    "last_output_tail": output_lines[-80:],
+                }
+            )
+        else:
+            _meta_pipeline_status.update(
+                {
+                    "running": False,
+                    "last_status": "error",
+                    "last_finished_at": finished_at,
+                    "last_error": f"process exited with code {return_code}",
+                    "last_output_tail": output_lines[-80:],
+                }
+            )
+        return dict(_meta_pipeline_status)
+    except Exception as exc:
+        _meta_pipeline_status.update(
+            {
+                "running": False,
+                "last_status": "error",
+                "last_finished_at": datetime.now().isoformat(timespec="seconds"),
+                "last_error": str(exc),
+            }
+        )
+        raise
+
+
+@router.get("/meta-pipeline/status")
+async def meta_pipeline_status(_=Depends(check_admin)):
+    return _meta_pipeline_status
+
+
+@router.post("/meta-pipeline/run")
+async def manual_run_meta_pipeline(
+    target_date: Optional[str] = None,
+    skip_collect: bool = False,
+    weather_lookback_days: int = 0,
+    background: bool = True,
+    _=Depends(check_admin),
+):
+    """Run the metadata-driven pipeline and import outputs into the backend DB."""
+    if _meta_pipeline_status.get("running"):
+        raise HTTPException(status_code=409, detail="meta pipeline is already running")
+
+    async def _run_bg():
+        async with _pipeline_sem:
+            try:
+                await _run_meta_pipeline_process(target_date, skip_collect, weather_lookback_days)
+            except Exception as exc:
+                print(f"[meta pipeline bg error] {exc}")
+
+    if background:
+        _asyncio.create_task(_run_bg())
+        return {
+            "status": "started",
+            "target_date": target_date,
+            "skip_collect": skip_collect,
+            "message": "meta pipeline started in background",
+        }
+
+    async with _pipeline_sem:
+        try:
+            return await _run_meta_pipeline_process(target_date, skip_collect, weather_lookback_days)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/pipeline/run")
@@ -150,47 +291,35 @@ async def manual_run_pipeline(
     background: bool = True,
     _=Depends(check_admin),
 ):
-    """수동 파이프라인 실행 — background=True(기본): 즉시 202 반환 후 백그라운드 실행"""
-    import asyncio
-    from app.pipeline.batch import run_batch
-    from app.pipeline.runner import run_pipeline
+    """Compatibility route: route old pipeline calls to the mkmap_meta runner."""
+    if item_code:
+        raise HTTPException(
+            status_code=400,
+            detail="item_code-specific legacy pipeline runs are no longer supported; run the meta pipeline instead",
+        )
+    if _meta_pipeline_status.get("running"):
+        raise HTTPException(status_code=409, detail="meta pipeline is already running")
 
     async def _run_bg():
         async with _pipeline_sem:
             try:
-                if item_code:
-                    await run_pipeline(item_code=item_code, verbose=True)
-                else:
-                    await run_batch(verbose=True)
-            except Exception as e:
-                print(f"[pipeline bg error] {e}")
+                await _run_meta_pipeline_process(None, False, 0)
+            except Exception as exc:
+                print(f"[pipeline bg error] {exc}")
 
     if background:
-        asyncio.create_task(_run_bg())
+        _asyncio.create_task(_run_bg())
         return {
             "status": "started",
-            "item_code": item_code or "all",
-            "message": "백그라운드에서 실행 중. /admin/status 로 결과 확인"
+            "item_code": "all",
+            "message": "meta pipeline started in background",
         }
 
-    try:
-        if item_code:
-            result = await run_pipeline(item_code=item_code, verbose=True)
-            return {"status": "ok", "item_code": item_code, "result": result}
-        else:
-            results = await run_batch(verbose=False)
-            ok = sum(1 for v in results.values() if v.get("status") == "ok")
-            return {
-                "status": "ok",
-                "total": len(results),
-                "success": ok,
-                "results": {
-                    k: {"status": v.get("status"), "direction": v.get("forecast", {}).get("direction_14d")}
-                    for k, v in results.items()
-                },
-            }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    async with _pipeline_sem:
+        try:
+            return await _run_meta_pipeline_process(None, False, 0)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/sync/run")

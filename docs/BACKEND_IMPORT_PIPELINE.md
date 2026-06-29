@@ -65,3 +65,14 @@ To reuse already collected `data/features` files and only rebuild downstream out
 ```powershell
 python scripts\run_meta_pipeline.py --date 2026-06-30 --skip-collect
 ```
+
+## Backend Admin And Scheduler
+
+The FastAPI backend exposes the runner through admin endpoints:
+
+- `POST /api/v1/admin/meta-pipeline/run`
+- `GET /api/v1/admin/meta-pipeline/status`
+
+Both routes require the configured `X-Admin-Key` header.
+
+The backend scheduler also runs the same metadata-driven pipeline every day at `06:00` KST. After a successful run it clears the cached signal/report responses and sends the daily Discord notification when a webhook is configured.
