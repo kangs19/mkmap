@@ -14,10 +14,12 @@ from typing import Optional
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_KEY = os.environ.get("ADMIN_KEY", "agri-admin-dev-key-change-in-prod")
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 
 
 def check_admin(x_admin_key: str = Header(...)):
+    if not ADMIN_KEY:
+        raise HTTPException(status_code=503, detail="ADMIN_KEY is not configured.")
     if x_admin_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="관리자 키가 올바르지 않습니다.")
 

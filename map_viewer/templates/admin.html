@@ -238,7 +238,7 @@ const ITEM_NAME = {cabbage:"배추", radish:"무", onion:"양파", green_onion:"
 const DIR_MAP = {up:"<span class='dir-up'>↑ 상승</span>", down:"<span class='dir-down'>↓ 하락</span>", neutral:"<span class='dir-neutral'>→ 보합</span>"};
 const RISK_MAP = {normal:"<span class='badge badge-ok'>정상</span>", caution:"<span class='badge badge-warn'>주의</span>", warning:"<span class='badge badge-err'>경고</span>", high:"<span class='badge badge-err'>위험</span>"};
 
-function adminKey() { return document.getElementById("admin-key-input").value || "agri-admin-dev-key-change-in-prod"; }
+function adminKey() { return document.getElementById("admin-key-input").value; }
 
 function headers() { return {"X-Admin-Key": adminKey(), "Content-Type": "application/json"}; }
 
