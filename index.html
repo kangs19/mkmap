@@ -6,6 +6,7 @@
 <title>MK-MAP — 농산물 가격 위험 신호 엔진</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
@@ -314,6 +315,14 @@ h1.hero-title{font-size:clamp(32px,6vw,62px);font-weight:900;line-height:1.15;ma
           <div class="sh-sub" id="side-sub">품목을 선택하세요</div>
         </div>
         <div class="pred-card" id="pred-card"></div>
+        <div id="explain-panel" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none;">
+          <div class="sec-head" style="font-size:9px;color:var(--dimmed);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">주요 원인 TOP5</div>
+          <div id="explain-list"></div>
+        </div>
+        <div id="price-chart-panel" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none;">
+          <div class="sec-head" style="font-size:9px;color:var(--dimmed);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">최근 30일 가격 추이</div>
+          <canvas id="price-chart" height="90" style="width:100%;"></canvas>
+        </div>
         <div class="side-scroll">
           <div id="region-detail">
             <div class="hint-wrap">
@@ -426,8 +435,10 @@ function renderItemCards(){
 }
 
 // 실데이터 캐시 — API 응답 저장
-let LIVE_SIGNALS={};  // item_code → {region_code → signal}
-let LIVE_ITEMS={};    // item_code → 예측 데이터
+let LIVE_SIGNALS={};   // item_code → {region_code → signal}
+let LIVE_ITEMS={};     // item_code → 예측 데이터
+let LIVE_REPORT={};    // item_code → report entry
+let priceChartInst=null; // Chart.js 인스턴스
 
 async function fetchLiveData(){
   try{
@@ -468,6 +479,75 @@ async function fetchSignalsByItem(item_code){
   }catch(e){console.warn(`신호 로드 실패(${item_code}):`,e.message);}
 }
 
+async function fetchReport(){
+  try{
+    const res=await fetch("/api/v1/report/today");
+    if(!res.ok) return;
+    const d=await res.json();
+    (d.items||[]).forEach(it=>{LIVE_REPORT[it.item_code]=it;});
+  }catch(e){console.warn("리포트 로드 실패:",e.message);}
+}
+
+function renderExplainPanel(item_code){
+  const rpt=LIVE_REPORT[item_code];
+  const panel=document.getElementById("explain-panel");
+  const list=document.getElementById("explain-list");
+  if(!rpt||!rpt.top_factors||!rpt.top_factors.length){panel.style.display="none";return;}
+  const DC={up:"color:#e74c3c",down:"color:#27ae60"};
+  const DA={up:"▲",down:"▼"};
+  list.innerHTML=rpt.top_factors.map(f=>`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:10px;color:var(--muted);flex:1;">${f.label}</div>
+      <div style="font-size:10px;${DC[f.direction]||''};flex-shrink:0;margin-left:6px;">${DA[f.direction]||''} ${f.message}</div>
+    </div>`).join("");
+  if(rpt.summary){
+    list.innerHTML+=`<div style="font-size:10px;color:var(--accent);margin-top:7px;line-height:1.5;">${rpt.summary}</div>`;
+  }
+  panel.style.display="block";
+}
+
+async function renderPriceChart(item_code){
+  const panel=document.getElementById("price-chart-panel");
+  const canvas=document.getElementById("price-chart");
+  try{
+    const res=await fetch(`/api/v1/map/prices?item_code=${item_code}`);
+    if(!res.ok){panel.style.display="none";return;}
+    const d=await res.json();
+    const rows=(d.prices||[]).filter(p=>p.price);
+    if(!rows.length){panel.style.display="none";return;}
+    const labels=rows.map(r=>r.date.slice(5));  // MM-DD
+    const prices=rows.map(r=>r.price);
+    const avgs=rows.map(r=>r.avg_year||null);
+    if(priceChartInst){priceChartInst.destroy();}
+    priceChartInst=new Chart(canvas,{
+      type:"line",
+      data:{
+        labels,
+        datasets:[
+          {label:"도매가격",data:prices,borderColor:"#3b9ae1",backgroundColor:"rgba(59,154,225,.08)",
+           borderWidth:1.5,pointRadius:0,tension:.3,fill:true},
+          {label:"평년",data:avgs,borderColor:"rgba(244,185,66,.5)",borderWidth:1,
+           borderDash:[3,3],pointRadius:0,tension:.3},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{
+          callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`}
+        }},
+        scales:{
+          x:{ticks:{color:"rgba(232,240,254,.35)",font:{size:8},maxTicksLimit:6},
+             grid:{color:"rgba(86,164,216,.06)"}},
+          y:{ticks:{color:"rgba(232,240,254,.35)",font:{size:8},
+             callback:v=>v>=10000?Math.round(v/1000)+"천":v.toLocaleString()},
+             grid:{color:"rgba(86,164,216,.06)"}},
+        }
+      }
+    });
+    panel.style.display="block";
+  }catch(e){panel.style.display="none";console.warn("차트 로드 실패:",e.message);}
+}
+
 window.onload=async()=>{
   const now=new Date();
   document.getElementById("date-badge").textContent=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
@@ -476,7 +556,10 @@ window.onload=async()=>{
   await Promise.allSettled([
     fetchLiveData(),
     fetchSignalsByItem("cabbage"),
+    fetchReport(),
   ]);
+  renderExplainPanel("cabbage");
+  renderPriceChart("cabbage");
 
   renderTabs();renderPredCard();renderItemCards();
   map_=L.map("map",{zoomControl:true,preferCanvas:true});
@@ -495,7 +578,8 @@ window.onload=async()=>{
 function renderTabs(){document.getElementById("item-tabs").innerHTML=Object.entries(ITEMS).map(([k,it])=>`<div class="item-tab${k===curItem?' active':''}" onclick="selectItem('${k}')">${it.emoji} ${it.name}</div>`).join("");}
 function selectItem(k){
   curItem=k;renderTabs();renderPredCard();setHint();
-  // 해당 품목 신호 없으면 fetch 후 재렌더
+  renderExplainPanel(k);
+  renderPriceChart(k);
   if(!LIVE_SIGNALS[k]){
     fetchSignalsByItem(k).then(()=>{if(viewLevel==="province")drawProvinces();else drawCities(curProv.sido);});
   } else {
