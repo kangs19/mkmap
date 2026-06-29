@@ -355,6 +355,18 @@ async def debug_kamis(days_ago: int = 0, _=Depends(check_admin)):
         return {"error": str(e), "type": type(e).__name__}
 
 
+@router.get("/debug/price-counts")
+async def debug_price_counts(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
+    """품목별 DB 가격 레코드 수 확인"""
+    from sqlalchemy import func
+    from app.models.price import DailyPrice
+    result = await db.execute(
+        select(DailyPrice.item_code, func.count().label("cnt"), func.min(DailyPrice.date).label("min_date"), func.max(DailyPrice.date).label("max_date"))
+        .group_by(DailyPrice.item_code)
+    )
+    return [{"item": r.item_code, "count": r.cnt, "min": str(r.min_date), "max": str(r.max_date)} for r in result.all()]
+
+
 @router.get("/debug/fetch-prices")
 async def debug_fetch_prices(_=Depends(check_admin)):
     """fetch_all_prices_for_date(today) 실제 반환값 확인"""
