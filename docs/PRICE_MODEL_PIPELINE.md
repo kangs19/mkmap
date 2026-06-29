@@ -15,12 +15,14 @@ python scripts\collect_live_price_features.py --date 2026-06-29 --days-back 90
 python scripts\build_price_training_table.py --date 2026-06-29
 python scripts\train_price_baseline_model.py --input data\model\price_training_table_20260629.csv --output data\model\price_baseline_model_20260629.json
 python scripts\predict_latest_prices.py --features data\model\price_training_table_20260629.csv --model data\model\price_baseline_model_20260629.json --output data\model\latest_price_predictions_20260629.json
+python scripts\predict_latest_prices.py --features data\model\price_training_table_20260629.csv --model data\model\price_baseline_model_20260629.json --signals data\signals\20260629\region_risk_signals.json --output data\model\latest_price_predictions_20260629.json
 ```
 
 ## Current Baseline
 
 - Model: linear baseline using `change_1d` and `change_3d`
 - Target: next observed price change
+- Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure lag-model prediction and a separate `risk_adjusted_next_change`.
 - 2026-06-29 run: 208 train rows, 52 test rows
 - Test metrics: MAE `0.02179`, RMSE `0.052959`, direction accuracy `0.6923`
 
