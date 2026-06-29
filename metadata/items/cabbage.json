@@ -24,6 +24,14 @@
       ],
       "product_classes": ["01", "02"],
       "notes": "KAMIS 코드통합표 기준. 소매 1포기, 중도매 10kg 단위가 혼재하므로 엔진에서 product_cls별 피처로 분리"
+    },
+    "kosis_production": {
+      "mapping_status": "mapped_from_kosis_statistics_list",
+      "org_id": "101",
+      "tbl_id": "DT_1ET0028",
+      "item_name": "배추",
+      "region_level": "province",
+      "notes": "KOSIS 농작물생산조사 채소생산량(엽채류)"
     }
   },
   "crop_profile": {

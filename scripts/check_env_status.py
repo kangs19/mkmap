@@ -48,6 +48,8 @@ CODE_DEFAULTS = {
     "KAMIS_PRICE_BASE_URL": "https://www.kamis.or.kr/service/price/xml.do",
     "KAMIS_PRICE_ACTION": "periodProductList",
     "KAMIS_PRODUCT_CLASSES": "01,02",
+    "KOSIS_PRODUCTION_BASE_URL": "https://kosis.kr/openapi/Param/statisticsParameterData.do",
+    "KOSIS_PRODUCTION_ORG_ID": "101",
 }
 
 

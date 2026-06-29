@@ -4,8 +4,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from mkmap_meta.connectors.base import EventConnector, PriceConnector
-from mkmap_meta.models import EventFeature, PriceFeature
+from mkmap_meta.connectors.base import EventConnector, PriceConnector, ProductionConnector
+from mkmap_meta.connectors.production import ManualProductionConnector
+from mkmap_meta.models import EventFeature, PriceFeature, ProductionFeature
 from mkmap_meta.storage import dated_path, read_json
 
 
@@ -33,6 +34,36 @@ class CachedPriceConnector(PriceConnector):
             if path.exists():
                 prices.extend(_load_prices(path))
         return prices
+
+
+class CachedProductionConnector(ProductionConnector):
+    def __init__(self, source_names: list[str] | None = None) -> None:
+        self.source_names = source_names or ["kosis_production"]
+
+    def fetch_production(self, item_code: str, year: int) -> list[ProductionFeature]:
+        production: list[ProductionFeature] = []
+        target_date = date(year, 12, 31)
+        for source_name in self.source_names:
+            path = dated_path("features", f"{source_name}_{item_code}", target_date)
+            if path.exists():
+                production.extend(_load_production(path))
+
+            latest_path = _latest_feature_path(f"{source_name}_{item_code}", year)
+            if latest_path and latest_path != path:
+                production.extend(_load_production(latest_path))
+        return _dedupe_production(production)
+
+
+class CachedOrManualProductionConnector(ProductionConnector):
+    def __init__(self) -> None:
+        self.cached = CachedProductionConnector()
+        self.manual = ManualProductionConnector()
+
+    def fetch_production(self, item_code: str, year: int) -> list[ProductionFeature]:
+        cached = self.cached.fetch_production(item_code, year)
+        if cached:
+            return cached
+        return self.manual.fetch_production(item_code, year)
 
 
 def _load_events(path: Path) -> list[EventFeature]:
@@ -83,6 +114,56 @@ def _load_prices(path: Path) -> list[PriceFeature]:
             )
         )
     return prices
+
+
+def _load_production(path: Path) -> list[ProductionFeature]:
+    rows = read_json(path)
+    if not isinstance(rows, list):
+        return []
+
+    production: list[ProductionFeature] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        production.append(
+            ProductionFeature(
+                item_code=row["item_code"],
+                region_code=row["region_code"],
+                region_name=row["region_name"],
+                year=int(row["year"]),
+                cultivation_area=_optional_float(row.get("cultivation_area")),
+                production_volume=_optional_float(row.get("production_volume")),
+                production_share=_optional_float(row.get("production_share")),
+                source=row.get("source", "cached"),
+                raw=row.get("raw") if isinstance(row.get("raw"), dict) else {},
+            )
+        )
+    return production
+
+
+def _latest_feature_path(name: str, year: int) -> Path | None:
+    base = Path(__file__).resolve().parents[2] / "data" / "features"
+    if not base.exists():
+        return None
+    candidates = sorted(
+        path / f"{name}.json"
+        for path in base.iterdir()
+        if path.is_dir() and path.name.startswith(str(year))
+    )
+    existing = [path for path in candidates if path.exists()]
+    return existing[-1] if existing else None
+
+
+def _dedupe_production(features: list[ProductionFeature]) -> list[ProductionFeature]:
+    deduped: list[ProductionFeature] = []
+    seen: set[tuple[str, str, int]] = set()
+    for feature in features:
+        key = (feature.item_code, feature.region_code, feature.year)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(feature)
+    return deduped
 
 
 def _optional_float(value: Any) -> float | None:

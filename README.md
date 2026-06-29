@@ -32,6 +32,7 @@ Copy-Item .env.example .env
 `.env`에는 `DATA_GO_KR_API_KEY`, `KAMIS_API_KEY`, `KOSIS_API_KEY` 같은 실제 키를 넣습니다. `.env`는 `.gitignore`에 포함되어 있어 Git에 올라가지 않습니다.
 
 가격 예측 1차 파이프라인은 [docs/PRICE_MODEL_PIPELINE.md](docs/PRICE_MODEL_PIPELINE.md)에 정리되어 있습니다.
+KOSIS 생산통계 수집 파이프라인은 [docs/KOSIS_PRODUCTION_PIPELINE.md](docs/KOSIS_PRODUCTION_PIPELINE.md)에 정리되어 있습니다.
 
 ## Checks
 

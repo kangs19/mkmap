@@ -23,6 +23,14 @@
       ],
       "product_classes": ["01", "02"],
       "notes": "KAMIS 가격 기본 품목은 깐마늘(대서/남도). 깐마늘(국산) 258/01은 코드표에는 있으나 일부 기간 응답이 없어서 보조 후보로 유지"
+    },
+    "kosis_production": {
+      "mapping_status": "mapped_from_kosis_statistics_list",
+      "org_id": "101",
+      "tbl_id": "DT_1ET0291",
+      "item_name": "마늘",
+      "region_level": "province",
+      "notes": "KOSIS 농작물생산조사 채소생산량(조미채소)"
     }
   },
   "crop_profile": {

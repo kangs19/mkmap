@@ -24,6 +24,14 @@
       ],
       "product_classes": ["01", "02"],
       "notes": "KAMIS 코드통합표 기준. 소매 1개, 중도매 20kg 단위가 혼재하므로 product_cls별 피처로 분리"
+    },
+    "kosis_production": {
+      "mapping_status": "mapped_from_kosis_statistics_list",
+      "org_id": "101",
+      "tbl_id": "DT_1ET0029",
+      "item_name": "무",
+      "region_level": "province",
+      "notes": "KOSIS 농작물생산조사 채소생산량(근채류)"
     }
   },
   "crop_profile": {

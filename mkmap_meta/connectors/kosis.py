@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,6 +10,7 @@ from mkmap_meta.connectors.http import SimpleHttpClient
 
 
 KOSIS_API_KEY_ENV = "KOSIS_API_KEY"
+KOSIS_PARAMETER_DATA_URL = "https://kosis.kr/openapi/Param/statisticsParameterData.do"
 
 
 @dataclass(frozen=True)
@@ -28,7 +31,7 @@ class KosisClient:
     """
 
     def __init__(self, api_key: str | None = None, http: SimpleHttpClient | None = None) -> None:
-        self.api_key = api_key or os.getenv(KOSIS_API_KEY_ENV)
+        self.api_key = _normalize_api_key(api_key or os.getenv(KOSIS_API_KEY_ENV))
         if not self.api_key:
             raise ValueError(f"Missing {KOSIS_API_KEY_ENV}")
         self.http = http or SimpleHttpClient()
@@ -51,4 +54,13 @@ class KosisClient:
             request_params.setdefault("tblId", table.tbl_id)
 
         return self.http.get(table.base_url, request_params).json()
+
+
+def _normalize_api_key(raw: str | None) -> str | None:
+    if not raw:
+        return raw
+    value = raw.strip()
+    if re.fullmatch(r"[0-9a-fA-F]+", value) and len(value) % 2 == 0:
+        return base64.b64encode(bytes.fromhex(value)).decode()
+    return value
 

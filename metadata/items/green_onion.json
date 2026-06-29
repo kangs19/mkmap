@@ -21,6 +21,14 @@
       ],
       "product_classes": ["01", "02"],
       "notes": "KAMIS 코드통합표에서 품목명은 파, 품종명이 대파"
+    },
+    "kosis_production": {
+      "mapping_status": "mapped_from_kosis_statistics_list",
+      "org_id": "101",
+      "tbl_id": "DT_1ET0291",
+      "item_name": "대파",
+      "region_level": "province",
+      "notes": "KOSIS 농작물생산조사 채소생산량(조미채소)"
     }
   },
   "crop_profile": {
