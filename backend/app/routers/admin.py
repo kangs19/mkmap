@@ -136,3 +136,83 @@ async def admin_health(_=Depends(check_admin)):
         "scheduler_running": scheduler.running,
         "scheduled_jobs": jobs,
     }
+
+
+@router.post("/pipeline/run")
+async def manual_run_pipeline(
+    item_code: Optional[str] = None,
+    _=Depends(check_admin),
+):
+    """수동 파이프라인 실행 — 특정 품목 또는 전체 (기획서 17번)"""
+    import asyncio
+    from app.pipeline.batch import run_batch
+    from app.pipeline.runner import run_pipeline
+
+    try:
+        if item_code:
+            result = await run_pipeline(item_code=item_code, verbose=True)
+            return {"status": "ok", "item_code": item_code, "result": result}
+        else:
+            results = await run_batch(verbose=False)
+            ok = sum(1 for v in results.values() if v.get("status") == "ok")
+            return {
+                "status": "ok",
+                "total": len(results),
+                "success": ok,
+                "results": {
+                    k: {"status": v.get("status"), "direction": v.get("forecast", {}).get("direction_14d")}
+                    for k, v in results.items()
+                },
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sync/run")
+async def manual_run_sync(
+    source: str = "all",
+    _=Depends(check_admin),
+):
+    """수동 데이터 수집 실행 — kamis | kma | kosis | all"""
+    from app.collectors.sync import run_full_sync, daily_sync
+    try:
+        result = await daily_sync()
+        return {"status": "ok", "source": source, "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status")
+async def admin_status(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """시스템 전체 상태 — DB 레코드 수, 최신 예측일, 스케줄러"""
+    from datetime import date
+    from sqlalchemy import func
+    from app.models.price import DailyPrice
+    from app.models.weather import DailyWeather
+    from app.models.signal import ForecastSignal
+    from app.scheduler import scheduler
+
+    price_count = (await db.execute(select(func.count()).select_from(DailyPrice))).scalar()
+    weather_count = (await db.execute(select(func.count()).select_from(DailyWeather))).scalar()
+    signal_count = (await db.execute(select(func.count()).select_from(ForecastSignal))).scalar()
+
+    latest_signal = (await db.execute(
+        select(ForecastSignal.base_date).order_by(desc(ForecastSignal.base_date)).limit(1)
+    )).scalar()
+
+    return {
+        "date": str(date.today()),
+        "db": {
+            "daily_prices": price_count,
+            "daily_weather": weather_count,
+            "forecast_signals": signal_count,
+            "latest_forecast": str(latest_signal) if latest_signal else None,
+        },
+        "scheduler": {
+            "running": scheduler.running,
+            "jobs": [{"id": j.id, "next_run": str(j.next_run_time)} for j in scheduler.get_jobs()],
+        },
+    }
