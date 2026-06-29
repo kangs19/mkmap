@@ -87,7 +87,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-container{background:#e8e4dc;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
 .leaflet-tooltip::before{display:none!important;}
-.leaflet-tooltip.rhc-tip{background:white!important;border:1.5px solid #d8e0cc!important;border-radius:14px!important;padding:0!important;box-shadow:0 8px 28px rgba(0,0,0,.18)!important;min-width:210px!important;max-width:250px!important;}
+.leaflet-tooltip.rhc-tip{background:white!important;border:1.5px solid #d8e0cc!important;border-radius:14px!important;padding:0!important;box-shadow:0 8px 28px rgba(0,0,0,.18)!important;min-width:270px!important;max-width:300px!important;}
 .leaflet-control-zoom a{background:white!important;border-color:var(--border)!important;color:var(--text)!important;}
 .leaflet-control-zoom a:hover{background:var(--bg)!important;}
 .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--dimmed)!important;font-size:9px!important;}
@@ -124,7 +124,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* ── RIGHT PANEL ── */
 #fm-right{
-  width:640px;flex-shrink:0;background:var(--right-panel);
+  width:720px;flex-shrink:0;background:var(--right-panel);
   border-left:1px solid var(--border);display:flex;flex-direction:column;
   overflow:hidden;
 }
@@ -224,7 +224,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-vt-btn.active{background:var(--accent);color:white;}
 
 /* Loading */
-#loading{position:absolute;top:52px;left:200px;right:640px;bottom:42px;background:rgba(242,244,239,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
+#loading{position:absolute;top:52px;left:200px;right:720px;bottom:42px;background:rgba(242,244,239,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
 .spin-ring{width:44px;height:44px;border-radius:50%;margin:0 auto 14px;border:3px solid #d0e8c0;border-top-color:var(--accent);animation:spin .9s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
@@ -964,29 +964,99 @@ function makePinHtml(name,d){
 }
 
 function makeHoverCard(name,d){
-  if(!d)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:4px 0">산지 데이터 없음</div></div>`;
-  const chg=d.price_vs_avg,sign=chg>0?'+':'',chgCls=chg>10?'up':chg<-10?'down':'flat';
+  const it=ITEMS[curItem]||{emoji:'🌿',name:'작물'};
+  if(!d)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
+  const chg=d.price_vs_avg||0,sign=chg>0?'+':'';
+  const chgCls=chg>10?'up':chg<-10?'down':'flat';
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
-  const risk=riskMap[d.risk_level]||{l:d.risk_level||'?',c:'normal'};
-  const ship=(d.shipment_ton/1000).toFixed(1);
-  const pw=d.production_weight!=null?`${(d.production_weight*100).toFixed(1)}%`:'-';
-  const risks=[];
-  if(chg>15)risks.push(['📈 공급 감소 우려','lv-high']);
-  else if(chg>5)risks.push(['📈 가격 상승세','lv-mid']);
-  else if(chg<-15)risks.push(['📉 공급 과잉','lv-mid']);
-  if(d.risk_level==='high')risks.push(['🌧 기상 위험','lv-high']);
-  else if(d.risk_level==='warning')risks.push(['🌧 기상 주의','lv-mid']);
-  if(d.shipment_ton<500)risks.push(['📦 출하 감소','lv-mid']);
-  if(!risks.length)risks.push(['✅ 정상 범위','']);
-  const rHtml=risks.map(([t,c])=>`<div class="rhc-ritem"><span>${t}</span><span class="${c}">${c==='lv-high'?'높음':c==='lv-mid'?'주의':'정상'}</span></div>`).join('');
+  const risk=riskMap[d.risk_level]||{l:'정상',c:'normal'};
+  const rs=d.risk_score||0;
+  const predicted=Math.round((d.avg_price||0)*(1+chg/100));
+  const ship=d.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(1)+'천 톤':d.shipment_ton+'톤';
+  const area=d.area_ha?d.area_ha.toLocaleString()+' ha':'—';
+  const yoy=d.shipment_yoy||0;
+  const pw=d.production_pct?d.production_pct+'%':(d.production_weight?(d.production_weight*100).toFixed(0)+'%':'—');
+  const rank=d.rank?d.rank+'위':'—';
+
+  // 주요 리스크 바
+  const rItems=[
+    {icon:'🌧',label:'기상 위험',  score:Math.min(99,Math.round(rs*0.85))},
+    {icon:'🐛',label:'병해충 위험',score:Math.min(99,Math.round(rs*0.70))},
+    {icon:'📊',label:'시장 위험',  score:Math.min(99,Math.round(rs*0.60))},
+  ];
+  const rColors={high:'#c02828',warn:'#b86010',mid:'#a07010',ok:'#1a8a1a'};
+  const rBars=rItems.map(r=>{
+    const lv=r.score>=70?'high':r.score>=50?'warn':r.score>=30?'mid':'ok';
+    const col=rColors[lv];
+    const txt={high:'높음',warn:'보통',mid:'중간',ok:'낮음'}[lv];
+    return`<div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#6a7a5a;margin-bottom:3px">
+        <span>${r.icon} ${r.label}</span>
+        <span style="font-weight:700;color:${col}">${txt}</span>
+      </div>
+      <div style="height:5px;background:#eef0e8;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${r.score}%;background:${col};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 주요 작물 태그 (curItem 기반 + 인접 작물 mock)
+  const cropMap={
+    cabbage:['배추','무','대파'],radish:['무','배추','감자'],
+    onion:['양파','마늘','대파'],green_onion:['대파','양파','배추'],
+    garlic:['마늘','양파','고추'],
+  };
+  const crops=(cropMap[curItem]||[it.name]).slice(0,3);
+  const cropTags=crops.map((c,i)=>`<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;
+    background:${i===0?'#e8f4e0':'#f5f5f0'};color:${i===0?'#267a18':'#6a7a5a'};border:1px solid ${i===0?'#c0dca8':'#e0e0d8'};margin-right:4px">${i===0?it.emoji+' ':''}${c}</span>`).join('');
+
   return`<div class="rhc">
-    <div class="rhc-header"><span class="rhc-title">${name}</span><span class="rhc-badge ${risk.c}">${risk.l}</span></div>
-    <div class="rhc-price-row"><span class="rhc-price">${(d.avg_price||0).toLocaleString()}원/kg</span><span class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span></div>
-    <hr class="rhc-div">
-    <div class="rhc-stat"><span>출하량</span><b>${ship}천 톤</b></div>
-    <div class="rhc-stat"><span>전국 비중</span><b>${pw}</b></div>
-    <div class="rhc-risks">${rHtml}</div>
-    <div class="rhc-hint">클릭하여 상세 분석 →</div>
+    <div class="rhc-header">
+      <div>
+        <span class="rhc-title">${name}</span>
+        <div style="font-size:10px;color:#6a7a5a;margin-top:1px">${it.name} 주산지 ${rank}</div>
+      </div>
+      <span class="rhc-badge ${risk.c}">${risk.l}</span>
+    </div>
+
+    <div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
+      <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted.toLocaleString()}원</span>
+        <span style="font-size:12px;font-weight:700" class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span>
+      </div>
+      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${(d.avg_price||0).toLocaleString()}원/kg</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:9px">
+      <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
+        <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">재배 면적</div>
+        <div style="font-size:12px;font-weight:800;color:#1a2410">${area}</div>
+        <div style="font-size:9px;color:${yoy>0?'#c02828':'#1a8a1a'};font-weight:600;margin-top:1px">${yoy>0?'▲':'▼'}${Math.abs(yoy).toFixed(1)}%</div>
+      </div>
+      <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
+        <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">전국 비중</div>
+        <div style="font-size:12px;font-weight:800;color:#1a2410">${pw}</div>
+        <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-top:1px">생산 점유</div>
+      </div>
+      <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
+        <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">출하량</div>
+        <div style="font-size:12px;font-weight:800;color:#1a2410">${ship}</div>
+        <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-top:1px">연간</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:9px">
+      <div style="font-size:9px;color:#9aaa8a;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">주요 리스크</div>
+      ${rBars}
+    </div>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:9px;color:#9aaa8a;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">주요 작물</div>
+      <div>${cropTags}</div>
+    </div>
+
+    <div style="text-align:center;font-size:10px;color:#9aaa8a;padding-top:8px;border-top:1px solid #eef0e8;font-style:italic">클릭하여 상세 분석 →</div>
   </div>`;
 }
 </script>
