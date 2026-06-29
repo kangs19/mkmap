@@ -9,6 +9,7 @@ from sqlalchemy import select, func
 from app.database import AsyncSessionLocal
 from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
+from app.models.production import CropProduction
 from app.collectors.kamis import fetch_price_range, ITEM_CODE_MAP
 from app.collectors.kma import fetch_forecast, REGION_GRID
 from app.collectors.kma_agri import fetch_crop_weather, CROP_REGION_MAP
@@ -101,16 +102,42 @@ async def sync_weather(days_back: int = 3) -> dict:
 
 
 async def sync_kosis(years: int = 3) -> dict:
-    """KOSIS 생산통계 동기화 (연간 데이터 — 매월 1회 정도면 충분)"""
+    """KOSIS 생산통계 동기화 — crop_productions 테이블에 저장"""
     settings = get_settings()
     if not settings.kosis_api_key:
         log.warning("KOSIS_API_KEY 없음 — 생산통계 동기화 스킵")
         return {"skipped": True}
     try:
-        result = await fetch_all_crops_production(years=years)
-        total = sum(len(v) for v in result.values())
-        log.info(f"KOSIS 생산통계: {total}건 수집")
-        return {"fetched": total, "items": list(result.keys())}
+        all_data = await fetch_all_crops_production(years=years)
+        saved = 0
+        for item_code, rows in all_data.items():
+            if not rows:
+                continue
+            async with AsyncSessionLocal() as db:
+                for row in rows:
+                    existing = await db.execute(
+                        select(CropProduction).where(
+                            CropProduction.item_code == row["item_code"],
+                            CropProduction.year == row["year"],
+                        )
+                    )
+                    if existing.scalar_one_or_none():
+                        continue
+                    yield_per_ha = None
+                    if row.get("area_ha") and row.get("production_ton"):
+                        yield_per_ha = round(row["production_ton"] / row["area_ha"], 2)
+                    db.add(CropProduction(
+                        item_code=row["item_code"],
+                        year=row["year"],
+                        area_ha=row.get("area_ha"),
+                        production_ton=row.get("production_ton"),
+                        yield_per_ha=yield_per_ha,
+                        source="kosis",
+                    ))
+                    saved += 1
+                await db.commit()
+        log.info(f"KOSIS 생산통계 저장: {saved}건")
+        return {"saved": saved, "items": list(all_data.keys())}
     except Exception as e:
         log.warning(f"KOSIS 동기화 실패: {e}")
         return {"error": str(e)}
