@@ -56,29 +56,30 @@ async def _seed_items():
         ("garlic",      "KR-46", "전남", "해남",   False),
     ]
 
-    async with AsyncSessionLocal() as db:
-        for item_data in ITEMS:
-            existing = await db.execute(
-                select(Item).where(Item.item_code == item_data["item_code"])
-            )
-            if existing.scalar_one_or_none() is None:
-                db.add(Item(**item_data))
-
-        for ic, rc, rn, sub, primary in REGIONS:
-            existing = await db.execute(
-                select(ItemRegion).where(
-                    ItemRegion.item_code == ic,
-                    ItemRegion.region_code == rc,
+    try:
+        async with AsyncSessionLocal() as db:
+            for item_data in ITEMS:
+                existing = await db.execute(
+                    select(Item).where(Item.item_code == item_data["item_code"])
                 )
-            )
-            if existing.scalar_one_or_none() is None:
-                db.add(ItemRegion(
-                    item_code=ic, region_code=rc,
-                    region_name=rn, sub_region=sub, is_primary=primary,
-                ))
+                if existing.scalar_one_or_none() is None:
+                    db.add(Item(**item_data))
 
-        await db.commit()
-        logging.info("[seed] Item 시드 완료")
+            for ic, rc, rn, sub, primary in REGIONS:
+                existing = await db.execute(
+                    select(ItemRegion).where(
+                        ItemRegion.item_code == ic,
+                        ItemRegion.region_code == rc,
+                    )
+                )
+                if existing.scalar_one_or_none() is None:
+                    db.add(ItemRegion(
+                        item_code=ic, region_code=rc,
+                        region_name=rn, sub_region=sub, is_primary=primary,
+                    ))
+
+            await db.commit()
+            logging.info("[seed] Item 시드 완료")
     except Exception as e:
         logging.error(f"[seed] 실패: {e}")
 
