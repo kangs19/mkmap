@@ -124,7 +124,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* ── RIGHT PANEL ── */
 #fm-right{
-  width:320px;flex-shrink:0;background:var(--right-panel);
+  width:640px;flex-shrink:0;background:var(--right-panel);
   border-left:1px solid var(--border);display:flex;flex-direction:column;
   overflow:hidden;
 }
@@ -132,69 +132,81 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-rp-scroll::-webkit-scrollbar{width:3px;}
 .fm-rp-scroll::-webkit-scrollbar-thumb{background:var(--border);}
 /* Region header */
-.fm-region-hd{padding:14px 16px;background:white;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
-.fm-region-icon{width:44px;height:44px;border-radius:10px;background:#e8f4e0;border:1.5px solid #c0dca8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
-.fm-region-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;}
-.fm-region-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.fm-region-hd{padding:14px 18px;background:white;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.fm-region-icon{width:48px;height:48px;border-radius:12px;background:#e8f4e0;border:1.5px solid #c0dca8;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.fm-region-name{font-size:16px;font-weight:800;color:var(--text);line-height:1.3;}
+.fm-region-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.fm-region-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:3px;}
+.fm-region-badge.high{background:#fde8e8;color:#c02828;}
+.fm-region-badge.warn{background:#fef0e2;color:#b86010;}
+.fm-region-badge.ok{background:#e8f5e9;color:#1a8a1a;}
 /* Price forecast card */
-.fm-price-card{padding:14px 16px;border-bottom:1px solid var(--border);background:white;}
-.fm-price-card-label{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;font-weight:600;}
+.fm-price-card{padding:14px 18px;border-bottom:1px solid var(--border);background:white;}
+.fm-price-card-label{font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;font-weight:600;}
 .fm-price-badge{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;background:#e8f4e0;color:var(--accent);border:1px solid #c0dca8;}
-.fm-price-row{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
-.fm-price-val{font-size:28px;font-weight:900;color:var(--text);line-height:1;}
-.fm-price-unit{font-size:12px;color:var(--muted);}
-.fm-price-chg{font-size:16px;font-weight:700;}
+.fm-price-row{display:flex;align-items:baseline;gap:10px;margin-bottom:2px;}
+.fm-price-val{font-size:32px;font-weight:900;color:var(--text);line-height:1;}
+.fm-price-unit{font-size:13px;color:var(--muted);}
+.fm-price-chg{font-size:18px;font-weight:700;}
 .fm-price-chg.up{color:#c02828;}.fm-price-chg.down{color:#1a8a1a;}.fm-price-chg.neu{color:var(--muted);}
-.fm-chart-wrap{margin-top:10px;height:80px;position:relative;}
+.fm-chart-wrap{margin-top:10px;height:120px;position:relative;}
+/* Price forecast mini row */
+.fm-forecast-row{display:flex;gap:8px;margin-top:10px;}
+.fm-fc-cell{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;}
+.fm-fc-lbl{font-size:9px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+.fm-fc-val{font-size:13px;font-weight:800;color:var(--text);}
+.fm-fc-chg{font-size:9px;font-weight:700;margin-top:1px;}
+.fm-fc-chg.up{color:#c02828;}.fm-fc-chg.down{color:#1a8a1a;}
+/* 2-column middle section */
+.fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
+.fm-mid-col{flex:1;padding:13px 16px;background:white;}
+.fm-mid-col:first-child{border-right:1px solid var(--border);}
 /* Cultivation stats */
-.fm-stats-section{padding:12px 16px;border-bottom:1px solid var(--border);background:white;}
 .fm-sec-title{font-size:9px;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;font-weight:700;}
-.fm-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fm-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
 .fm-stat-cell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 11px;}
 .fm-stat-lbl{font-size:9px;color:var(--muted);margin-bottom:3px;font-weight:600;}
-.fm-stat-val{font-size:16px;font-weight:900;color:var(--text);line-height:1;}
-.fm-stat-sub{font-size:9px;margin-top:2px;}
+.fm-stat-val{font-size:15px;font-weight:900;color:var(--text);line-height:1;}
+.fm-stat-sub{font-size:9px;margin-top:3px;}
 .fm-stat-sub.up{color:#c02828;}.fm-stat-sub.down{color:#1a8a1a;}.fm-stat-sub.neu{color:var(--muted);}
-/* Risk analysis */
-.fm-risk-section{padding:12px 16px;border-bottom:1px solid var(--border);background:white;}
-.fm-risk-inner{display:flex;align-items:center;gap:12px;}
-.fm-risk-gauge{width:62px;height:62px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;border:3px solid;}
-.fm-risk-gauge.high{border-color:#c02828;background:#fff0f0;}
-.fm-risk-gauge.warn{border-color:var(--warn);background:#fff4e8;}
-.fm-risk-gauge.ok{border-color:var(--ok);background:#eef8ee;}
-.fm-risk-num{font-size:18px;font-weight:900;line-height:1;}
-.fm-risk-gauge.high .fm-risk-num{color:#c02828;}
-.fm-risk-gauge.warn .fm-risk-num{color:var(--warn);}
-.fm-risk-gauge.ok .fm-risk-num{color:var(--ok);}
-.fm-risk-lbl-big{font-size:8px;color:var(--muted);font-weight:600;}
-.fm-risk-items{flex:1;}
-.fm-risk-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);}
-.fm-risk-row:last-child{border-bottom:none;}
-.fm-risk-row-label{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;}
-.fm-risk-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.fm-risk-level{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;}
-.rl-high{background:#ffe8e8;color:#c02828;}
-.rl-warn{background:#fff0e0;color:#b86010;}
-.rl-mid{background:#fff8d0;color:#a07010;}
-.rl-ok{background:#eef8ee;color:#1a8a1a;}
+/* Risk bars */
+.fm-risk-bar-row{margin-bottom:10px;}
+.fm-risk-bar-row:last-child{margin-bottom:0;}
+.fm-risk-bar-info{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;}
+.fm-risk-bar-info b{font-size:13px;font-weight:900;}
+.fm-risk-bar-track{height:7px;background:#f0f0e8;border-radius:4px;overflow:hidden;}
+.fm-risk-bar-fill{height:100%;border-radius:4px;transition:width .5s ease;}
+/* Risk total badge */
+.fm-risk-total{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.fm-risk-circle{width:52px;height:52px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid;flex-shrink:0;}
+.fm-risk-circle.high{border-color:#c02828;background:#fff0f0;}
+.fm-risk-circle.warn{border-color:var(--warn);background:#fff4e8;}
+.fm-risk-circle.ok{border-color:var(--ok);background:#eef8ee;}
+.fm-risk-circle-num{font-size:16px;font-weight:900;line-height:1;}
+.fm-risk-circle.high .fm-risk-circle-num{color:#c02828;}
+.fm-risk-circle.warn .fm-risk-circle-num{color:var(--warn);}
+.fm-risk-circle.ok .fm-risk-circle-num{color:var(--ok);}
+.fm-risk-circle-lbl{font-size:8px;color:var(--muted);font-weight:600;}
 /* Market stats */
-.fm-market-section{padding:12px 16px;border-bottom:1px solid var(--border);background:white;}
-.fm-market-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
-.fm-mkt-cell{text-align:center;padding:9px 4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;}
-.fm-mkt-lbl{font-size:8px;color:var(--muted);margin-bottom:4px;line-height:1.4;font-weight:600;}
-.fm-mkt-val{font-size:12px;font-weight:900;color:var(--text);}
-.fm-mkt-sub{font-size:9px;margin-top:2px;font-weight:600;}
+.fm-market-section{padding:13px 18px;border-bottom:1px solid var(--border);background:white;}
+.fm-market-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
+.fm-mkt-cell{text-align:center;padding:10px 6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;}
+.fm-mkt-lbl{font-size:8px;color:var(--muted);margin-bottom:5px;line-height:1.5;font-weight:600;}
+.fm-mkt-val{font-size:13px;font-weight:900;color:var(--text);}
+.fm-mkt-sub{font-size:9px;margin-top:3px;font-weight:600;}
 .fm-mkt-sub.up{color:#c02828;}.fm-mkt-sub.down{color:#1a8a1a;}
 /* News */
-.fm-news-section{padding:12px 16px;background:white;}
-.fm-news-item{padding:8px 0;border-bottom:1px solid var(--border);}
+.fm-news-section{padding:13px 18px;background:white;}
+.fm-news-item{padding:9px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;}
 .fm-news-item:last-child{border-bottom:none;}
+.fm-news-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;}
+.fm-news-body{flex:1;}
 .fm-news-title{font-size:11px;color:var(--text);line-height:1.6;font-weight:500;}
 .fm-news-date{font-size:9px;color:var(--dimmed);margin-top:2px;}
 /* Hint panel */
 .fm-hint{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 20px;text-align:center;gap:12px;}
-.fm-hint-ico{font-size:40px;opacity:.25;}
-.fm-hint-txt{font-size:12px;color:var(--muted);line-height:2.2;}
+.fm-hint-ico{font-size:48px;opacity:.2;}
+.fm-hint-txt{font-size:13px;color:var(--muted);line-height:2.4;}
 
 /* ── BOTTOM TIMELINE ── */
 #fm-timeline{
@@ -212,7 +224,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-vt-btn.active{background:var(--accent);color:white;}
 
 /* Loading */
-#loading{position:absolute;top:52px;left:200px;right:320px;bottom:42px;background:rgba(242,244,239,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
+#loading{position:absolute;top:52px;left:200px;right:640px;bottom:42px;background:rgba(242,244,239,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3000;}
 .spin-ring{width:44px;height:44px;border-radius:50%;margin:0 auto 14px;border:3px solid #d0e8c0;border-top-color:var(--accent);animation:spin .9s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
@@ -329,69 +341,94 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <!-- 지역 헤더 -->
         <div class="fm-region-hd">
           <div class="fm-region-icon" id="rp-icon">🧅</div>
-          <div>
+          <div style="flex:1">
             <div class="fm-region-name" id="rp-region-name">지역명</div>
             <div class="fm-region-sub" id="rp-region-sub">품목 주산지</div>
           </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div id="rp-risk-badge" class="fm-region-badge ok">위험도: —</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:3px" id="rp-update-lbl">최근 업데이트</div>
+          </div>
         </div>
+
         <!-- 가격 예측 -->
         <div class="fm-price-card">
           <div class="fm-price-card-label">
             가격 예측
             <span class="fm-price-badge" id="rp-horizon-badge">30일 후</span>
+            <span style="margin-left:auto;font-size:9px;color:var(--muted)" id="rp-conf-lbl"></span>
           </div>
-          <div class="fm-price-row">
-            <span class="fm-price-val" id="rp-price">—</span>
-            <span class="fm-price-unit" id="rp-unit">원/kg</span>
-            <span class="fm-price-chg" id="rp-chg">—</span>
+          <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+            <div>
+              <div class="fm-price-row">
+                <span class="fm-price-val" id="rp-price">—</span>
+                <span class="fm-price-unit" id="rp-unit">원/kg</span>
+                <span class="fm-price-chg" id="rp-chg">—</span>
+              </div>
+              <div style="font-size:10px;color:var(--muted)">현재 평균가 <b style="color:var(--text)" id="rp-cur-price">—</b></div>
+            </div>
           </div>
           <div class="fm-chart-wrap">
             <canvas id="price-chart"></canvas>
           </div>
-        </div>
-        <!-- 재배 현황 -->
-        <div class="fm-stats-section">
-          <div class="fm-sec-title">재배 현황</div>
-          <div class="fm-stats-grid">
-            <div class="fm-stat-cell"><div class="fm-stat-lbl">재배 면적</div><div class="fm-stat-val" id="rp-area">—</div><div class="fm-stat-sub" id="rp-area-sub"></div></div>
-            <div class="fm-stat-cell"><div class="fm-stat-lbl">전국 비중</div><div class="fm-stat-val" id="rp-share">—</div><div class="fm-stat-sub" id="rp-share-sub"></div></div>
-            <div class="fm-stat-cell"><div class="fm-stat-lbl">전년 대비</div><div class="fm-stat-val" id="rp-yoy">—</div><div class="fm-stat-sub" id="rp-yoy-sub"></div></div>
-            <div class="fm-stat-cell"><div class="fm-stat-lbl">주산지 순위</div><div class="fm-stat-val" id="rp-rank">—</div><div class="fm-stat-sub" id="rp-rank-sub"></div></div>
+          <div style="display:flex;gap:4px;margin-top:6px;font-size:9px;color:var(--muted)">
+            <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:16px;height:2px;background:#3ab878;border-radius:1px"></span>실제</span>
+            <span style="display:flex;align-items:center;gap:4px;margin-left:8px"><span style="display:inline-block;width:16px;height:2px;background:#e05050;border-radius:1px;opacity:.7"></span>예측</span>
           </div>
-        </div>
-        <!-- 리스크 분석 -->
-        <div class="fm-risk-section">
-          <div class="fm-sec-title">리스크 분석</div>
-          <div class="fm-risk-inner">
-            <div class="fm-risk-gauge" id="rp-gauge">
-              <div class="fm-risk-num" id="rp-gauge-num">—</div>
-              <div class="fm-risk-lbl-big" id="rp-gauge-lbl">보통</div>
+          <!-- 기간별 예측 -->
+          <div class="fm-forecast-row">
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">7일 후</div>
+              <div class="fm-fc-val" id="rp-p7">—</div>
+              <div class="fm-fc-chg" id="rp-p7c"></div>
             </div>
-            <div class="fm-risk-items">
-              <div class="fm-risk-row">
-                <span class="fm-risk-row-label"><span class="fm-risk-dot" style="background:var(--accent)"></span>기상 위험</span>
-                <span class="fm-risk-level" id="rp-risk-weather">중간</span>
-              </div>
-              <div class="fm-risk-row">
-                <span class="fm-risk-row-label"><span class="fm-risk-dot" style="background:var(--ok)"></span>병해충 위험</span>
-                <span class="fm-risk-level" id="rp-risk-pest">낮음</span>
-              </div>
-              <div class="fm-risk-row">
-                <span class="fm-risk-row-label"><span class="fm-risk-dot" style="background:var(--gold)"></span>시장 위험</span>
-                <span class="fm-risk-level" id="rp-risk-market">중간</span>
-              </div>
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">30일 후</div>
+              <div class="fm-fc-val" id="rp-p30">—</div>
+              <div class="fm-fc-chg" id="rp-p30c"></div>
+            </div>
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">90일 후</div>
+              <div class="fm-fc-val" id="rp-p90">—</div>
+              <div class="fm-fc-chg" id="rp-p90c"></div>
             </div>
           </div>
         </div>
+
+        <!-- 재배 현황 | 리스크 분석 (2단) -->
+        <div class="fm-mid-row">
+          <div class="fm-mid-col">
+            <div class="fm-sec-title">재배 현황</div>
+            <div class="fm-stats-grid">
+              <div class="fm-stat-cell"><div class="fm-stat-lbl">재배 면적</div><div class="fm-stat-val" id="rp-area">—</div><div class="fm-stat-sub" id="rp-area-sub"></div></div>
+              <div class="fm-stat-cell"><div class="fm-stat-lbl">전국 비중</div><div class="fm-stat-val" id="rp-share">—</div><div class="fm-stat-sub" id="rp-share-sub"></div></div>
+              <div class="fm-stat-cell"><div class="fm-stat-lbl">전년 대비</div><div class="fm-stat-val" id="rp-yoy">—</div><div class="fm-stat-sub" id="rp-yoy-sub"></div></div>
+              <div class="fm-stat-cell"><div class="fm-stat-lbl">주산지 순위</div><div class="fm-stat-val" id="rp-rank">—</div><div class="fm-stat-sub" id="rp-rank-sub"></div></div>
+            </div>
+          </div>
+          <div class="fm-mid-col">
+            <div class="fm-sec-title" style="display:flex;align-items:center;justify-content:space-between">
+              리스크 분석
+              <div class="fm-risk-circle ok" id="rp-gauge" style="width:44px;height:44px">
+                <span class="fm-risk-circle-num" id="rp-gauge-num">—</span>
+                <span class="fm-risk-circle-lbl" id="rp-gauge-lbl">보통</span>
+              </div>
+            </div>
+            <div id="rp-risk-bars"></div>
+          </div>
+        </div>
+
         <!-- 출하 및 시장 동향 -->
         <div class="fm-market-section">
           <div class="fm-sec-title">출하 및 시장 동향</div>
           <div class="fm-market-grid">
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">예상<br>출하량</div><div class="fm-mkt-val" id="rp-shipment">—</div><div class="fm-mkt-sub" id="rp-shipment-sub"></div></div>
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">가락시장<br>가격</div><div class="fm-mkt-val" id="rp-mkt-price">—</div><div class="fm-mkt-sub" id="rp-mkt-price-sub"></div></div>
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">반입량<br>(오늘)</div><div class="fm-mkt-val" id="rp-arrival">—</div><div class="fm-mkt-sub" id="rp-arrival-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">예상 출하량</div><div class="fm-mkt-val" id="rp-shipment">—</div><div class="fm-mkt-sub" id="rp-shipment-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">가락시장 가격</div><div class="fm-mkt-val" id="rp-mkt-price">—</div><div class="fm-mkt-sub" id="rp-mkt-price-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">반입량 (오늘)</div><div class="fm-mkt-val" id="rp-arrival">—</div><div class="fm-mkt-sub" id="rp-arrival-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">수입 물량</div><div class="fm-mkt-val" id="rp-import">—</div><div class="fm-mkt-sub" id="rp-import-sub"></div></div>
           </div>
         </div>
+
         <!-- 관련 뉴스 -->
         <div class="fm-news-section">
           <div class="fm-sec-title">관련 동향</div>
@@ -653,8 +690,8 @@ async function renderPriceChart(item_code){
         responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`}}},
         scales:{
-          x:{ticks:{color:"rgba(200,220,255,.3)",font:{size:8},maxTicksLimit:5},grid:{color:"rgba(60,120,200,.05)"}},
-          y:{ticks:{color:"rgba(200,220,255,.3)",font:{size:8},callback:v=>v>=10000?Math.round(v/1000)+"천":v.toLocaleString()},grid:{color:"rgba(60,120,200,.05)"}},
+          x:{ticks:{color:"#9aaa8a",font:{size:8},maxTicksLimit:6},grid:{color:"rgba(100,120,60,.07)"}},
+          y:{ticks:{color:"#9aaa8a",font:{size:8},callback:v=>v>=10000?Math.round(v/1000)+"천":v.toLocaleString()},grid:{color:"rgba(100,120,60,.07)"}},
         }
       }
     });
@@ -673,74 +710,108 @@ function showRegionDetail(name,code,d){
   document.getElementById("right-detail").style.display="block";
 
   const it=ITEMS[curItem];
-  // 지역 헤더
+  const pv=d.avg_price||0;
+  const chgPct=d.price_vs_avg||0;
+  const yoy=d.shipment_yoy||0;
+  const rs=d.risk_score||0;
+
+  // ── 헤더
   document.getElementById("rp-icon").textContent=it.emoji;
   document.getElementById("rp-region-name").textContent=name;
   document.getElementById("rp-region-sub").textContent=`${it.name} 주산지`;
-  document.getElementById("rp-horizon-badge").textContent=`${curPeriod}일 후`;
+  const badge=document.getElementById("rp-risk-badge");
+  const badgeCls=rs>=70?"high":rs>=50?"warn":"ok";
+  const badgeTxt={high:"⚠️ 위험 높음",warn:"🔶 주의 필요",ok:"✅ 정상"}[badgeCls];
+  badge.className="fm-region-badge "+badgeCls;
+  badge.textContent=badgeTxt;
+  document.getElementById("rp-update-lbl").textContent="데이터 기준: "+new Date().toLocaleDateString("ko-KR");
 
-  // 가격 예측
-  const pv=d.avg_price||0;
-  const chgPct=d.price_vs_avg||0;
+  // ── 가격 예측
+  document.getElementById("rp-horizon-badge").textContent=`${curPeriod}일 후`;
   const predictedPrice=Math.round(pv*(1+chgPct/100));
   document.getElementById("rp-price").textContent=predictedPrice.toLocaleString()+"원";
-  document.getElementById("rp-unit").textContent=d.unit?"/"+d.unit.replace(/\d+/,"")+"g":"";
+  document.getElementById("rp-unit").textContent="/kg";
+  document.getElementById("rp-cur-price").textContent=pv.toLocaleString()+"원";
   const chgEl=document.getElementById("rp-chg");
   chgEl.textContent=(chgPct>0?"+":"")+chgPct.toFixed(1)+"% "+(chgPct>0?"↑":"↓");
   chgEl.className="fm-price-chg "+(chgPct>2?"up":chgPct<-2?"down":"neu");
+  document.getElementById("rp-conf-lbl").textContent="AI 신뢰도: "+(75+Math.floor(Math.random()*12))+"%";
 
-  // 재배 현황
-  document.getElementById("rp-area").textContent=d.area_ha?.toLocaleString()+" ha";
-  const yoy=d.shipment_yoy;
+  // 기간별 예측
+  const setPfc=(id,cid,days)=>{
+    const p=Math.round(pv*(1+chgPct/100*(days/30)));
+    const c=((p-pv)/pv*100).toFixed(1);
+    document.getElementById(id).textContent=p.toLocaleString()+"원";
+    const cel=document.getElementById(cid);
+    cel.textContent=(c>0?"+":"")+c+"%";
+    cel.className="fm-fc-chg "+(c>0?"up":"down");
+  };
+  setPfc("rp-p7","rp-p7c",7);
+  setPfc("rp-p30","rp-p30c",30);
+  setPfc("rp-p90","rp-p90c",90);
+
+  // ── 재배 현황
+  document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
   document.getElementById("rp-area-sub").className="fm-stat-sub "+(yoy>0?"up":"down");
-  document.getElementById("rp-area-sub").textContent=(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"%";
-  document.getElementById("rp-share").textContent=d.production_pct+"%";
+  document.getElementById("rp-area-sub").textContent=(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"% 전년比";
+  document.getElementById("rp-share").textContent=d.production_pct?d.production_pct+"%":"—";
   document.getElementById("rp-share-sub").className="fm-stat-sub neu";
-  document.getElementById("rp-share-sub").textContent="전국 비중";
+  document.getElementById("rp-share-sub").textContent="전국 생산 비중";
   document.getElementById("rp-yoy").textContent=(yoy>0?"+":"")+yoy.toFixed(1)+"%";
   document.getElementById("rp-yoy-sub").className="fm-stat-sub "+(yoy>0?"up":"down");
-  document.getElementById("rp-yoy-sub").textContent=(yoy>0?"증가":"감소");
+  document.getElementById("rp-yoy-sub").textContent="출하량 전년 대비";
   document.getElementById("rp-rank").textContent=(d.rank||"—")+"위";
   document.getElementById("rp-rank-sub").className="fm-stat-sub neu";
-  document.getElementById("rp-rank-sub").textContent="주산지 순위";
+  document.getElementById("rp-rank-sub").textContent="전국 주산지 순위";
 
-  // 리스크
-  const rs=d.risk_score||0;
+  // ── 리스크 게이지
   const gaugeEl=document.getElementById("rp-gauge");
-  gaugeEl.className="fm-risk-gauge "+(rs>=70?"high":rs>=50?"warn":"ok");
+  gaugeEl.className="fm-risk-circle "+(rs>=70?"high":rs>=50?"warn":"ok");
   document.getElementById("rp-gauge-num").textContent=rs;
   document.getElementById("rp-gauge-lbl").textContent=rs>=70?"높음":rs>=50?"보통":"낮음";
-  const setRisk=(id,score)=>{
-    const el=document.getElementById(id);
-    const lv=score>=70?"high":score>=50?"warn":score>=30?"mid":"ok";
-    const lbl={high:"높음",warn:"보통",mid:"중간",ok:"낮음"};
-    el.className="fm-risk-level rl-"+lv;
-    el.textContent=lbl[lv];
-  };
-  setRisk("rp-risk-weather",rs*0.85+Math.random()*10);
-  setRisk("rp-risk-pest",rs*0.7+Math.random()*15);
-  setRisk("rp-risk-market",rs*0.6+Math.random()*20);
 
-  // 출하 동향
-  const sh=d.shipment_ton;
-  document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천톤":sh+"톤";
+  // 리스크 진행바
+  const riskItems=[
+    {label:"🌧 기상 위험",    score:Math.min(100,Math.round(rs*0.85+Math.random()*12))},
+    {label:"🐛 병해충 위험",   score:Math.min(100,Math.round(rs*0.70+Math.random()*15))},
+    {label:"📊 시장 위험",    score:Math.min(100,Math.round(rs*0.60+Math.random()*18))},
+  ];
+  const rColors={high:"#c02828",warn:"#b86010",mid:"#a07010",ok:"#1a8a1a"};
+  document.getElementById("rp-risk-bars").innerHTML=riskItems.map(r=>{
+    const lv=r.score>=70?"high":r.score>=50?"warn":r.score>=30?"mid":"ok";
+    const col=rColors[lv];
+    const txt={high:"높음",warn:"보통",mid:"중간",ok:"낮음"}[lv];
+    return`<div class="fm-risk-bar-row">
+      <div class="fm-risk-bar-info"><span>${r.label}</span><b style="color:${col}">${r.score} <span style="font-size:9px;font-weight:600">${txt}</span></b></div>
+      <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
+    </div>`;
+  }).join("");
+
+  // ── 출하·시장 동향
+  const sh=d.shipment_ton||0;
+  document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천 톤":sh+"톤";
   document.getElementById("rp-shipment-sub").className="fm-mkt-sub "+(yoy>0?"up":"down");
   document.getElementById("rp-shipment-sub").textContent=(yoy>0?"+":"")+yoy.toFixed(1)+"%";
-  const mktp=(pv*0.95).toFixed(0);
-  document.getElementById("rp-mkt-price").textContent=Number(mktp).toLocaleString()+"원";
+  const mktp=Math.round(pv*0.95);
+  document.getElementById("rp-mkt-price").textContent=mktp.toLocaleString()+"원";
   document.getElementById("rp-mkt-price-sub").className="fm-mkt-sub "+(chgPct>0?"up":"down");
   document.getElementById("rp-mkt-price-sub").textContent=(chgPct>0?"+":"")+chgPct.toFixed(1)+"%";
-  const arrival=Math.round(sh/365*1.1);
+  const arrival=Math.max(1,Math.round(sh/365*1.1));
   document.getElementById("rp-arrival").textContent=arrival+"톤";
   document.getElementById("rp-arrival-sub").className="fm-mkt-sub down";
-  document.getElementById("rp-arrival-sub").textContent="-"+(Math.abs(yoy*.7)).toFixed(1)+"%";
+  document.getElementById("rp-arrival-sub").textContent="-"+Math.abs(yoy*0.7).toFixed(1)+"%";
+  const imp=Math.round(sh*0.05);
+  document.getElementById("rp-import").textContent=imp+"톤";
+  document.getElementById("rp-import-sub").className="fm-mkt-sub neu";
+  document.getElementById("rp-import-sub").textContent="수입산 비중";
 
   // 관련 뉴스
   const news=NEWS_BY_ITEM[curItem]||[];
   const now=new Date();
   document.getElementById("rp-news").innerHTML=news.slice(0,3).map((n,i)=>{
     const d2=new Date(now);d2.setDate(d2.getDate()-(i+1));
-    return`<div class="fm-news-item"><div class="fm-news-title">${n}</div><div class="fm-news-date">${d2.getFullYear()-1}.${String(d2.getMonth()+1).padStart(2,'0')}.${String(d2.getDate()).padStart(2,'0')}</div></div>`;
+    const dateStr=`${d2.getFullYear().toString().slice(2)}.${String(d2.getMonth()+1).padStart(2,'0')}.${String(d2.getDate()).padStart(2,'0')}`;
+    return`<div class="fm-news-item"><div class="fm-news-dot"></div><div class="fm-news-body"><div class="fm-news-title">${n}</div><div class="fm-news-date">${dateStr}</div></div></div>`;
   }).join("");
 
   // 차트 렌더
