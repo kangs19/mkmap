@@ -447,8 +447,8 @@ window.onload=async()=>{
 
   // 지도 초기화
   map_=L.map("map",{zoomControl:true,preferCanvas:true});
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    {attribution:"© OpenStreetMap © CARTO",opacity:1,maxZoom:18}).addTo(map_);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
   map_.setView([36.3,127.9],7);
 
   Promise.all([
@@ -545,7 +545,7 @@ function setView(type,el){
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{opacity:.85}).addTo(map_);
   } else if(map_){
     map_.eachLayer(l=>{if(l._url)map_.removeLayer(l);});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{opacity:1}).addTo(map_);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map_);
   }
   redrawMap();
 }
