@@ -247,9 +247,13 @@ async def debug_kamis(_=Depends(check_admin)):
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get("https://www.kamis.or.kr/service/price/xml.do", params=params)
+        try:
+            resp_data = r.json()
+        except Exception:
+            resp_data = r.text
         return {
             "http_status": r.status_code,
-            "response": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text[:500],
+            "response": resp_data,
             "api_key_set": bool(settings.kamis_api_key),
         }
     except Exception as e:
