@@ -229,11 +229,32 @@ async def admin_status(
     from app.models.weather import DailyWeather
     from app.models.signal import RegionSignal
     from app.models.forecast import Forecast
+    from app.models.item import Item, ItemRegion
     from app.scheduler import scheduler
 
     price_count = (await db.execute(select(func.count()).select_from(DailyPrice))).scalar()
     weather_count = (await db.execute(select(func.count()).select_from(DailyWeather))).scalar()
     signal_count = (await db.execute(select(func.count()).select_from(RegionSignal))).scalar()
+    item_count = (await db.execute(select(func.count()).select_from(Item))).scalar()
+
+    # 시드 자동 실행 (items 테이블 비어있으면)
+    seed_result = None
+    if item_count == 0:
+        try:
+            ITEMS = [
+                {"item_code": "cabbage",     "item_name": "배추", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "radish",      "item_name": "무",   "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "onion",       "item_name": "양파", "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "green_onion", "item_name": "대파", "category": "채소류", "wholesale_unit": "1kg",   "is_active": True},
+                {"item_code": "garlic",      "item_name": "마늘", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
+            ]
+            for item_data in ITEMS:
+                db.add(Item(**item_data))
+            await db.commit()
+            item_count = 5
+            seed_result = "auto-seeded"
+        except Exception as e:
+            seed_result = f"seed-error: {e}"
 
     latest_signal = (await db.execute(
         select(Forecast.base_date).order_by(desc(Forecast.base_date)).limit(1)
@@ -242,10 +263,12 @@ async def admin_status(
     return {
         "date": str(date.today()),
         "db": {
+            "items": item_count,
             "daily_prices": price_count,
             "daily_weather": weather_count,
             "region_signals": signal_count,
             "latest_forecast": str(latest_signal) if latest_signal else None,
+            "seed_result": seed_result,
         },
         "scheduler": {
             "running": scheduler.running,
