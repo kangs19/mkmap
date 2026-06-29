@@ -67,43 +67,69 @@ async def fetch_daily_price(
     return None
 
 
+async def fetch_all_prices_for_date(target_date: date) -> dict[str, dict]:
+    """dailySalesList로 특정 날짜의 전 품목 도매가 한번에 수집.
+    반환: {item_code: price_row_dict}
+    """
+    settings = get_settings()
+    if not settings.kamis_api_key:
+        return {}
+
+    params = {
+        "action": ACTION_DAILY,
+        "p_cert_key": settings.kamis_api_key,
+        "p_cert_id": "5300",
+        "p_returntype": "json",
+        "p_startday": target_date.strftime("%Y-%m-%d"),
+        "p_endday": target_date.strftime("%Y-%m-%d"),
+        "p_countrycode": MARKET_CODE,
+        "p_convert_kg_yn": "N",
+    }
+
+    # productno → item_code 역매핑
+    pno_to_item = {v["productno"]: k for k, v in ITEM_CODE_MAP.items()}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(KAMIS_BASE, params=params)
+            r.raise_for_status()
+            data = r.json()
+
+        result = {}
+        for row in data.get("price", []):
+            if row.get("product_cls_code") != "02":
+                continue
+            item_code = pno_to_item.get(str(row.get("productno", "")))
+            if not item_code:
+                continue
+            code_map = ITEM_CODE_MAP[item_code]
+            parsed = _parse_response({"price": [row]}, item_code, target_date, code_map)
+            if parsed:
+                result[item_code] = parsed
+        return result
+    except Exception:
+        return {}
+
+
 async def fetch_price_range(
     item_code: str,
     start_date: date,
     end_date: date,
 ) -> list[dict]:
-    """기간별 일별 도매가격 수집 (periodSaleList)"""
+    """기간별 일별 도매가격 — dailySalesList 날짜별 반복 (안정적)"""
     settings = get_settings()
     if not settings.kamis_api_key:
         return []
 
-    code_map = ITEM_CODE_MAP.get(item_code)
-    if not code_map:
-        return []
-
-    params = {
-        "action": ACTION_PERIOD,
-        "p_cert_key": settings.kamis_api_key,
-        "p_cert_id": "5300",
-        "p_returntype": "json",
-        "p_startday": start_date.strftime("%Y-%m-%d"),
-        "p_endday": end_date.strftime("%Y-%m-%d"),
-        "p_itemcategorycode": code_map["category"],
-        "p_itemcode": code_map["productno"],
-        "p_kindcode": "01",
-        "p_productrankcode": "04",
-        "p_countrycode": MARKET_CODE,
-        "p_convert_kg_yn": "N",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.get(KAMIS_BASE, params=params)
-            r.raise_for_status()
-            data = r.json()
-        return _parse_range_response(data, item_code, code_map)
-    except Exception:
-        return []
+    results = []
+    current = start_date
+    while current <= end_date:
+        day_data = await fetch_all_prices_for_date(current)
+        if item_code in day_data:
+            results.append(day_data[item_code])
+        current += timedelta(days=1)
+        await asyncio.sleep(0.2)
+    return results
 
 
 def _parse_response(data: dict, item_code: str, target_date: date, code_map: dict) -> Optional[dict]:
@@ -149,62 +175,3 @@ def _parse_response(data: dict, item_code: str, target_date: date, code_map: dic
     return None
 
 
-def _parse_range_response(data: dict, item_code: str, code_map: dict) -> list[dict]:
-    """periodSaleList 응답 파싱"""
-    results = []
-    try:
-        # periodSaleList 는 data.item 구조를 사용
-        items = data.get("data", {}).get("item", [])
-        if not items:
-            # fallback: price 배열 구조
-            items = data.get("price", [])
-
-        productno = code_map["productno"]
-        for row in items:
-            # product_cls_code 있으면 도매 필터
-            if "product_cls_code" in row and row.get("product_cls_code") != "02":
-                # productno 도 체크
-                if str(row.get("productno", "")) != productno:
-                    continue
-
-            yyyy = row.get("yyyy", "")
-            regday = row.get("regday", "").replace("/", "-")
-            if yyyy and regday:
-                date_str = f"{yyyy}-{regday}"
-            else:
-                date_str = row.get("lastest_day", "")
-            try:
-                d = date.fromisoformat(date_str)
-            except Exception:
-                continue
-
-            price_str = str(row.get("dpr1", "0")).replace(",", "").strip()
-            if not price_str or price_str == "-":
-                continue
-            try:
-                price = float(price_str)
-            except Exception:
-                continue
-            if price <= 0:
-                continue
-
-            def _sf(v):
-                try:
-                    return float(str(v).replace(",", "") or 0)
-                except Exception:
-                    return 0.0
-
-            results.append({
-                "item_code": item_code,
-                "date": d,
-                "market": "가락시장",
-                "grade": "상품",
-                "wholesale_price": price,
-                "retail_price": round(price * 1.35, 0),
-                "avg_year_price": _sf(row.get("dpr5", 0)),
-                "prev_year_price": _sf(row.get("dpr6", 0)),
-                "source": "kamis",
-            })
-    except Exception:
-        pass
-    return results
