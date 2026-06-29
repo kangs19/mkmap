@@ -34,6 +34,7 @@ Copy-Item .env.example .env
 가격 예측 1차 파이프라인은 [docs/PRICE_MODEL_PIPELINE.md](docs/PRICE_MODEL_PIPELINE.md)에 정리되어 있습니다.
 KOSIS 생산통계 수집 파이프라인은 [docs/KOSIS_PRODUCTION_PIPELINE.md](docs/KOSIS_PRODUCTION_PIPELINE.md)에 정리되어 있습니다.
 KMA 작물별 농업주산지 상세날씨 파이프라인은 [docs/KMA_CROP_WEATHER_PIPELINE.md](docs/KMA_CROP_WEATHER_PIPELINE.md)에 정리되어 있습니다.
+생성된 신호/예측 결과를 기존 FastAPI DB에 반영하는 절차는 [docs/BACKEND_IMPORT_PIPELINE.md](docs/BACKEND_IMPORT_PIPELINE.md)에 정리되어 있습니다.
 
 ## Checks
 
@@ -57,4 +58,5 @@ python scripts/test_live_midterm_forecast.py --date 2026-06-29
 python scripts/collect_live_event_features.py --date 2026-06-29
 python scripts/export_live_signals.py --date 2026-06-29
 python scripts/build_model_dataset.py --date 2026-06-29
+python scripts/import_meta_outputs_to_backend.py --date 2026-06-30
 ```
