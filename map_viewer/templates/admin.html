@@ -126,8 +126,17 @@ tr:hover td{background:#fafbfd;}
     <div class="grid-4">
       <div class="stat-card"><div class="stat-label">가격 데이터</div><div class="stat-value blue" id="s-prices">—</div><div class="stat-sub">DailyPrice 레코드</div></div>
       <div class="stat-card"><div class="stat-label">기상 데이터</div><div class="stat-value blue" id="s-weather">—</div><div class="stat-sub">DailyWeather 레코드</div></div>
-      <div class="stat-card"><div class="stat-label">예측 신호</div><div class="stat-value blue" id="s-signals">—</div><div class="stat-sub">ForecastSignal 레코드</div></div>
+      <div class="stat-card"><div class="stat-label">지역 신호</div><div class="stat-value blue" id="s-signals">—</div><div class="stat-sub">RegionSignal 레코드</div></div>
       <div class="stat-card"><div class="stat-label">최신 예측일</div><div class="stat-value" id="s-latest" style="font-size:16px;padding-top:4px;">—</div><div class="stat-sub">base_date</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>데이터 신선도</h3><span class="badge badge-ok">freshness</span></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>데이터</th><th>최신일</th><th>지연</th><th>상태</th></tr></thead>
+          <tbody id="s-freshness-body"><tr><td colspan="4" style="color:#bbb">데이터 없음</td></tr></tbody>
+        </table>
+      </div>
     </div>
     <div class="card">
       <div class="card-header"><h3>스케줄러 상태</h3><span id="s-sched-badge" class="badge badge-off">미확인</span></div>
@@ -290,8 +299,9 @@ async function loadStatus() {
     const d = await r.json();
     document.getElementById("s-prices").textContent = d.db.daily_prices?.toLocaleString() ?? "—";
     document.getElementById("s-weather").textContent = d.db.daily_weather?.toLocaleString() ?? "—";
-    document.getElementById("s-signals").textContent = d.db.forecast_signals?.toLocaleString() ?? "—";
+    document.getElementById("s-signals").textContent = d.db.region_signals?.toLocaleString() ?? "—";
     document.getElementById("s-latest").textContent = d.db.latest_forecast ?? "없음";
+    renderFreshness(d.data_freshness || {});
 
     const running = d.scheduler?.running;
     const badge = document.getElementById("s-sched-badge");
@@ -305,6 +315,29 @@ async function loadStatus() {
   } catch(e) {
     alert("오류: " + e.message);
   }
+}
+
+function renderFreshness(freshness) {
+  const labels = {
+    daily_prices: "가격",
+    daily_weather: "기상",
+    region_signals: "지역 신호",
+    forecasts: "예측",
+  };
+  const statusLabel = {fresh: "정상", stale: "지연", missing: "없음"};
+  const statusClass = {fresh: "badge-ok", stale: "badge-warn", missing: "badge-err"};
+  const rows = Object.entries(labels).map(([key, label]) => {
+    const item = freshness[key] || {};
+    const lag = item.lag_days == null ? "—" : `${item.lag_days}일`;
+    const status = item.status || "missing";
+    return `<tr>
+      <td>${label}</td>
+      <td>${item.latest_date || "없음"}</td>
+      <td>${lag}</td>
+      <td><span class="badge ${statusClass[status] || "badge-off"}">${statusLabel[status] || status}</span></td>
+    </tr>`;
+  });
+  document.getElementById("s-freshness-body").innerHTML = rows.join("");
 }
 
 // ── 예측 현황 ─────────────────────────────────────────

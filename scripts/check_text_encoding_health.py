@@ -9,13 +9,17 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGETS = [
+    REPO_ROOT / "Dockerfile",
+    REPO_ROOT / "start.sh",
+    REPO_ROOT / "backend" / "app",
     REPO_ROOT / "metadata" / "items",
     REPO_ROOT / "config",
     REPO_ROOT / "mkmap_meta",
     REPO_ROOT / "scripts",
     REPO_ROOT / "docs",
 ]
-CHECKED_SUFFIXES = {".json", ".py", ".md"}
+CHECKED_SUFFIXES = {".json", ".py", ".md", ".sh"}
+CHECKED_NAMES = {"Dockerfile"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,7 +41,7 @@ def main() -> int:
     elif findings:
         print("Text encoding health check failed:")
         for finding in findings[:50]:
-            print(f"- {finding['path']}:{finding['line']}: {finding['sample']}")
+            print(f"- {finding['path']}:{finding['line']}: {safe_console(finding['sample'])}")
         if len(findings) > 50:
             print(f"... {len(findings) - 50} more")
     else:
@@ -54,7 +58,7 @@ def scan_targets(targets: list[Path]) -> list[dict[str, Any]]:
             paths = sorted(path for path in target.rglob("*") if path.is_file())
 
         for path in paths:
-            if path.suffix.lower() not in CHECKED_SUFFIXES:
+            if path.suffix.lower() not in CHECKED_SUFFIXES and path.name not in CHECKED_NAMES:
                 continue
             if should_skip(path):
                 continue
@@ -79,6 +83,10 @@ def scan_file(path: Path) -> list[dict[str, Any]]:
 
 def has_likely_mojibake(text: str) -> bool:
     return any(is_suspicious_char(char) for char in text)
+
+
+def safe_console(text: str) -> str:
+    return text.encode("ascii", errors="backslashreplace").decode("ascii")
 
 
 def is_suspicious_char(char: str) -> bool:

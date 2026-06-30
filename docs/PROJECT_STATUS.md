@@ -20,6 +20,8 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 
 - GitHub repository is active at `https://github.com/kangs19/mkmap`.
 - Backend is designed to run behind `https://mk-map.com`.
+- Railway deployment config exists in `railway.toml` and uses the root `Dockerfile`.
+- Railway start command is `/app/start.sh`, which runs `uvicorn app.main:app` on `${PORT:-8100}`.
 - FastAPI backend exposes user-facing forecast, signal, map, and admin endpoints.
 - Admin routes are available under `/api/v1/admin/...`.
 - Daily scheduler runs the metadata pipeline at `06:00` KST.
@@ -68,6 +70,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 
 - Admin UI includes:
   - status dashboard
+  - data freshness status for prices, weather, region signals, and forecasts
   - forecast status
   - manual metadata pipeline run
   - model evaluation tab
@@ -78,6 +81,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Forecast scope contract smoke test verifies item/global scope traceability.
 - API service catalog Korean display names are normalized for admin/debug output.
 - Text encoding health check guards metadata, connector, script, and docs files against mojibake regressions.
+- Admin status API returns `data_freshness` with latest date, lag days, and freshness status per core dataset.
 
 ## Latest Verified Run
 

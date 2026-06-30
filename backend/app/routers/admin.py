@@ -166,6 +166,27 @@ def _model_evaluation_path(target_date: str):
     return Path(_repo_root()) / "data" / "model" / f"price_baseline_model_{stamp}_evaluation.json"
 
 
+def _freshness_status(lag_days: int | None, warn_after_days: int) -> str:
+    if lag_days is None:
+        return "missing"
+    if lag_days <= warn_after_days:
+        return "fresh"
+    if lag_days <= warn_after_days + 2:
+        return "stale"
+    return "missing"
+
+
+def _freshness_payload(latest_date, today, warn_after_days: int) -> dict:
+    latest_text = str(latest_date) if latest_date else None
+    lag_days = (today - latest_date).days if latest_date else None
+    return {
+        "latest_date": latest_text,
+        "lag_days": lag_days,
+        "status": _freshness_status(lag_days, warn_after_days),
+        "warn_after_days": warn_after_days,
+    }
+
+
 async def _run_meta_pipeline_process(
     target_date: str | None,
     skip_collect: bool,
@@ -419,6 +440,12 @@ async def admin_status(
     weather_count = (await db.execute(select(func.count()).select_from(DailyWeather))).scalar()
     signal_count = (await db.execute(select(func.count()).select_from(RegionSignal))).scalar()
     item_count = (await db.execute(select(func.count()).select_from(Item))).scalar()
+    today = date.today()
+
+    latest_price_date = (await db.execute(select(func.max(DailyPrice.date)))).scalar()
+    latest_weather_date = (await db.execute(select(func.max(DailyWeather.date)))).scalar()
+    latest_signal_date = (await db.execute(select(func.max(RegionSignal.date)))).scalar()
+    latest_forecast_date = (await db.execute(select(func.max(Forecast.base_date)))).scalar()
 
     # 시드 자동 실행 (items 테이블 비어있으면)
     seed_result = None
@@ -444,7 +471,7 @@ async def admin_status(
     )).scalar()
 
     return {
-        "date": str(date.today()),
+        "date": str(today),
         "db": {
             "items": item_count,
             "daily_prices": price_count,
@@ -452,6 +479,12 @@ async def admin_status(
             "region_signals": signal_count,
             "latest_forecast": str(latest_signal) if latest_signal else None,
             "seed_result": seed_result,
+        },
+        "data_freshness": {
+            "daily_prices": _freshness_payload(latest_price_date, today, warn_after_days=2),
+            "daily_weather": _freshness_payload(latest_weather_date, today, warn_after_days=2),
+            "region_signals": _freshness_payload(latest_signal_date, today, warn_after_days=1),
+            "forecasts": _freshness_payload(latest_forecast_date, today, warn_after_days=1),
         },
         "scheduler": {
             "running": scheduler.running,

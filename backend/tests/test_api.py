@@ -85,3 +85,7 @@ async def test_admin_status(client):
     r = await client.get("/api/v1/admin/status",
                          headers={"X-Admin-Key": "dev-admin-key"})
     assert r.status_code in (200, 403)
+    if r.status_code == 200:
+        data = r.json()
+        assert "data_freshness" in data
+        assert "forecasts" in data["data_freshness"]
