@@ -33,6 +33,7 @@ PY_COMPILE_TARGETS = [
     "backend/app/main.py",
     "backend/app/routers/admin.py",
     "backend/app/routers/forecasts.py",
+    "backend/app/routers/signals.py",
     "backend/app/scheduler.py",
 ]
 
