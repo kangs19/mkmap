@@ -18,7 +18,7 @@ _rate_counter: dict[str, dict[str, int]] = defaultdict(dict)  # key_hash → {da
 
 # 인증 불필요 경로 (지도·대시보드 UI + 위젯)
 PUBLIC_PATHS = {
-    "/", "/dashboard", "/widget", "/widget/embed",
+    "/", "/dashboard", "/forecast-explanation", "/widget", "/widget/embed",
     "/admin/ui",  # 관리자 HTML UI (API 호출은 X-Admin-Key로 별도 보호)
     "/docs", "/openapi.json", "/redoc", "/health",
     "/map_standalone.html", "/index.html",
@@ -50,6 +50,8 @@ async def verify_api_key(request: Request) -> Optional[str]:
     공개 경로는 None 반환(통과). 보호 경로는 키 없으면 401.
     """
     path = request.url.path
+    if path.startswith("/api/v1/items/") and path.endswith("/forecast/explanation"):
+        return None
 
     # 공개 경로 통과
     if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):

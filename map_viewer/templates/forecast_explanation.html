@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FARM MAP 가격 예측 설명</title>
+  <style>
+    :root {
+      --bg: #f6f7f4;
+      --ink: #17211c;
+      --muted: #657168;
+      --line: #d8ded6;
+      --panel: #ffffff;
+      --green: #1f7a4d;
+      --green-soft: #e7f4ec;
+      --amber: #b7791f;
+      --amber-soft: #fff4dd;
+      --red: #bf3b35;
+      --red-soft: #fde8e6;
+      --blue: #2f6f9f;
+      --blue-soft: #e7f0f8;
+      --shadow: 0 18px 45px rgba(29, 45, 35, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, select {
+      font: inherit;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--green);
+      color: white;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .date-pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--muted);
+      background: white;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 24px;
+      padding: 24px;
+      width: min(1280px, 100%);
+      margin: 0 auto;
+    }
+
+    .rail {
+      align-self: start;
+      display: grid;
+      gap: 12px;
+      position: sticky;
+      top: 92px;
+    }
+
+    .item-select {
+      display: none;
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 0 12px;
+      color: var(--ink);
+    }
+
+    .item-button {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .item-button:hover {
+      border-color: #9eb5a7;
+      transform: translateY(-1px);
+    }
+
+    .item-button.active {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px var(--green-soft);
+    }
+
+    .item-name {
+      font-weight: 750;
+    }
+
+    .item-code {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line);
+      flex: 0 0 auto;
+    }
+
+    .item-button.active .status-dot {
+      background: var(--green);
+    }
+
+    .main {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .summary-panel,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) 280px;
+      gap: 18px;
+      padding: 22px;
+      align-items: stretch;
+    }
+
+    .headline-wrap {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .headline {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.28;
+      overflow-wrap: anywhere;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: #eef1ed;
+      color: #3d4a42;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .chip.green { background: var(--green-soft); color: var(--green); }
+    .chip.amber { background: var(--amber-soft); color: var(--amber); }
+    .chip.red { background: var(--red-soft); color: var(--red); }
+    .chip.blue { background: var(--blue-soft); color: var(--blue); }
+
+    .probability {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfcfa;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+    }
+
+    .probability strong {
+      font-size: 42px;
+      line-height: 1;
+    }
+
+    .probability span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .meter {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e3e8e1;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--amber));
+      transition: width 0.25s ease;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .reason-list,
+    .region-list,
+    .notes-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .reason,
+    .region,
+    .note {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fcfdfb;
+    }
+
+    .reason-title,
+    .region-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      font-weight: 750;
+    }
+
+    .reason p,
+    .region p,
+    .note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .direction {
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    .direction.down {
+      color: var(--blue);
+    }
+
+    .direction.up,
+    .direction.surge {
+      color: var(--red);
+    }
+
+    .freshness {
+      display: grid;
+      gap: 9px;
+    }
+
+    .fresh-row {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .fresh-row:last-child {
+      border-bottom: 0;
+    }
+
+    .fresh-row b {
+      font-size: 13px;
+    }
+
+    .fresh-row span {
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .empty-state,
+    .loading-state {
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px dashed #b9c5bc;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--muted);
+      padding: 24px;
+    }
+
+    .empty-state strong,
+    .loading-state strong {
+      display: block;
+      color: var(--ink);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .disclaimer {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .rail {
+        position: static;
+      }
+
+      .item-select {
+        display: block;
+      }
+
+      .item-button {
+        display: none;
+      }
+
+      .summary-panel,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 16px;
+      }
+
+      .workspace {
+        padding: 14px;
+      }
+
+      .summary-panel,
+      .panel {
+        padding: 16px;
+      }
+
+      .headline {
+        font-size: 23px;
+      }
+
+      .probability strong {
+        font-size: 34px;
+      }
+
+      .fresh-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="forecast-explanation-root">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">FM</div>
+        <div>
+          <h1>FARM MAP 가격 예측</h1>
+          <p>품목별 예측 설명 리포트</p>
+        </div>
+      </div>
+      <div class="date-pill" id="base-date">기준일 확인 중</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="rail">
+        <select class="item-select" id="item-select" aria-label="품목 선택"></select>
+        <div id="item-tabs"></div>
+      </aside>
+
+      <main class="main">
+        <div class="loading-state" id="loading-state">
+          <div>
+            <strong>예측 설명을 불러오는 중입니다</strong>
+            <span>최신 가격, 산지 신호, 모델 결과를 확인하고 있습니다.</span>
+          </div>
+        </div>
+
+        <div class="empty-state hidden" id="empty-state">
+          <div>
+            <strong>오늘 예측 설명 데이터가 아직 없습니다</strong>
+            <span id="empty-message">파이프라인 실행 후 다시 확인할 수 있습니다.</span>
+          </div>
+        </div>
+
+        <section class="summary-panel hidden" id="summary-panel">
+          <div class="headline-wrap">
+            <p class="eyebrow" id="item-label">품목</p>
+            <h2 class="headline" id="headline">예측 설명 준비 중</h2>
+            <div class="meta-row">
+              <span class="chip green" id="direction-chip">방향</span>
+              <span class="chip blue" id="scope-chip">모델 범위</span>
+              <span class="chip amber" id="confidence-chip">신뢰도</span>
+              <span class="chip" id="volatility-chip">변동성</span>
+            </div>
+          </div>
+
+          <div class="probability">
+            <span>14일 상승 확률</span>
+            <strong id="up-probability">-</strong>
+            <div class="meter" aria-hidden="true">
+              <div class="meter-fill" id="probability-fill"></div>
+            </div>
+            <span id="surge-probability">급등 확률 -</span>
+          </div>
+        </section>
+
+        <section class="grid hidden" id="detail-grid">
+          <div class="panel">
+            <h2>주요 판단 근거</h2>
+            <ul class="reason-list" id="reason-list"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>위험 산지</h2>
+            <ul class="region-list" id="region-list"></ul>
+          </div>
+        </section>
+
+        <section class="grid hidden" id="support-grid">
+          <div class="panel">
+            <h2>데이터 신선도</h2>
+            <div class="freshness" id="freshness-list"></div>
+          </div>
+
+          <div class="panel">
+            <h2>주의 사항</h2>
+            <ul class="notes-list" id="notes-list"></ul>
+            <p class="disclaimer" id="disclaimer"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "{{ api_base }}";
+    const ITEMS = [
+      { code: "cabbage", name: "배추" },
+      { code: "radish", name: "무" },
+      { code: "onion", name: "양파" },
+      { code: "green_onion", name: "대파" },
+      { code: "garlic", name: "마늘" }
+    ];
+
+    const state = {
+      activeItem: new URLSearchParams(window.location.search).get("item") || "cabbage",
+      loading: false
+    };
+
+    const el = {
+      tabs: document.getElementById("item-tabs"),
+      select: document.getElementById("item-select"),
+      loading: document.getElementById("loading-state"),
+      empty: document.getElementById("empty-state"),
+      emptyMessage: document.getElementById("empty-message"),
+      summary: document.getElementById("summary-panel"),
+      detailGrid: document.getElementById("detail-grid"),
+      supportGrid: document.getElementById("support-grid"),
+      baseDate: document.getElementById("base-date"),
+      itemLabel: document.getElementById("item-label"),
+      headline: document.getElementById("headline"),
+      directionChip: document.getElementById("direction-chip"),
+      scopeChip: document.getElementById("scope-chip"),
+      confidenceChip: document.getElementById("confidence-chip"),
+      volatilityChip: document.getElementById("volatility-chip"),
+      upProbability: document.getElementById("up-probability"),
+      probabilityFill: document.getElementById("probability-fill"),
+      surgeProbability: document.getElementById("surge-probability"),
+      reasonList: document.getElementById("reason-list"),
+      regionList: document.getElementById("region-list"),
+      freshnessList: document.getElementById("freshness-list"),
+      notesList: document.getElementById("notes-list"),
+      disclaimer: document.getElementById("disclaimer")
+    };
+
+    function itemName(code) {
+      return (ITEMS.find((item) => item.code === code) || { name: code }).name;
+    }
+
+    function renderItems() {
+      el.tabs.innerHTML = ITEMS.map((item) => `
+        <button class="item-button ${item.code === state.activeItem ? "active" : ""}" data-item="${item.code}" type="button">
+          <span>
+            <span class="item-name">${item.name}</span><br />
+            <span class="item-code">${item.code}</span>
+          </span>
+          <span class="status-dot"></span>
+        </button>
+      `).join("");
+
+      el.select.innerHTML = ITEMS.map((item) => `
+        <option value="${item.code}" ${item.code === state.activeItem ? "selected" : ""}>${item.name}</option>
+      `).join("");
+    }
+
+    function setVisible(mode) {
+      el.loading.classList.toggle("hidden", mode !== "loading");
+      el.empty.classList.toggle("hidden", mode !== "empty");
+      el.summary.classList.toggle("hidden", mode !== "ready");
+      el.detailGrid.classList.toggle("hidden", mode !== "ready");
+      el.supportGrid.classList.toggle("hidden", mode !== "ready");
+    }
+
+    function formatPercent(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+      return `${Math.round(Number(value) * 100)}%`;
+    }
+
+    function chipTone(direction) {
+      if (direction === "up" || direction === "surge") return "chip red";
+      if (direction === "down") return "chip blue";
+      return "chip green";
+    }
+
+    function statusTone(status) {
+      if (status === "fresh") return "chip green";
+      if (status === "stale") return "chip amber";
+      if (status === "missing") return "chip red";
+      return "chip";
+    }
+
+    function renderReasons(reasons) {
+      if (!reasons || reasons.length === 0) {
+        el.reasonList.innerHTML = `<li class="reason"><p>표시할 판단 근거가 아직 없습니다.</p></li>`;
+        return;
+      }
+
+      el.reasonList.innerHTML = reasons.map((reason) => `
+        <li class="reason">
+          <div class="reason-title">
+            <span>${reason.label || reason.factor || "판단 근거"}</span>
+            <span class="direction ${reason.direction || ""}">${reason.direction_label || ""}</span>
+          </div>
+          <p>${reason.description || reason.summary || "설명 데이터가 준비 중입니다."}</p>
+        </li>
+      `).join("");
+    }
+
+    function renderRegions(regions) {
+      if (!regions || regions.length === 0) {
+        el.regionList.innerHTML = `<li class="region"><p>주의 수준 이상의 산지 신호가 없습니다.</p></li>`;
+        return;
+      }
+
+      el.regionList.innerHTML = regions.map((region) => `
+        <li class="region">
+          <div class="region-title">
+            <span>${region.region_name || region.region_code || "산지"}</span>
+            <span class="chip ${region.risk_level === "warning" ? "red" : "amber"}">${region.risk_label || region.risk_level || "관찰"}</span>
+          </div>
+          <p>${region.summary || region.price_effect_label || "지역 신호를 확인 중입니다."}</p>
+        </li>
+      `).join("");
+    }
+
+    function renderFreshness(freshness) {
+      const labels = {
+        price: "가격",
+        region_signal: "산지 신호",
+        forecast: "예측"
+      };
+
+      el.freshnessList.innerHTML = Object.entries(labels).map(([key, label]) => {
+        const row = freshness && freshness[key] ? freshness[key] : {};
+        const status = row.status || "missing";
+        return `
+          <div class="fresh-row">
+            <b>${label}</b>
+            <span>${row.latest_date || "날짜 없음"}</span>
+            <span class="${statusTone(status)}">${row.status_label || status}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderNotes(notes, disclaimer) {
+      const rows = notes && notes.length ? notes : ["예측은 수급, 날씨, 가격 흐름을 종합한 참고 지표입니다."];
+      el.notesList.innerHTML = rows.map((note) => `<li class="note">${note}</li>`).join("");
+      el.disclaimer.textContent = disclaimer || "";
+    }
+
+    function renderExplanation(data) {
+      const forecast = data.forecast || {};
+      const model = data.model || {};
+      const itemLabel = data.item_name || itemName(data.item_code);
+      const probability = Number(forecast.up_probability_14d || 0);
+
+      el.baseDate.textContent = `기준일 ${data.base_date || forecast.base_date || "-"}`;
+      el.itemLabel.textContent = `${itemLabel} 예측 설명`;
+      el.headline.textContent = data.headline || "예측 설명을 준비 중입니다";
+
+      el.directionChip.className = chipTone(forecast.direction);
+      el.directionChip.textContent = forecast.direction_label || "방향 미정";
+      el.scopeChip.textContent = model.scope_label || model.scope || "모델 범위 미정";
+      el.confidenceChip.textContent = model.confidence_label || model.confidence || "신뢰도 미정";
+      el.volatilityChip.textContent = forecast.volatility_risk_label || forecast.volatility_risk_30d || "변동성 미정";
+
+      el.upProbability.textContent = formatPercent(probability);
+      el.probabilityFill.style.width = `${Math.max(0, Math.min(100, Math.round(probability * 100)))}%`;
+      el.surgeProbability.textContent = `급등 확률 ${formatPercent(forecast.surge_probability_14d)}`;
+
+      renderReasons(data.reasons);
+      renderRegions(data.risk_regions);
+      renderFreshness(data.data_freshness);
+      renderNotes(data.notes, data.disclaimer);
+    }
+
+    async function loadExplanation(itemCode) {
+      state.activeItem = itemCode;
+      renderItems();
+      setVisible("loading");
+
+      const url = `${API_BASE}/api/v1/items/${encodeURIComponent(itemCode)}/forecast/explanation`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        renderExplanation(data);
+        setVisible("ready");
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("item", itemCode);
+        window.history.replaceState(null, "", nextUrl);
+      } catch (error) {
+        el.baseDate.textContent = "데이터 없음";
+        el.emptyMessage.textContent = `${itemName(itemCode)} 예측 설명을 아직 만들 수 없습니다. 관리자 파이프라인 실행 상태를 확인하세요.`;
+        setVisible("empty");
+      }
+    }
+
+    el.tabs.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-item]");
+      if (button) loadExplanation(button.dataset.item);
+    });
+
+    el.select.addEventListener("change", (event) => {
+      loadExplanation(event.target.value);
+    });
+
+    renderItems();
+    loadExplanation(state.activeItem);
+  </script>
+</body>
+</html>

@@ -139,6 +139,7 @@ python scripts/smoke_api_contract.py
 - `GET /api/v1/items/{item_code}/signals`
 - `GET /api/v1/items/{item_code}/forecast`
 - `GET /api/v1/items/{item_code}/forecast/explanation`
+- `GET /forecast-explanation`
 - `GET /api/v1/signals/today`
 - `GET /api/v1/items/{item_code}/meta-engine`
 - `GET /api/v1/api-services`
@@ -151,6 +152,10 @@ used and `global` when the global fallback model was used.
 Korean explanation payload with a headline, model scope label, confidence label,
 forecast probability labels, reason messages, top risk regions, and data
 freshness for price, region signal, and forecast data.
+
+`GET /forecast-explanation` renders a public Korean page that consumes the
+forecast explanation API and provides a resilient empty state when a selected
+item has no current forecast.
 
 The `meta-engine` endpoint is useful for admin/debug pages because it shows
 which engines, source coverage, risk weights, and weather factors are active for

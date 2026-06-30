@@ -18,6 +18,7 @@ TEMPLATE_PATH = TEMPLATES / "item_map.html"
 DASHBOARD_PATH = TEMPLATES / "dashboard.html"
 WIDGET_PATH    = TEMPLATES / "widget.html"
 ADMIN_PATH     = TEMPLATES / "admin.html"
+FORECAST_EXPLANATION_PATH = TEMPLATES / "forecast_explanation.html"
 
 ITEM_NAMES = {
     "cabbage": "배추",
@@ -53,6 +54,14 @@ async def get_item_map(request: Request, item_code: str):
 @router.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
     html = DASHBOARD_PATH.read_text(encoding="utf-8")
+    return HTMLResponse(content=html)
+
+
+@router.get("/forecast-explanation", response_class=HTMLResponse)
+async def get_forecast_explanation(request: Request):
+    html = FORECAST_EXPLANATION_PATH.read_text(encoding="utf-8")
+    api_base = str(request.base_url).rstrip("/")
+    html = html.replace("{{ api_base }}", api_base)
     return HTMLResponse(content=html)
 
 

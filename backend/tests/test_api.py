@@ -163,6 +163,14 @@ async def test_widget(client):
 
 
 @pytest.mark.asyncio
+async def test_forecast_explanation_page(client):
+    r = await client.get("/forecast-explanation")
+    assert r.status_code == 200
+    assert "forecast-explanation-root" in r.text
+    assert "/api/v1/items/" in r.text
+
+
+@pytest.mark.asyncio
 async def test_widget_embed_guide(client):
     r = await client.get("/widget/embed")
     assert r.status_code == 200

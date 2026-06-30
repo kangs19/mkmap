@@ -161,6 +161,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 - Forecast model scope is visible via API.
 - Top factors remain price/risk factors and are not polluted by trace metadata.
 - Item models are accepted only when they pass the quality gate against global fallback.
+- Public forecast explanations are available through `/forecast-explanation`.
 
 ## Next Work
 
@@ -170,7 +171,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 - Recheck KMA weather alert after provider-side `DB_ERROR` clears.
 - Use KMA crop-weather date fallback in freshness reporting so current-day `NO_DATA` is shown as provider delay, not data failure.
 - Add API/data freshness status to the admin dashboard.
-- Build a frontend view for the public forecast explanation API.
 
 ### Model Improvement
 
