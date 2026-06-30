@@ -52,6 +52,18 @@ def sample_params(service_code: str) -> dict[str, Any]:
             "cond[vrty_cd::EQ]": "01",
             "cond[grd_cd::EQ]": "04",
         }
+    if service_code == "at_market_settlement":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 100,
+            "returnType": "json",
+            "cond[trd_clcln_ymd::EQ]": SAMPLE_DATE.isoformat(),
+            "cond[whsl_mrkt_cd::EQ]": "110001",
+            "cond[gds_lclsf_cd::EQ]": "12",
+            "cond[gds_mclsf_cd::EQ]": "01",
+            "cond[gds_sclsf_cd::EQ]": "02",
+        }
     if service_code == "kma_typhoon":
         return {
             "serviceKey": "***",

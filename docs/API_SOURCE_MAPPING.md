@@ -105,9 +105,10 @@ python scripts/test_live_midterm_forecast.py --date 2026-06-29
 ## Newly Confirmed Endpoints
 
 - AT regional price: `http://apis.data.go.kr/B552845/perRegion` with operation `price`.
+- AT market settlement: `http://apis.data.go.kr/B552845/katSale` with operation `trades`.
 - KMA impact forecast: `http://apis.data.go.kr/1360000/ImpactInfoServiceV2` with operation `getHWImpactValueV2`.
 
-These are reflected in `.env.example` and `config/api_services.json`. KMA impact forecast and AT regional price now have live diagnostics via `scripts/test_live_impact_forecast.py` and `scripts/test_live_at_regional_price.py`.
+These are reflected in `.env.example` and `config/api_services.json`. KMA impact forecast, AT regional price, and AT market settlement now have live diagnostics.
 
 ## 요청 프리뷰
 

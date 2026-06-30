@@ -55,6 +55,8 @@ CODE_DEFAULTS = {
     "KAMIS_PRODUCT_CLASSES": "01,02",
     "AT_REGIONAL_PRICE_BASE_URL": "http://apis.data.go.kr/B552845/perRegion",
     "AT_REGIONAL_PRICE_OPERATION": "price",
+    "AT_MARKET_SETTLEMENT_BASE_URL": "http://apis.data.go.kr/B552845/katSale",
+    "AT_MARKET_SETTLEMENT_OPERATION": "trades",
     "KOSIS_PRODUCTION_BASE_URL": "https://kosis.kr/openapi/Param/statisticsParameterData.do",
     "KOSIS_PRODUCTION_ORG_ID": "101",
 }

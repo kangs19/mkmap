@@ -187,6 +187,17 @@
       ],
       "notes": "Official data.go.kr KMA crop main-area weather guide code table, 2026-01-05."
     },
+    "at_settlement": {
+      "mapping_status": "observed_from_kat_sale_live",
+      "gds_lclsf_cd": "12",
+      "gds_lclsf_nm": "조미채소류",
+      "gds_mclsf_cd": "01",
+      "gds_mclsf_nm": "양파",
+      "gds_sclsf_cd": "02",
+      "gds_sclsf_nm": "만생양파",
+      "default_market_code": "110001",
+      "notes": "Observed from aT katSale/trades live rows on 2026-06-30."
+    },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
       "itemcategorycode": "200",

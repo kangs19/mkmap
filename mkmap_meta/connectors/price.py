@@ -18,6 +18,8 @@ KAMIS_PRICE_BASE_URL = "https://www.kamis.or.kr/service/price/xml.do"
 KAMIS_PRICE_ACTION = "periodProductList"
 AT_REGIONAL_PRICE_BASE_URL = "http://apis.data.go.kr/B552845/perRegion"
 AT_REGIONAL_PRICE_OPERATION = "price"
+AT_MARKET_SETTLEMENT_BASE_URL = "http://apis.data.go.kr/B552845/katSale"
+AT_MARKET_SETTLEMENT_OPERATION = "trades"
 
 
 class KamisPriceConnector(PriceConnector):
@@ -199,6 +201,73 @@ class AtRegionalPriceConnector(PriceConnector):
         return {key: value for key, value in params.items() if value not in {None, ""}}
 
 
+class AtMarketSettlementConnector(PriceConnector):
+    """data.go.kr aT public wholesale market settlement connector."""
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        operation_path: str | None = None,
+        api_key: str | None = None,
+        registry: ItemMetadataRegistry | None = None,
+        http: SimpleHttpClient | None = None,
+    ) -> None:
+        base_url = base_url or os.getenv("AT_MARKET_SETTLEMENT_BASE_URL") or AT_MARKET_SETTLEMENT_BASE_URL
+        self.operation_path = operation_path or os.getenv("AT_MARKET_SETTLEMENT_OPERATION") or AT_MARKET_SETTLEMENT_OPERATION
+        self.service = DataGoKrService(
+            name="한국농수산식품유통공사 전국 공영도매시장 정산정보",
+            base_url=base_url,
+            default_params={
+                "returnType": os.getenv("AT_MARKET_SETTLEMENT_RETURN_TYPE", "json"),
+            },
+        )
+        self.client = DataGoKrClient(api_key=api_key or os.getenv(DATA_GO_KR_API_KEY_ENV), http=http)
+        self.registry = registry or default_registry()
+        self.market_code = os.getenv("AT_MARKET_SETTLEMENT_DEFAULT_MARKET_CODE", "110001")
+        self.num_rows = int(os.getenv("AT_MARKET_SETTLEMENT_NUM_ROWS", "100"))
+
+    def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
+        if not self.service.base_url:
+            return []
+
+        mapping = self._mapping_for(item_code)
+        if not mapping:
+            return []
+        features: list[PriceFeature] = []
+        for offset in range(days_back):
+            current_date = target_date - timedelta(days=offset)
+            payload = self.client.get(
+                self.service,
+                self.operation_path,
+                **self._params(mapping, current_date),
+            )
+            features.extend(
+                normalize_at_market_settlement_rows(
+                    payload,
+                    item_code=item_code,
+                    default_date=current_date,
+                    source="at_market_settlement",
+                )
+            )
+        return _dedupe_price_features(features)
+
+    def _mapping_for(self, item_code: str) -> dict[str, Any]:
+        item = self.registry.get_item(item_code)
+        return item.get("external_mappings", {}).get("at_settlement", {})
+
+    def _params(self, mapping: dict[str, Any], target_date: date) -> dict[str, Any]:
+        params = {
+            "pageNo": 1,
+            "numOfRows": self.num_rows,
+            "cond[trd_clcln_ymd::EQ]": target_date.isoformat(),
+            "cond[whsl_mrkt_cd::EQ]": os.getenv("AT_MARKET_SETTLEMENT_MARKET_CODE") or mapping.get("default_market_code") or self.market_code,
+            "cond[gds_lclsf_cd::EQ]": mapping.get("gds_lclsf_cd"),
+            "cond[gds_mclsf_cd::EQ]": mapping.get("gds_mclsf_cd"),
+            "cond[gds_sclsf_cd::EQ]": mapping.get("gds_sclsf_cd"),
+        }
+        return {key: value for key, value in params.items() if value not in {None, ""}}
+
+
 def normalize_kamis_price_rows(
     payload: Any,
     item_code: str,
@@ -279,6 +348,35 @@ def normalize_at_regional_price_rows(
                 retail_price=retail_price,
                 wholesale_price=wholesale_price,
                 settlement_price=settlement_price,
+                source=source,
+                raw=row,
+            )
+        )
+    return features
+
+
+def normalize_at_market_settlement_rows(
+    payload: Any,
+    item_code: str,
+    default_date: date,
+    source: str,
+) -> list[PriceFeature]:
+    features: list[PriceFeature] = []
+    for row in extract_rows(payload):
+        base_date = parse_date(first_present(row, "trd_clcln_ymd", "base_date", "date", "ymd"), default=default_date)
+        region_code = first_present(row, "whsl_mrkt_cd", "whsl_mrkt_nm", "region_code", "regionCode")
+        settlement_price = parse_float(first_present(row, "avgprc", "price", "settlement_price"))
+        volume = parse_float(first_present(row, "unit_tot_qty", "tot_qty", "trd_qty", "qty", "volume", "unit_qty"))
+        if settlement_price is None and volume is None:
+            continue
+
+        features.append(
+            PriceFeature(
+                item_code=item_code,
+                region_code=str(region_code) if region_code is not None else None,
+                base_date=base_date,
+                settlement_price=settlement_price,
+                volume=volume,
                 source=source,
                 raw=row,
             )

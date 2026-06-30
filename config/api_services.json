@@ -23,9 +23,12 @@
     "at_market_settlement": {
       "display_name": "한국농수산식품유통공사 전국 공영도매시장 정산정보",
       "engine_role": "price_market",
-      "required_env": ["DATA_GO_KR_API_KEY", "AT_MARKET_SETTLEMENT_BASE_URL"],
-      "status": "endpoint_required",
-      "source_url": "https://www.data.go.kr/",
+      "required_env": ["DATA_GO_KR_API_KEY"],
+      "status": "endpoint_verified_mapping_required",
+      "source_url": "https://www.data.go.kr/data/15141809/openapi.do",
+      "base_url": "http://apis.data.go.kr/B552845/katSale",
+      "operation": "trades",
+      "request_params": ["serviceKey", "pageNo", "numOfRows", "returnType", "cond[trd_clcln_ymd::EQ]", "cond[whsl_mrkt_cd::EQ]", "cond[gds_lclsf_cd::EQ]", "cond[gds_mclsf_cd::EQ]", "cond[gds_sclsf_cd::EQ]"],
       "notes": "공공데이터포털 상세 명세에서 endpoint와 operation 확인이 필요하다."
     },
     "at_regional_price": {
