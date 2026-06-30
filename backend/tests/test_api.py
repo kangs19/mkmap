@@ -4,11 +4,13 @@ pytest로 실행: cd backend && pytest tests/ -v
 """
 import pytest
 from httpx import AsyncClient, ASGITransport
+from app.database import init_db
 from app.main import app
 
 
 @pytest.fixture
 async def client():
+    await init_db()
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:

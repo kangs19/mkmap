@@ -129,11 +129,13 @@ async def load_weather_df(db: AsyncSession, region_code: str,
     return df
 
 
-def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame,
+def build_features(price_df: pd.DataFrame, weather_df: pd.DataFrame = None,
                    production_stats: dict = None,
                    market_df: pd.DataFrame = None) -> pd.DataFrame:
     """가격 + 날씨 피처 조합 → 모델 입력 DataFrame"""
     df = price_df.copy()
+    if weather_df is None:
+        weather_df = pd.DataFrame(index=df.index)
 
     # ── 가격 피처 ──────────────────────────────────────────────
     # min_periods=1 로 초기 데이터 부족 시에도 NaN 없이 근사값 생성
