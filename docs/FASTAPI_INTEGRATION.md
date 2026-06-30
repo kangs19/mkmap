@@ -138,6 +138,7 @@ python scripts/smoke_api_contract.py
 
 - `GET /api/v1/items/{item_code}/signals`
 - `GET /api/v1/items/{item_code}/forecast`
+- `GET /api/v1/items/{item_code}/forecast/explanation`
 - `GET /api/v1/signals/today`
 - `GET /api/v1/items/{item_code}/meta-engine`
 - `GET /api/v1/api-services`
@@ -145,6 +146,11 @@ python scripts/smoke_api_contract.py
 `GET /api/v1/items/{item_code}/forecast` includes `model_version` and
 `model_scope`. `model_scope` is `item` when an accepted item-specific model was
 used and `global` when the global fallback model was used.
+
+`GET /api/v1/items/{item_code}/forecast/explanation` returns a public-facing
+Korean explanation payload with a headline, model scope label, confidence label,
+forecast probability labels, reason messages, top risk regions, and data
+freshness for price, region signal, and forecast data.
 
 The `meta-engine` endpoint is useful for admin/debug pages because it shows
 which engines, source coverage, risk weights, and weather factors are active for

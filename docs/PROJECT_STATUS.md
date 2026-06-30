@@ -65,6 +65,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
   - `model_scope`
   - forecast probabilities
   - top factors
+- Public forecast explanation API exposes headline, model scope, reasons, top risk regions, and data freshness in a frontend-friendly Korean payload.
 
 ### Admin And Evaluation
 
@@ -169,7 +170,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 - Recheck KMA weather alert after provider-side `DB_ERROR` clears.
 - Use KMA crop-weather date fallback in freshness reporting so current-day `NO_DATA` is shown as provider delay, not data failure.
 - Add API/data freshness status to the admin dashboard.
-- Add a public-facing forecast explanation view that shows model scope, risk factors, and data freshness in Korean.
+- Build a frontend view for the public forecast explanation API.
 
 ### Model Improvement
 
