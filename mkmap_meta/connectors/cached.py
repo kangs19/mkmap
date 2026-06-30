@@ -12,7 +12,14 @@ from mkmap_meta.storage import dated_path, read_json
 
 class CachedEventConnector(EventConnector):
     def __init__(self, services: list[str] | None = None) -> None:
-        self.services = services or ["midterm_forecast", "typhoon", "weather_alert"]
+        self.services = services or [
+            "impact_forecast",
+            "midterm_forecast",
+            "satellite",
+            "typhoon",
+            "weather_alert",
+            "weather_chart",
+        ]
 
     def fetch_events(self, target_date: date) -> list[EventFeature]:
         events: list[EventFeature] = []

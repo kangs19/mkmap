@@ -4,21 +4,32 @@ import argparse
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mkmap_meta.connectors.events import MidtermForecastConnector, TyphoonConnector, WeatherAlertConnector
+from mkmap_meta.connectors.events import (
+    ImpactForecastConnector,
+    MidtermForecastConnector,
+    SatelliteConnector,
+    TyphoonConnector,
+    WeatherAlertConnector,
+    WeatherChartConnector,
+)
 from mkmap_meta.connectors.normalizers import public_api_error
 from mkmap_meta.env import ensure_env_loaded
 from mkmap_meta.storage import dated_path, write_json
 
 
 CONNECTORS = {
+    "impact_forecast": ImpactForecastConnector,
     "weather_alert": WeatherAlertConnector,
+    "satellite": SatelliteConnector,
     "typhoon": TyphoonConnector,
     "midterm_forecast": MidtermForecastConnector,
+    "weather_chart": WeatherChartConnector,
 }
 
 
@@ -31,7 +42,23 @@ def parse_args() -> argparse.Namespace:
 
 def collect_service(service_code: str, target_date: date) -> dict[str, object]:
     connector = CONNECTORS[service_code]()
-    payload = connector.fetch_payload(target_date)
+    try:
+        payload = connector.fetch_payload(target_date)
+    except HTTPError as exc:
+        payload = {
+            "header": {
+                "resultCode": f"HTTP_{exc.code}",
+                "resultMsg": exc.reason,
+            }
+        }
+    except URLError as exc:
+        payload = {
+            "header": {
+                "resultCode": "URL_ERROR",
+                "resultMsg": str(exc.reason),
+            }
+        }
+
     api_error = public_api_error(payload)
     features = [] if api_error else connector.normalize_payload(payload, target_date)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import date
 from typing import Any
+from urllib.error import HTTPError, URLError
 
 from mkmap_meta.connectors.base import EventConnector
 from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV, DataGoKrClient, DataGoKrService
@@ -74,7 +75,10 @@ class DataGoKrEventConnector(EventConnector):
         if not self.service.base_url:
             return []
 
-        payload = self.fetch_payload(target_date)
+        try:
+            payload = self.fetch_payload(target_date)
+        except (HTTPError, URLError):
+            return []
         return self.normalize_payload(payload, target_date)
 
     def normalize_payload(self, payload: Any, target_date: date) -> list[EventFeature]:
