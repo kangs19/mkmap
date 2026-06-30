@@ -81,6 +81,34 @@ def catalog_status(path: Path | str | None = None) -> list[dict[str, Any]]:
             "notes": service.notes,
             "configured": service.configured,
             "missing_env": service.missing_env,
+            "readiness": service_readiness(service),
+            "next_action": service_next_action(service),
         }
         for service in load_service_catalog(path)
     ]
+
+
+def service_readiness(service: ApiService) -> str:
+    if service.configured:
+        if service.status == "endpoint_verified_mapping_required":
+            return "configured_mapping_required"
+        return "configured"
+    if service.status == "optional_after_core":
+        return "optional_not_configured"
+    if service.status == "endpoint_required":
+        return "endpoint_required"
+    return "missing_env"
+
+
+def service_next_action(service: ApiService) -> str:
+    if service.configured:
+        if service.status == "endpoint_verified_mapping_required":
+            return "Keep provider code mappings verified before full live collection."
+        return "No configuration action needed."
+    if service.status == "optional_after_core":
+        return "Optional source. Configure after the core model and dashboard flow are stable."
+    if service.status == "endpoint_required":
+        missing = ", ".join(service.missing_env)
+        return f"Confirm provider endpoint/operation and set {missing}."
+    missing = ", ".join(service.missing_env)
+    return f"Set {missing} in the runtime environment."

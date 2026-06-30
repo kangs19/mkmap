@@ -19,6 +19,11 @@ def main() -> int:
         raise RuntimeError("price_market services are missing from catalog")
     if "agri_weather" not in payload["summary"]["by_engine_role"]:
         raise RuntimeError("agri_weather services are missing from catalog")
+    if "by_readiness" not in payload["summary"]:
+        raise RuntimeError("API service readiness summary is missing")
+    for service in payload["services"]:
+        if "readiness" not in service or "next_action" not in service:
+            raise RuntimeError(f"service readiness fields missing for {service.get('code')}")
 
     print(json.dumps(payload["summary"], ensure_ascii=False, indent=2))
     return 0

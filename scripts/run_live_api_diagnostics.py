@@ -185,6 +185,7 @@ def service_brief(service: dict[str, Any]) -> dict[str, Any]:
         "source_url": service.get("source_url"),
         "base_url": service.get("base_url"),
         "operation": service.get("operation"),
+        "readiness": service.get("readiness"),
     }
 
 
@@ -335,6 +336,8 @@ def next_action(status: str, payload: Any, service: dict[str, Any]) -> str:
     if status == "not_ready":
         return "The command completed but did not prove usable data. Inspect payload and connector normalization."
     if status == "not_tested":
+        if service and service.get("next_action"):
+            return str(service["next_action"])
         if service and service.get("status") == "optional_after_core":
             return "Optional service. Add a live diagnostic when this source becomes part of the active model."
         if missing_env:

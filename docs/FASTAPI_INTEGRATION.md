@@ -75,6 +75,12 @@ app = create_app()
       "kamis": 1,
       "kosis": 1
     },
+    "by_readiness": {
+      "configured": 5,
+      "configured_mapping_required": 1,
+      "endpoint_required": 4,
+      "optional_not_configured": 2
+    },
     "by_engine_role": {
       "agri_weather": {
         "total": 2,
@@ -86,8 +92,8 @@ app = create_app()
 }
 ```
 
-The endpoint reports missing environment variable names, but never returns
-secret values.
+The endpoint reports missing environment variable names, readiness, and the
+next setup action, but never returns secret values.
 
 ## Environment
 

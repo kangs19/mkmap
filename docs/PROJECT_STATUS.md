@@ -81,6 +81,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Admin API exposes `GET /api/v1/admin/model-evaluation`.
 - Forecast scope contract smoke test verifies item/global scope traceability.
 - API service catalog Korean display names are normalized for admin/debug output.
+- API service catalog reports readiness and next setup action per external service.
 - Text encoding health check guards metadata, connector, script, and docs files against mojibake regressions.
 - Admin status API returns `data_freshness` with latest date, lag days, and freshness status per core dataset.
 - Admin weather freshness distinguishes KMA crop-weather provider delay, fallback dates, and true missing data.
@@ -170,7 +171,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 ### High Priority
 
-- Add stronger live collection diagnostics for each external API service.
 - Recheck KMA weather alert after provider-side `DB_ERROR` clears.
 
 ### Model Improvement

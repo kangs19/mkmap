@@ -31,6 +31,7 @@ class ApiServiceStatusService:
                 "configured_services": configured_count,
                 "missing_required_services": len(missing_required),
                 "by_provider": dict(Counter(service["provider"] for service in services)),
+                "by_readiness": dict(Counter(service["readiness"] for service in services)),
                 "by_engine_role": dict(sorted(by_role.items())),
             },
             "services": services,
