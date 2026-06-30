@@ -57,6 +57,8 @@ CODE_DEFAULTS = {
     "AT_REGIONAL_PRICE_OPERATION": "price",
     "AT_MARKET_SETTLEMENT_BASE_URL": "http://apis.data.go.kr/B552845/katSale",
     "AT_MARKET_SETTLEMENT_OPERATION": "trades",
+    "RDA_AGRI_WEATHER_BASE_URL": "http://apis.data.go.kr/1390802/AgriWeather/WeatherObsrInfo/V4/InsttWeather",
+    "RDA_AGRI_WEATHER_OPERATION": "getWeatherMonDayList4",
     "KOSIS_PRODUCTION_BASE_URL": "https://kosis.kr/openapi/Param/statisticsParameterData.do",
     "KOSIS_PRODUCTION_ORG_ID": "101",
 }

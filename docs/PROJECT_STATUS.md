@@ -122,15 +122,16 @@ Date: `2026-06-30`
 - AT market settlement: live OK for onion, 5 recent Seoul Garak settlement features with item-safe mapping.
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
 - KMA crop main-area weather: live OK with date fallback, 12 sampled weather features.
+- RDA agri-weather: endpoint verified; provider returned `301` no-data for the sampled date and diagnostics classify it separately from failures.
 - KMA weather alert: provider still returned `DB_ERROR` across 12 combinations when rechecked on 2026-06-30.
 - KMA typhoon: provider responded with `NO_DATA` for the requested date; diagnostics classify this separately from provider errors.
 - KMA impact forecast: live OK, 10 normalized impact forecast rows with region code, level, and severity score.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
 - Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
-- Untested approved services are listed separately as `not_tested`, including RDA agri weather, satellite, and weather chart.
-- Service readiness summary now has 1 endpoint-required service, 7 configured services, 2 configured mapping-required services, and 2 optional services.
+- Untested approved services are listed separately as `not_tested`, including satellite and weather chart.
+- Service readiness summary now has 8 configured services, 2 configured mapping-required services, and 2 optional services.
 - Admin status UI now shows the latest live API diagnostic summary and per-service next actions.
-- Live diagnostic summary: 10 checks, 6 OK, 1 provider API error, 3 no-data responses, 0 timeout, 0 failed on 2026-07-01.
+- Live diagnostic summary: 11 checks, 6 OK, 1 provider API error, 4 no-data responses, 0 timeout, 0 failed on 2026-07-01.
 
 ## Main Commands
 

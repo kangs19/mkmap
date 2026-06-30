@@ -32,6 +32,7 @@ PY_COMPILE_TARGETS = [
     "scripts/test_live_at_market_settlement.py",
     "scripts/test_live_at_regional_price.py",
     "scripts/test_live_impact_forecast.py",
+    "scripts/test_live_rda_agri_weather.py",
     "scripts/run_smoke_suite.py",
     "backend/app/main.py",
     "backend/app/routers/admin.py",

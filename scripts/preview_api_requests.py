@@ -28,6 +28,15 @@ def sample_params(service_code: str) -> dict[str, Any]:
             "AREA_ID": "<each metadata.external_mappings.kma_crop_weather.area_ids[]>",
             "PA_CROP_SPE_ID": "<metadata.external_mappings.kma_crop_weather.pa_crop_spe_id>",
         }
+    if service_code == "rda_agri_weather":
+        return {
+            "serviceKey": "***",
+            "Page_No": 1,
+            "Page_Size": 100,
+            "search_Year": f"{SAMPLE_DATE:%Y}",
+            "search_Month": f"{SAMPLE_DATE:%m}",
+            "obsr_Spot_Cd": "<optional RDA observation spot code>",
+        }
     if service_code == "kma_weather_alert":
         return {
             "serviceKey": "***",

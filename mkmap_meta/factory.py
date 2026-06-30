@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from mkmap_meta.connectors.price import AtRegionalPriceConnector, KamisPriceConnector
+from mkmap_meta.connectors.price import AtMarketSettlementConnector, AtRegionalPriceConnector, KamisPriceConnector
 from mkmap_meta.connectors.production import KosisProductionConnector, ManualProductionConnector
 from mkmap_meta.connectors.events import ImpactForecastConnector, MidtermForecastConnector, TyphoonConnector, WeatherAlertConnector
 from mkmap_meta.connectors.weather import CropMainAreaWeatherConnector, RdaAgriWeatherConnector
@@ -18,8 +18,10 @@ def build_default_pipeline() -> ItemFeaturePipeline:
     if os.getenv("KAMIS_API_KEY"):
         price_connectors.append(KamisPriceConnector())
 
-    if os.getenv("AT_REGIONAL_PRICE_BASE_URL") and os.getenv("DATA_GO_KR_API_KEY"):
+    if os.getenv("DATA_GO_KR_API_KEY"):
         price_connectors.append(AtRegionalPriceConnector())
+    if os.getenv("DATA_GO_KR_API_KEY"):
+        price_connectors.append(AtMarketSettlementConnector())
 
     production_connectors = []
     if os.getenv("KOSIS_PRODUCTION_BASE_URL") and os.getenv("KOSIS_API_KEY"):
@@ -29,7 +31,7 @@ def build_default_pipeline() -> ItemFeaturePipeline:
     weather_connectors = []
     if os.getenv("DATA_GO_KR_API_KEY"):
         weather_connectors.append(CropMainAreaWeatherConnector())
-    if os.getenv("RDA_AGRI_WEATHER_BASE_URL") and os.getenv("DATA_GO_KR_API_KEY"):
+    if os.getenv("DATA_GO_KR_API_KEY"):
         weather_connectors.append(RdaAgriWeatherConnector())
 
     event_connectors = []

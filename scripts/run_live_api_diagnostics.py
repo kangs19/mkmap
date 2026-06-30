@@ -81,6 +81,12 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
             ],
         },
         {
+            "code": "rda_agri_weather",
+            "service_code": "rda_agri_weather",
+            "engine_role": "agri_weather",
+            "command": ["scripts/test_live_rda_agri_weather.py", "--item", args.item, "--date", args.date, "--max-rows", str(args.max_rows)],
+        },
+        {
             "code": "kma_weather_alert",
             "service_code": "kma_weather_alert",
             "engine_role": "disaster_event",
@@ -257,7 +263,7 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
                 for error in api_errors
                 if isinstance(error, dict)
             }
-            if result_codes == {"03"}:
+            if result_codes and result_codes <= {"03", "301"}:
                 return "no_data"
             return "api_error"
         attempts = payload.get("attempts")
@@ -275,7 +281,7 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
                     for error in api_error_attempts
                     if isinstance(error, dict)
                 }
-                if result_codes == {"03"}:
+                if result_codes and result_codes <= {"03", "301"}:
                     return "no_data"
                 return "api_error"
         reason = str(payload.get("reason") or payload.get("api_error") or "").lower()
@@ -284,7 +290,8 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
             return "missing_env"
         if "mapping" in reason or "not verified" in reason:
             return "mapping_required"
-        if _api_error_result_codes(payload.get("api_error")) == {"03"}:
+        result_codes = _api_error_result_codes(payload.get("api_error"))
+        if result_codes and result_codes <= {"03", "301"}:
             return "no_data"
         if payload.get("api_error"):
             return "api_error"

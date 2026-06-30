@@ -45,9 +45,12 @@
     "rda_agri_weather": {
       "display_name": "농촌진흥청 국립농업과학원 농업기상 상세 관측데이터",
       "engine_role": "agri_weather",
-      "required_env": ["DATA_GO_KR_API_KEY", "RDA_AGRI_WEATHER_BASE_URL"],
-      "status": "endpoint_required",
+      "required_env": ["DATA_GO_KR_API_KEY"],
+      "status": "endpoint_verified",
       "source_url": "https://www.data.go.kr/data/15078194/openapi.do",
+      "base_url": "http://apis.data.go.kr/1390802/AgriWeather/WeatherObsrInfo/V4/InsttWeather",
+      "operation": "getWeatherMonDayList4",
+      "request_params": ["serviceKey", "Page_No", "Page_Size", "search_Year", "search_Month", "obsr_Spot_Cd", "obsr_Spot_Nm"],
       "notes": "관측지점 코드와 조회 범위 매핑이 필요하다."
     },
     "kma_crop_weather": {

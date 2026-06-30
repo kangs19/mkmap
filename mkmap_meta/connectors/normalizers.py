@@ -86,18 +86,15 @@ def public_api_error(payload: Any) -> dict[str, Any] | None:
         return None
 
     response = payload.get("response")
-    if not isinstance(response, dict):
-        return None
-
-    header = response.get("header")
+    header = response.get("header") if isinstance(response, dict) else payload.get("header")
     if not isinstance(header, dict):
         return None
 
-    result_code = header.get("resultCode")
-    if result_code in (None, "", "00"):
+    result_code = header.get("resultCode", header.get("result_Code"))
+    if result_code in (None, "", "00", "0"):
         return None
 
     return {
         "resultCode": result_code,
-        "resultMsg": header.get("resultMsg"),
+        "resultMsg": header.get("resultMsg", header.get("result_Msg")),
     }

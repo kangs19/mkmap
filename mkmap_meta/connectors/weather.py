@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import date
 from typing import Any
+from xml.etree import ElementTree as ET
 
 from mkmap_meta.connectors.base import WeatherConnector
 from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV, DataGoKrClient, DataGoKrService
@@ -13,6 +14,8 @@ from mkmap_meta.registry import ItemMetadataRegistry, default_registry
 
 KMA_CROP_WEATHER_BASE_URL = "http://apis.data.go.kr/1360000/FmlandWthrInfoService"
 KMA_CROP_WEATHER_OPERATION = "getDayStatistics"
+RDA_AGRI_WEATHER_BASE_URL = "http://apis.data.go.kr/1390802/AgriWeather/WeatherObsrInfo/V4/InsttWeather"
+RDA_AGRI_WEATHER_OPERATION = "getWeatherMonDayList4"
 
 
 class DataGoKrWeatherConnector(WeatherConnector):
@@ -54,6 +57,8 @@ class DataGoKrWeatherConnector(WeatherConnector):
             self.operation_path,
             **self.build_params(item_code, target_date),
         )
+        if isinstance(payload, str) and payload.lstrip().startswith("<"):
+            payload = _xml_to_payload(payload)
         return normalize_weather_rows(
             payload,
             item_code=item_code,
@@ -137,10 +142,26 @@ class RdaAgriWeatherConnector(DataGoKrWeatherConnector):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
             service_name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터",
-            base_url=os.getenv("RDA_AGRI_WEATHER_BASE_URL", ""),
-            operation_path=os.getenv("RDA_AGRI_WEATHER_OPERATION", ""),
+            base_url=os.getenv("RDA_AGRI_WEATHER_BASE_URL") or RDA_AGRI_WEATHER_BASE_URL,
+            operation_path=os.getenv("RDA_AGRI_WEATHER_OPERATION") or RDA_AGRI_WEATHER_OPERATION,
+            default_params={},
             **kwargs,
         )
+
+    def build_params(self, item_code: str, target_date: date) -> dict[str, Any]:
+        params = {
+            "Page_No": 1,
+            "Page_Size": int(os.getenv("RDA_AGRI_WEATHER_PAGE_SIZE", "100")),
+            "search_Year": f"{target_date:%Y}",
+            "search_Month": f"{target_date:%m}",
+        }
+        spot_code = os.getenv("RDA_AGRI_WEATHER_OBSR_SPOT_CD")
+        spot_name = os.getenv("RDA_AGRI_WEATHER_OBSR_SPOT_NM")
+        if spot_code:
+            params["obsr_Spot_Cd"] = spot_code
+        if spot_name:
+            params["obsr_Spot_Nm"] = spot_name
+        return params
 
 
 def normalize_weather_rows(
@@ -149,6 +170,9 @@ def normalize_weather_rows(
     default_date: date,
     source: str,
 ) -> list[WeatherFeature]:
+    if public_api_error(payload):
+        return []
+
     features: list[WeatherFeature] = []
     for row in extract_rows(payload):
         row_item_code = first_present(row, "item_code", "itemCode", "cropCode", "paCropName", "paCropSpeId")
@@ -157,7 +181,7 @@ def normalize_weather_rows(
                 continue
 
         base_date = parse_date(
-            first_present(row, "base_date", "date", "ymd", "tm", "obsrDe"),
+            first_present(row, "base_date", "date", "ymd", "tm", "obsrDe", "date_Time"),
             default=default_date,
         )
         region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId", "AREA_ID")
@@ -169,14 +193,35 @@ def normalize_weather_rows(
                 region_code=str(region_code or region_name or ""),
                 base_date=base_date,
                 temperature=parse_float(
-                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "AVG_TA", "MIN_TA", "MAX_TA")
+                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "AVG_TA", "MIN_TA", "MAX_TA", "tmprt_150")
                 ),
-                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "SUM_RN")),
-                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "AVG_RHM")),
-                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "AVG_WS")),
-                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "SUM_SS_HR")),
+                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "SUM_RN", "rain_1hr", "rainfall_1hr")),
+                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "AVG_RHM", "hd_150")),
+                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "AVG_WS", "wnd_150")),
+                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "SUM_SS_HR", "srqty")),
                 source=source,
                 raw=row,
             )
         )
     return features
+
+
+def _xml_to_payload(text: str) -> dict[str, Any]:
+    root = ET.fromstring(text)
+    return _element_to_dict(root)
+
+
+def _element_to_dict(element: ET.Element) -> dict[str, Any]:
+    children = list(element)
+    if not children:
+        return element.text.strip() if element.text else ""
+
+    payload: dict[str, Any] = {}
+    grouped: dict[str, list[Any]] = {}
+    for child in children:
+        key = child.tag.rsplit("}", 1)[-1]
+        grouped.setdefault(key, []).append(_element_to_dict(child))
+
+    for key, values in grouped.items():
+        payload[key] = values[0] if len(values) == 1 else values
+    return payload
