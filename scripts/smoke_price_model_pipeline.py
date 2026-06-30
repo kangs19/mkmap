@@ -18,6 +18,7 @@ def main() -> int:
         training_path = tmp_path / "training.csv"
         model_path = tmp_path / "model.json"
         report_path = tmp_path / "model_evaluation.json"
+        backtest_path = tmp_path / "model_backtest.json"
         prediction_path = tmp_path / "predictions.json"
 
         _write_training_csv(training_path)
@@ -32,6 +33,8 @@ def main() -> int:
                 str(model_path),
                 "--report-output",
                 str(report_path),
+                "--backtest-output",
+                str(backtest_path),
             ],
             check=True,
             cwd=REPO_ROOT,
@@ -53,6 +56,7 @@ def main() -> int:
 
         model = json.loads(model_path.read_text(encoding="utf-8"))
         report = json.loads(report_path.read_text(encoding="utf-8"))
+        backtest = json.loads(backtest_path.read_text(encoding="utf-8"))
         predictions = json.loads(prediction_path.read_text(encoding="utf-8"))
 
         assert model["model_type"] == "standardized_linear_baseline"
@@ -60,6 +64,9 @@ def main() -> int:
         assert "direction_threshold" in model
         assert len(model.get("item_models", {})) == 2
         assert "by_item" in report
+        assert report["rolling_backtest"]["window_count"] > 0
+        assert backtest["summary"]["prediction_count"] > 0
+        assert len(backtest["windows"]) == backtest["summary"]["window_count"]
         assert len(predictions) == 2
         assert all(row["model_scope"] == "item" for row in predictions)
         assert all("direction_threshold" in row for row in predictions)

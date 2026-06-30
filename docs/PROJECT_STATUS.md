@@ -78,6 +78,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
   - API key management
   - usage logs
 - Model evaluation report is generated at `data/model/price_baseline_model_{YYYYMMDD}_evaluation.json`.
+- Rolling backtest report is generated at `data/model/price_baseline_model_{YYYYMMDD}_backtest.json`.
 - Admin API exposes `GET /api/v1/admin/model-evaluation`.
 - Forecast scope contract smoke test verifies item/global scope traceability.
 - API service catalog Korean display names are normalized for admin/debug output.
@@ -103,6 +104,7 @@ Date: `2026-06-30`
 - accepted item models: 1
 - accepted item model: garlic
 - global fallback used for: cabbage, radish, onion, green_onion
+- Price model training now writes a rolling backtest summary into the evaluation report and a detailed backtest JSON next to the model.
 
 ## Latest Live API Diagnostic
 
@@ -176,7 +178,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### Model Improvement
 
 - Keep accumulating daily price history.
-- Add a rolling backtest report across multiple dates.
 - Add item-specific feature gates so unstable item models need more history before acceptance.
 - Calibrate forecast probability from historical error instead of only predicted price change.
 

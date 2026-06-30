@@ -20,6 +20,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True, help="CSV from build_price_training_table.py")
     parser.add_argument("--output", default=None)
     parser.add_argument("--report-output", default=None)
+    parser.add_argument("--backtest-output", default=None)
+    parser.add_argument("--backtest-min-train-rows", type=int, default=24)
+    parser.add_argument("--backtest-window-count", type=int, default=8)
     parser.add_argument("--min-item-rows", type=int, default=24)
     return parser.parse_args()
 
@@ -40,11 +43,18 @@ def main() -> int:
     model["direction_threshold"] = threshold
     metrics = _evaluate(model, test, threshold)
     item_models = _fit_item_models(rows, features, model, threshold, min_item_rows=args.min_item_rows)
-    report = _evaluation_report(model, test, threshold, item_models)
+    backtest = _rolling_backtest(
+        rows,
+        features,
+        min_train_rows=args.backtest_min_train_rows,
+        max_windows=args.backtest_window_count,
+    )
+    report = _evaluation_report(model, test, threshold, item_models, backtest)
 
     out_path = Path(args.output) if args.output else REPO_ROOT / "data" / "model" / "price_baseline_model.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     report_path = Path(args.report_output) if args.report_output else out_path.with_name(out_path.stem + "_evaluation.json")
+    backtest_path = Path(args.backtest_output) if args.backtest_output else out_path.with_name(out_path.stem + "_backtest.json")
     payload = {
         "model_type": "standardized_linear_baseline",
         "features": features,
@@ -59,7 +69,20 @@ def main() -> int:
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"ok": True, "model_path": str(out_path), "report_path": str(report_path), **payload}, ensure_ascii=False, indent=2))
+    backtest_path.write_text(json.dumps(backtest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "model_path": str(out_path),
+                "report_path": str(report_path),
+                "backtest_path": str(backtest_path),
+                **payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -148,6 +171,59 @@ def _item_model_is_better(item_metrics: dict[str, float], global_metrics: dict[s
     if item_direction + 0.0001 < global_direction:
         return False
     return True
+
+
+def _rolling_backtest(
+    rows: list[dict[str, float | str]],
+    features: list[str],
+    min_train_rows: int,
+    max_windows: int,
+) -> dict[str, object]:
+    dates = sorted({str(row["base_date"]) for row in rows})
+    eligible_windows = []
+    for test_date in dates[1:]:
+        train_rows = [row for row in rows if str(row["base_date"]) < test_date]
+        test_rows = [row for row in rows if str(row["base_date"]) == test_date]
+        if len(train_rows) >= min_train_rows and test_rows:
+            eligible_windows.append((test_date, train_rows, test_rows))
+
+    windows = []
+    for test_date, train_rows, test_rows in eligible_windows[-max_windows:]:
+        usable_features = [
+            feature
+            for feature in features
+            if any(abs(float(row[feature])) > 0 for row in train_rows)
+        ]
+        if len(train_rows) < 10 or not usable_features:
+            continue
+
+        threshold = 0.015
+        inner_train, validation = _time_split(train_rows)
+        if len(inner_train) >= 10 and validation:
+            threshold = _tune_direction_threshold(_fit_linear_model(inner_train, usable_features), validation)
+
+        window_model = _fit_linear_model(train_rows, usable_features)
+        predictions = _prediction_rows(window_model, test_rows, threshold)
+        windows.append(
+            {
+                "test_date": test_date,
+                "train_rows": len(train_rows),
+                "test_rows": len(test_rows),
+                "feature_count": len(usable_features),
+                "direction_threshold": threshold,
+                "metrics": _aggregate_prediction_metrics(predictions),
+                "predictions": predictions,
+            }
+        )
+
+    all_predictions = [prediction for window in windows for prediction in window["predictions"]]
+    summary = _aggregate_prediction_metrics(all_predictions)
+    summary["window_count"] = len(windows)
+    summary["prediction_count"] = len(all_predictions)
+    summary["min_train_rows"] = min_train_rows
+    summary["max_window_count"] = max_windows
+    summary["by_item"] = _aggregate_predictions_by_item(all_predictions)
+    return {"summary": summary, "windows": windows}
 
 
 def _fit_linear_model(rows: list[dict[str, float | str]], features: list[str]) -> dict[str, object]:
@@ -247,11 +323,69 @@ def _tune_direction_threshold(model: dict[str, object], rows: list[dict[str, flo
     return round(best_threshold, 6)
 
 
+def _prediction_rows(
+    model: dict[str, object],
+    rows: list[dict[str, float | str]],
+    threshold: float,
+) -> list[dict[str, object]]:
+    predictions = []
+    for row in rows:
+        pred = _predict(model, row)
+        actual = float(row["target_next_change"])
+        predictions.append(
+            {
+                "base_date": row["base_date"],
+                "item_code": row["item_code"],
+                "prediction": round(pred, 6),
+                "actual": round(actual, 6),
+                "predicted_direction": _direction(pred, threshold),
+                "actual_direction": _direction(actual, threshold),
+                "absolute_error": round(abs(pred - actual), 6),
+            }
+        )
+    return predictions
+
+
+def _aggregate_prediction_metrics(predictions: list[dict[str, object]]) -> dict[str, float]:
+    if not predictions:
+        return {"mae": 0.0, "rmse": 0.0, "sign_accuracy": 0.0, "direction_accuracy": 0.0}
+
+    errors = [float(row["prediction"]) - float(row["actual"]) for row in predictions]
+    sign_hits = [
+        (float(row["prediction"]) >= 0) == (float(row["actual"]) >= 0)
+        for row in predictions
+    ]
+    direction_hits = [
+        str(row["predicted_direction"]) == str(row["actual_direction"])
+        for row in predictions
+    ]
+    return {
+        "mae": round(mean(abs(error) for error in errors), 6),
+        "rmse": round(math.sqrt(mean(error**2 for error in errors)), 6),
+        "sign_accuracy": round(sum(sign_hits) / len(sign_hits), 4),
+        "direction_accuracy": round(sum(direction_hits) / len(direction_hits), 4),
+    }
+
+
+def _aggregate_predictions_by_item(predictions: list[dict[str, object]]) -> dict[str, dict[str, float]]:
+    by_item: dict[str, list[dict[str, object]]] = {}
+    for prediction in predictions:
+        by_item.setdefault(str(prediction["item_code"]), []).append(prediction)
+    return {
+        item_code: {
+            **_aggregate_prediction_metrics(item_predictions),
+            "prediction_count": len(item_predictions),
+        }
+        for item_code, item_predictions in sorted(by_item.items())
+    }
+
+
 def _evaluation_report(
     model: dict[str, object],
     rows: list[dict[str, float | str]],
     threshold: float,
     item_models: dict[str, dict[str, object]] | None = None,
+    backtest: dict[str, object] | None = None,
 ) -> dict[str, object]:
     item_models = item_models or {}
     by_item: dict[str, list[dict[str, float | str]]] = {}
@@ -292,6 +426,7 @@ def _evaluation_report(
         "overall": _evaluate(model, rows, threshold),
         "by_item": item_metrics,
         "item_model_count": len(item_models),
+        "rolling_backtest": (backtest or {}).get("summary", {}),
         "sample_predictions": predictions,
     }
 

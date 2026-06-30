@@ -26,6 +26,7 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 - Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure price-history prediction and a separate `risk_adjusted_next_change`.
 - The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
 - The training script tunes `direction_threshold` on the holdout set and writes an adjacent evaluation report JSON.
+- The training script also writes an adjacent rolling backtest report across recent test dates, so model changes can be checked against multiple historical cutoffs instead of a single holdout split.
 - 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`, accepted item models `1`.
 - Test metrics: MAE `0.017679`, RMSE `0.021859`, sign accuracy `0.5333`, 3-class direction accuracy `0.8333`.
 
@@ -46,8 +47,11 @@ Each model run writes:
 
 - Model: `data/model/price_baseline_model_{YYYYMMDD}.json`
 - Evaluation report: `data/model/price_baseline_model_{YYYYMMDD}_evaluation.json`
+- Rolling backtest report: `data/model/price_baseline_model_{YYYYMMDD}_backtest.json`
 
-The evaluation report includes overall metrics, item-level metrics, the tuned direction threshold, and recent holdout sample predictions.
+The evaluation report includes overall metrics, item-level metrics, the tuned direction threshold, a rolling backtest summary, and recent holdout sample predictions.
+
+The rolling backtest report includes per-window metrics, prediction rows, aggregate metrics, item-level aggregate metrics, and the number of tested windows/predictions.
 
 The model file also includes `item_models` when item-specific training passes the quality gate. Prediction rows include `model_scope` as `item` or `global`.
 
