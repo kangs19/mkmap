@@ -493,6 +493,7 @@ const CITY_DATA={
 
 const PROV_NAME_MAP={"서울특별시":"KR-11","서울":"KR-11","부산광역시":"KR-26","부산":"KR-26","대구광역시":"KR-27","대구":"KR-27","인천광역시":"KR-28","인천":"KR-28","광주광역시":"KR-29","광주":"KR-29","대전광역시":"KR-30","대전":"KR-30","울산광역시":"KR-31","울산":"KR-31","세종특별자치시":"KR-36","세종":"KR-36","경기도":"KR-41","경기":"KR-41","강원도":"KR-42","강원":"KR-42","강원특별자치도":"KR-42","충청북도":"KR-43","충북":"KR-43","충청남도":"KR-44","충남":"KR-44","전라북도":"KR-45","전북":"KR-45","전북특별자치도":"KR-45","전라남도":"KR-46","전남":"KR-46","경상북도":"KR-47","경북":"KR-47","경상남도":"KR-48","경남":"KR-48","제주특별자치도":"KR-49","제주":"KR-49"};
 const SIDO_PREFIX={"KR-11":"11","KR-26":"21","KR-27":"22","KR-28":"23","KR-29":"24","KR-30":"25","KR-31":"26","KR-36":"29","KR-41":"31","KR-42":"32","KR-43":"33","KR-44":"34","KR-45":"35","KR-46":"36","KR-47":"37","KR-48":"38","KR-49":"39"};
+const SIDO_SHORT={"KR-11":"서울","KR-26":"부산","KR-27":"대구","KR-28":"인천","KR-29":"광주","KR-30":"대전","KR-31":"울산","KR-36":"세종","KR-41":"경기","KR-42":"강원","KR-43":"충북","KR-44":"충남","KR-45":"전북","KR-46":"전남","KR-47":"경북","KR-48":"경남","KR-49":"제주"};
 const GEO="/static/";
 const GEO_CDN="https://cdn.jsdelivr.net/gh/kangs19/mkmap@main/map_viewer/static/";
 const NEWS_BY_ITEM={
@@ -529,7 +530,7 @@ window.onload=async()=>{
   renderMiniCards();
 
   // 지도 초기화
-  map_=L.map("map",{zoomControl:true,preferCanvas:true,minZoom:7,maxBounds:[[32.0,124.5],[39.5,132.0]],maxBoundsViscosity:1.0});
+  map_=L.map("map",{zoomControl:true,preferCanvas:true,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
   // 남한 경계에 딱 맞게
@@ -906,7 +907,7 @@ function drawProvinces(){
       const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
       const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
       const mockD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(sido,mockD),className:'',iconSize:[0,0],iconAnchor:[40,20]})});
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD),className:'',iconSize:[0,0],iconAnchor:[40,20]})});
       pin.addTo(provPinLayer).on("click",()=>zoomProv(f,sido,f.properties.name||sido));
     }catch(e){}
   });
