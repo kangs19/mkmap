@@ -193,6 +193,50 @@ async def get_dashboard_cards(
     }
 
 
+@router.get("/api/v1/alerts/high-risk")
+async def get_high_risk_alerts(
+    target_date: str = None,
+    min_risk_score: float = 70.0,
+    min_up_probability: float = 0.6,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    """High-risk item/region combinations for alert surfaces."""
+    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    limit = max(1, min(limit, 100))
+    min_risk_score = max(0.0, min(min_risk_score, 100.0))
+    min_up_probability = max(0.0, min(min_up_probability, 1.0))
+
+    item_res = await db.execute(select(Item).where(Item.is_active == True))
+    items = {item.item_code: item for item in item_res.scalars().all()}
+
+    fc_res = await db.execute(select(Forecast).where(Forecast.base_date == base_date))
+    forecasts = {forecast.item_code: forecast for forecast in fc_res.scalars().all()}
+
+    sig_res = await db.execute(
+        select(RegionSignal)
+        .where(RegionSignal.date == base_date, RegionSignal.risk_score >= min_risk_score)
+        .order_by(desc(RegionSignal.risk_score))
+    )
+    alerts = [
+        _high_risk_alert(signal, items.get(signal.item_code), forecasts.get(signal.item_code), min_risk_score, min_up_probability)
+        for signal in sig_res.scalars().all()
+    ]
+    alerts = [alert for alert in alerts if alert["triggered_rules"]]
+    alerts.sort(key=_alert_rank, reverse=True)
+    alerts = alerts[:limit]
+
+    return {
+        "base_date": str(base_date),
+        "thresholds": {
+            "min_risk_score": min_risk_score,
+            "min_up_probability": min_up_probability,
+        },
+        "alert_count": len(alerts),
+        "alerts": alerts,
+    }
+
+
 def _dashboard_card(
     item_code: str,
     item: Item | None,
@@ -259,6 +303,62 @@ def _dashboard_card_rank(card: dict) -> tuple[float, float]:
     risk_score = card.get("risk", {}).get("score") or 0.0
     probability = card.get("forecast", {}).get("up_probability_14d") or 0.0
     return float(risk_score), float(probability)
+
+
+def _high_risk_alert(
+    signal: RegionSignal,
+    item: Item | None,
+    forecast: Forecast | None,
+    min_risk_score: float,
+    min_up_probability: float,
+) -> dict:
+    up_probability = forecast.up_probability_14d if forecast else None
+    triggered_rules = []
+    if (signal.risk_score or 0.0) >= min_risk_score:
+        triggered_rules.append("risk_score")
+    if signal.risk_level in {"warning", "high"}:
+        triggered_rules.append("risk_level")
+    if up_probability is not None and up_probability >= min_up_probability:
+        triggered_rules.append("up_probability")
+
+    severity = _alert_severity(signal, up_probability, min_up_probability)
+    return {
+        "item_code": signal.item_code,
+        "item_name": item.item_name if item else ITEM_NAMES.get(signal.item_code, signal.item_code),
+        "region_code": signal.region_code,
+        "region_name": signal.region_name,
+        "severity": severity,
+        "triggered_rules": triggered_rules,
+        "risk": {
+            "score": signal.risk_score,
+            "level": signal.risk_level,
+            "price_effect": signal.price_effect,
+            "summary": signal.summary_text,
+        },
+        "forecast": {
+            "direction_14d": forecast.direction_14d if forecast else None,
+            "up_probability_14d": up_probability,
+            "surge_probability_14d": forecast.surge_probability_14d if forecast else None,
+            "confidence": forecast.confidence if forecast else None,
+            "model_scope": _card_model_scope(forecast),
+        },
+    }
+
+
+def _alert_severity(signal: RegionSignal, up_probability: float | None, min_up_probability: float) -> str:
+    risk_score = signal.risk_score or 0.0
+    if signal.risk_level == "high" or risk_score >= 85 or (up_probability is not None and up_probability >= max(0.75, min_up_probability)):
+        return "critical"
+    if signal.risk_level == "warning" or risk_score >= 70:
+        return "warning"
+    return "watch"
+
+
+def _alert_rank(alert: dict) -> tuple[int, float, float]:
+    severity_rank = {"critical": 3, "warning": 2, "watch": 1}.get(str(alert.get("severity")), 0)
+    risk_score = alert.get("risk", {}).get("score") or 0.0
+    probability = alert.get("forecast", {}).get("up_probability_14d") or 0.0
+    return severity_rank, float(risk_score), float(probability)
 
 
 @router.get("/api/v1/report/today")

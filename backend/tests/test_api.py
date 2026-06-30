@@ -209,6 +209,59 @@ async def test_dashboard_cards_payload(client):
 
 
 @pytest.mark.asyncio
+async def test_high_risk_alerts_payload(client):
+    item_code = "test_alert_crop"
+    base_date = date(2026, 2, 11)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code))
+        await db.execute(delete(Forecast).where(Forecast.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="테스트알림품목",
+            category="테스트",
+            wholesale_unit="1kg",
+            is_active=True,
+        ))
+        db.add(Forecast(
+            item_code=item_code,
+            base_date=base_date,
+            model_version="price_baseline_v1_global",
+            direction_14d="up",
+            up_probability_14d=0.76,
+            surge_probability_14d=0.31,
+            volatility_risk_30d="high",
+            bottom_probability=0.24,
+            top_factors=[],
+            national_supply_shock=0.03,
+            confidence="medium",
+        ))
+        db.add(RegionSignal(
+            item_code=item_code,
+            region_code="TEST-ALERT",
+            region_name="알림지역",
+            date=base_date,
+            risk_score=88.0,
+            risk_level="high",
+            supply_shock=0.35,
+            price_effect="up",
+            weather_summary={},
+            market_summary={},
+            summary_text="고위험 알림 신호",
+        ))
+        await db.commit()
+
+    r = await client.get(f"/api/v1/alerts/high-risk?target_date={base_date}&min_risk_score=70&min_up_probability=0.6")
+    assert r.status_code == 200
+    data = r.json()
+    alert = next(alert for alert in data["alerts"] if alert["item_code"] == item_code)
+    assert alert["severity"] == "critical"
+    assert "risk_score" in alert["triggered_rules"]
+    assert "up_probability" in alert["triggered_rules"]
+    assert alert["region_name"] == "알림지역"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("item_code", ["cabbage", "radish", "onion", "green_onion", "garlic"])
 async def test_map_signals(client, item_code):
     r = await client.get(f"/api/v1/map/signals?item_code={item_code}")

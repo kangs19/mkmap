@@ -148,6 +148,7 @@ python scripts/smoke_api_contract.py
 - `GET /forecast-explanation`
 - `GET /api/v1/signals/today`
 - `GET /api/v1/dashboard/cards`
+- `GET /api/v1/alerts/high-risk`
 - `GET /api/v1/items/{item_code}/meta-engine`
 - `GET /api/v1/api-services`
 
@@ -167,6 +168,10 @@ item has no current forecast.
 `GET /api/v1/dashboard/cards` returns a compact card payload for public
 dashboards. Each card combines item metadata, forecast probability, model scope,
 hotspot region risk, latest price, 30-day price change, summary, and top factors.
+
+`GET /api/v1/alerts/high-risk` returns item/region alert candidates that cross
+configurable risk-score and forecast-probability thresholds. Each alert includes
+severity, triggered rules, risk details, and forecast context.
 
 The `meta-engine` endpoint is useful for admin/debug pages because it shows
 which engines, source coverage, risk weights, and weather factors are active for
