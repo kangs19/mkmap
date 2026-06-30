@@ -51,6 +51,8 @@ The evaluation report includes overall metrics, item-level metrics, the tuned di
 
 The model file also includes `item_models` when item-specific training passes the quality gate. Prediction rows include `model_scope` as `item` or `global`.
 
+Imported backend forecasts expose `model_version` and `model_scope` so API consumers can see whether a forecast used an accepted item model or the global fallback.
+
 ## Notes
 
 - KAMIS garlic code `258/01` exists in the code table but returned no rows for the tested window, so `258/03` and `258/05` are the primary garlic variants.

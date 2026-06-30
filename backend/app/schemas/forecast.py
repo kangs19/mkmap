@@ -12,6 +12,8 @@ class ForecastResponse(BaseModel):
     item_code: str
     item_name: str
     base_date: str
+    model_version: Optional[str] = None
+    model_scope: Optional[str] = None
     forecast: dict
     top_factors: list[TopFactor]
     national_supply_shock: Optional[float] = None

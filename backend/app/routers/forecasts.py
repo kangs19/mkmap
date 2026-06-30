@@ -47,6 +47,8 @@ async def get_forecast(
         item_code=fc.item_code,
         item_name=item.item_name,
         base_date=str(fc.base_date),
+        model_version=fc.model_version,
+        model_scope=_model_scope(fc),
         forecast={
             "direction_14d": fc.direction_14d,
             "up_probability_14d": fc.up_probability_14d,
@@ -66,3 +68,15 @@ def _build_summary(fc: Forecast, item_name: str) -> str:
     direction = direction_map.get(fc.direction_14d, "불명확")
     prob = int((fc.up_probability_14d or 0) * 100)
     return f"{item_name}은(는) 14일 내 {direction} 가능성이 {prob}%입니다."
+
+
+def _model_scope(fc: Forecast) -> str:
+    for factor in fc.top_factors or []:
+        if not isinstance(factor, dict):
+            continue
+        name = str(factor.get("factor") or "")
+        if name.startswith("model_scope_"):
+            return name.replace("model_scope_", "", 1)
+    if fc.model_version and fc.model_version.endswith("_item"):
+        return "item"
+    return "global"

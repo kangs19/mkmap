@@ -22,7 +22,7 @@ from app.models.forecast import Forecast
 from app.models.signal import RegionSignal
 
 
-DEFAULT_MODEL_VERSION = "mkmap_meta_linear_risk_overlay_v1"
+DEFAULT_MODEL_VERSION = "mkmap_meta_hybrid_linear_risk_overlay_v2"
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,11 +109,12 @@ async def import_forecasts(path: Path, target_date: date) -> int:
         adjusted_change = float(prediction.get("risk_adjusted_next_change", prediction.get("predicted_next_change", 0.0)) or 0.0)
         pure_change = float(prediction.get("predicted_next_change") or 0.0)
         risk_overlay = prediction.get("risk_overlay") if isinstance(prediction.get("risk_overlay"), dict) else {}
+        model_scope = str(prediction.get("model_scope") or "global")
         rows.append(
             Forecast(
                 item_code=item_code,
                 base_date=target_date,
-                model_version=DEFAULT_MODEL_VERSION,
+                model_version=_model_version(model_scope),
                 direction_14d=_forecast_direction(str(prediction.get("risk_adjusted_direction") or prediction.get("predicted_direction") or "stable")),
                 up_probability_14d=_change_to_probability(adjusted_change),
                 surge_probability_14d=_change_to_surge_probability(adjusted_change),
@@ -182,6 +183,12 @@ def _volatility_risk(risk_overlay: dict[str, Any]) -> str:
     if risk_score >= 0.25:
         return "medium"
     return "low"
+
+
+def _model_version(model_scope: str) -> str:
+    if model_scope == "item":
+        return DEFAULT_MODEL_VERSION + "_item"
+    return DEFAULT_MODEL_VERSION + "_global"
 
 
 def _forecast_factors(prediction: dict[str, Any], pure_change: float, adjusted_change: float) -> list[dict[str, Any]]:
