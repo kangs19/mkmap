@@ -287,6 +287,25 @@ function adminKey() { return document.getElementById("admin-key-input").value; }
 
 function headers() { return {"X-Admin-Key": adminKey(), "Content-Type": "application/json"}; }
 
+function hasAdminKey() {
+  return adminKey().trim().length > 0;
+}
+
+function showAdminKeyRequired() {
+  document.getElementById("s-prices").textContent = "–";
+  document.getElementById("s-weather").textContent = "–";
+  document.getElementById("s-signals").textContent = "–";
+  document.getElementById("s-latest").textContent = "키 필요";
+  document.getElementById("s-freshness-body").innerHTML = "<tr><td colspan='4' style='color:#888'>상단에 Admin Key를 입력한 뒤 새로고침하세요.</td></tr>";
+  document.getElementById("s-api-diag-badge").textContent = "대기";
+  document.getElementById("s-api-diag-badge").className = "badge badge-off";
+  document.getElementById("s-api-diag-meta").textContent = "Admin Key 입력 후 확인할 수 있습니다.";
+  document.getElementById("s-api-diag-body").innerHTML = "<tr><td colspan='5' style='color:#bbb'>인증 대기 중</td></tr>";
+  document.getElementById("s-sched-badge").textContent = "대기";
+  document.getElementById("s-sched-badge").className = "badge badge-off";
+  document.getElementById("s-jobs-body").innerHTML = "<tr><td colspan='2' style='color:#bbb'>Admin Key 입력 후 확인</td></tr>";
+}
+
 function showSection(name) {
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
@@ -303,9 +322,17 @@ function showSection(name) {
 
 // ── 시스템 상태 ─────────────────────────────────────────
 async function loadStatus() {
+  if (!hasAdminKey()) {
+    showAdminKeyRequired();
+    return;
+  }
   try {
     const r = await fetch(`${API_BASE}/api/v1/admin/status`, {headers: headers()});
-    if (!r.ok) { alert("인증 실패 — Admin Key를 확인하세요."); return; }
+    if (!r.ok) {
+      showAdminKeyRequired();
+      document.getElementById("s-freshness-body").innerHTML = "<tr><td colspan='4' style='color:#e74c3c'>인증 실패 — Admin Key를 확인하세요.</td></tr>";
+      return;
+    }
     const d = await r.json();
     document.getElementById("s-prices").textContent = d.db.daily_prices?.toLocaleString() ?? "—";
     document.getElementById("s-weather").textContent = d.db.daily_weather?.toLocaleString() ?? "—";
@@ -324,7 +351,7 @@ async function loadStatus() {
       ? jobs.map(j => `<tr><td>${j.id}</td><td>${j.next_run}</td></tr>`).join("")
       : "<tr><td colspan='2' style='color:#bbb'>등록된 Job 없음</td></tr>";
   } catch(e) {
-    alert("오류: " + e.message);
+    document.getElementById("s-freshness-body").innerHTML = `<tr><td colspan='4' style='color:#e74c3c'>오류: ${e.message}</td></tr>`;
   }
 }
 
