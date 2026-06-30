@@ -95,6 +95,18 @@ Date: `2026-06-30`
 - accepted item model: garlic
 - global fallback used for: cabbage, radish, onion, green_onion
 
+## Latest Live API Diagnostic
+
+Date: `2026-06-30`
+
+- KAMIS price: live OK for cabbage, 14 recent price features.
+- KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
+- KMA typhoon: live OK, 2 normalized event rows.
+- KMA midterm forecast: live OK, 1 normalized forecast event row.
+- KMA crop main-area weather: unstable; latest diagnostic hit the 45 second timeout.
+- KMA weather alert: provider returned `DB_ERROR`.
+- Service catalog: 12 cataloged services, 4 currently configured by environment.
+
 ## Main Commands
 
 Run the full daily pipeline:
@@ -113,6 +125,12 @@ Run the local fast smoke suite:
 
 ```powershell
 python scripts\run_smoke_suite.py
+```
+
+Run live API diagnostics:
+
+```powershell
+python scripts\run_live_api_diagnostics.py --date 2026-06-30 --item cabbage
 ```
 
 Include slower API contract and risk signal checks:
@@ -135,6 +153,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### High Priority
 
 - Add stronger live collection diagnostics for each external API service.
+- Fix mojibake in `config/api_services.json` Korean display names.
 - Expand KMA crop-weather mapping from candidate regions to confirmed official codes.
 - Add API/data freshness status to the admin dashboard.
 - Add a public-facing forecast explanation view that shows model scope, risk factors, and data freshness in Korean.

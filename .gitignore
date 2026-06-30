@@ -23,6 +23,7 @@ env/
 # Generated pipeline data
 data/raw/
 data/features/
+data/diagnostics/
 data/signals/
 data/model/
 config/external_mappings/_tmp_*.csv
