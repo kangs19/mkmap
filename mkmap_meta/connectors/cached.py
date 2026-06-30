@@ -32,7 +32,7 @@ class CachedEventConnector(EventConnector):
 
 class CachedPriceConnector(PriceConnector):
     def __init__(self, source_names: list[str] | None = None) -> None:
-        self.source_names = source_names or ["kamis_price"]
+        self.source_names = source_names or ["kamis_price", "at_regional_price", "at_market_settlement"]
 
     def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
         prices: list[PriceFeature] = []
