@@ -4,6 +4,7 @@ X-Admin-Key 헤더로 보호
 """
 import os
 import sys
+import json
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -159,6 +160,12 @@ def _repo_root():
     return Path(__file__).resolve().parents[3]
 
 
+def _model_evaluation_path(target_date: str):
+    from pathlib import Path
+    stamp = target_date.replace("-", "")
+    return Path(_repo_root()) / "data" / "model" / f"price_baseline_model_{stamp}_evaluation.json"
+
+
 async def _run_meta_pipeline_process(
     target_date: str | None,
     skip_collect: bool,
@@ -248,6 +255,28 @@ async def _run_meta_pipeline_process(
 @router.get("/meta-pipeline/status")
 async def meta_pipeline_status(_=Depends(check_admin)):
     return _meta_pipeline_status
+
+
+@router.get("/model-evaluation")
+async def model_evaluation(target_date: Optional[str] = None, _=Depends(check_admin)):
+    """Return the latest price-model evaluation report for the requested date."""
+    from datetime import date
+
+    report_date = target_date or date.today().isoformat()
+    path = _model_evaluation_path(report_date)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"model evaluation report not found for {report_date}")
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"failed to read model evaluation report: {exc}")
+
+    return {
+        "date": report_date,
+        "path": str(path.relative_to(_repo_root())),
+        "report": payload,
+    }
 
 
 @router.post("/meta-pipeline/run")
