@@ -120,6 +120,18 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
             "engine_role": "forecast_context",
             "command": ["scripts/test_live_midterm_forecast.py", "--date", args.date, "--max-rows", str(args.max_rows)],
         },
+        {
+            "code": "kma_satellite",
+            "service_code": "kma_satellite",
+            "engine_role": "forecast_context",
+            "command": ["scripts/test_live_satellite.py", "--date", args.date, "--max-rows", str(args.max_rows)],
+        },
+        {
+            "code": "kma_weather_chart",
+            "service_code": "kma_weather_chart",
+            "engine_role": "forecast_context",
+            "command": ["scripts/test_live_weather_chart.py", "--date", args.date, "--max-rows", str(args.max_rows)],
+        },
     ]
 
 
@@ -258,12 +270,12 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
     if isinstance(payload, dict):
         api_errors = payload.get("api_errors")
         if isinstance(api_errors, list) and api_errors:
-            result_codes = {
-                str(error.get("api_error", {}).get("resultCode"))
+            api_error_values = [
+                error.get("api_error")
                 for error in api_errors
-                if isinstance(error, dict)
-            }
-            if result_codes and result_codes <= {"03", "301"}:
+                if isinstance(error, dict) and error.get("api_error")
+            ]
+            if api_errors_are_no_data(api_error_values):
                 return "no_data"
             return "api_error"
         attempts = payload.get("attempts")
@@ -276,12 +288,7 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
                 if isinstance(attempt, dict) and attempt.get("api_error")
             ]
             if api_error_attempts:
-                result_codes = {
-                    str(error.get("resultCode"))
-                    for error in api_error_attempts
-                    if isinstance(error, dict)
-                }
-                if result_codes and result_codes <= {"03", "301"}:
+                if api_errors_are_no_data(api_error_attempts):
                     return "no_data"
                 return "api_error"
         reason = str(payload.get("reason") or payload.get("api_error") or "").lower()
@@ -290,8 +297,7 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
             return "missing_env"
         if "mapping" in reason or "not verified" in reason:
             return "mapping_required"
-        result_codes = _api_error_result_codes(payload.get("api_error"))
-        if result_codes and result_codes <= {"03", "301"}:
+        if api_errors_are_no_data([payload.get("api_error")]):
             return "no_data"
         if payload.get("api_error"):
             return "api_error"
@@ -338,11 +344,21 @@ def extract_metrics(payload: Any) -> dict[str, Any]:
     return metrics
 
 
-def _api_error_result_codes(api_error: Any) -> set[str]:
-    if isinstance(api_error, dict):
-        result_code = api_error.get("resultCode")
-        return {str(result_code)} if result_code is not None else set()
-    return set()
+def api_errors_are_no_data(api_errors: list[Any]) -> bool:
+    normalized = [error for error in api_errors if isinstance(error, dict)]
+    if not normalized:
+        return False
+
+    for error in normalized:
+        code = str(error.get("resultCode"))
+        message = str(error.get("resultMsg") or "")
+        if code in {"03", "301"}:
+            continue
+        if code == "99" and ("자료" in message and "존재하지" in message):
+            continue
+        return False
+
+    return True
 
 
 def next_action(status: str, payload: Any, service: dict[str, Any]) -> str:

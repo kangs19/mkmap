@@ -127,11 +127,11 @@ Date: `2026-06-30`
 - KMA typhoon: provider responded with `NO_DATA` for the requested date; diagnostics classify this separately from provider errors.
 - KMA impact forecast: live OK, 10 normalized impact forecast rows with region code, level, and severity score.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
+- KMA satellite and weather chart: official endpoints verified and attached to forecast context diagnostics.
 - Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
-- Untested approved services are listed separately as `not_tested`, including satellite and weather chart.
-- Service readiness summary now has 8 configured services, 2 configured mapping-required services, and 2 optional services.
+- Service readiness summary now has 10 configured services and 2 configured mapping-required services.
 - Admin status UI now shows the latest live API diagnostic summary and per-service next actions.
-- Live diagnostic summary: 11 checks, 6 OK, 1 provider API error, 4 no-data responses, 0 timeout, 0 failed on 2026-07-01.
+- Live diagnostic summary: 13 checks, 6 OK, 2 provider API errors, 5 no-data responses, 0 timeout, 0 failed on 2026-07-01. The current provider API errors are KMA weather alert `DB_ERROR` and KMA satellite `HTTP_403`.
 
 ## Main Commands
 

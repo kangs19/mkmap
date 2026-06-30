@@ -99,6 +99,25 @@ def sample_params(service_code: str) -> dict[str, Any]:
             "tm": f"{SAMPLE_DATE:%Y%m%d}",
             "efSn": "3",
         }
+    if service_code == "kma_satellite":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            "dateTime": f"{SAMPLE_DATE:%Y%m%d}0000",
+            "waveType": "087",
+            "unitType": "R",
+        }
+    if service_code == "kma_weather_chart":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            "code": "24",
+            "time": f"{SAMPLE_DATE:%Y%m%d}",
+        }
     return {}
 
 

@@ -108,8 +108,10 @@ python scripts/test_live_midterm_forecast.py --date 2026-06-29
 - AT market settlement: `http://apis.data.go.kr/B552845/katSale` with operation `trades`.
 - RDA agri weather: `http://apis.data.go.kr/1390802/AgriWeather/WeatherObsrInfo/V4/InsttWeather` with operation `getWeatherMonDayList4`.
 - KMA impact forecast: `http://apis.data.go.kr/1360000/ImpactInfoServiceV2` with operation `getHWImpactValueV2`.
+- KMA satellite: `http://apis.data.go.kr/1360000/WthrSatlitInfoService` with operation `getGk2aIrAll`.
+- KMA weather chart: `http://apis.data.go.kr/1360000/WthrChartInfoService` with operation `getSurfaceChart`.
 
-These are reflected in `.env.example` and `config/api_services.json`. KMA impact forecast, AT regional price, AT market settlement, and RDA agri weather now have live diagnostics.
+These are reflected in `.env.example` and `config/api_services.json`. KMA impact forecast, AT regional price, AT market settlement, RDA agri weather, KMA satellite, and KMA weather chart now have live diagnostics.
 
 ## 요청 프리뷰
 

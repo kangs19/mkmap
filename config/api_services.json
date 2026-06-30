@@ -112,18 +112,24 @@
     "kma_satellite": {
       "display_name": "기상청 위성영상 조회서비스",
       "engine_role": "forecast_context",
-      "required_env": ["DATA_GO_KR_API_KEY", "KMA_SATELLITE_BASE_URL"],
-      "status": "optional_after_core",
-      "source_url": "https://www.data.go.kr/",
-      "notes": "초기 예측 모델에는 선택 사항이다. 이미지 기반 위험 설명이나 대시보드 강화 단계에서 연결한다."
+      "required_env": ["DATA_GO_KR_API_KEY"],
+      "status": "endpoint_verified",
+      "source_url": "https://www.data.go.kr/data/15059244/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/WthrSatlitInfoService",
+      "operation": "getGk2aIrAll",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "dateTime", "waveType", "unitType"],
+      "notes": "천리안위성 2A호 적외 한반도 경량화 자료를 보조 forecast_context로 연결한다. dateTime은 2일 전부터 6시간 전 범위를 사용해야 한다."
     },
     "kma_weather_chart": {
       "display_name": "기상청 일기도 조회서비스",
       "engine_role": "forecast_context",
-      "required_env": ["DATA_GO_KR_API_KEY", "KMA_WEATHER_CHART_BASE_URL"],
-      "status": "optional_after_core",
-      "source_url": "https://www.data.go.kr/",
-      "notes": "초기 예측 모델에는 선택 사항이다. 기압계 설명과 리포트 시각화 단계에서 연결한다."
+      "required_env": ["DATA_GO_KR_API_KEY"],
+      "status": "endpoint_verified",
+      "source_url": "https://www.data.go.kr/data/15043562/openapi.do",
+      "base_url": "http://apis.data.go.kr/1360000/WthrChartInfoService",
+      "operation": "getSurfaceChart",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "code", "time"],
+      "notes": "지상일기도 파일 정보를 보조 forecast_context로 연결한다. 기본 code=24, time=YYYYMMDD."
     }
   }
 }

@@ -18,6 +18,10 @@ KMA_TYPHOON_BASE_URL = "http://apis.data.go.kr/1360000/TyphoonInfoService"
 KMA_TYPHOON_OPERATION = "getTyphoonInfoList"
 KMA_MIDTERM_FORECAST_BASE_URL = "http://apis.data.go.kr/1360000/MidFcstInfoService"
 KMA_MIDTERM_FORECAST_OPERATION = "getMidFcst"
+KMA_SATELLITE_BASE_URL = "http://apis.data.go.kr/1360000/WthrSatlitInfoService"
+KMA_SATELLITE_OPERATION = "getGk2aIrAll"
+KMA_WEATHER_CHART_BASE_URL = "http://apis.data.go.kr/1360000/WthrChartInfoService"
+KMA_WEATHER_CHART_OPERATION = "getSurfaceChart"
 
 
 def _env_or_default(name: str, default: str) -> str:
@@ -176,6 +180,57 @@ class MidtermForecastConnector(DataGoKrEventConnector):
             "dataType": "JSON",
             os.getenv("KMA_MIDTERM_FORECAST_STN_PARAM", "stnId"): os.getenv("KMA_MIDTERM_FORECAST_DEFAULT_STN_ID", "108"),
             self.date_param: f"{target_date:%Y%m%d}0600",
+        }
+
+
+class SatelliteConnector(DataGoKrEventConnector):
+    def __init__(self, **kwargs: Any) -> None:
+        date_param = _env_or_default("KMA_SATELLITE_DATE_PARAM", "dateTime")
+        if date_param == "date":
+            date_param = "dateTime"
+
+        super().__init__(
+            service_name="기상청 위성자료(경량화) 조회서비스",
+            event_type="satellite",
+            base_url=_env_or_default("KMA_SATELLITE_BASE_URL", KMA_SATELLITE_BASE_URL),
+            operation_path=_env_or_default("KMA_SATELLITE_OPERATION", KMA_SATELLITE_OPERATION),
+            date_param=date_param,
+            **kwargs,
+        )
+
+    def build_params(self, target_date: date) -> dict[str, Any]:
+        return {
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            self.date_param: f"{target_date:%Y%m%d}0000",
+            os.getenv("KMA_SATELLITE_WAVE_TYPE_PARAM", "waveType"): os.getenv("KMA_SATELLITE_DEFAULT_WAVE_TYPE", "087"),
+            os.getenv("KMA_SATELLITE_UNIT_TYPE_PARAM", "unitType"): os.getenv("KMA_SATELLITE_DEFAULT_UNIT_TYPE", "R"),
+        }
+
+
+class WeatherChartConnector(DataGoKrEventConnector):
+    def __init__(self, **kwargs: Any) -> None:
+        date_param = _env_or_default("KMA_WEATHER_CHART_DATE_PARAM", "time")
+        if date_param == "date":
+            date_param = "time"
+
+        super().__init__(
+            service_name="기상청 일기도 조회서비스",
+            event_type="weather_chart",
+            base_url=_env_or_default("KMA_WEATHER_CHART_BASE_URL", KMA_WEATHER_CHART_BASE_URL),
+            operation_path=_env_or_default("KMA_WEATHER_CHART_OPERATION", KMA_WEATHER_CHART_OPERATION),
+            date_param=date_param,
+            **kwargs,
+        )
+
+    def build_params(self, target_date: date) -> dict[str, Any]:
+        return {
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            os.getenv("KMA_WEATHER_CHART_CODE_PARAM", "code"): os.getenv("KMA_WEATHER_CHART_DEFAULT_CODE", "24"),
+            self.date_param: f"{target_date:%Y%m%d}",
         }
 
 

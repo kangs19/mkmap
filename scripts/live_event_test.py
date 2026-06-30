@@ -6,6 +6,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import date
 from collections.abc import Callable
 from typing import Any
+from urllib.error import HTTPError, URLError
 
 from mkmap_meta.connectors.data_go_kr import DATA_GO_KR_API_KEY_ENV
 from mkmap_meta.connectors.normalizers import public_api_error
@@ -49,7 +50,47 @@ def run_live_event_test(
         return 2 if strict else 0
 
     connector = connector_factory()
-    payload = connector.fetch_payload(target_date)
+    try:
+        payload = connector.fetch_payload(target_date)
+    except HTTPError as exc:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "service": service_name,
+                    "date": target_date.isoformat(),
+                    "api_error": {
+                        "resultCode": f"HTTP_{exc.code}",
+                        "resultMsg": exc.reason,
+                    },
+                    "event_count": 0,
+                    "events": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+    except URLError as exc:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "service": service_name,
+                    "date": target_date.isoformat(),
+                    "api_error": {
+                        "resultCode": "URL_ERROR",
+                        "resultMsg": str(exc.reason),
+                    },
+                    "event_count": 0,
+                    "events": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
     api_error = public_api_error(payload)
     events = [] if api_error else connector.normalize_payload(payload, target_date)
     print(
