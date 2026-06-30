@@ -83,6 +83,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - API service catalog Korean display names are normalized for admin/debug output.
 - Text encoding health check guards metadata, connector, script, and docs files against mojibake regressions.
 - Admin status API returns `data_freshness` with latest date, lag days, and freshness status per core dataset.
+- Admin weather freshness distinguishes KMA crop-weather provider delay, fallback dates, and true missing data.
 
 ## Latest Verified Run
 
@@ -171,8 +172,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 - Add stronger live collection diagnostics for each external API service.
 - Recheck KMA weather alert after provider-side `DB_ERROR` clears.
-- Use KMA crop-weather date fallback in freshness reporting so current-day `NO_DATA` is shown as provider delay, not data failure.
-- Add API/data freshness status to the admin dashboard.
 
 ### Model Improvement
 

@@ -190,6 +190,71 @@ def _freshness_payload(latest_date, today, warn_after_days: int) -> dict:
     }
 
 
+def _latest_weather_collection_summary(today) -> dict | None:
+    paths = sorted(
+        (REPO_ROOT / "data" / "features").glob("*/kma_crop_weather_collection_summary.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not paths:
+        return None
+
+    path = paths[0]
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "status": "error",
+            "summary_path": str(path.relative_to(REPO_ROOT)),
+            "error": str(exc),
+        }
+    if not isinstance(rows, list):
+        return {
+            "status": "error",
+            "summary_path": str(path.relative_to(REPO_ROOT)),
+            "error": "summary payload is not a list",
+        }
+
+    target_dates = sorted({str(row.get("target_date")) for row in rows if isinstance(row, dict) and row.get("target_date")})
+    used_dates = sorted({str(row.get("used_date")) for row in rows if isinstance(row, dict) and row.get("used_date")})
+    feature_count = sum(int(row.get("feature_count") or 0) for row in rows if isinstance(row, dict))
+    error_count = sum(int(row.get("error_count") or 0) for row in rows if isinstance(row, dict))
+    item_count = len(rows)
+    latest_target = target_dates[-1] if target_dates else None
+    latest_used = used_dates[-1] if used_dates else None
+
+    if feature_count > 0 and latest_used and latest_target and latest_used < latest_target:
+        status = "fallback"
+    elif feature_count > 0:
+        status = "ok"
+    elif latest_target == str(today) and error_count > 0:
+        status = "provider_delay"
+    elif error_count > 0:
+        status = "no_data"
+    else:
+        status = "missing"
+
+    return {
+        "status": status,
+        "summary_path": str(path.relative_to(REPO_ROOT)),
+        "item_count": item_count,
+        "feature_count": feature_count,
+        "error_count": error_count,
+        "target_date": latest_target,
+        "used_date": latest_used,
+    }
+
+
+def _weather_freshness_payload(latest_date, today, warn_after_days: int) -> dict:
+    payload = _freshness_payload(latest_date, today, warn_after_days)
+    collection = _latest_weather_collection_summary(today)
+    if collection:
+        payload["collection"] = collection
+        if payload["status"] == "missing" and collection.get("status") in {"provider_delay", "fallback", "no_data"}:
+            payload["status"] = collection["status"]
+    return payload
+
+
 def _latest_live_api_diagnostics() -> dict:
     paths = sorted(
         DIAGNOSTICS_ROOT.glob("*/live_api_diagnostics.json"),
@@ -550,7 +615,7 @@ async def admin_status(
         },
         "data_freshness": {
             "daily_prices": _freshness_payload(latest_price_date, today, warn_after_days=2),
-            "daily_weather": _freshness_payload(latest_weather_date, today, warn_after_days=2),
+            "daily_weather": _weather_freshness_payload(latest_weather_date, today, warn_after_days=2),
             "region_signals": _freshness_payload(latest_signal_date, today, warn_after_days=1),
             "forecasts": _freshness_payload(latest_forecast_date, today, warn_after_days=1),
         },

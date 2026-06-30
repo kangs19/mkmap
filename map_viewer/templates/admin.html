@@ -335,20 +335,34 @@ function renderFreshness(freshness) {
     region_signals: "지역 신호",
     forecasts: "예측",
   };
-  const statusLabel = {fresh: "정상", stale: "지연", missing: "없음"};
-  const statusClass = {fresh: "badge-ok", stale: "badge-warn", missing: "badge-err"};
+  const statusLabel = {fresh: "정상", stale: "지연", missing: "없음", provider_delay: "공급 지연", fallback: "대체일", no_data: "자료 없음"};
+  const statusClass = {fresh: "badge-ok", stale: "badge-warn", missing: "badge-err", provider_delay: "badge-warn", fallback: "badge-warn", no_data: "badge-warn"};
   const rows = Object.entries(labels).map(([key, label]) => {
     const item = freshness[key] || {};
-    const lag = item.lag_days == null ? "—" : `${item.lag_days}일`;
+    const lag = item.lag_days == null ? "–" : `${item.lag_days}일`;
     const status = item.status || "missing";
+    const latest = formatFreshnessLatest(item);
     return `<tr>
       <td>${label}</td>
-      <td>${item.latest_date || "없음"}</td>
+      <td>${latest}</td>
       <td>${lag}</td>
       <td><span class="badge ${statusClass[status] || "badge-off"}">${statusLabel[status] || status}</span></td>
     </tr>`;
   });
   document.getElementById("s-freshness-body").innerHTML = rows.join("");
+}
+
+function formatFreshnessLatest(item) {
+  if (item.collection?.status === "provider_delay") {
+    return `공급 지연 (${item.collection.target_date || "-"})`;
+  }
+  if (item.collection?.status === "fallback") {
+    return `${item.collection.used_date || item.latest_date || "-"} (대체일)`;
+  }
+  if (item.collection?.status === "no_data") {
+    return `자료 없음 (${item.collection.target_date || "-"})`;
+  }
+  return item.latest_date || "없음";
 }
 
 // ── 예측 현황 ─────────────────────────────────────────
