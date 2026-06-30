@@ -5,6 +5,7 @@ X-Admin-Key 헤더로 보호
 import os
 import sys
 import json
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -17,6 +18,8 @@ from typing import Optional
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DIAGNOSTICS_ROOT = REPO_ROOT / "data" / "diagnostics"
 
 
 def check_admin(x_admin_key: str = Header(...)):
@@ -184,6 +187,71 @@ def _freshness_payload(latest_date, today, warn_after_days: int) -> dict:
         "lag_days": lag_days,
         "status": _freshness_status(lag_days, warn_after_days),
         "warn_after_days": warn_after_days,
+    }
+
+
+def _latest_live_api_diagnostics() -> dict:
+    paths = sorted(
+        DIAGNOSTICS_ROOT.glob("*/live_api_diagnostics.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not paths:
+        return {
+            "status": "missing",
+            "latest_report": None,
+            "summary": {},
+            "results": [],
+            "untested_services": [],
+        }
+
+    path = paths[0]
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "status": "error",
+            "latest_report": str(path.relative_to(REPO_ROOT)),
+            "error": str(exc),
+            "summary": {},
+            "results": [],
+            "untested_services": [],
+        }
+
+    return {
+        "status": "ok" if report.get("ok") else "attention",
+        "latest_report": str(path.relative_to(REPO_ROOT)),
+        "generated_at": report.get("generated_at"),
+        "date": report.get("date"),
+        "item": report.get("item"),
+        "summary": report.get("summary") or {},
+        "results": [
+            _compact_diagnostic_result(result)
+            for result in report.get("results", [])
+        ],
+        "untested_services": [
+            _compact_diagnostic_result(result)
+            for result in report.get("untested_services", [])
+        ],
+    }
+
+
+def _compact_diagnostic_result(result: dict) -> dict:
+    service = result.get("service") if isinstance(result.get("service"), dict) else {}
+    return {
+        "code": result.get("code") or result.get("service_code"),
+        "service_code": result.get("service_code"),
+        "engine_role": result.get("engine_role"),
+        "status": result.get("status"),
+        "ok": result.get("ok"),
+        "reason": result.get("reason"),
+        "next_action": result.get("next_action"),
+        "metrics": result.get("metrics") or {},
+        "provider": service.get("provider"),
+        "display_name": service.get("display_name"),
+        "configured": service.get("configured"),
+        "missing_env": service.get("missing_env") or [],
+        "operation": service.get("operation"),
     }
 
 
@@ -490,6 +558,7 @@ async def admin_status(
             "running": scheduler.running,
             "jobs": [{"id": j.id, "next_run": str(j.next_run_time)} for j in scheduler.get_jobs()],
         },
+        "api_diagnostics": _latest_live_api_diagnostics(),
     }
 
 

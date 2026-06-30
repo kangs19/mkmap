@@ -187,3 +187,5 @@ async def test_admin_status(client):
         data = r.json()
         assert "data_freshness" in data
         assert "forecasts" in data["data_freshness"]
+        assert "api_diagnostics" in data
+        assert "status" in data["api_diagnostics"]

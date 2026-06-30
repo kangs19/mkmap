@@ -139,6 +139,16 @@ tr:hover td{background:#fafbfd;}
       </div>
     </div>
     <div class="card">
+      <div class="card-header"><h3>API 진단</h3><span id="s-api-diag-badge" class="badge badge-off">미확인</span></div>
+      <div class="card-body">
+        <div id="s-api-diag-meta" style="font-size:12px;color:#888;margin-bottom:10px;">진단 리포트 없음</div>
+        <table>
+          <thead><tr><th>서비스</th><th>역할</th><th>상태</th><th>지표</th><th>다음 조치</th></tr></thead>
+          <tbody id="s-api-diag-body"><tr><td colspan="5" style="color:#bbb">진단 데이터 없음</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-header"><h3>스케줄러 상태</h3><span id="s-sched-badge" class="badge badge-off">미확인</span></div>
       <div class="card-body">
         <table>
@@ -299,9 +309,10 @@ async function loadStatus() {
     const d = await r.json();
     document.getElementById("s-prices").textContent = d.db.daily_prices?.toLocaleString() ?? "—";
     document.getElementById("s-weather").textContent = d.db.daily_weather?.toLocaleString() ?? "—";
-    document.getElementById("s-signals").textContent = d.db.region_signals?.toLocaleString() ?? "—";
+    document.getElementById("s-signals").textContent = d.db.region_signals?.toLocaleString() ?? "–";
     document.getElementById("s-latest").textContent = d.db.latest_forecast ?? "없음";
     renderFreshness(d.data_freshness || {});
+    renderApiDiagnostics(d.api_diagnostics || {});
 
     const running = d.scheduler?.running;
     const badge = document.getElementById("s-sched-badge");
@@ -341,6 +352,64 @@ function renderFreshness(freshness) {
 }
 
 // ── 예측 현황 ─────────────────────────────────────────
+function renderApiDiagnostics(diag) {
+  const badge = document.getElementById("s-api-diag-badge");
+  const summary = diag.summary || {};
+  const status = diag.status || "missing";
+  const badgeClass = {
+    ok: "badge-ok",
+    attention: "badge-warn",
+    missing: "badge-off",
+    error: "badge-err",
+  }[status] || "badge-off";
+  badge.textContent = status === "ok" ? "정상" : status === "attention" ? "확인 필요" : status === "error" ? "오류" : "없음";
+  badge.className = `badge ${badgeClass}`;
+
+  const meta = document.getElementById("s-api-diag-meta");
+  if (!diag.latest_report) {
+    meta.textContent = "진단 리포트 없음";
+  } else {
+    meta.textContent = `${diag.date || "-"} ${diag.item || "-"} | 생성 ${diag.generated_at || "-"} | OK ${summary.ok || 0}/${summary.total || 0}, HTTP ${summary.http_error || 0}, API ${summary.api_error || 0}, 누락 ${summary.missing_env || 0}`;
+  }
+
+  const rows = (diag.results || []).map(renderApiDiagnosticRow);
+  const untested = (diag.untested_services || []).slice(0, 6).map(renderApiDiagnosticRow);
+  const body = [...rows, ...untested];
+  document.getElementById("s-api-diag-body").innerHTML = body.length
+    ? body.join("")
+    : "<tr><td colspan='5' style='color:#bbb'>진단 데이터 없음</td></tr>";
+}
+
+function renderApiDiagnosticRow(item) {
+  const status = item.status || "missing";
+  const cls = diagnosticBadgeClass(status);
+  const name = item.display_name || item.service_code || item.code || "-";
+  const metrics = formatDiagnosticMetrics(item.metrics || {});
+  const action = item.next_action || item.reason || "-";
+  return `<tr>
+    <td><strong>${name}</strong><div style="font-size:11px;color:#999">${item.provider || "-"} · ${item.service_code || item.code || "-"}</div></td>
+    <td>${item.engine_role || "-"}</td>
+    <td><span class="badge ${cls}">${status}</span></td>
+    <td>${metrics || "-"}</td>
+    <td style="font-size:12px;color:#666;line-height:1.45;">${action}</td>
+  </tr>`;
+}
+
+function diagnosticBadgeClass(status) {
+  if (status === "ok" || status === "no_data") return "badge-ok";
+  if (status === "missing_env" || status === "mapping_required" || status === "not_tested" || status === "not_ready") return "badge-warn";
+  if (status === "api_error" || status === "http_error" || status === "timeout" || status === "failed" || status === "error") return "badge-err";
+  return "badge-off";
+}
+
+function formatDiagnosticMetrics(metrics) {
+  return Object.entries(metrics)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .slice(0, 4)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("<br>");
+}
+
 async function loadForecast() {
   try {
     const r = await fetch(`${API_BASE}/api/v1/signals/today`);
