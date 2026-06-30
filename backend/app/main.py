@@ -15,6 +15,7 @@ from app.routers import items, forecasts, signals, maps, admin
 from app.config import get_settings
 from app.scheduler import start_scheduler, stop_scheduler
 from app.auth import verify_api_key, log_request
+from app.timezone import kst_today
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -99,7 +100,7 @@ async def _auto_recover():
     await asyncio.sleep(5)
 
     async with AsyncSessionLocal() as db:
-        today = date.today()
+        today = kst_today()
         signal_count = (
             await db.execute(
                 select(func.count()).select_from(RegionSignal).where(RegionSignal.date == today)

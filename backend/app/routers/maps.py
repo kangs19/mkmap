@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from sqlalchemy import select, and_
 from pathlib import Path
-from datetime import date
-
+from datetime import date, timedelta
 from app.database import get_db
 from app.models.signal import RegionSignal
 from app.models.price import DailyPrice
 from app.models.production import CropProduction
+from app.timezone import kst_today
 
 router = APIRouter(tags=["maps"])
 
@@ -141,7 +141,7 @@ async def get_map_signals(
     db: AsyncSession = Depends(get_db),
 ):
     """지도용 — 품목별 전국 지역 위험 신호 (Leaflet 직접 소비)"""
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
 
     result = await db.execute(
         select(RegionSignal).where(
@@ -194,7 +194,7 @@ async def get_map_prices(
 ):
     """지도용 — 최근 30일 가격 추이"""
     from datetime import timedelta
-    end = date.today()
+    end = kst_today()
     start = end - timedelta(days=30)
 
     result = await db.execute(

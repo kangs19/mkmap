@@ -10,6 +10,7 @@ from app.schemas.signal import RegionSignalResponse
 from app.pipeline.explain import build_summary_text, factors_to_display, ITEM_NAMES
 from datetime import date, timedelta
 from app import cache
+from app.timezone import kst_today
 
 router = APIRouter(tags=["signals"])
 
@@ -22,7 +23,7 @@ async def get_region_signal(
     target_date: str = None,
     db: AsyncSession = Depends(get_db)
 ):
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
 
     result = await db.execute(
         select(RegionSignal).where(
@@ -61,7 +62,7 @@ async def get_item_signals(
     db: AsyncSession = Depends(get_db)
 ):
     """품목 전체 지역의 당일 위험 신호 목록"""
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
     result = await db.execute(
         select(RegionSignal).where(
             and_(
@@ -97,7 +98,7 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
     cached = cache.get("signals:today")
     if cached:
         return cached
-    today = date.today()
+    today = kst_today()
 
     fc_result = await db.execute(
         select(Forecast).where(Forecast.base_date == today)
@@ -148,7 +149,7 @@ async def get_dashboard_cards(
     db: AsyncSession = Depends(get_db),
 ):
     """Compact public payload for dashboard item cards."""
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
     start_30d = base_date - timedelta(days=30)
     limit = max(1, min(limit, 50))
 
@@ -202,7 +203,7 @@ async def get_high_risk_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """High-risk item/region combinations for alert surfaces."""
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
     limit = max(1, min(limit, 100))
     min_risk_score = max(0.0, min(min_risk_score, 100.0))
     min_up_probability = max(0.0, min(min_up_probability, 1.0))
@@ -369,7 +370,7 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
     cached = cache.get("report:today")
     if cached:
         return cached
-    today = date.today()
+    today = kst_today()
     start_30d = today - timedelta(days=30)
 
     # 전체 품목 예측
@@ -458,7 +459,7 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
 
     result = {
         "report_date": str(today),
-        "generated_at": str(date.today()),
+        "generated_at": str(kst_today()),
         "item_count": len(items_report),
         "items": items_report,
     }

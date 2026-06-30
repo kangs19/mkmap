@@ -8,6 +8,7 @@ from app.models.price import DailyPrice
 from app.models.signal import RegionSignal
 from app.schemas.forecast import ForecastResponse, TopFactor
 from datetime import date
+from app.timezone import kst_today
 
 router = APIRouter(prefix="/api/v1/items", tags=["forecasts"])
 
@@ -27,7 +28,7 @@ async def get_forecast(
             "code": 404
         })
 
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
 
     fc_result = await db.execute(
         select(Forecast).where(
@@ -159,7 +160,7 @@ async def _load_item_forecast(
             "code": 404,
         })
 
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
     fc_result = await db.execute(
         select(Forecast).where(
             Forecast.item_code == item_code,

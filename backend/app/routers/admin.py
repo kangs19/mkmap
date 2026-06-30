@@ -12,8 +12,9 @@ from sqlalchemy import select, desc
 from app.database import get_db
 from app.models.api_key import ApiKey, ApiUsageLog
 from app.auth import generate_key, hash_key
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
+from app.timezone import kst_now, kst_today
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -41,7 +42,7 @@ async def create_api_key(
     """API 키 발급"""
     raw = generate_key()
     key_hash = hash_key(raw)
-    expires_at = datetime.now() + timedelta(days=expires_days) if expires_days else None
+    expires_at = kst_now().replace(tzinfo=None) + timedelta(days=expires_days) if expires_days else None
 
     db.add(ApiKey(
         key_hash=key_hash,
@@ -131,7 +132,6 @@ async def get_usage_stats(
 
 @router.get("/health")
 async def admin_health(_=Depends(check_admin)):
-    from datetime import date
     from app.scheduler import scheduler
     jobs = [
         {"id": j.id, "next_run": str(j.next_run_time)}
@@ -139,7 +139,7 @@ async def admin_health(_=Depends(check_admin)):
     ]
     return {
         "status": "ok",
-        "date": str(date.today()),
+        "date": str(kst_today()),
         "scheduler_running": scheduler.running,
         "scheduled_jobs": jobs,
     }
@@ -327,10 +327,9 @@ async def _run_meta_pipeline_process(
     weather_max_requests_per_item: int = 16,
     weather_request_timeout_seconds: int = 8,
 ) -> dict:
-    from datetime import date, datetime
     from app import cache
 
-    pipeline_date = target_date or date.today().isoformat()
+    pipeline_date = target_date or kst_today().isoformat()
     cmd = [
         sys.executable,
         "scripts/run_meta_pipeline.py",
@@ -350,7 +349,7 @@ async def _run_meta_pipeline_process(
         {
             "running": True,
             "last_status": "running",
-            "last_started_at": datetime.now().isoformat(timespec="seconds"),
+            "last_started_at": kst_now().isoformat(timespec="seconds"),
             "last_finished_at": None,
             "last_date": pipeline_date,
             "last_output_tail": [],
@@ -376,7 +375,7 @@ async def _run_meta_pipeline_process(
             _meta_pipeline_status["last_output_tail"] = output_lines[-80:]
 
         return_code = await process.wait()
-        finished_at = datetime.now().isoformat(timespec="seconds")
+        finished_at = kst_now().isoformat(timespec="seconds")
         if return_code == 0:
             cache.clear_prefix("signals:")
             cache.clear_prefix("report:")
@@ -405,7 +404,7 @@ async def _run_meta_pipeline_process(
             {
                 "running": False,
                 "last_status": "error",
-                "last_finished_at": datetime.now().isoformat(timespec="seconds"),
+                "last_finished_at": kst_now().isoformat(timespec="seconds"),
                 "last_error": str(exc),
             }
         )
@@ -420,9 +419,7 @@ async def meta_pipeline_status(_=Depends(check_admin)):
 @router.get("/model-evaluation")
 async def model_evaluation(target_date: Optional[str] = None, _=Depends(check_admin)):
     """Return the latest price-model evaluation report for the requested date."""
-    from datetime import date
-
-    report_date = target_date or date.today().isoformat()
+    report_date = target_date or kst_today().isoformat()
     path = _model_evaluation_path(report_date)
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"model evaluation report not found for {report_date}")
@@ -583,7 +580,6 @@ async def admin_status(
     _=Depends(check_admin),
 ):
     """시스템 전체 상태 — DB 레코드 수, 최신 예측일, 스케줄러"""
-    from datetime import date
     from sqlalchemy import func
     from app.models.price import DailyPrice
     from app.models.weather import DailyWeather
@@ -596,7 +592,7 @@ async def admin_status(
     weather_count = (await db.execute(select(func.count()).select_from(DailyWeather))).scalar()
     signal_count = (await db.execute(select(func.count()).select_from(RegionSignal))).scalar()
     item_count = (await db.execute(select(func.count()).select_from(Item))).scalar()
-    today = date.today()
+    today = kst_today()
 
     latest_price_date = (await db.execute(select(func.max(DailyPrice.date)))).scalar()
     latest_weather_date = (await db.execute(select(func.max(DailyWeather.date)))).scalar()
@@ -669,10 +665,9 @@ async def debug_kamis(days_ago: int = 0, _=Depends(check_admin)):
     """KAMIS API 직접 테스트 — days_ago=0이면 오늘, days_ago=30이면 30일 전"""
     import httpx
     from app.config import get_settings
-    from datetime import date, timedelta
 
     settings = get_settings()
-    target = date.today() - timedelta(days=days_ago)
+    target = kst_today() - timedelta(days=days_ago)
 
     params = {
         "action": "dailySalesList",
@@ -725,11 +720,11 @@ async def debug_price_counts(db: AsyncSession = Depends(get_db), _=Depends(check
 @router.get("/debug/fetch-prices")
 async def debug_fetch_prices(_=Depends(check_admin)):
     """fetch_all_prices_for_date(today) 실제 반환값 확인"""
-    from datetime import date
     from app.collectors.kamis import fetch_all_prices_for_date
-    result = await fetch_all_prices_for_date(date.today())
+    today = kst_today()
+    result = await fetch_all_prices_for_date(today)
     return {
-        "date": str(date.today()),
+        "date": str(today),
         "items_found": list(result.keys()),
         "data": {k: {"price": v.get("wholesale_price")} for k, v in result.items()},
     }

@@ -7,8 +7,8 @@ from app.models.price import DailyPrice
 from app.models.meta import ItemMeta
 from app.schemas.item import ItemListResponse, ItemResponse, ItemRegionsResponse, ItemRegionResponse
 from app.utils.season import get_current_season
+from app.timezone import kst_today
 from datetime import date, timedelta
-
 router = APIRouter(prefix="/api/v1/items", tags=["items"])
 
 
@@ -65,7 +65,7 @@ async def get_item_regions(
             "code": 404
         })
 
-    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
     season = get_current_season(base_date.month)
 
     region_result = await db.execute(
@@ -104,7 +104,7 @@ async def get_price_history(
     if not item:
         raise HTTPException(status_code=404, detail={"error": "item_not_found"})
 
-    end_date = date.today()
+    end_date = kst_today()
     start_date = end_date - timedelta(days=days)
 
     result = await db.execute(

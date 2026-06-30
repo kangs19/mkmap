@@ -5,6 +5,7 @@ from pathlib import Path
 import asyncio
 import logging
 import sys
+from app.timezone import kst_today
 
 logger = logging.getLogger("scheduler")
 
@@ -17,7 +18,7 @@ async def _run_meta_pipeline_for_today() -> list[str]:
         sys.executable,
         "scripts/run_meta_pipeline.py",
         "--date",
-        date.today().isoformat(),
+        kst_today().isoformat(),
         "--weather-lookback-days",
         "7",
         "--weather-max-requests-per-item",
@@ -51,7 +52,7 @@ async def daily_pipeline():
     """Run the metadata-driven daily pipeline and send the daily report."""
     from app.notify import notify_daily_report, notify_pipeline_error, notify_pipeline_success
 
-    today = date.today()
+    today = kst_today()
     logger.info("[scheduler] mkmap_meta daily pipeline start: %s", today)
 
     try:
