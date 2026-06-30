@@ -22,6 +22,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Backend is designed to run behind `https://mk-map.com`.
 - Railway deployment config exists in `railway.toml` and uses the root `Dockerfile`.
 - Railway start command is `/app/start.sh`, which runs `uvicorn app.main:app` on `${PORT:-8100}`.
+- Deployment runbook exists at `docs/DEPLOYMENT_RUNBOOK.md`.
 - FastAPI backend exposes user-facing forecast, signal, map, and admin endpoints.
 - Admin routes are available under `/api/v1/admin/...`.
 - Daily scheduler runs the metadata pipeline at `06:00` KST.
@@ -186,6 +187,3 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 - Keep accumulating daily price history.
 
-### Product/API
-
-- Add deployment notes for syncing `.env` and scheduler behavior on the production server.
