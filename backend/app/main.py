@@ -142,9 +142,17 @@ app.add_middleware(
     allow_headers=["*", "X-API-Key", "X-Admin-Key"],
 )
 
-static_path = Path(__file__).parent.parent.parent / "map_viewer" / "static"
-if static_path.exists():
-    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+_static_candidates = [
+    Path(__file__).parent.parent.parent / "map_viewer" / "static",  # repo root
+    Path("/app/map_viewer/static"),                                   # Railway 절대경로
+    Path(__file__).parent.parent / "static",                          # backend/static
+]
+_static_path = next((p for p in _static_candidates if p.exists()), None)
+if _static_path:
+    logging.info(f"[static] 서빙 경로: {_static_path}")
+    app.mount("/static", StaticFiles(directory=str(_static_path)), name="static")
+else:
+    logging.error(f"[static] GeoJSON 경로를 찾을 수 없음! 시도한 경로: {_static_candidates}")
 
 
 @app.middleware("http")
