@@ -77,6 +77,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Admin API exposes `GET /api/v1/admin/model-evaluation`.
 - Forecast scope contract smoke test verifies item/global scope traceability.
 - API service catalog Korean display names are normalized for admin/debug output.
+- Text encoding health check guards metadata, connector, script, and docs files against mojibake regressions.
 
 ## Latest Verified Run
 
@@ -127,6 +128,12 @@ Run the local fast smoke suite:
 
 ```powershell
 python scripts\run_smoke_suite.py
+```
+
+Check text encoding health only:
+
+```powershell
+python scripts\check_text_encoding_health.py
 ```
 
 Run live API diagnostics:

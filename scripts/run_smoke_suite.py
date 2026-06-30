@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 FAST_CHECKS = [
     ("metadata validation", ["scripts/validate_metadata.py"]),
     ("external mapping validation", ["scripts/validate_external_mappings.py"]),
+    ("text encoding health", ["scripts/check_text_encoding_health.py"]),
     ("API service catalog smoke", ["scripts/smoke_api_services.py"]),
     ("price model smoke", ["scripts/smoke_price_model_pipeline.py"]),
     ("forecast scope contract smoke", ["scripts/smoke_forecast_scope_contract.py"]),
