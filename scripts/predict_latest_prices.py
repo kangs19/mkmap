@@ -90,12 +90,13 @@ def _predict_row(
     risk_overlay: dict[str, object] | None = None,
     risk_adjustment_scale: float = 0.02,
 ) -> dict[str, object]:
-    coefficients = model["coefficients"]
-    feature_stats = model.get("feature_stats", {})
+    active_model, model_scope = _select_model(model, row["item_code"])
+    coefficients = active_model["coefficients"]
+    feature_stats = active_model.get("feature_stats", {})
     assert isinstance(coefficients, dict)
     assert isinstance(feature_stats, dict)
-    prediction = float(model["intercept"])
-    for feature in model["features"]:
+    prediction = float(active_model["intercept"])
+    for feature in active_model["features"]:
         stats = feature_stats.get(str(feature), {"mean": 0.0, "std": 1.0})
         assert isinstance(stats, dict)
         prediction += float(coefficients[str(feature)]) * _standardize(float(row[str(feature)]), stats)
@@ -103,7 +104,7 @@ def _predict_row(
     risk_score = float(risk_overlay.get("max_risk_score", 0.0)) if risk_overlay else 0.0
     risk_adjustment = max(0.0, min(1.0, risk_score)) * risk_adjustment_scale
     adjusted_prediction = prediction + risk_adjustment
-    direction_threshold = float(model.get("direction_threshold") or 0.015)
+    direction_threshold = float(active_model.get("direction_threshold") or model.get("direction_threshold") or 0.015)
 
     if prediction > direction_threshold:
         direction = "up"
@@ -123,6 +124,7 @@ def _predict_row(
         "base_date": row["base_date"],
         "item_code": row["item_code"],
         "avg_price": float(row["avg_price"]),
+        "model_scope": model_scope,
         "predicted_next_change": round(prediction, 6),
         "predicted_direction": direction,
         "direction_threshold": round(direction_threshold, 6),
@@ -133,6 +135,15 @@ def _predict_row(
     if risk_overlay:
         result["risk_overlay"] = risk_overlay
     return result
+
+
+def _select_model(model: dict[str, object], item_code: str) -> tuple[dict[str, object], str]:
+    item_models = model.get("item_models")
+    if isinstance(item_models, dict):
+        item_model = item_models.get(item_code)
+        if isinstance(item_model, dict):
+            return item_model, "item"
+    return model, "global"
 
 
 def _standardize(value: float, stats: dict[str, object]) -> float:

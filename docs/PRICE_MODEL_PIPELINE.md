@@ -21,11 +21,12 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 ## Current Baseline
 
 - Model: standardized linear baseline using lag, trend, moving-average gap, volatility, weekday, and month features.
+- Model scope: a global model is always trained, and item-specific models are trained when each item has enough rows. Prediction uses an item model only when it beats the global fallback on the item's holdout rows; otherwise it falls back to the global model.
 - Target: next observed price change.
 - Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure price-history prediction and a separate `risk_adjusted_next_change`.
 - The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
 - The training script tunes `direction_threshold` on the holdout set and writes an adjacent evaluation report JSON.
-- 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`.
+- 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`, accepted item models `1`.
 - Test metrics: MAE `0.017679`, RMSE `0.021859`, sign accuracy `0.5333`, 3-class direction accuracy `0.8333`.
 
 ## Feature Columns
@@ -47,6 +48,8 @@ Each model run writes:
 - Evaluation report: `data/model/price_baseline_model_{YYYYMMDD}_evaluation.json`
 
 The evaluation report includes overall metrics, item-level metrics, the tuned direction threshold, and recent holdout sample predictions.
+
+The model file also includes `item_models` when item-specific training passes the quality gate. Prediction rows include `model_scope` as `item` or `global`.
 
 ## Notes
 

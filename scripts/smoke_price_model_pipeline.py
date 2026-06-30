@@ -58,8 +58,10 @@ def main() -> int:
         assert model["model_type"] == "standardized_linear_baseline"
         assert len(model["features"]) >= 4
         assert "direction_threshold" in model
+        assert len(model.get("item_models", {})) == 2
         assert "by_item" in report
         assert len(predictions) == 2
+        assert all(row["model_scope"] == "item" for row in predictions)
         assert all("direction_threshold" in row for row in predictions)
         assert all("risk_adjusted_next_change" in row for row in predictions)
 

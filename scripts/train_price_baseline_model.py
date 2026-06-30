@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True, help="CSV from build_price_training_table.py")
     parser.add_argument("--output", default=None)
     parser.add_argument("--report-output", default=None)
+    parser.add_argument("--min-item-rows", type=int, default=24)
     return parser.parse_args()
 
 
@@ -38,7 +39,8 @@ def main() -> int:
     threshold = _tune_direction_threshold(model, test)
     model["direction_threshold"] = threshold
     metrics = _evaluate(model, test, threshold)
-    report = _evaluation_report(model, test, threshold)
+    item_models = _fit_item_models(rows, features, model, threshold, min_item_rows=args.min_item_rows)
+    report = _evaluation_report(model, test, threshold, item_models)
 
     out_path = Path(args.output) if args.output else REPO_ROOT / "data" / "model" / "price_baseline_model.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +52,7 @@ def main() -> int:
         "coefficients": model["coefficients"],
         "feature_stats": model["feature_stats"],
         "direction_threshold": threshold,
+        "item_models": item_models,
         "train_rows": len(train),
         "test_rows": len(test),
         "metrics": metrics,
@@ -88,6 +91,63 @@ def _time_split(rows: list[dict[str, float | str]]) -> tuple[list[dict[str, floa
     if split >= len(rows):
         split = len(rows) - 1
     return rows[:split], rows[split:]
+
+
+def _fit_item_models(
+    rows: list[dict[str, float | str]],
+    features: list[str],
+    global_model: dict[str, object],
+    global_threshold: float,
+    min_item_rows: int,
+) -> dict[str, dict[str, object]]:
+    item_models: dict[str, dict[str, object]] = {}
+    by_item: dict[str, list[dict[str, float | str]]] = {}
+    for row in rows:
+        by_item.setdefault(str(row["item_code"]), []).append(row)
+
+    for item_code, item_rows in sorted(by_item.items()):
+        if len(item_rows) < min_item_rows:
+            continue
+        train, test = _time_split(item_rows)
+        if len(train) < 10 or len(test) < 3:
+            continue
+
+        usable_features = [
+            feature
+            for feature in features
+            if any(abs(float(row[feature])) > 0 for row in train)
+        ]
+        if not usable_features:
+            continue
+
+        item_model = _fit_linear_model(train, usable_features)
+        threshold = _tune_direction_threshold(item_model, test)
+        item_metrics = _evaluate(item_model, test, threshold)
+        global_metrics = _evaluate(global_model, test, global_threshold)
+        if not _item_model_is_better(item_metrics, global_metrics):
+            continue
+
+        item_model["direction_threshold"] = threshold
+        item_model["train_rows"] = len(train)
+        item_model["test_rows"] = len(test)
+        item_model["metrics"] = item_metrics
+        item_model["global_fallback_metrics"] = global_metrics
+        item_model["model_scope"] = "item"
+        item_models[item_code] = item_model
+
+    return item_models
+
+
+def _item_model_is_better(item_metrics: dict[str, float], global_metrics: dict[str, float]) -> bool:
+    item_mae = float(item_metrics.get("mae", 999.0))
+    global_mae = float(global_metrics.get("mae", 999.0))
+    item_direction = float(item_metrics.get("direction_accuracy", 0.0))
+    global_direction = float(global_metrics.get("direction_accuracy", 0.0))
+    if item_mae > global_mae * 1.05:
+        return False
+    if item_direction + 0.0001 < global_direction:
+        return False
+    return True
 
 
 def _fit_linear_model(rows: list[dict[str, float | str]], features: list[str]) -> dict[str, object]:
@@ -187,18 +247,31 @@ def _tune_direction_threshold(model: dict[str, object], rows: list[dict[str, flo
     return round(best_threshold, 6)
 
 
-def _evaluation_report(model: dict[str, object], rows: list[dict[str, float | str]], threshold: float) -> dict[str, object]:
+def _evaluation_report(
+    model: dict[str, object],
+    rows: list[dict[str, float | str]],
+    threshold: float,
+    item_models: dict[str, dict[str, object]] | None = None,
+) -> dict[str, object]:
+    item_models = item_models or {}
     by_item: dict[str, list[dict[str, float | str]]] = {}
     for row in rows:
         by_item.setdefault(str(row["item_code"]), []).append(row)
 
     item_metrics = {}
     for item_code, item_rows in sorted(by_item.items()):
-        item_metrics[item_code] = _evaluate(model, item_rows, threshold)
+        active_model = item_models.get(item_code, model)
+        active_threshold = float(active_model.get("direction_threshold", threshold))
+        metrics = _evaluate(active_model, item_rows, active_threshold)
+        metrics["model_scope"] = "item" if item_code in item_models else "global"
+        item_metrics[item_code] = metrics
 
     predictions = []
     for row in rows[-20:]:
-        pred = _predict(model, row)
+        item_code = str(row["item_code"])
+        active_model = item_models.get(item_code, model)
+        active_threshold = float(active_model.get("direction_threshold", threshold))
+        pred = _predict(active_model, row)
         actual = float(row["target_next_change"])
         predictions.append(
             {
@@ -206,9 +279,10 @@ def _evaluation_report(model: dict[str, object], rows: list[dict[str, float | st
                 "item_code": row["item_code"],
                 "prediction": round(pred, 6),
                 "actual": round(actual, 6),
-                "predicted_direction": _direction(pred, threshold),
-                "actual_direction": _direction(actual, threshold),
+                "predicted_direction": _direction(pred, active_threshold),
+                "actual_direction": _direction(actual, active_threshold),
                 "absolute_error": round(abs(pred - actual), 6),
+                "model_scope": "item" if item_code in item_models else "global",
             }
         )
 
@@ -217,6 +291,7 @@ def _evaluation_report(model: dict[str, object], rows: list[dict[str, float | st
         "direction_threshold": threshold,
         "overall": _evaluate(model, rows, threshold),
         "by_item": item_metrics,
+        "item_model_count": len(item_models),
         "sample_predictions": predictions,
     }
 

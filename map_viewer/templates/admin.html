@@ -157,7 +157,7 @@ tr:hover td{background:#fafbfd;}
   <div class="section" id="section-modelEval">
     <div class="grid-4">
       <div class="stat-card"><div class="stat-label">평가일</div><div class="stat-value blue" id="m-date" style="font-size:16px;padding-top:4px;">--</div><div class="stat-sub">model report</div></div>
-      <div class="stat-card"><div class="stat-label">방향 기준값</div><div class="stat-value" id="m-threshold">--</div><div class="stat-sub">direction threshold</div></div>
+      <div class="stat-card"><div class="stat-label">품목별 모델</div><div class="stat-value" id="m-item-models">--</div><div class="stat-sub">accepted item models</div></div>
       <div class="stat-card"><div class="stat-label">MAE</div><div class="stat-value green" id="m-mae">--</div><div class="stat-sub">absolute error</div></div>
       <div class="stat-card"><div class="stat-label">방향 정확도</div><div class="stat-value green" id="m-diracc">--</div><div class="stat-sub">3-class direction</div></div>
     </div>
@@ -165,7 +165,7 @@ tr:hover td{background:#fafbfd;}
       <div class="card-header"><h3>품목별 평가</h3><button class="btn btn-sm btn-primary" onclick="loadModelEval()">새로고침</button></div>
       <div class="card-body">
         <table>
-          <thead><tr><th>품목</th><th>MAE</th><th>RMSE</th><th>부호 정확도</th><th>방향 정확도</th></tr></thead>
+          <thead><tr><th>품목</th><th>모델</th><th>MAE</th><th>RMSE</th><th>부호 정확도</th><th>방향 정확도</th></tr></thead>
           <tbody id="model-eval-body"><tr><td colspan="5" style="color:#bbb">로딩 중...</td></tr></tbody>
         </table>
       </div>
@@ -341,7 +341,7 @@ async function loadModelEval() {
     const report = d.report || {};
     const overall = report.overall || {};
     document.getElementById("m-date").textContent = d.date || "--";
-    document.getElementById("m-threshold").textContent = report.direction_threshold != null ? Number(report.direction_threshold).toFixed(3) : "--";
+    document.getElementById("m-item-models").textContent = report.item_model_count != null ? report.item_model_count : "--";
     document.getElementById("m-mae").textContent = overall.mae != null ? Number(overall.mae).toFixed(4) : "--";
     document.getElementById("m-diracc").textContent = overall.direction_accuracy != null ? (overall.direction_accuracy * 100).toFixed(0) + "%" : "--";
 
@@ -349,13 +349,14 @@ async function loadModelEval() {
     const itemRows = Object.entries(byItem).map(([code, m]) => `
       <tr>
         <td><strong>${ITEM_NAME[code] || code}</strong></td>
+        <td><span class="badge ${m.model_scope === "item" ? "badge-ok" : "badge-off"}">${m.model_scope || "global"}</span></td>
         <td>${m.mae != null ? Number(m.mae).toFixed(4) : "--"}</td>
         <td>${m.rmse != null ? Number(m.rmse).toFixed(4) : "--"}</td>
         <td>${m.sign_accuracy != null ? (m.sign_accuracy * 100).toFixed(0) + "%" : "--"}</td>
         <td>${m.direction_accuracy != null ? (m.direction_accuracy * 100).toFixed(0) + "%" : "--"}</td>
       </tr>
     `).join("");
-    document.getElementById("model-eval-body").innerHTML = itemRows || "<tr><td colspan='5' style='color:#bbb'>평가 데이터 없음</td></tr>";
+    document.getElementById("model-eval-body").innerHTML = itemRows || "<tr><td colspan='6' style='color:#bbb'>평가 데이터 없음</td></tr>";
 
     const samples = (report.sample_predictions || []).slice(-10).reverse();
     document.getElementById("model-samples-body").innerHTML = samples.length
@@ -372,7 +373,7 @@ async function loadModelEval() {
       `).join("")
       : "<tr><td colspan='7' style='color:#bbb'>샘플 데이터 없음</td></tr>";
   } catch(e) {
-    document.getElementById("model-eval-body").innerHTML = `<tr><td colspan='5' style='color:#e74c3c'>${e.message}</td></tr>`;
+    document.getElementById("model-eval-body").innerHTML = `<tr><td colspan='6' style='color:#e74c3c'>${e.message}</td></tr>`;
     document.getElementById("model-samples-body").innerHTML = `<tr><td colspan='7' style='color:#e74c3c'>${e.message}</td></tr>`;
   }
 }
