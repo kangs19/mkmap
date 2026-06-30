@@ -119,13 +119,13 @@ Date: `2026-06-30`
 - KAMIS price: live OK for cabbage, 28 recent price features.
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
 - KMA crop main-area weather: live OK with date fallback, 12 sampled weather features.
-- KMA weather alert: provider returned `DB_ERROR` across 12 combinations.
-- KMA typhoon: live OK, 1 normalized event row.
+- KMA weather alert: provider still returned `DB_ERROR` across 12 combinations when rechecked on 2026-06-30.
+- KMA typhoon: provider responded with `NO_DATA` for the requested date; diagnostics classify this separately from provider errors.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
 - Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
 - Untested approved services are listed separately as `not_tested`, including AT settlement/regional price, RDA agri weather, KMA impact forecast, satellite, and weather chart.
 - Admin status UI now shows the latest live API diagnostic summary and per-service next actions.
-- Live diagnostic summary: 7 checks, 6 OK, 1 provider API error, 0 timeout.
+- Live diagnostic summary: 7 checks, 5 OK, 1 provider API error, 1 no-data response, 0 timeout.
 
 ## Main Commands
 
@@ -181,7 +181,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 ### High Priority
 
-- Recheck KMA weather alert after provider-side `DB_ERROR` clears.
+- Monitor KMA weather alert until provider-side `DB_ERROR` clears.
 
 ### Model Improvement
 

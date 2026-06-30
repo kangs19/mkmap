@@ -266,6 +266,8 @@ def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -
             return "missing_env"
         if "mapping" in reason or "not verified" in reason:
             return "mapping_required"
+        if _api_error_result_codes(payload.get("api_error")) == {"03"}:
+            return "no_data"
         if payload.get("api_error"):
             return "api_error"
     if "HTTP Error" in stderr:
@@ -309,6 +311,13 @@ def extract_metrics(payload: Any) -> dict[str, Any]:
         metrics["api_error_count"] = len(api_errors)
 
     return metrics
+
+
+def _api_error_result_codes(api_error: Any) -> set[str]:
+    if isinstance(api_error, dict):
+        result_code = api_error.get("resultCode")
+        return {str(result_code)} if result_code is not None else set()
+    return set()
 
 
 def next_action(status: str, payload: Any, service: dict[str, Any]) -> str:
