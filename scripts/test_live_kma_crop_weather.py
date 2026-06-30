@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from dataclasses import asdict, is_dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -24,8 +24,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Test live KMA crop main-area weather calls.")
     parser.add_argument("--item", default="cabbage", help="Item code, e.g. cabbage")
     parser.add_argument("--date", default=date.today().isoformat(), help="YYYY-MM-DD")
+    parser.add_argument("--lookback-days", type=int, default=0, help="Also test previous N days.")
     parser.add_argument("--max-rows", type=int, default=5)
     parser.add_argument("--max-requests", type=int, default=3, help="Limit live calls for diagnostics. Use 0 for all mappings.")
+    parser.add_argument("--sample-mode", choices=["first", "spread"], default="spread")
     parser.add_argument("--strict", action="store_true", help="Return non-zero when env or verified mapping is missing")
     return parser.parse_args()
 
@@ -52,6 +54,24 @@ def mapping_status(item_code: str) -> dict[str, Any]:
         "area_mapping_count": len(mapping.get("area_mappings", [])),
         "candidate_regions": mapping.get("candidate_regions", []),
     }
+
+
+def select_param_sets(param_sets: list[dict[str, Any]], max_requests: int, sample_mode: str) -> list[dict[str, Any]]:
+    if max_requests <= 0 or len(param_sets) <= max_requests:
+        return param_sets
+    if sample_mode == "first":
+        return param_sets[:max_requests]
+
+    if max_requests == 1:
+        return [param_sets[0]]
+
+    last_index = len(param_sets) - 1
+    indexes = sorted({round(index * last_index / (max_requests - 1)) for index in range(max_requests)})
+    return [param_sets[index] for index in indexes]
+
+
+def safe_params(params: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in params.items() if key.lower() not in {"servicekey", "service_key"}}
 
 
 def main() -> int:
@@ -89,42 +109,64 @@ def main() -> int:
         return 2 if args.strict else 0
 
     connector = CropMainAreaWeatherConnector()
-    param_sets = connector.build_param_sets(args.item, target_date)
-    tested_param_sets = param_sets if args.max_requests <= 0 else param_sets[: args.max_requests]
+    attempts = []
     features = []
     api_errors = []
-    for params in tested_param_sets:
-        payload = connector.client.get(connector.service, connector.operation_path, **params)
-        api_error = public_api_error(payload)
-        if api_error:
-            api_errors.append({"params": {key: value for key, value in params.items() if key != "serviceKey"}, "api_error": api_error})
-            continue
-        features.extend(
-            normalize_weather_rows(
+    total_param_sets = 0
+    total_tested = 0
+
+    for offset in range(args.lookback_days + 1):
+        attempted_date = target_date - timedelta(days=offset)
+        param_sets = connector.build_param_sets(args.item, attempted_date)
+        tested_param_sets = select_param_sets(param_sets, args.max_requests, args.sample_mode)
+        total_param_sets = max(total_param_sets, len(param_sets))
+        total_tested += len(tested_param_sets)
+
+        for params in tested_param_sets:
+            payload = connector.client.get(connector.service, connector.operation_path, **params)
+            api_error = public_api_error(payload)
+            if api_error:
+                error = {"date": attempted_date.isoformat(), "params": safe_params(params), "api_error": api_error}
+                api_errors.append(error)
+                attempts.append({**error, "ok": False, "feature_count": 0})
+                continue
+
+            normalized = normalize_weather_rows(
                 payload,
                 item_code=args.item,
-                default_date=target_date,
+                default_date=attempted_date,
                 source=connector.service.name,
             )
-        )
+            features.extend(normalized)
+            attempts.append(
+                {
+                    "date": attempted_date.isoformat(),
+                    "params": safe_params(params),
+                    "ok": True,
+                    "feature_count": len(normalized),
+                }
+            )
 
     print(
         json.dumps(
             {
-                "ok": not api_errors,
+                "ok": bool(features),
                 "item_code": args.item,
                 "date": target_date.isoformat(),
-                "total_param_sets": len(param_sets),
-                "tested_param_sets": len(tested_param_sets),
+                "lookback_days": args.lookback_days,
+                "sample_mode": args.sample_mode,
+                "total_param_sets": total_param_sets,
+                "tested_param_sets": total_tested,
                 "feature_count": len(features),
                 "api_errors": api_errors,
+                "attempts": attempts,
                 "features": encode(features[: args.max_rows]),
             },
             ensure_ascii=False,
             indent=2,
         )
     )
-    return 0 if not api_errors else 1
+    return 0 if features else 1
 
 
 if __name__ == "__main__":

@@ -104,9 +104,10 @@ Date: `2026-06-30`
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
 - KMA typhoon: live OK, 2 normalized event rows.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
-- KMA crop main-area weather: diagnostic timeout resolved; latest sampled calls returned `NO_DATA`.
+- KMA crop main-area weather: live OK with date fallback. `2026-06-30` returned `NO_DATA`, while sampled calls from `2026-06-29` back to `2026-06-23` returned valid weather rows.
 - KMA weather alert: provider returned `DB_ERROR` across 12 combinations: 4 dates from `2026-06-27` to `2026-06-30` and `stnId` values `0`, `108`, `109`.
 - Service catalog: 12 cataloged services; required-env checks now align with connector defaults for KAMIS/KOSIS.
+- Live diagnostic summary: 7 checks, 6 OK, 1 provider API error, 0 timeout.
 
 ## Main Commands
 
@@ -155,7 +156,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 - Add stronger live collection diagnostics for each external API service.
 - Recheck KMA weather alert after provider-side `DB_ERROR` clears.
-- Expand KMA crop-weather mapping from candidate regions to confirmed official codes.
+- Use KMA crop-weather date fallback in freshness reporting so current-day `NO_DATA` is shown as provider delay, not data failure.
 - Add API/data freshness status to the admin dashboard.
 - Add a public-facing forecast explanation view that shows model scope, risk factors, and data freshness in Korean.
 
