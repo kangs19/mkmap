@@ -102,6 +102,13 @@ python scripts/test_live_midterm_forecast.py --date 2026-06-29
 
 `external_mappings`는 품목별 JSON에 선택적으로 추가한다. 매핑이 없으면 라이브 커넥터는 호출을 건너뛰고, 기존 수동 주산지 메타데이터 기반 신호는 계속 생성된다. `area_ids`가 여러 개면 KMA 주산지 날씨 커넥터가 지역별로 순회 호출한다.
 
+## Newly Confirmed Endpoints
+
+- AT regional price: `http://apis.data.go.kr/B552845/perRegion` with operation `price`.
+- KMA impact forecast: `http://apis.data.go.kr/1360000/ImpactInfoServiceV2` with operation `getHWImpactValueV2`.
+
+These are reflected in `.env.example` and `config/api_services.json`. They still need live connector tests before being promoted into the active model pipeline.
+
 ## 요청 프리뷰
 
 공식 endpoint가 확인된 API는 아래 명령으로 샘플 호출 형태를 확인한다. 인증키 값은 출력하지 않는다.

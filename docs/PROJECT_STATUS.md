@@ -89,6 +89,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Forecast scope contract smoke test verifies item/global scope traceability.
 - API service catalog Korean display names are normalized for admin/debug output.
 - API service catalog reports readiness and next setup action per external service.
+- API service catalog now has confirmed endpoint defaults for AT regional price and KMA heat-wave impact forecast.
 - Text encoding health check guards metadata, connector, script, and docs files against mojibake regressions.
 - Admin status API returns `data_freshness` with latest date, lag days, and freshness status per core dataset.
 - Admin weather freshness distinguishes KMA crop-weather provider delay, fallback dates, and true missing data.
@@ -124,6 +125,7 @@ Date: `2026-06-30`
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
 - Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
 - Untested approved services are listed separately as `not_tested`, including AT settlement/regional price, RDA agri weather, KMA impact forecast, satellite, and weather chart.
+- Service readiness summary now has 2 endpoint-required services, 2 missing-env endpoint-verified services, 5 configured services, 1 configured mapping-required service, and 2 optional services.
 - Admin status UI now shows the latest live API diagnostic summary and per-service next actions.
 - Live diagnostic summary: 7 checks, 5 OK, 1 provider API error, 1 no-data response, 0 timeout.
 

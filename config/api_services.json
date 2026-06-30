@@ -32,9 +32,12 @@
       "display_name": "한국농수산식품유통공사 지역별 품목별 도소매 가격정보",
       "engine_role": "price_market",
       "required_env": ["DATA_GO_KR_API_KEY", "AT_REGIONAL_PRICE_BASE_URL"],
-      "status": "endpoint_required",
+      "status": "endpoint_verified",
       "source_url": "https://www.data.go.kr/data/15156062/openapi.do",
-      "notes": "KAMIS 가격 피처와 중복되는 영역이다. 실제 endpoint와 응답 필드 확인 후 보조 가격 소스로 연결한다."
+      "base_url": "http://apis.data.go.kr/B552845/perRegion",
+      "operation": "price",
+      "request_params": ["serviceKey", "pageNo", "numOfRows", "type", "examinDe"],
+      "notes": "KAMIS 가격 피처와 중복되는 영역이다. 공식 명세의 Base URL apis.data.go.kr/B552845/perRegion, GET /price를 기반으로 보조 가격 소스로 연결한다."
     },
     "rda_agri_weather": {
       "display_name": "농촌진흥청 국립농업과학원 농업기상 상세 관측데이터",
@@ -71,9 +74,12 @@
       "display_name": "기상청 영향예보 조회서비스",
       "engine_role": "disaster_event",
       "required_env": ["DATA_GO_KR_API_KEY", "KMA_IMPACT_FORECAST_BASE_URL"],
-      "status": "endpoint_required",
+      "status": "endpoint_verified",
       "source_url": "https://www.data.go.kr/data/15095149/openapi.do",
-      "notes": "폭염/한파 영향예보의 operation과 지역코드 확인이 필요하다."
+      "base_url": "http://apis.data.go.kr/1360000/ImpactInfoServiceV2",
+      "operation": "getHWImpactValueV2",
+      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "tmFc", "areaNo"],
+      "notes": "2026-05-15 공지 기준 변경 URL인 ImpactInfoServiceV2/getHWImpactValueV2를 기반으로 설정했다. 한파 영향예보 operation은 추후 분리 확장 필요."
     },
     "kma_typhoon": {
       "display_name": "기상청 태풍정보 조회서비스",
