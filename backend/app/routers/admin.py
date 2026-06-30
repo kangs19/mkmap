@@ -324,6 +324,8 @@ async def _run_meta_pipeline_process(
     target_date: str | None,
     skip_collect: bool,
     weather_lookback_days: int,
+    weather_max_requests_per_item: int = 16,
+    weather_request_timeout_seconds: int = 8,
 ) -> dict:
     from datetime import date, datetime
     from app import cache
@@ -336,6 +338,10 @@ async def _run_meta_pipeline_process(
         pipeline_date,
         "--weather-lookback-days",
         str(weather_lookback_days),
+        "--weather-max-requests-per-item",
+        str(weather_max_requests_per_item),
+        "--weather-request-timeout-seconds",
+        str(weather_request_timeout_seconds),
     ]
     if skip_collect:
         cmd.append("--skip-collect")
@@ -438,6 +444,8 @@ async def manual_run_meta_pipeline(
     target_date: Optional[str] = None,
     skip_collect: bool = False,
     weather_lookback_days: int = 0,
+    weather_max_requests_per_item: int = 16,
+    weather_request_timeout_seconds: int = 8,
     background: bool = True,
     _=Depends(check_admin),
 ):
@@ -448,7 +456,13 @@ async def manual_run_meta_pipeline(
     async def _run_bg():
         async with _pipeline_sem:
             try:
-                await _run_meta_pipeline_process(target_date, skip_collect, weather_lookback_days)
+                await _run_meta_pipeline_process(
+                    target_date,
+                    skip_collect,
+                    weather_lookback_days,
+                    weather_max_requests_per_item,
+                    weather_request_timeout_seconds,
+                )
             except Exception as exc:
                 print(f"[meta pipeline bg error] {exc}")
 
@@ -458,12 +472,21 @@ async def manual_run_meta_pipeline(
             "status": "started",
             "target_date": target_date,
             "skip_collect": skip_collect,
+            "weather_lookback_days": weather_lookback_days,
+            "weather_max_requests_per_item": weather_max_requests_per_item,
+            "weather_request_timeout_seconds": weather_request_timeout_seconds,
             "message": "meta pipeline started in background",
         }
 
     async with _pipeline_sem:
         try:
-            return await _run_meta_pipeline_process(target_date, skip_collect, weather_lookback_days)
+            return await _run_meta_pipeline_process(
+                target_date,
+                skip_collect,
+                weather_lookback_days,
+                weather_max_requests_per_item,
+                weather_request_timeout_seconds,
+            )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
 

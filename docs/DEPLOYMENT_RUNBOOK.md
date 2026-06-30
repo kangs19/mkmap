@@ -43,7 +43,7 @@ The FastAPI lifespan starts `backend/app/scheduler.py`.
 
 - Timezone: `Asia/Seoul`
 - Daily job: metadata pipeline at `06:00` KST
-- Pipeline command equivalent: `python scripts/run_meta_pipeline.py --date YYYY-MM-DD`
+- Pipeline command equivalent: `python scripts/run_meta_pipeline.py --date YYYY-MM-DD --weather-lookback-days 7 --weather-max-requests-per-item 16 --weather-request-timeout-seconds 8`
 - After success, the scheduler clears cached signal/report responses and sends a Discord daily report if `DISCORD_WEBHOOK_URL` is configured.
 - On fresh deployment, `_auto_recover()` checks whether today's `region_signals` and `forecasts` exist. If they are missing, it runs the metadata pipeline once after startup.
 
