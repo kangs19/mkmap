@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 from app.database import get_db
+from app.models.item import Item
 from app.models.signal import RegionSignal
 from app.models.forecast import Forecast
 from app.models.price import DailyPrice
@@ -138,6 +139,126 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
     result = {"base_date": str(today), "items": items_out}
     cache.set("signals:today", result, ttl=300)  # 5분 캐시
     return result
+
+
+@router.get("/api/v1/dashboard/cards")
+async def get_dashboard_cards(
+    target_date: str = None,
+    limit: int = 12,
+    db: AsyncSession = Depends(get_db),
+):
+    """Compact public payload for dashboard item cards."""
+    base_date = date.fromisoformat(target_date) if target_date else date.today()
+    start_30d = base_date - timedelta(days=30)
+    limit = max(1, min(limit, 50))
+
+    item_res = await db.execute(select(Item).where(Item.is_active == True).order_by(Item.item_code))
+    items = {item.item_code: item for item in item_res.scalars().all()}
+
+    fc_res = await db.execute(select(Forecast).where(Forecast.base_date == base_date))
+    forecasts = {forecast.item_code: forecast for forecast in fc_res.scalars().all()}
+
+    sig_res = await db.execute(select(RegionSignal).where(RegionSignal.date == base_date))
+    hotspots: dict[str, RegionSignal] = {}
+    for signal in sig_res.scalars().all():
+        if signal.item_code not in hotspots or signal.risk_score > hotspots[signal.item_code].risk_score:
+            hotspots[signal.item_code] = signal
+
+    price_res = await db.execute(
+        select(DailyPrice)
+        .where(DailyPrice.date >= start_30d, DailyPrice.date <= base_date)
+        .order_by(DailyPrice.item_code, DailyPrice.date)
+    )
+    price_by_item: dict[str, list[DailyPrice]] = {}
+    for price in price_res.scalars().all():
+        price_by_item.setdefault(price.item_code, []).append(price)
+
+    item_codes = sorted(set(items) | set(forecasts) | set(hotspots) | set(price_by_item))
+    cards = [
+        _dashboard_card(
+            item_code,
+            items.get(item_code),
+            forecasts.get(item_code),
+            hotspots.get(item_code),
+            price_by_item.get(item_code, []),
+        )
+        for item_code in item_codes
+    ]
+    cards.sort(key=_dashboard_card_rank, reverse=True)
+    cards = cards[:limit]
+    return {
+        "base_date": str(base_date),
+        "card_count": len(cards),
+        "cards": cards,
+    }
+
+
+def _dashboard_card(
+    item_code: str,
+    item: Item | None,
+    forecast: Forecast | None,
+    hotspot: RegionSignal | None,
+    prices: list[DailyPrice],
+) -> dict:
+    latest_price = prices[-1].wholesale_price if prices else None
+    price_change = _price_change_pct(prices)
+    top_factors = factors_to_display(forecast.top_factors) if forecast else []
+    direction = forecast.direction_14d if forecast else None
+    probability = forecast.up_probability_14d if forecast else None
+    confidence = forecast.confidence if forecast else None
+    return {
+        "item_code": item_code,
+        "item_name": item.item_name if item else ITEM_NAMES.get(item_code, item_code),
+        "summary": (
+            build_summary_text(item_code, direction, probability, forecast.top_factors, confidence)
+            if forecast
+            else "예측 데이터가 아직 준비되지 않았습니다."
+        ),
+        "forecast": {
+            "direction_14d": direction,
+            "up_probability_14d": probability,
+            "surge_probability_14d": forecast.surge_probability_14d if forecast else None,
+            "bottom_probability": forecast.bottom_probability if forecast else None,
+            "confidence": confidence,
+            "model_scope": _card_model_scope(forecast),
+        },
+        "risk": {
+            "score": hotspot.risk_score if hotspot else None,
+            "level": hotspot.risk_level if hotspot else None,
+            "price_effect": hotspot.price_effect if hotspot else None,
+            "hotspot_region": hotspot.region_name if hotspot else None,
+            "summary": hotspot.summary_text if hotspot else None,
+        },
+        "price": {
+            "latest": latest_price,
+            "change_30d_pct": price_change,
+        },
+        "top_factors": top_factors[:3],
+    }
+
+
+def _price_change_pct(prices: list[DailyPrice]) -> float | None:
+    if len(prices) < 2:
+        return None
+    oldest = prices[0].wholesale_price
+    latest = prices[-1].wholesale_price
+    if not oldest:
+        return None
+    return round((latest - oldest) / oldest * 100, 1)
+
+
+def _card_model_scope(forecast: Forecast | None) -> str | None:
+    if not forecast:
+        return None
+    if forecast.model_version and forecast.model_version.endswith("_item"):
+        return "item"
+    return "global"
+
+
+def _dashboard_card_rank(card: dict) -> tuple[float, float]:
+    risk_score = card.get("risk", {}).get("score") or 0.0
+    probability = card.get("forecast", {}).get("up_probability_14d") or 0.0
+    return float(risk_score), float(probability)
 
 
 @router.get("/api/v1/report/today")

@@ -147,6 +147,7 @@ python scripts/smoke_api_contract.py
 - `GET /api/v1/items/{item_code}/forecast/explanation`
 - `GET /forecast-explanation`
 - `GET /api/v1/signals/today`
+- `GET /api/v1/dashboard/cards`
 - `GET /api/v1/items/{item_code}/meta-engine`
 - `GET /api/v1/api-services`
 
@@ -162,6 +163,10 @@ risk regions, and data freshness for price, region signal, and forecast data.
 `GET /forecast-explanation` renders a public Korean page that consumes the
 forecast explanation API and provides a resilient empty state when a selected
 item has no current forecast.
+
+`GET /api/v1/dashboard/cards` returns a compact card payload for public
+dashboards. Each card combines item metadata, forecast probability, model scope,
+hotspot region risk, latest price, 30-day price change, summary, and top factors.
 
 The `meta-engine` endpoint is useful for admin/debug pages because it shows
 which engines, source coverage, risk weights, and weather factors are active for

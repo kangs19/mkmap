@@ -51,6 +51,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
   - `GET /api/v1/signals/today`
   - `GET /api/v1/items/{item_code}/signals`
   - `GET /api/v1/map/signals`
+  - `GET /api/v1/dashboard/cards`
 
 ### Price Forecast Pipeline
 
@@ -171,6 +172,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 - Top factors remain price/risk factors and are not polluted by trace metadata.
 - Item models are accepted only when they pass the quality gate against global fallback.
 - Public forecast explanations are available through `/forecast-explanation`.
+- Public dashboard cards are available through `/api/v1/dashboard/cards`.
 
 ## Next Work
 
@@ -184,6 +186,5 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 
 ### Product/API
 
-- Add a compact public endpoint for dashboard cards.
 - Add alert thresholds for high-risk region/item combinations.
 - Add deployment notes for syncing `.env` and scheduler behavior on the production server.

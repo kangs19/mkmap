@@ -133,6 +133,82 @@ async def test_forecast_explanation_payload(client):
 
 
 @pytest.mark.asyncio
+async def test_dashboard_cards_payload(client):
+    item_code = "test_card_crop"
+    base_date = date(2026, 2, 10)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code))
+        await db.execute(delete(DailyPrice).where(DailyPrice.item_code == item_code))
+        await db.execute(delete(Forecast).where(Forecast.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="테스트카드품목",
+            category="테스트",
+            wholesale_unit="1kg",
+            is_active=True,
+        ))
+        db.add(Forecast(
+            item_code=item_code,
+            base_date=base_date,
+            model_version="price_baseline_v1_item",
+            direction_14d="up",
+            up_probability_14d=0.71,
+            surge_probability_14d=0.22,
+            volatility_risk_30d="medium",
+            bottom_probability=0.29,
+            top_factors=[{"factor": "price_lag_model", "contribution": 0.02, "direction": "up"}],
+            national_supply_shock=0.02,
+            confidence="high",
+        ))
+        db.add(DailyPrice(
+            item_code=item_code,
+            date=date(2026, 1, 20),
+            market="test",
+            grade="test",
+            wholesale_price=1000,
+            retail_price=1200,
+            avg_year_price=1100,
+            prev_year_price=1050,
+            source="test",
+        ))
+        db.add(DailyPrice(
+            item_code=item_code,
+            date=base_date,
+            market="test",
+            grade="test",
+            wholesale_price=1150,
+            retail_price=1300,
+            avg_year_price=1120,
+            prev_year_price=1060,
+            source="test",
+        ))
+        db.add(RegionSignal(
+            item_code=item_code,
+            region_code="TEST-CARD",
+            region_name="카드지역",
+            date=base_date,
+            risk_score=81.0,
+            risk_level="warning",
+            supply_shock=0.25,
+            price_effect="up",
+            weather_summary={},
+            market_summary={},
+            summary_text="카드 위험 신호",
+        ))
+        await db.commit()
+
+    r = await client.get(f"/api/v1/dashboard/cards?target_date={base_date}&limit=5")
+    assert r.status_code == 200
+    data = r.json()
+    card = next(card for card in data["cards"] if card["item_code"] == item_code)
+    assert card["item_name"] == "테스트카드품목"
+    assert card["forecast"]["model_scope"] == "item"
+    assert card["risk"]["hotspot_region"] == "카드지역"
+    assert card["price"]["change_30d_pct"] == 15.0
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("item_code", ["cabbage", "radish", "onion", "green_onion", "garlic"])
 async def test_map_signals(client, item_code):
     r = await client.get(f"/api/v1/map/signals?item_code={item_code}")
