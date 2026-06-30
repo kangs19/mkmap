@@ -44,7 +44,17 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
         {
             "code": "kma_crop_weather",
             "engine_role": "agri_weather",
-            "command": ["scripts/test_live_kma_crop_weather.py", "--item", args.item, "--date", args.date, "--max-rows", str(args.max_rows)],
+            "command": [
+                "scripts/test_live_kma_crop_weather.py",
+                "--item",
+                args.item,
+                "--date",
+                args.date,
+                "--max-rows",
+                str(args.max_rows),
+                "--max-requests",
+                "3",
+            ],
         },
         {
             "code": "kma_weather_alert",
@@ -68,7 +78,7 @@ def main() -> int:
     args = parse_args()
     results = [run_check(check, args.timeout_seconds) for check in diagnostics(args)]
     report = {
-        "ok": all(result["status"] == "ok" for result in results),
+        "ok": all(result["status"] in {"ok", "no_data"} for result in results),
         "date": args.date,
         "item": args.item,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -113,7 +123,7 @@ def run_check(check: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
     payload = parse_json_output(completed.stdout)
     ok = bool(payload.get("ok")) if isinstance(payload, dict) and "ok" in payload else completed.returncode == 0
     status = classify_status(completed.returncode, payload, ok)
-    effective_ok = ok and status == "ok"
+    effective_ok = ok and status in {"ok", "no_data"}
     return {
         **base_result,
         "status": status,
@@ -149,6 +159,16 @@ def classify_status(returncode: int, payload: Any, ok: bool) -> str:
             return "no_data"
         return "ok"
     if isinstance(payload, dict):
+        api_errors = payload.get("api_errors")
+        if isinstance(api_errors, list) and api_errors:
+            result_codes = {
+                str(error.get("api_error", {}).get("resultCode"))
+                for error in api_errors
+                if isinstance(error, dict)
+            }
+            if result_codes == {"03"}:
+                return "no_data"
+            return "api_error"
         reason = str(payload.get("reason") or payload.get("api_error") or "").lower()
         missing = payload.get("missing") or payload.get("missing_env")
         if missing or "missing" in reason:

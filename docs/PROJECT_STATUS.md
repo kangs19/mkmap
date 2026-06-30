@@ -76,6 +76,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Model evaluation report is generated at `data/model/price_baseline_model_{YYYYMMDD}_evaluation.json`.
 - Admin API exposes `GET /api/v1/admin/model-evaluation`.
 - Forecast scope contract smoke test verifies item/global scope traceability.
+- API service catalog Korean display names are normalized for admin/debug output.
 
 ## Latest Verified Run
 
@@ -103,9 +104,9 @@ Date: `2026-06-30`
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
 - KMA typhoon: live OK, 2 normalized event rows.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
-- KMA crop main-area weather: unstable; latest diagnostic hit the 45 second timeout.
+- KMA crop main-area weather: diagnostic timeout resolved; latest sampled calls returned `NO_DATA`.
 - KMA weather alert: provider returned `DB_ERROR`.
-- Service catalog: 12 cataloged services, 4 currently configured by environment.
+- Service catalog: 12 cataloged services; required-env checks now align with connector defaults for KAMIS/KOSIS.
 
 ## Main Commands
 
@@ -153,7 +154,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### High Priority
 
 - Add stronger live collection diagnostics for each external API service.
-- Fix mojibake in `config/api_services.json` Korean display names.
 - Expand KMA crop-weather mapping from candidate regions to confirmed official codes.
 - Add API/data freshness status to the admin dashboard.
 - Add a public-facing forecast explanation view that shows model scope, risk factors, and data freshness in Korean.

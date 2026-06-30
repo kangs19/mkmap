@@ -136,7 +136,7 @@ class CropMainAreaWeatherConnector(DataGoKrWeatherConnector):
 class RdaAgriWeatherConnector(DataGoKrWeatherConnector):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
-            service_name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터 조회",
+            service_name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터",
             base_url=os.getenv("RDA_AGRI_WEATHER_BASE_URL", ""),
             operation_path=os.getenv("RDA_AGRI_WEATHER_OPERATION", ""),
             **kwargs,
@@ -157,7 +157,7 @@ def normalize_weather_rows(
                 continue
 
         base_date = parse_date(
-            first_present(row, "base_date", "date", "ymd", "tm", "obsrDe", "관측일"),
+            first_present(row, "base_date", "date", "ymd", "tm", "obsrDe"),
             default=default_date,
         )
         region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId", "AREA_ID")
@@ -169,12 +169,12 @@ def normalize_weather_rows(
                 region_code=str(region_code or region_name or ""),
                 base_date=base_date,
                 temperature=parse_float(
-                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "AVG_TA", "MIN_TA", "MAX_TA", "기온", "평균기온")
+                    first_present(row, "temperature", "temp", "ta", "avgTa", "dayAvgTa", "AVG_TA", "MIN_TA", "MAX_TA")
                 ),
-                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "SUM_RN", "강수량")),
-                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "AVG_RHM", "습도", "평균습도")),
-                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "AVG_WS", "풍속")),
-                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "SUM_SS_HR", "일조", "일조시간")),
+                rainfall=parse_float(first_present(row, "rainfall", "rain", "rn", "sumRn", "daySumRn", "SUM_RN")),
+                humidity=parse_float(first_present(row, "humidity", "hm", "avgRhm", "dayAvgRhm", "AVG_RHM")),
+                wind_speed=parse_float(first_present(row, "wind_speed", "ws", "avgWs", "dayAvgWs", "AVG_WS")),
+                sunshine=parse_float(first_present(row, "sunshine", "ss", "sumSsHr", "daySumSs", "SUM_SS_HR")),
                 source=source,
                 raw=row,
             )

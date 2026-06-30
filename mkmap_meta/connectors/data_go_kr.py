@@ -51,12 +51,12 @@ DATA_GO_KR_SERVICES = {
         default_params={"type": "json"},
     ),
     "at_regional_price": DataGoKrService(
-        name="한국농수산식품유통공사 지역별 품목별 도소매 가격정보 조회",
+        name="한국농수산식품유통공사 지역별 품목별 도소매 가격정보",
         base_url="",
         default_params={"type": "json"},
     ),
     "rda_agri_weather": DataGoKrService(
-        name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터 조회",
+        name="농촌진흥청 국립농업과학원 농업기상 상세 관측데이터",
         base_url="",
         default_params={"type": "json"},
     ),
