@@ -536,6 +536,13 @@ window.onload=async()=>{
   // 남한 경계에 딱 맞게
   map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
 
+  // 한국 외부(일본·중국) 마스크 — 역다각형으로 덮기
+  const _mask={type:'Feature',geometry:{type:'Polygon',coordinates:[
+    [[-180,-90],[180,-90],[180,90],[-180,90],[-180,-90]],   // 바깥 사각형
+    [[124.8,32.3],[130.7,32.3],[130.7,39.1],[124.8,39.1],[124.8,32.3]] // 한국 구멍
+  ]}};
+  L.geoJSON(_mask,{style:{fillColor:'#aad3df',fillOpacity:1,stroke:false},interactive:false}).addTo(map_);
+
   async function fetchGeo(file){
     // 1순위: Railway /static/ 로컬, 실패시 jsDelivr CDN 폴백
     try{
