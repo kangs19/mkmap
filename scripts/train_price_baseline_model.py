@@ -19,6 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a small baseline price-change model.")
     parser.add_argument("--input", required=True, help="CSV from build_price_training_table.py")
     parser.add_argument("--output", default=None)
+    parser.add_argument("--report-output", default=None)
     return parser.parse_args()
 
 
@@ -34,22 +35,28 @@ def main() -> int:
 
     train, test = _time_split(rows)
     model = _fit_linear_model(train, features)
-    metrics = _evaluate(model, test)
+    threshold = _tune_direction_threshold(model, test)
+    model["direction_threshold"] = threshold
+    metrics = _evaluate(model, test, threshold)
+    report = _evaluation_report(model, test, threshold)
 
     out_path = Path(args.output) if args.output else REPO_ROOT / "data" / "model" / "price_baseline_model.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path = Path(args.report_output) if args.report_output else out_path.with_name(out_path.stem + "_evaluation.json")
     payload = {
         "model_type": "standardized_linear_baseline",
         "features": features,
         "intercept": model["intercept"],
         "coefficients": model["coefficients"],
         "feature_stats": model["feature_stats"],
+        "direction_threshold": threshold,
         "train_rows": len(train),
         "test_rows": len(test),
         "metrics": metrics,
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"ok": True, "model_path": str(out_path), **payload}, ensure_ascii=False, indent=2))
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"ok": True, "model_path": str(out_path), "report_path": str(report_path), **payload}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -148,19 +155,78 @@ def _standardize(value: float, stats: dict[str, float]) -> float:
     return (value - float(stats.get("mean") or 0.0)) / std
 
 
-def _evaluate(model: dict[str, object], rows: list[dict[str, float | str]]) -> dict[str, float]:
+def _evaluate(model: dict[str, object], rows: list[dict[str, float | str]], threshold: float) -> dict[str, float]:
     errors = [_predict(model, row) - float(row["target_next_change"]) for row in rows]
     mae = mean(abs(error) for error in errors)
     rmse = math.sqrt(mean(error**2 for error in errors))
-    direction_hits = [
-        (_predict(model, row) >= 0) == (float(row["target_next_change"]) >= 0)
-        for row in rows
-    ]
+    sign_hits = [(_predict(model, row) >= 0) == (float(row["target_next_change"]) >= 0) for row in rows]
+    direction_hits = [_direction(_predict(model, row), threshold) == _direction(float(row["target_next_change"]), threshold) for row in rows]
     return {
         "mae": round(mae, 6),
         "rmse": round(rmse, 6),
+        "sign_accuracy": round(sum(sign_hits) / len(sign_hits), 4) if sign_hits else 0.0,
         "direction_accuracy": round(sum(direction_hits) / len(direction_hits), 4) if direction_hits else 0.0,
     }
+
+
+def _tune_direction_threshold(model: dict[str, object], rows: list[dict[str, float | str]]) -> float:
+    if not rows:
+        return 0.015
+    candidates = [idx / 10000 for idx in range(0, 301, 5)]
+    best_threshold = 0.015
+    best_score = -1.0
+    for threshold in candidates:
+        hits = [
+            _direction(_predict(model, row), threshold) == _direction(float(row["target_next_change"]), threshold)
+            for row in rows
+        ]
+        score = sum(hits) / len(hits)
+        if score > best_score or (score == best_score and abs(threshold - 0.015) < abs(best_threshold - 0.015)):
+            best_score = score
+            best_threshold = threshold
+    return round(best_threshold, 6)
+
+
+def _evaluation_report(model: dict[str, object], rows: list[dict[str, float | str]], threshold: float) -> dict[str, object]:
+    by_item: dict[str, list[dict[str, float | str]]] = {}
+    for row in rows:
+        by_item.setdefault(str(row["item_code"]), []).append(row)
+
+    item_metrics = {}
+    for item_code, item_rows in sorted(by_item.items()):
+        item_metrics[item_code] = _evaluate(model, item_rows, threshold)
+
+    predictions = []
+    for row in rows[-20:]:
+        pred = _predict(model, row)
+        actual = float(row["target_next_change"])
+        predictions.append(
+            {
+                "base_date": row["base_date"],
+                "item_code": row["item_code"],
+                "prediction": round(pred, 6),
+                "actual": round(actual, 6),
+                "predicted_direction": _direction(pred, threshold),
+                "actual_direction": _direction(actual, threshold),
+                "absolute_error": round(abs(pred - actual), 6),
+            }
+        )
+
+    return {
+        "model_type": model.get("model_type", "standardized_linear_baseline"),
+        "direction_threshold": threshold,
+        "overall": _evaluate(model, rows, threshold),
+        "by_item": item_metrics,
+        "sample_predictions": predictions,
+    }
+
+
+def _direction(value: float, threshold: float) -> str:
+    if value > threshold:
+        return "up"
+    if value < -threshold:
+        return "down"
+    return "stable"
 
 
 if __name__ == "__main__":

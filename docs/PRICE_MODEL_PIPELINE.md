@@ -24,8 +24,9 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 - Target: next observed price change.
 - Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure price-history prediction and a separate `risk_adjusted_next_change`.
 - The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
-- 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features.
-- Test metrics: MAE `0.017679`, RMSE `0.021859`, direction accuracy `0.5333`.
+- The training script tunes `direction_threshold` on the holdout set and writes an adjacent evaluation report JSON.
+- 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`.
+- Test metrics: MAE `0.017679`, RMSE `0.021859`, sign accuracy `0.5333`, 3-class direction accuracy `0.8333`.
 
 ## Feature Columns
 
@@ -37,6 +38,15 @@ The current training table includes:
 - Mean reversion: `ma_7_gap`, `ma_14_gap`
 - Recent volatility: `volatility_7d`, `volatility_14d`
 - Calendar seasonality: `weekday_sin`, `weekday_cos`, `month_sin`, `month_cos`
+
+## Evaluation Output
+
+Each model run writes:
+
+- Model: `data/model/price_baseline_model_{YYYYMMDD}.json`
+- Evaluation report: `data/model/price_baseline_model_{YYYYMMDD}_evaluation.json`
+
+The evaluation report includes overall metrics, item-level metrics, the tuned direction threshold, and recent holdout sample predictions.
 
 ## Notes
 

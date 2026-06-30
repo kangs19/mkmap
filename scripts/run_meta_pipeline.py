@@ -66,12 +66,22 @@ def main() -> int:
 
     training_table = REPO_ROOT / "data" / "model" / f"price_training_table_{stamp}.csv"
     model_path = REPO_ROOT / "data" / "model" / f"price_baseline_model_{stamp}.json"
+    model_report_path = REPO_ROOT / "data" / "model" / f"price_baseline_model_{stamp}_evaluation.json"
     prediction_path = REPO_ROOT / "data" / "model" / f"latest_price_predictions_{stamp}_risk.json"
     signal_path = REPO_ROOT / "data" / "signals" / stamp / "region_risk_signals.json"
 
     run_step(
         "Train baseline price model",
-        [sys.executable, "scripts/train_price_baseline_model.py", "--input", str(training_table), "--output", str(model_path)],
+        [
+            sys.executable,
+            "scripts/train_price_baseline_model.py",
+            "--input",
+            str(training_table),
+            "--output",
+            str(model_path),
+            "--report-output",
+            str(model_report_path),
+        ],
     )
     run_step(
         "Predict latest prices with risk overlay",

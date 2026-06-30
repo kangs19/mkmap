@@ -103,17 +103,18 @@ def _predict_row(
     risk_score = float(risk_overlay.get("max_risk_score", 0.0)) if risk_overlay else 0.0
     risk_adjustment = max(0.0, min(1.0, risk_score)) * risk_adjustment_scale
     adjusted_prediction = prediction + risk_adjustment
+    direction_threshold = float(model.get("direction_threshold") or 0.015)
 
-    if prediction > 0.015:
+    if prediction > direction_threshold:
         direction = "up"
-    elif prediction < -0.015:
+    elif prediction < -direction_threshold:
         direction = "down"
     else:
         direction = "stable"
 
-    if adjusted_prediction > 0.015:
+    if adjusted_prediction > direction_threshold:
         adjusted_direction = "up"
-    elif adjusted_prediction < -0.015:
+    elif adjusted_prediction < -direction_threshold:
         adjusted_direction = "down"
     else:
         adjusted_direction = "stable"
@@ -124,6 +125,7 @@ def _predict_row(
         "avg_price": float(row["avg_price"]),
         "predicted_next_change": round(prediction, 6),
         "predicted_direction": direction,
+        "direction_threshold": round(direction_threshold, 6),
         "risk_adjustment": round(risk_adjustment, 6),
         "risk_adjusted_next_change": round(adjusted_prediction, 6),
         "risk_adjusted_direction": adjusted_direction,

@@ -17,6 +17,7 @@ def main() -> int:
         tmp_path = Path(tmp_dir)
         training_path = tmp_path / "training.csv"
         model_path = tmp_path / "model.json"
+        report_path = tmp_path / "model_evaluation.json"
         prediction_path = tmp_path / "predictions.json"
 
         _write_training_csv(training_path)
@@ -29,6 +30,8 @@ def main() -> int:
                 str(training_path),
                 "--output",
                 str(model_path),
+                "--report-output",
+                str(report_path),
             ],
             check=True,
             cwd=REPO_ROOT,
@@ -49,11 +52,15 @@ def main() -> int:
         )
 
         model = json.loads(model_path.read_text(encoding="utf-8"))
+        report = json.loads(report_path.read_text(encoding="utf-8"))
         predictions = json.loads(prediction_path.read_text(encoding="utf-8"))
 
         assert model["model_type"] == "standardized_linear_baseline"
         assert len(model["features"]) >= 4
+        assert "direction_threshold" in model
+        assert "by_item" in report
         assert len(predictions) == 2
+        assert all("direction_threshold" in row for row in predictions)
         assert all("risk_adjusted_next_change" in row for row in predictions)
 
     print("Price model pipeline smoke test passed")
