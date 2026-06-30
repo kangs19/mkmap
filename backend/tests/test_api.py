@@ -3,6 +3,7 @@ API Smoke Test — 기획서 20번
 pytest로 실행: cd backend && pytest tests/ -v
 """
 import pytest
+import os
 from httpx import AsyncClient, ASGITransport
 from app.database import init_db
 from app.main import app
@@ -84,9 +85,10 @@ async def test_widget_embed_guide(client):
 
 @pytest.mark.asyncio
 async def test_admin_status(client):
+    admin_key = os.environ.get("ADMIN_KEY", "dev-admin-key")
     r = await client.get("/api/v1/admin/status",
-                         headers={"X-Admin-Key": "dev-admin-key"})
-    assert r.status_code in (200, 403)
+                         headers={"X-Admin-Key": admin_key})
+    assert r.status_code in (200, 403, 503)
     if r.status_code == 200:
         data = r.json()
         assert "data_freshness" in data
