@@ -137,9 +137,14 @@ python scripts/smoke_api_contract.py
 ## Added Endpoints
 
 - `GET /api/v1/items/{item_code}/signals`
+- `GET /api/v1/items/{item_code}/forecast`
 - `GET /api/v1/signals/today`
 - `GET /api/v1/items/{item_code}/meta-engine`
 - `GET /api/v1/api-services`
+
+`GET /api/v1/items/{item_code}/forecast` includes `model_version` and
+`model_scope`. `model_scope` is `item` when an accepted item-specific model was
+used and `global` when the global fallback model was used.
 
 The `meta-engine` endpoint is useful for admin/debug pages because it shows
 which engines, source coverage, risk weights, and weather factors are active for
