@@ -59,6 +59,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Item-specific models are trained only when they beat the global fallback on holdout rows.
 - Item-specific model acceptance now records a gate summary and rejects short-history models that do not clearly improve on the global fallback.
 - Direction thresholds are tuned on holdout data.
+- Forecast probability calibration is derived from rolling backtest MAE and direction accuracy instead of only raw predicted price change.
 - Risk overlays are applied after pure price-history prediction.
 - Forecast imports write five daily forecasts into the backend.
 - Forecast API exposes:
@@ -179,7 +180,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### Model Improvement
 
 - Keep accumulating daily price history.
-- Calibrate forecast probability from historical error instead of only predicted price change.
 
 ### Product/API
 

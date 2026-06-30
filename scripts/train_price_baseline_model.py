@@ -78,6 +78,7 @@ def main() -> int:
         "train_rows": len(train),
         "test_rows": len(test),
         "metrics": metrics,
+        "probability_calibration": _probability_calibration(backtest, threshold),
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -278,6 +279,30 @@ def _rolling_backtest(
     summary["max_window_count"] = max_windows
     summary["by_item"] = _aggregate_predictions_by_item(all_predictions)
     return {"summary": summary, "windows": windows}
+
+
+def _probability_calibration(backtest: dict[str, object], direction_threshold: float) -> dict[str, object]:
+    summary = backtest.get("summary") if isinstance(backtest.get("summary"), dict) else {}
+    mae = float(summary.get("mae") or 0.0)
+    direction_accuracy = float(summary.get("direction_accuracy") or 0.0)
+    prediction_count = int(summary.get("prediction_count") or 0)
+    scale = max(direction_threshold, mae * 2.0, 0.01)
+    if prediction_count < 10:
+        confidence = "low"
+    elif direction_accuracy >= 0.65 and mae <= scale:
+        confidence = "high"
+    elif direction_accuracy >= 0.55:
+        confidence = "medium"
+    else:
+        confidence = "low"
+    return {
+        "method": "rolling_backtest_error_scaled_tanh",
+        "scale": round(scale, 6),
+        "mae": round(mae, 6),
+        "direction_accuracy": round(direction_accuracy, 4),
+        "prediction_count": prediction_count,
+        "confidence": confidence,
+    }
 
 
 def _fit_linear_model(rows: list[dict[str, float | str]], features: list[str]) -> dict[str, object]:

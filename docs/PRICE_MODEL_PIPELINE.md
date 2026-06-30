@@ -28,6 +28,7 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 - The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
 - The training script tunes `direction_threshold` on the holdout set and writes an adjacent evaluation report JSON.
 - The training script also writes an adjacent rolling backtest report across recent test dates, so model changes can be checked against multiple historical cutoffs instead of a single holdout split.
+- The model file includes `probability_calibration` from rolling backtest MAE and direction accuracy. Latest prediction rows use it for `up_probability_14d`, `surge_probability_14d`, `bottom_probability`, and `confidence`.
 - 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`, accepted item models `1`.
 - Test metrics: MAE `0.017679`, RMSE `0.021859`, sign accuracy `0.5333`, 3-class direction accuracy `0.8333`.
 
@@ -56,7 +57,7 @@ The rolling backtest report includes per-window metrics, prediction rows, aggreg
 
 The model file also includes `item_models` when item-specific training passes the quality gate. Each accepted item model records an `acceptance_gate` summary with the MAE ratio, direction gain, and short-history status. Prediction rows include `model_scope` as `item` or `global`.
 
-Imported backend forecasts expose `model_version` and `model_scope` so API consumers can see whether a forecast used an accepted item model or the global fallback.
+Imported backend forecasts prefer calibrated probability fields from the prediction JSON and fall back to the older change-based formula for backward compatibility. They also expose `model_version` and `model_scope` so API consumers can see whether a forecast used an accepted item model or the global fallback.
 
 ## Notes
 

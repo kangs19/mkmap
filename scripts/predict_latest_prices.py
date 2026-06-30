@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -120,6 +121,10 @@ def _predict_row(
     else:
         adjusted_direction = "stable"
 
+    calibration = model.get("probability_calibration") if isinstance(model.get("probability_calibration"), dict) else {}
+    up_probability = _change_to_probability(adjusted_prediction, calibration, direction_threshold)
+    surge_probability = _change_to_surge_probability(adjusted_prediction, calibration, direction_threshold)
+
     result = {
         "base_date": row["base_date"],
         "item_code": row["item_code"],
@@ -131,6 +136,11 @@ def _predict_row(
         "risk_adjustment": round(risk_adjustment, 6),
         "risk_adjusted_next_change": round(adjusted_prediction, 6),
         "risk_adjusted_direction": adjusted_direction,
+        "up_probability_14d": up_probability,
+        "surge_probability_14d": surge_probability,
+        "bottom_probability": round(1.0 - up_probability, 4),
+        "confidence": str(calibration.get("confidence") or "low"),
+        "probability_calibration": calibration,
     }
     if risk_overlay:
         result["risk_overlay"] = risk_overlay
@@ -151,6 +161,24 @@ def _standardize(value: float, stats: dict[str, object]) -> float:
     if std == 0:
         std = 1.0
     return (value - float(stats.get("mean") or 0.0)) / std
+
+
+def _change_to_probability(change: float, calibration: dict[str, object], direction_threshold: float) -> float:
+    scale = float(calibration.get("scale") or max(direction_threshold, 0.01))
+    if scale <= 0:
+        scale = max(direction_threshold, 0.01)
+    probability = 0.5 + 0.45 * math.tanh(change / scale)
+    return round(max(0.05, min(0.95, probability)), 4)
+
+
+def _change_to_surge_probability(change: float, calibration: dict[str, object], direction_threshold: float) -> float:
+    if change <= 0:
+        return 0.0
+    scale = float(calibration.get("scale") or max(direction_threshold, 0.01))
+    surge_start = max(direction_threshold * 2.0, scale * 1.5, 0.03)
+    surge_full = max(surge_start * 2.0, 0.08)
+    probability = (change - surge_start) / max(surge_full - surge_start, 0.001)
+    return round(max(0.0, min(1.0, probability)), 4)
 
 
 if __name__ == "__main__":

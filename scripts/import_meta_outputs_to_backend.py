@@ -110,19 +110,23 @@ async def import_forecasts(path: Path, target_date: date) -> int:
         pure_change = float(prediction.get("predicted_next_change") or 0.0)
         risk_overlay = prediction.get("risk_overlay") if isinstance(prediction.get("risk_overlay"), dict) else {}
         model_scope = str(prediction.get("model_scope") or "global")
+        up_probability = _prediction_probability(prediction, "up_probability_14d", _change_to_probability(adjusted_change))
+        surge_probability = _prediction_probability(prediction, "surge_probability_14d", _change_to_surge_probability(adjusted_change))
+        bottom_probability = _prediction_probability(prediction, "bottom_probability", round(1.0 - up_probability, 4))
+        confidence = str(prediction.get("confidence") or ("medium" if risk_overlay else "low"))
         rows.append(
             Forecast(
                 item_code=item_code,
                 base_date=target_date,
                 model_version=_model_version(model_scope),
                 direction_14d=_forecast_direction(str(prediction.get("risk_adjusted_direction") or prediction.get("predicted_direction") or "stable")),
-                up_probability_14d=_change_to_probability(adjusted_change),
-                surge_probability_14d=_change_to_surge_probability(adjusted_change),
+                up_probability_14d=up_probability,
+                surge_probability_14d=surge_probability,
                 volatility_risk_30d=_volatility_risk(risk_overlay),
-                bottom_probability=round(1.0 - _change_to_probability(adjusted_change), 4),
+                bottom_probability=bottom_probability,
                 top_factors=_forecast_factors(prediction, pure_change, adjusted_change),
                 national_supply_shock=round(adjusted_change - pure_change, 6),
-                confidence="medium" if risk_overlay else "low",
+                confidence=confidence,
             )
         )
 
@@ -174,6 +178,14 @@ def _change_to_probability(change: float) -> float:
 def _change_to_surge_probability(change: float) -> float:
     probability = max(0.0, min(1.0, change / 0.08))
     return round(probability, 4)
+
+
+def _prediction_probability(prediction: dict[str, Any], field: str, fallback: float) -> float:
+    try:
+        value = float(prediction.get(field))
+    except (TypeError, ValueError):
+        return fallback
+    return round(max(0.0, min(1.0, value)), 4)
 
 
 def _volatility_risk(risk_overlay: dict[str, Any]) -> str:

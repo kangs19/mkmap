@@ -62,6 +62,7 @@ def main() -> int:
         assert model["model_type"] == "standardized_linear_baseline"
         assert len(model["features"]) >= 4
         assert "direction_threshold" in model
+        assert model["probability_calibration"]["method"] == "rolling_backtest_error_scaled_tanh"
         assert len(model.get("item_models", {})) == 2
         assert all(item_model["acceptance_gate"]["accepted"] for item_model in model["item_models"].values())
         assert "by_item" in report
@@ -72,6 +73,9 @@ def main() -> int:
         assert all(row["model_scope"] == "item" for row in predictions)
         assert all("direction_threshold" in row for row in predictions)
         assert all("risk_adjusted_next_change" in row for row in predictions)
+        assert all("up_probability_14d" in row for row in predictions)
+        assert all("surge_probability_14d" in row for row in predictions)
+        assert all("confidence" in row for row in predictions)
 
     print("Price model pipeline smoke test passed")
     return 0
