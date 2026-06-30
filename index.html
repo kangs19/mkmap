@@ -494,6 +494,7 @@ const CITY_DATA={
 const PROV_NAME_MAP={"서울특별시":"KR-11","서울":"KR-11","부산광역시":"KR-26","부산":"KR-26","대구광역시":"KR-27","대구":"KR-27","인천광역시":"KR-28","인천":"KR-28","광주광역시":"KR-29","광주":"KR-29","대전광역시":"KR-30","대전":"KR-30","울산광역시":"KR-31","울산":"KR-31","세종특별자치시":"KR-36","세종":"KR-36","경기도":"KR-41","경기":"KR-41","강원도":"KR-42","강원":"KR-42","강원특별자치도":"KR-42","충청북도":"KR-43","충북":"KR-43","충청남도":"KR-44","충남":"KR-44","전라북도":"KR-45","전북":"KR-45","전북특별자치도":"KR-45","전라남도":"KR-46","전남":"KR-46","경상북도":"KR-47","경북":"KR-47","경상남도":"KR-48","경남":"KR-48","제주특별자치도":"KR-49","제주":"KR-49"};
 const SIDO_PREFIX={"KR-11":"11","KR-26":"21","KR-27":"22","KR-28":"23","KR-29":"24","KR-30":"25","KR-31":"26","KR-36":"29","KR-41":"31","KR-42":"32","KR-43":"33","KR-44":"34","KR-45":"35","KR-46":"36","KR-47":"37","KR-48":"38","KR-49":"39"};
 const GEO="/static/";
+const GEO_CDN="https://cdn.jsdelivr.net/gh/kangs19/mkmap@main/map_viewer/static/";
 const NEWS_BY_ITEM={
   cabbage:["해남 배추 작황 양호, 출하량 증가 전망","강원 고랭지 배추 이상 기후 영향 주목","배추 도매가 전주比 소폭 하락"],
   radish:["제주 월동무 출하 본격화, 가격 안정세","무 재배면적 전년比 5% 증가 전망","가락시장 무 반입량 평년 수준 유지"],
@@ -534,9 +535,23 @@ window.onload=async()=>{
   // 남한 경계에 딱 맞게
   map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
 
+  async function fetchGeo(file){
+    // 1순위: Railway /static/ 로컬, 실패시 jsDelivr CDN 폴백
+    try{
+      const r=await fetch(GEO+file);
+      if(!r.ok) throw new Error("local 404");
+      return await r.json();
+    }catch{
+      console.warn(`[geo] /static/ 실패 → CDN 폴백: ${file}`);
+      const r=await fetch(GEO_CDN+file);
+      if(!r.ok) throw new Error(`CDN도 실패: ${file}`);
+      return await r.json();
+    }
+  }
+
   Promise.all([
-    fetch(GEO+"skorea_provinces.json").then(r=>r.json()),
-    fetch(GEO+"skorea_municipalities_simple.json").then(r=>r.json()),
+    fetchGeo("skorea_provinces.json"),
+    fetchGeo("skorea_municipalities_simple.json"),
   ]).then(([p,c])=>{
     provGeo=p;cityGeo=c;
     const s=c.features[0]?.properties||{};
