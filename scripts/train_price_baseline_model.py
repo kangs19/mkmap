@@ -24,6 +24,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backtest-min-train-rows", type=int, default=24)
     parser.add_argument("--backtest-window-count", type=int, default=8)
     parser.add_argument("--min-item-rows", type=int, default=24)
+    parser.add_argument("--item-model-max-mae-ratio", type=float, default=1.0)
+    parser.add_argument("--item-model-short-history-rows", type=int, default=45)
+    parser.add_argument("--item-model-short-history-min-mae-ratio", type=float, default=0.95)
     return parser.parse_args()
 
 
@@ -42,7 +45,16 @@ def main() -> int:
     threshold = _tune_direction_threshold(model, test)
     model["direction_threshold"] = threshold
     metrics = _evaluate(model, test, threshold)
-    item_models = _fit_item_models(rows, features, model, threshold, min_item_rows=args.min_item_rows)
+    item_models = _fit_item_models(
+        rows,
+        features,
+        model,
+        threshold,
+        min_item_rows=args.min_item_rows,
+        max_mae_ratio=args.item_model_max_mae_ratio,
+        short_history_rows=args.item_model_short_history_rows,
+        short_history_min_mae_ratio=args.item_model_short_history_min_mae_ratio,
+    )
     backtest = _rolling_backtest(
         rows,
         features,
@@ -122,6 +134,9 @@ def _fit_item_models(
     global_model: dict[str, object],
     global_threshold: float,
     min_item_rows: int,
+    max_mae_ratio: float,
+    short_history_rows: int,
+    short_history_min_mae_ratio: float,
 ) -> dict[str, dict[str, object]]:
     item_models: dict[str, dict[str, object]] = {}
     by_item: dict[str, list[dict[str, float | str]]] = {}
@@ -147,7 +162,15 @@ def _fit_item_models(
         threshold = _tune_direction_threshold(item_model, test)
         item_metrics = _evaluate(item_model, test, threshold)
         global_metrics = _evaluate(global_model, test, global_threshold)
-        if not _item_model_is_better(item_metrics, global_metrics):
+        acceptance_gate = _item_acceptance_gate(
+            item_metrics,
+            global_metrics,
+            item_rows=len(item_rows),
+            max_mae_ratio=max_mae_ratio,
+            short_history_rows=short_history_rows,
+            short_history_min_mae_ratio=short_history_min_mae_ratio,
+        )
+        if not acceptance_gate["accepted"]:
             continue
 
         item_model["direction_threshold"] = threshold
@@ -155,22 +178,53 @@ def _fit_item_models(
         item_model["test_rows"] = len(test)
         item_model["metrics"] = item_metrics
         item_model["global_fallback_metrics"] = global_metrics
+        item_model["acceptance_gate"] = acceptance_gate
         item_model["model_scope"] = "item"
         item_models[item_code] = item_model
 
     return item_models
 
 
-def _item_model_is_better(item_metrics: dict[str, float], global_metrics: dict[str, float]) -> bool:
+def _item_acceptance_gate(
+    item_metrics: dict[str, float],
+    global_metrics: dict[str, float],
+    item_rows: int,
+    max_mae_ratio: float,
+    short_history_rows: int,
+    short_history_min_mae_ratio: float,
+) -> dict[str, object]:
     item_mae = float(item_metrics.get("mae", 999.0))
     global_mae = float(global_metrics.get("mae", 999.0))
     item_direction = float(item_metrics.get("direction_accuracy", 0.0))
     global_direction = float(global_metrics.get("direction_accuracy", 0.0))
-    if item_mae > global_mae * 1.05:
-        return False
-    if item_direction + 0.0001 < global_direction:
-        return False
-    return True
+    effective_global_mae = max(global_mae, 0.000001)
+    mae_ratio = item_mae / effective_global_mae
+    short_history = item_rows < short_history_rows
+    direction_gain = item_direction - global_direction
+
+    accepted = True
+    reason = "accepted"
+    if mae_ratio > max_mae_ratio:
+        accepted = False
+        reason = "mae_worse_than_global"
+    elif item_direction + 0.0001 < global_direction:
+        accepted = False
+        reason = "direction_worse_than_global"
+    elif short_history and direction_gain <= 0.0001 and mae_ratio > short_history_min_mae_ratio:
+        accepted = False
+        reason = "short_history_without_clear_gain"
+
+    return {
+        "accepted": accepted,
+        "reason": reason,
+        "item_rows": item_rows,
+        "short_history": short_history,
+        "mae_ratio_vs_global": round(mae_ratio, 6),
+        "direction_gain_vs_global": round(direction_gain, 6),
+        "max_mae_ratio": max_mae_ratio,
+        "short_history_rows": short_history_rows,
+        "short_history_min_mae_ratio": short_history_min_mae_ratio,
+    }
 
 
 def _rolling_backtest(

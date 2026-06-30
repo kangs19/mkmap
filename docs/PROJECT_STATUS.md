@@ -57,6 +57,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
 - Price training tables include lag, momentum, moving-average gap, volatility, and calendar features.
 - The model trains a global standardized linear baseline.
 - Item-specific models are trained only when they beat the global fallback on holdout rows.
+- Item-specific model acceptance now records a gate summary and rejects short-history models that do not clearly improve on the global fallback.
 - Direction thresholds are tuned on holdout data.
 - Risk overlays are applied after pure price-history prediction.
 - Forecast imports write five daily forecasts into the backend.
@@ -178,7 +179,6 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### Model Improvement
 
 - Keep accumulating daily price history.
-- Add item-specific feature gates so unstable item models need more history before acceptance.
 - Calibrate forecast probability from historical error instead of only predicted price change.
 
 ### Product/API

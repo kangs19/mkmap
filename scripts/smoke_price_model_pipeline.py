@@ -63,6 +63,7 @@ def main() -> int:
         assert len(model["features"]) >= 4
         assert "direction_threshold" in model
         assert len(model.get("item_models", {})) == 2
+        assert all(item_model["acceptance_gate"]["accepted"] for item_model in model["item_models"].values())
         assert "by_item" in report
         assert report["rolling_backtest"]["window_count"] > 0
         assert backtest["summary"]["prediction_count"] > 0

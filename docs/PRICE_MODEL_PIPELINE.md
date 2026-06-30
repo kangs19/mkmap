@@ -22,6 +22,7 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 
 - Model: standardized linear baseline using lag, trend, moving-average gap, volatility, weekday, and month features.
 - Model scope: a global model is always trained, and item-specific models are trained when each item has enough rows. Prediction uses an item model only when it beats the global fallback on the item's holdout rows; otherwise it falls back to the global model.
+- Item model gate: accepted item models must not have worse MAE than the global fallback. Short-history item models also need either a better MAE ratio or better direction accuracy before they are used for forecasts.
 - Target: next observed price change.
 - Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure price-history prediction and a separate `risk_adjusted_next_change`.
 - The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
@@ -53,7 +54,7 @@ The evaluation report includes overall metrics, item-level metrics, the tuned di
 
 The rolling backtest report includes per-window metrics, prediction rows, aggregate metrics, item-level aggregate metrics, and the number of tested windows/predictions.
 
-The model file also includes `item_models` when item-specific training passes the quality gate. Prediction rows include `model_scope` as `item` or `global`.
+The model file also includes `item_models` when item-specific training passes the quality gate. Each accepted item model records an `acceptance_gate` summary with the MAE ratio, direction gain, and short-history status. Prediction rows include `model_scope` as `item` or `global`.
 
 Imported backend forecasts expose `model_version` and `model_scope` so API consumers can see whether a forecast used an accepted item model or the global fallback.
 
