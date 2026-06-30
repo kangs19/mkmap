@@ -156,8 +156,8 @@ used and `global` when the global fallback model was used.
 
 `GET /api/v1/items/{item_code}/forecast/explanation` returns a public-facing
 Korean explanation payload with a headline, model scope label, confidence label,
-forecast probability labels, reason messages, top risk regions, and data
-freshness for price, region signal, and forecast data.
+confidence reason/factors, forecast probability labels, reason messages, top
+risk regions, and data freshness for price, region signal, and forecast data.
 
 `GET /forecast-explanation` renders a public Korean page that consumes the
 forecast explanation API and provides a resilient empty state when a selected

@@ -120,6 +120,8 @@ async def get_forecast_explanation(
             "scope_label": "품목 전용 모델" if model_scope == "item" else "공통 모델",
             "confidence": fc.confidence,
             "confidence_label": _confidence_label(fc.confidence),
+            "confidence_reason": _confidence_reason(fc, model_scope, latest_price_date, latest_signal_date, base_date),
+            "confidence_factors": _confidence_factors(fc, model_scope, latest_price_date, latest_signal_date, base_date),
         },
         "forecast": {
             "direction_14d": fc.direction_14d,
@@ -180,6 +182,63 @@ def _direction_label(direction: str | None) -> str:
 
 def _confidence_label(confidence: str | None) -> str:
     return {"high": "높음", "medium": "보통", "low": "낮음"}.get(confidence or "", "보통")
+
+
+def _confidence_reason(
+    fc: Forecast,
+    model_scope: str,
+    latest_price_date: date | None,
+    latest_signal_date: date | None,
+    base_date: date,
+) -> str:
+    factors = _confidence_factors(fc, model_scope, latest_price_date, latest_signal_date, base_date)
+    weak_factors = [factor for factor in factors if factor["status"] in {"weak", "missing"}]
+    if fc.confidence == "high" and not weak_factors:
+        return "Backtest calibration and current inputs support a high-confidence forecast."
+    if weak_factors:
+        labels = ", ".join(str(factor["label"]) for factor in weak_factors[:2])
+        return f"Confidence is limited by {labels}."
+    if fc.confidence == "medium":
+        return "Forecast inputs are usable, but uncertainty remains in the recent signal mix."
+    return "Confidence is conservative until more recent item-level history is available."
+
+
+def _confidence_factors(
+    fc: Forecast,
+    model_scope: str,
+    latest_price_date: date | None,
+    latest_signal_date: date | None,
+    base_date: date,
+) -> list[dict[str, str]]:
+    price_status = _freshness(latest_price_date, base_date, warn_after_days=2)["status"]
+    signal_status = _freshness(latest_signal_date, base_date, warn_after_days=1)["status"]
+    risk_factor_count = sum(
+        1
+        for factor in (fc.top_factors or [])
+        if isinstance(factor, dict) and str(factor.get("factor") or "") != "price_lag_model"
+    )
+    return [
+        {
+            "key": "model_scope",
+            "label": "item model" if model_scope == "item" else "global model",
+            "status": "strong" if model_scope == "item" else "medium",
+        },
+        {
+            "key": "price_freshness",
+            "label": "price data freshness",
+            "status": "strong" if price_status == "fresh" else ("weak" if price_status == "stale" else "missing"),
+        },
+        {
+            "key": "signal_freshness",
+            "label": "risk signal freshness",
+            "status": "strong" if signal_status == "fresh" else ("weak" if signal_status == "stale" else "missing"),
+        },
+        {
+            "key": "risk_context",
+            "label": "risk context",
+            "status": "strong" if risk_factor_count > 0 else "weak",
+        },
+    ]
 
 
 def _percent_label(value: float | None) -> str:

@@ -57,6 +57,8 @@ async def test_forecast_explanation_endpoint(client, item_code):
         data = r.json()
         assert "headline" in data
         assert "model" in data
+        assert "confidence_reason" in data["model"]
+        assert "confidence_factors" in data["model"]
         assert "data_freshness" in data
 
 
@@ -123,6 +125,8 @@ async def test_forecast_explanation_payload(client):
     data = r.json()
     assert data["headline"]
     assert data["model"]["scope"] == "global"
+    assert data["model"]["confidence_reason"]
+    assert any(factor["key"] == "price_freshness" for factor in data["model"]["confidence_factors"])
     assert data["forecast"]["direction_label"] == "상승"
     assert data["data_freshness"]["price"]["status"] == "fresh"
     assert data["risk_regions"][0]["region_name"] == "테스트지역"

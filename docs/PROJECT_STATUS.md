@@ -66,6 +66,7 @@ The end-to-end flow can collect or reuse cached external data, build regional ri
   - `model_version`
   - `model_scope`
   - forecast probabilities
+  - confidence reason and confidence factors
   - top factors
 - Public forecast explanation API exposes headline, model scope, reasons, top risk regions, and data freshness in a frontend-friendly Korean payload.
 
@@ -184,6 +185,5 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### Product/API
 
 - Add a compact public endpoint for dashboard cards.
-- Add forecast confidence reasons, not only `low/medium/high`.
 - Add alert thresholds for high-risk region/item combinations.
 - Add deployment notes for syncing `.env` and scheduler behavior on the production server.
