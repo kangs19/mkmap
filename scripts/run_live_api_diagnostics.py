@@ -59,7 +59,17 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
         {
             "code": "kma_weather_alert",
             "engine_role": "disaster_event",
-            "command": ["scripts/test_live_weather_alert.py", "--date", args.date, "--max-rows", str(args.max_rows)],
+            "command": [
+                "scripts/test_live_weather_alert.py",
+                "--date",
+                args.date,
+                "--lookback-days",
+                "3",
+                "--stn-ids",
+                "0,108,109",
+                "--max-rows",
+                str(args.max_rows),
+            ],
         },
         {
             "code": "kma_typhoon",
@@ -169,6 +179,12 @@ def classify_status(returncode: int, payload: Any, ok: bool) -> str:
             if result_codes == {"03"}:
                 return "no_data"
             return "api_error"
+        attempts = payload.get("attempts")
+        if isinstance(attempts, list) and attempts:
+            if any(attempt.get("ok") for attempt in attempts if isinstance(attempt, dict)):
+                return "ok"
+            if all(attempt.get("api_error") for attempt in attempts if isinstance(attempt, dict)):
+                return "api_error"
         reason = str(payload.get("reason") or payload.get("api_error") or "").lower()
         missing = payload.get("missing") or payload.get("missing_env")
         if missing or "missing" in reason:

@@ -105,7 +105,7 @@ Date: `2026-06-30`
 - KMA typhoon: live OK, 2 normalized event rows.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
 - KMA crop main-area weather: diagnostic timeout resolved; latest sampled calls returned `NO_DATA`.
-- KMA weather alert: provider returned `DB_ERROR`.
+- KMA weather alert: provider returned `DB_ERROR` across 12 combinations: 4 dates from `2026-06-27` to `2026-06-30` and `stnId` values `0`, `108`, `109`.
 - Service catalog: 12 cataloged services; required-env checks now align with connector defaults for KAMIS/KOSIS.
 
 ## Main Commands
@@ -154,6 +154,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### High Priority
 
 - Add stronger live collection diagnostics for each external API service.
+- Recheck KMA weather alert after provider-side `DB_ERROR` clears.
 - Expand KMA crop-weather mapping from candidate regions to confirmed official codes.
 - Add API/data freshness status to the admin dashboard.
 - Add a public-facing forecast explanation view that shows model scope, risk factors, and data freshness in Korean.

@@ -161,14 +161,14 @@ def normalize_event_rows(
     features: list[EventFeature] = []
     for row in extract_rows(payload):
         base_date = parse_date(
-            first_present(row, "base_date", "date", "tm", "tmFc", "announceTime", "발표시각", "발효시각"),
+            first_present(row, "base_date", "date", "tm", "tmFc", "tmEf", "announceTime"),
             default=default_date,
         )
-        region_code = first_present(row, "region_code", "regionCode", "areaCd", "stnId", "특보구역코드")
-        level = first_present(row, "level", "warnLevel", "severity", "warningLevel", "단계", "특보수준")
-        title = first_present(row, "title", "event", "warnVar", "phenomenon", "titleKor", "제목", "특보종류")
-        description = first_present(row, "description", "desc", "content", "message", "t6", "내용", "특보내용")
-        severity_score = parse_float(first_present(row, "severity_score", "score", "risk", "위험도"))
+        region_code = first_present(row, "region_code", "regionCode", "areaCd", "stnId", "areaCode")
+        level = first_present(row, "level", "warnLevel", "severity", "warningLevel", "cmd", "wrnLvl")
+        title = first_present(row, "title", "event", "warnVar", "phenomenon", "titleKor", "wrn", "wrnVar")
+        description = first_present(row, "description", "desc", "content", "message", "t6", "other")
+        severity_score = parse_float(first_present(row, "severity_score", "score", "risk"))
 
         features.append(
             EventFeature(
