@@ -91,10 +91,14 @@ def _predict_row(
     risk_adjustment_scale: float = 0.02,
 ) -> dict[str, object]:
     coefficients = model["coefficients"]
+    feature_stats = model.get("feature_stats", {})
     assert isinstance(coefficients, dict)
+    assert isinstance(feature_stats, dict)
     prediction = float(model["intercept"])
     for feature in model["features"]:
-        prediction += float(coefficients[str(feature)]) * float(row[str(feature)])
+        stats = feature_stats.get(str(feature), {"mean": 0.0, "std": 1.0})
+        assert isinstance(stats, dict)
+        prediction += float(coefficients[str(feature)]) * _standardize(float(row[str(feature)]), stats)
 
     risk_score = float(risk_overlay.get("max_risk_score", 0.0)) if risk_overlay else 0.0
     risk_adjustment = max(0.0, min(1.0, risk_score)) * risk_adjustment_scale
@@ -127,6 +131,13 @@ def _predict_row(
     if risk_overlay:
         result["risk_overlay"] = risk_overlay
     return result
+
+
+def _standardize(value: float, stats: dict[str, object]) -> float:
+    std = float(stats.get("std") or 1.0)
+    if std == 0:
+        std = 1.0
+    return (value - float(stats.get("mean") or 0.0)) / std
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import sys
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-from statistics import mean
+from statistics import mean, pstdev
 from typing import Any
 
 
@@ -45,9 +45,23 @@ def main() -> int:
         "avg_price",
         "lag_1_price",
         "lag_3_price",
+        "lag_7_price",
+        "lag_14_price",
         "ma_7_price",
+        "ma_14_price",
+        "ma_28_price",
         "change_1d",
         "change_3d",
+        "change_7d",
+        "change_14d",
+        "ma_7_gap",
+        "ma_14_gap",
+        "volatility_7d",
+        "volatility_14d",
+        "weekday_sin",
+        "weekday_cos",
+        "month_sin",
+        "month_cos",
         "target_next_change",
     ]
     with out_path.open("w", encoding="utf-8-sig", newline="") as handle:
@@ -74,15 +88,22 @@ def _daily_average_series(prices: list[Any]) -> list[tuple[date, float]]:
 
 def _training_rows(item_code: str, series: list[tuple[date, float]], min_history: int) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    if len(series) <= min_history:
+    min_required_history = max(min_history, 28)
+    if len(series) <= min_required_history:
         return rows
 
     values = [value for _, value in series]
-    for idx in range(min_history, len(series) - 1):
+    for idx in range(min_required_history, len(series) - 1):
         base_date, current = series[idx]
         lag_1 = values[idx - 1]
         lag_3 = values[idx - 3]
+        lag_7 = values[idx - 7]
+        lag_14 = values[idx - 14]
         ma_7 = mean(values[idx - 7 : idx])
+        ma_14 = mean(values[idx - 14 : idx])
+        ma_28 = mean(values[idx - 28 : idx])
+        returns_7 = _returns(values[idx - 7 : idx + 1])
+        returns_14 = _returns(values[idx - 14 : idx + 1])
         next_value = values[idx + 1]
         rows.append(
             {
@@ -91,19 +112,49 @@ def _training_rows(item_code: str, series: list[tuple[date, float]], min_history
                 "avg_price": round(current, 4),
                 "lag_1_price": round(lag_1, 4),
                 "lag_3_price": round(lag_3, 4),
+                "lag_7_price": round(lag_7, 4),
+                "lag_14_price": round(lag_14, 4),
                 "ma_7_price": round(ma_7, 4),
+                "ma_14_price": round(ma_14, 4),
+                "ma_28_price": round(ma_28, 4),
                 "change_1d": _pct_change(current, lag_1),
                 "change_3d": _pct_change(current, lag_3),
+                "change_7d": _pct_change(current, lag_7),
+                "change_14d": _pct_change(current, lag_14),
+                "ma_7_gap": _pct_change(current, ma_7),
+                "ma_14_gap": _pct_change(current, ma_14),
+                "volatility_7d": round(pstdev(returns_7), 6) if len(returns_7) > 1 else 0.0,
+                "volatility_14d": round(pstdev(returns_14), 6) if len(returns_14) > 1 else 0.0,
+                "weekday_sin": _cyclical_sin(base_date.weekday(), 7),
+                "weekday_cos": _cyclical_cos(base_date.weekday(), 7),
+                "month_sin": _cyclical_sin(base_date.month - 1, 12),
+                "month_cos": _cyclical_cos(base_date.month - 1, 12),
                 "target_next_change": _pct_change(next_value, current),
             }
         )
     return rows
 
 
+def _returns(values: list[float]) -> list[float]:
+    return [_pct_change(values[idx], values[idx - 1]) for idx in range(1, len(values))]
+
+
 def _pct_change(current: float, previous: float) -> float:
     if previous == 0:
         return 0.0
     return round((current - previous) / previous, 6)
+
+
+def _cyclical_sin(value: int, period: int) -> float:
+    import math
+
+    return round(math.sin(2 * math.pi * value / period), 6)
+
+
+def _cyclical_cos(value: int, period: int) -> float:
+    import math
+
+    return round(math.cos(2 * math.pi * value / period), 6)
 
 
 if __name__ == "__main__":

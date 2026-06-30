@@ -20,11 +20,23 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 
 ## Current Baseline
 
-- Model: linear baseline using `change_1d` and `change_3d`
-- Target: next observed price change
-- Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure lag-model prediction and a separate `risk_adjusted_next_change`.
-- 2026-06-29 run: 208 train rows, 52 test rows
-- Test metrics: MAE `0.02179`, RMSE `0.052959`, direction accuracy `0.6923`
+- Model: standardized linear baseline using lag, trend, moving-average gap, volatility, weekday, and month features.
+- Target: next observed price change.
+- Prediction output can include an optional risk overlay from `region_risk_signals.json`; this keeps the pure price-history prediction and a separate `risk_adjusted_next_change`.
+- The training script reads usable feature columns from the CSV, so adding new engineered columns in `build_price_training_table.py` automatically makes them available to the model.
+- 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features.
+- Test metrics: MAE `0.017679`, RMSE `0.021859`, direction accuracy `0.5333`.
+
+## Feature Columns
+
+The current training table includes:
+
+- Price level and lags: `avg_price`, `lag_1_price`, `lag_3_price`, `lag_7_price`, `lag_14_price`
+- Moving averages: `ma_7_price`, `ma_14_price`, `ma_28_price`
+- Momentum: `change_1d`, `change_3d`, `change_7d`, `change_14d`
+- Mean reversion: `ma_7_gap`, `ma_14_gap`
+- Recent volatility: `volatility_7d`, `volatility_14d`
+- Calendar seasonality: `weekday_sin`, `weekday_cos`, `month_sin`, `month_cos`
 
 ## Notes
 
