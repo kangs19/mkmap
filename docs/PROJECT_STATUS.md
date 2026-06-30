@@ -106,14 +106,15 @@ Date: `2026-06-30`
 
 Date: `2026-06-30`
 
-- KAMIS price: live OK for cabbage, 14 recent price features.
+- KAMIS price: live OK for cabbage, 28 recent price features.
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
-- KMA typhoon: live OK, 2 normalized event rows.
-- KMA midterm forecast: live OK, 1 normalized forecast event row.
-- KMA crop main-area weather: live OK with date fallback. `2026-06-30` returned `NO_DATA`, while sampled calls from `2026-06-29` back to `2026-06-23` returned valid weather rows.
-- KMA weather alert: provider returned `DB_ERROR` across 12 combinations: 4 dates from `2026-06-27` to `2026-06-30` and `stnId` values `0`, `108`, `109`.
-- Service catalog: 12 cataloged services; required-env checks now align with connector defaults for KAMIS/KOSIS.
-- Live diagnostic summary: 7 checks, 6 OK, 1 provider API error, 0 timeout.
+- KMA crop main-area weather: currently returns HTTP 502 from the public-data gateway.
+- KMA weather alert: currently returns HTTP 502 from the public-data gateway.
+- KMA typhoon: currently returns HTTP 502 from the public-data gateway.
+- KMA midterm forecast: currently returns HTTP 502 from the public-data gateway.
+- Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
+- Untested approved services are listed separately as `not_tested`, including AT settlement/regional price, RDA agri weather, KMA impact forecast, satellite, and weather chart.
+- Live diagnostic summary: 7 checks, 3 OK, 4 HTTP errors, 0 timeout.
 
 ## Main Commands
 

@@ -28,6 +28,7 @@ PY_COMPILE_TARGETS = [
     "scripts/build_price_training_table.py",
     "scripts/train_price_baseline_model.py",
     "scripts/predict_latest_prices.py",
+    "scripts/run_live_api_diagnostics.py",
     "scripts/run_smoke_suite.py",
     "backend/app/main.py",
     "backend/app/routers/admin.py",

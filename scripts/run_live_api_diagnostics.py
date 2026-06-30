@@ -10,6 +10,11 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from mkmap_meta.connectors.service_catalog import catalog_status
+
+
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "diagnostics"
 
 
@@ -33,16 +38,19 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
         },
         {
             "code": "kamis_price",
+            "service_code": "regional_price",
             "engine_role": "price_market",
             "command": ["scripts/test_live_kamis_price.py", "--item", args.item, "--date", args.date, "--days-back", "3"],
         },
         {
             "code": "kosis_production",
+            "service_code": "production_stats",
             "engine_role": "production_region",
             "command": ["scripts/test_live_kosis_production.py", "--item", args.item, "--year", str(date.fromisoformat(args.date).year - 1)],
         },
         {
             "code": "kma_crop_weather",
+            "service_code": "kma_crop_weather",
             "engine_role": "agri_weather",
             "command": [
                 "scripts/test_live_kma_crop_weather.py",
@@ -62,6 +70,7 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
         },
         {
             "code": "kma_weather_alert",
+            "service_code": "kma_weather_alert",
             "engine_role": "disaster_event",
             "command": [
                 "scripts/test_live_weather_alert.py",
@@ -77,11 +86,13 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
         },
         {
             "code": "kma_typhoon",
+            "service_code": "kma_typhoon",
             "engine_role": "disaster_event",
             "command": ["scripts/test_live_typhoon.py", "--date", args.date, "--max-rows", str(args.max_rows)],
         },
         {
             "code": "kma_midterm_forecast",
+            "service_code": "kma_midterm_forecast",
             "engine_role": "forecast_context",
             "command": ["scripts/test_live_midterm_forecast.py", "--date", args.date, "--max-rows", str(args.max_rows)],
         },
@@ -90,7 +101,10 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
 
 def main() -> int:
     args = parse_args()
-    results = [run_check(check, args.timeout_seconds) for check in diagnostics(args)]
+    catalog = service_catalog_index()
+    checks = diagnostics(args)
+    results = [run_check(check, args.timeout_seconds, catalog) for check in checks]
+    untested_services = build_untested_services(catalog, checks)
     report = {
         "ok": all(result["status"] in {"ok", "no_data"} for result in results),
         "date": args.date,
@@ -98,6 +112,7 @@ def main() -> int:
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "summary": summarize(results),
         "results": results,
+        "untested_services": untested_services,
     }
 
     if not args.no_write:
@@ -108,11 +123,14 @@ def main() -> int:
     return 1 if args.strict and not report["ok"] else 0
 
 
-def run_check(check: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
+def run_check(check: dict[str, Any], timeout_seconds: int, catalog: dict[str, dict[str, Any]]) -> dict[str, Any]:
     full_command = [sys.executable, *check["command"]]
+    service = catalog.get(check.get("service_code") or check["code"], {})
     base_result = {
         "code": check["code"],
+        "service_code": check.get("service_code"),
         "engine_role": check["engine_role"],
+        "service": service_brief(service),
         "command": " ".join(full_command),
     }
     try:
@@ -130,13 +148,14 @@ def run_check(check: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
             "ok": False,
             "returncode": None,
             "reason": f"timed out after {timeout_seconds}s",
+            "next_action": next_action("timeout", {}, service),
             "stdout": (exc.stdout or "").strip(),
             "stderr": (exc.stderr or "").strip(),
         }
 
     payload = parse_json_output(completed.stdout)
     ok = bool(payload.get("ok")) if isinstance(payload, dict) and "ok" in payload else completed.returncode == 0
-    status = classify_status(completed.returncode, payload, ok)
+    status = classify_status(completed.returncode, payload, ok, completed.stderr)
     effective_ok = ok and status in {"ok", "no_data"}
     return {
         **base_result,
@@ -144,8 +163,47 @@ def run_check(check: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
         "ok": effective_ok,
         "returncode": completed.returncode,
         "reason": reason_from(payload, completed.stderr, status),
+        "next_action": next_action(status, payload, service),
+        "metrics": extract_metrics(payload),
         "payload": payload,
     }
+
+
+def service_catalog_index() -> dict[str, dict[str, Any]]:
+    return {service["code"]: service for service in catalog_status()}
+
+
+def service_brief(service: dict[str, Any]) -> dict[str, Any]:
+    if not service:
+        return {}
+    return {
+        "provider": service.get("provider"),
+        "display_name": service.get("display_name"),
+        "catalog_status": service.get("status"),
+        "configured": service.get("configured"),
+        "missing_env": service.get("missing_env") or [],
+        "source_url": service.get("source_url"),
+        "base_url": service.get("base_url"),
+        "operation": service.get("operation"),
+    }
+
+
+def build_untested_services(
+    catalog: dict[str, dict[str, Any]],
+    checks: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    tested = {check.get("service_code") for check in checks if check.get("service_code")}
+    return [
+        {
+            "service_code": code,
+            "engine_role": service.get("engine_role"),
+            "status": "not_tested",
+            "service": service_brief(service),
+            "next_action": next_action("not_tested", {}, service),
+        }
+        for code, service in sorted(catalog.items())
+        if code not in tested
+    ]
 
 
 def parse_json_output(stdout: str) -> Any:
@@ -165,7 +223,7 @@ def parse_json_output(stdout: str) -> Any:
     return {"raw_stdout": text}
 
 
-def classify_status(returncode: int, payload: Any, ok: bool) -> str:
+def classify_status(returncode: int, payload: Any, ok: bool, stderr: str = "") -> str:
     if ok:
         if isinstance(payload, dict) and payload.get("feature_count") == 0:
             return "no_data"
@@ -209,9 +267,80 @@ def classify_status(returncode: int, payload: Any, ok: bool) -> str:
             return "mapping_required"
         if payload.get("api_error"):
             return "api_error"
+    if "HTTP Error" in stderr:
+        return "http_error"
     if returncode == 0:
         return "not_ready"
     return "failed"
+
+
+def extract_metrics(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+
+    metrics: dict[str, Any] = {}
+    for key in [
+        "feature_count",
+        "event_count",
+        "total_param_sets",
+        "tested_param_sets",
+        "used_year",
+        "requested_year",
+    ]:
+        if key in payload:
+            metrics[key] = payload[key]
+
+    summary = payload.get("summary")
+    if isinstance(summary, dict):
+        for key in ["total_attempts", "ok_attempts", "api_error_attempts", "event_count"]:
+            if key in summary:
+                metrics[key] = summary[key]
+
+    attempts = payload.get("attempts")
+    if isinstance(attempts, list):
+        metrics["attempt_count"] = len(attempts)
+        metrics["ok_attempt_count"] = sum(
+            1 for attempt in attempts if isinstance(attempt, dict) and attempt.get("ok")
+        )
+
+    api_errors = payload.get("api_errors")
+    if isinstance(api_errors, list):
+        metrics["api_error_count"] = len(api_errors)
+
+    return metrics
+
+
+def next_action(status: str, payload: Any, service: dict[str, Any]) -> str:
+    missing_env = []
+    if isinstance(payload, dict):
+        missing_env = payload.get("missing") or payload.get("missing_env") or []
+    if not missing_env and service:
+        missing_env = service.get("missing_env") or []
+
+    if status == "ok":
+        return "No action needed. Live collection returned usable data."
+    if status == "no_data":
+        return "Provider responded, but no rows matched the requested date or item. Retry with lookback or wait for provider data publication."
+    if status == "missing_env":
+        names = ", ".join(missing_env) if missing_env else "required environment variables"
+        return f"Set {names} in the runtime environment, then rerun diagnostics."
+    if status == "mapping_required":
+        return "Complete the item-to-provider code mapping before enabling live collection for this service."
+    if status == "api_error":
+        return "Check provider resultCode/resultMsg, endpoint base URL, operation name, and service approval status."
+    if status == "http_error":
+        return "Provider HTTP call failed. Check service availability, base URL, operation path, and whether the public-data gateway is temporarily returning 5xx."
+    if status == "timeout":
+        return "Retry with a longer timeout; if repeated, reduce request count or inspect provider latency."
+    if status == "not_ready":
+        return "The command completed but did not prove usable data. Inspect payload and connector normalization."
+    if status == "not_tested":
+        if service and service.get("status") == "optional_after_core":
+            return "Optional service. Add a live diagnostic when this source becomes part of the active model."
+        if missing_env:
+            return f"Set {', '.join(missing_env)} before adding a live diagnostic for this service."
+        return "Add a targeted live diagnostic script before relying on this service in the pipeline."
+    return "Inspect stderr, payload, and connector implementation."
 
 
 def reason_from(payload: Any, stderr: str, status: str) -> str | None:
@@ -227,21 +356,27 @@ def reason_from(payload: Any, stderr: str, status: str) -> str | None:
     return status
 
 
-def summarize(results: list[dict[str, Any]]) -> dict[str, int]:
-    summary = {
+def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
         "total": len(results),
         "ok": 0,
         "missing_env": 0,
         "mapping_required": 0,
         "api_error": 0,
+        "http_error": 0,
         "timeout": 0,
         "failed": 0,
         "not_ready": 0,
         "no_data": 0,
+        "by_engine_role": {},
     }
     for result in results:
         status = result["status"]
         summary[status] = summary.get(status, 0) + 1
+        role = result.get("engine_role", "unknown")
+        role_summary = summary["by_engine_role"].setdefault(role, {"total": 0})
+        role_summary["total"] += 1
+        role_summary[status] = role_summary.get(status, 0) + 1
     return summary
 
 
