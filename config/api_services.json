@@ -73,12 +73,12 @@
     "kma_impact_forecast": {
       "display_name": "기상청 영향예보 조회서비스",
       "engine_role": "disaster_event",
-      "required_env": ["DATA_GO_KR_API_KEY", "KMA_IMPACT_FORECAST_BASE_URL"],
+      "required_env": ["DATA_GO_KR_API_KEY"],
       "status": "endpoint_verified",
       "source_url": "https://www.data.go.kr/data/15095149/openapi.do",
       "base_url": "http://apis.data.go.kr/1360000/ImpactInfoServiceV2",
       "operation": "getHWImpactValueV2",
-      "request_params": ["ServiceKey", "pageNo", "numOfRows", "dataType", "tmFc", "areaNo"],
+      "request_params": ["serviceKey", "pageNo", "numOfRows", "dataType", "tm", "regId", "efSn"],
       "notes": "2026-05-15 공지 기준 변경 URL인 ImpactInfoServiceV2/getHWImpactValueV2를 기반으로 설정했다. 한파 영향예보 operation은 추후 분리 확장 필요."
     },
     "kma_typhoon": {

@@ -55,6 +55,15 @@ def sample_params(service_code: str) -> dict[str, Any]:
             "stnId": "108",
             "tmFc": f"{SAMPLE_DATE:%Y%m%d}0600",
         }
+    if service_code == "kma_impact_forecast":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            "tm": f"{SAMPLE_DATE:%Y%m%d}",
+            "efSn": "3",
+        }
     return {}
 
 

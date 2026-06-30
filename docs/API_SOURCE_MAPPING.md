@@ -107,7 +107,7 @@ python scripts/test_live_midterm_forecast.py --date 2026-06-29
 - AT regional price: `http://apis.data.go.kr/B552845/perRegion` with operation `price`.
 - KMA impact forecast: `http://apis.data.go.kr/1360000/ImpactInfoServiceV2` with operation `getHWImpactValueV2`.
 
-These are reflected in `.env.example` and `config/api_services.json`. They still need live connector tests before being promoted into the active model pipeline.
+These are reflected in `.env.example` and `config/api_services.json`. KMA impact forecast now has a live diagnostic via `scripts/test_live_impact_forecast.py`; AT regional price still needs a live connector test before promotion into the active model pipeline.
 
 ## 요청 프리뷰
 

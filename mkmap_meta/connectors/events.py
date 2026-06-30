@@ -12,10 +12,27 @@ from mkmap_meta.models import EventFeature
 
 KMA_WEATHER_ALERT_BASE_URL = "http://apis.data.go.kr/1360000/WthrWrnInfoService"
 KMA_WEATHER_ALERT_OPERATION = "getWthrWrnList"
+KMA_IMPACT_FORECAST_BASE_URL = "http://apis.data.go.kr/1360000/ImpactInfoServiceV2"
+KMA_IMPACT_FORECAST_OPERATION = "getHWImpactValueV2"
 KMA_TYPHOON_BASE_URL = "http://apis.data.go.kr/1360000/TyphoonInfoService"
 KMA_TYPHOON_OPERATION = "getTyphoonInfoList"
 KMA_MIDTERM_FORECAST_BASE_URL = "http://apis.data.go.kr/1360000/MidFcstInfoService"
 KMA_MIDTERM_FORECAST_OPERATION = "getMidFcst"
+
+
+def _env_or_default(name: str, default: str) -> str:
+    return os.getenv(name) or default
+
+
+def _event_level_score(level: Any) -> float | None:
+    if level is None:
+        return None
+    return {
+        "\uad00\uc2ec": 0.2,
+        "\uc8fc\uc758": 0.45,
+        "\uacbd\uace0": 0.7,
+        "\uc704\ud5d8": 1.0,
+    }.get(str(level))
 
 
 class DataGoKrEventConnector(EventConnector):
@@ -98,14 +115,27 @@ class WeatherAlertConnector(DataGoKrEventConnector):
 
 class ImpactForecastConnector(DataGoKrEventConnector):
     def __init__(self, **kwargs: Any) -> None:
+        date_param = _env_or_default("KMA_IMPACT_FORECAST_DATE_PARAM", "tm")
+        if date_param in {"date", "tmFc"}:
+            date_param = "tm"
+
         super().__init__(
             service_name="기상청 영향예보 조회서비스",
             event_type="impact_forecast",
-            base_url=os.getenv("KMA_IMPACT_FORECAST_BASE_URL", ""),
-            operation_path=os.getenv("KMA_IMPACT_FORECAST_OPERATION", ""),
-            date_param=os.getenv("KMA_IMPACT_FORECAST_DATE_PARAM", "date"),
+            base_url=_env_or_default("KMA_IMPACT_FORECAST_BASE_URL", KMA_IMPACT_FORECAST_BASE_URL),
+            operation_path=_env_or_default("KMA_IMPACT_FORECAST_OPERATION", KMA_IMPACT_FORECAST_OPERATION),
+            date_param=date_param,
             **kwargs,
         )
+
+    def build_params(self, target_date: date) -> dict[str, Any]:
+        return {
+            "pageNo": 1,
+            "numOfRows": 10,
+            "dataType": "JSON",
+            self.date_param: f"{target_date:%Y%m%d}",
+            "efSn": os.getenv("KMA_IMPACT_FORECAST_DEFAULT_EF_SN", "3"),
+        }
 
 
 class TyphoonConnector(DataGoKrEventConnector):
@@ -164,11 +194,11 @@ def normalize_event_rows(
             first_present(row, "base_date", "date", "tm", "tmFc", "tmEf", "announceTime"),
             default=default_date,
         )
-        region_code = first_present(row, "region_code", "regionCode", "areaCd", "stnId", "areaCode")
-        level = first_present(row, "level", "warnLevel", "severity", "warningLevel", "cmd", "wrnLvl")
-        title = first_present(row, "title", "event", "warnVar", "phenomenon", "titleKor", "wrn", "wrnVar")
-        description = first_present(row, "description", "desc", "content", "message", "t6", "other")
-        severity_score = parse_float(first_present(row, "severity_score", "score", "risk"))
+        region_code = first_present(row, "region_code", "regionCode", "areaCd", "stnId", "areaCode", "regId")
+        level = first_present(row, "level", "warnLevel", "severity", "warningLevel", "cmd", "wrnLvl", "value")
+        title = first_present(row, "title", "event", "warnVar", "phenomenon", "titleKor", "wrn", "wrnVar", "clsfc")
+        description = first_present(row, "description", "desc", "content", "message", "t6", "other", "regName")
+        severity_score = parse_float(first_present(row, "severity_score", "score", "risk")) or _event_level_score(level)
 
         features.append(
             EventFeature(

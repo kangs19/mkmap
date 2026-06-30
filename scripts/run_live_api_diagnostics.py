@@ -91,6 +91,12 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
             "command": ["scripts/test_live_typhoon.py", "--date", args.date, "--max-rows", str(args.max_rows)],
         },
         {
+            "code": "kma_impact_forecast",
+            "service_code": "kma_impact_forecast",
+            "engine_role": "disaster_event",
+            "command": ["scripts/test_live_impact_forecast.py", "--date", args.date, "--max-rows", str(args.max_rows)],
+        },
+        {
             "code": "kma_midterm_forecast",
             "service_code": "kma_midterm_forecast",
             "engine_role": "forecast_context",
