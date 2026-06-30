@@ -24,6 +24,9 @@ SLOW_CHECKS = [
 
 PY_COMPILE_TARGETS = [
     "scripts/run_meta_pipeline.py",
+    "scripts/collect_live_event_features.py",
+    "scripts/collect_live_price_features.py",
+    "scripts/collect_live_weather_features.py",
     "scripts/import_meta_outputs_to_backend.py",
     "scripts/build_price_training_table.py",
     "scripts/train_price_baseline_model.py",

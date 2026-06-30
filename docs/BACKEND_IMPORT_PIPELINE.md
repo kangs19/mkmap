@@ -66,6 +66,16 @@ To reuse already collected `data/features` files and only rebuild downstream out
 python scripts\run_meta_pipeline.py --date 2026-06-30 --skip-collect
 ```
 
+For a faster daily run when the KMA crop-weather gateway is slow, cap the number of
+weather requests sampled per item:
+
+```powershell
+python scripts\run_meta_pipeline.py --date 2026-07-01 --weather-lookback-days 3 --weather-max-requests-per-item 16 --weather-request-timeout-seconds 8
+```
+
+`2026-07-01` local validation with cached collection outputs completed through risk
+signals, model training, and risk-adjusted predictions without backend import.
+
 ## Backend Admin And Scheduler
 
 The FastAPI backend exposes the runner through admin endpoints:

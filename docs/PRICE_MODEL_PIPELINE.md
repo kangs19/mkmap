@@ -31,6 +31,8 @@ python scripts\predict_latest_prices.py --features data\model\price_training_tab
 - The model file includes `probability_calibration` from rolling backtest MAE and direction accuracy. Latest prediction rows use it for `up_probability_14d`, `surge_probability_14d`, `bottom_probability`, and `confidence`.
 - 2026-06-30 cached run: 120 train rows, 30 test rows, 20 features, direction threshold `0.025`, accepted item models `1`.
 - Test metrics: MAE `0.017679`, RMSE `0.021859`, sign accuracy `0.5333`, 3-class direction accuracy `0.8333`.
+- 2026-07-01 cached run after multi-source price collection: 120 train rows, 30 test rows, 20 features, direction threshold `0.0295`, accepted item models `1`.
+- Test metrics: MAE `0.015109`, RMSE `0.019224`, sign accuracy `0.4333`, 3-class direction accuracy `0.9667`.
 
 ## Feature Columns
 

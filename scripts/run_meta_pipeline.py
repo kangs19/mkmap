@@ -16,6 +16,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--year", type=int, default=None, help="KOSIS production target year. Defaults to date year.")
     parser.add_argument("--price-days-back", type=int, default=90)
     parser.add_argument("--weather-lookback-days", type=int, default=0)
+    parser.add_argument("--weather-max-requests-per-item", type=int, default=16)
+    parser.add_argument("--weather-request-timeout-seconds", type=int, default=8)
     parser.add_argument("--skip-collect", action="store_true", help="Reuse existing data/features cache files.")
     parser.add_argument("--skip-weather", action="store_true", help="Skip KMA crop weather collection.")
     parser.add_argument("--skip-backend-import", action="store_true", help="Do not import outputs into backend DB.")
@@ -57,6 +59,10 @@ def main() -> int:
                     args.date,
                     "--lookback-days",
                     str(args.weather_lookback_days),
+                    "--max-requests-per-item",
+                    str(args.weather_max_requests_per_item),
+                    "--request-timeout-seconds",
+                    str(args.weather_request_timeout_seconds),
                 ],
             )
 
