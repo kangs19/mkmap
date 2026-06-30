@@ -118,6 +118,7 @@ Date: `2026-06-30`
 Date: `2026-06-30`
 
 - KAMIS price: live OK for cabbage, 28 recent price features.
+- AT regional price: live OK for cabbage, 2 recent Seoul regional price features.
 - KOSIS production: live OK for cabbage, 17 region production features using 2025 data.
 - KMA crop main-area weather: live OK with date fallback, 12 sampled weather features.
 - KMA weather alert: provider still returned `DB_ERROR` across 12 combinations when rechecked on 2026-06-30.
@@ -125,10 +126,10 @@ Date: `2026-06-30`
 - KMA impact forecast: live OK, 10 normalized impact forecast rows with region code, level, and severity score.
 - KMA midterm forecast: live OK, 1 normalized forecast event row.
 - Service catalog: live diagnostics now attach service code, provider, display name, configured/missing env, operation, metrics, and next action.
-- Untested approved services are listed separately as `not_tested`, including AT settlement/regional price, RDA agri weather, satellite, and weather chart.
-- Service readiness summary now has 2 endpoint-required services, 1 missing-env endpoint-verified service, 6 configured services, 1 configured mapping-required service, and 2 optional services.
+- Untested approved services are listed separately as `not_tested`, including AT settlement, RDA agri weather, satellite, and weather chart.
+- Service readiness summary now has 2 endpoint-required services, 7 configured services, 1 configured mapping-required service, and 2 optional services.
 - Admin status UI now shows the latest live API diagnostic summary and per-service next actions.
-- Live diagnostic summary: 8 checks, 6 OK, 1 provider API error, 1 no-data response, 0 timeout, 0 failed.
+- Live diagnostic summary: 9 checks, 7 OK, 1 provider API error, 1 no-data response, 0 timeout, 0 failed.
 
 ## Main Commands
 
@@ -185,7 +186,7 @@ python scripts\run_smoke_suite.py --include-slow --timeout-seconds 120
 ### High Priority
 
 - Monitor KMA weather alert until provider-side `DB_ERROR` clears.
-- Confirm AT regional price runtime env and add its live diagnostic.
+- Confirm AT market settlement endpoint/operation and add its live diagnostic.
 
 ### Model Improvement
 

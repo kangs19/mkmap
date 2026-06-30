@@ -38,6 +38,20 @@ def sample_params(service_code: str) -> dict[str, Any]:
             "toTmFc": f"{SAMPLE_DATE:%Y%m%d}2359",
             "stnId": "0",
         }
+    if service_code == "at_regional_price":
+        return {
+            "serviceKey": "***",
+            "pageNo": 1,
+            "numOfRows": 100,
+            "returnType": "JSON",
+            "cond[exmn_ymd::GTE]": SAMPLE_DATE.strftime("%Y%m%d"),
+            "cond[exmn_ymd::LTE]": SAMPLE_DATE.strftime("%Y%m%d"),
+            "cond[sgg_cd::EQ]": "1101",
+            "cond[ctgry_cd::EQ]": "200",
+            "cond[item_cd::EQ]": "211",
+            "cond[vrty_cd::EQ]": "01",
+            "cond[grd_cd::EQ]": "04",
+        }
     if service_code == "kma_typhoon":
         return {
             "serviceKey": "***",

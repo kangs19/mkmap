@@ -31,12 +31,12 @@
     "at_regional_price": {
       "display_name": "한국농수산식품유통공사 지역별 품목별 도소매 가격정보",
       "engine_role": "price_market",
-      "required_env": ["DATA_GO_KR_API_KEY", "AT_REGIONAL_PRICE_BASE_URL"],
+      "required_env": ["DATA_GO_KR_API_KEY"],
       "status": "endpoint_verified",
       "source_url": "https://www.data.go.kr/data/15156062/openapi.do",
       "base_url": "http://apis.data.go.kr/B552845/perRegion",
       "operation": "price",
-      "request_params": ["serviceKey", "pageNo", "numOfRows", "type", "examinDe"],
+      "request_params": ["serviceKey", "pageNo", "numOfRows", "returnType", "cond[exmn_ymd::GTE]", "cond[exmn_ymd::LTE]", "cond[sgg_cd::EQ]", "cond[ctgry_cd::EQ]", "cond[item_cd::EQ]", "cond[vrty_cd::EQ]", "cond[grd_cd::EQ]"],
       "notes": "KAMIS 가격 피처와 중복되는 영역이다. 공식 명세의 Base URL apis.data.go.kr/B552845/perRegion, GET /price를 기반으로 보조 가격 소스로 연결한다."
     },
     "rda_agri_weather": {

@@ -43,6 +43,12 @@ def diagnostics(args: argparse.Namespace) -> list[dict[str, Any]]:
             "command": ["scripts/test_live_kamis_price.py", "--item", args.item, "--date", args.date, "--days-back", "3"],
         },
         {
+            "code": "at_regional_price",
+            "service_code": "at_regional_price",
+            "engine_role": "price_market",
+            "command": ["scripts/test_live_at_regional_price.py", "--item", args.item, "--date", args.date, "--days-back", "3"],
+        },
+        {
             "code": "kosis_production",
             "service_code": "production_stats",
             "engine_role": "production_region",

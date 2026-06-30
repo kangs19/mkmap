@@ -16,6 +16,8 @@ from mkmap_meta.registry import ItemMetadataRegistry, default_registry
 
 KAMIS_PRICE_BASE_URL = "https://www.kamis.or.kr/service/price/xml.do"
 KAMIS_PRICE_ACTION = "periodProductList"
+AT_REGIONAL_PRICE_BASE_URL = "http://apis.data.go.kr/B552845/perRegion"
+AT_REGIONAL_PRICE_OPERATION = "price"
 
 
 class KamisPriceConnector(PriceConnector):
@@ -122,46 +124,79 @@ class AtRegionalPriceConnector(PriceConnector):
         base_url: str | None = None,
         operation_path: str | None = None,
         api_key: str | None = None,
+        registry: ItemMetadataRegistry | None = None,
         http: SimpleHttpClient | None = None,
     ) -> None:
-        base_url = base_url or os.getenv("AT_REGIONAL_PRICE_BASE_URL", "")
-        self.operation_path = operation_path or os.getenv("AT_REGIONAL_PRICE_OPERATION", "")
+        base_url = base_url or os.getenv("AT_REGIONAL_PRICE_BASE_URL") or AT_REGIONAL_PRICE_BASE_URL
+        self.operation_path = operation_path or os.getenv("AT_REGIONAL_PRICE_OPERATION") or AT_REGIONAL_PRICE_OPERATION
         self.service = DataGoKrService(
             name="한국농수산식품유통공사 지역별 품목별 도소매 가격정보 조회",
             base_url=base_url,
             default_params={
-                "type": os.getenv("AT_REGIONAL_PRICE_TYPE", "json"),
-                "dataType": os.getenv("AT_REGIONAL_PRICE_DATA_TYPE", "JSON"),
+                "returnType": os.getenv("AT_REGIONAL_PRICE_RETURN_TYPE", "JSON"),
             },
         )
         self.client = DataGoKrClient(api_key=api_key or os.getenv(DATA_GO_KR_API_KEY_ENV), http=http)
-        self.date_param = os.getenv("AT_REGIONAL_PRICE_DATE_PARAM", "date")
-        self.item_param = os.getenv("AT_REGIONAL_PRICE_ITEM_PARAM", "item_code")
+        self.registry = registry or default_registry()
+        self.sgg_cd = os.getenv("AT_REGIONAL_PRICE_DEFAULT_SGG_CD", "1101")
+        self.num_rows = int(os.getenv("AT_REGIONAL_PRICE_NUM_ROWS", "100"))
 
     def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
         if not self.service.base_url:
             return []
+        mapping = self._mapping_for(item_code)
+        if not mapping:
+            return []
 
         features: list[PriceFeature] = []
-        for offset in range(days_back):
-            current_date = target_date - timedelta(days=offset)
+        start_date = target_date - timedelta(days=max(days_back - 1, 0))
+        for variant in self._variants(mapping):
             payload = self.client.get(
                 self.service,
                 self.operation_path,
-                **{
-                    self.item_param: item_code,
-                    self.date_param: current_date.strftime("%Y%m%d"),
-                },
+                **self._params(mapping, variant, start_date, target_date),
             )
             features.extend(
-                normalize_price_rows(
+                normalize_at_regional_price_rows(
                     payload,
                     item_code=item_code,
-                    default_date=current_date,
+                    default_date=target_date,
                     source="at_regional_price",
                 )
             )
-        return features
+        return _dedupe_price_features(features)
+
+    def _mapping_for(self, item_code: str) -> dict[str, Any]:
+        item = self.registry.get_item(item_code)
+        return item.get("external_mappings", {}).get("kamis_price", {})
+
+    def _variants(self, mapping: dict[str, Any]) -> list[dict[str, Any]]:
+        variants = [variant for variant in mapping.get("variants", []) if isinstance(variant, dict)]
+        primary = [variant for variant in variants if variant.get("primary", True)]
+        return primary or variants or [{}]
+
+    def _params(
+        self,
+        mapping: dict[str, Any],
+        variant: dict[str, Any],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, Any]:
+        params = {
+            "pageNo": 1,
+            "numOfRows": self.num_rows,
+            "cond[exmn_ymd::GTE]": start_date.strftime("%Y%m%d"),
+            "cond[exmn_ymd::LTE]": end_date.strftime("%Y%m%d"),
+            "cond[sgg_cd::EQ]": os.getenv("AT_REGIONAL_PRICE_SGG_CD", self.sgg_cd),
+            "cond[ctgry_cd::EQ]": mapping.get("itemcategorycode"),
+            "cond[item_cd::EQ]": mapping.get("itemcode"),
+            "cond[vrty_cd::EQ]": variant.get("kindcode"),
+            "cond[grd_cd::EQ]": mapping.get("productrankcode"),
+        }
+        product_cls = os.getenv("AT_REGIONAL_PRICE_PRODUCT_CLS")
+        if product_cls:
+            params["cond[se_cd::EQ]"] = product_cls
+        return {key: value for key, value in params.items() if value not in {None, ""}}
 
 
 def normalize_kamis_price_rows(
@@ -212,6 +247,40 @@ def normalize_kamis_price_rows(
                 wholesale_price=value if product_cls == "02" else None,
                 source=source,
                 raw=raw,
+            )
+        )
+    return features
+
+
+def normalize_at_regional_price_rows(
+    payload: Any,
+    item_code: str,
+    default_date: date,
+    source: str,
+) -> list[PriceFeature]:
+    features: list[PriceFeature] = []
+    for row in extract_rows(payload):
+        base_date = parse_date(first_present(row, "exmn_ymd", "base_date", "date", "ymd"), default=default_date)
+        region_code = first_present(row, "sgg_cd", "sgg_nm", "region_code", "regionCode")
+        avg_price = parse_float(first_present(row, "exmn_dd_avg_prc", "exmn_dd_cnvs_avg_prc"))
+        if avg_price is None:
+            continue
+
+        product_cls = str(first_present(row, "se_cd", "product_cls") or "")
+        retail_price = avg_price if product_cls == "01" else None
+        wholesale_price = avg_price if product_cls == "02" else None
+        settlement_price = avg_price if retail_price is None and wholesale_price is None else None
+
+        features.append(
+            PriceFeature(
+                item_code=item_code,
+                region_code=str(region_code) if region_code is not None else None,
+                base_date=base_date,
+                retail_price=retail_price,
+                wholesale_price=wholesale_price,
+                settlement_price=settlement_price,
+                source=source,
+                raw=row,
             )
         )
     return features
