@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션12)
+마지막 업데이트: 2026-07-02 KST (세션13)
 
 ## 프로젝트 목적
 
@@ -397,15 +397,35 @@ python scripts\push_outputs_to_server.py --date 2026-07-02 --server https://mk-m
 - 다음 파이프라인 실행 시 배추/무 AT settlement 데이터가 처음으로 수집됨
 - at_wholesale_norm 개선 확인: 다음 pipeline 실행 후 training table에서 cabbage/radish fill rate 확인 필요
 
+## 세션13 완료 항목 (2026-07-02)
+
+최신 커밋: c93e0b0
+
+**PostgreSQL UPSERT 안정화:**
+- `sync.py`: `on_conflict_do_update(constraint=...)` → `index_elements=[...]` 방식으로 변경 — named constraint 없이도 작동
+- `database.py`: init_db() startup migration에서 duplicate rows 제거 후 `CREATE UNIQUE INDEX IF NOT EXISTS` 실행 (이전에는 중복 때문에 index 생성 실패 → UPSERT 전체 fail → saved=0)
+- `models/market.py`: `DailyMarket`에 `UniqueConstraint("item_code", "date", "source", ...)` 추가
+- `sync.py` `sync_market_volume()`: PostgreSQL UPSERT 방식으로 업그레이드 (SQLite fallback 유지)
+- `database.py`: daily_market도 dedup + unique index migration 추가
+
+**오늘(2026-07-02) 파이프라인 완료 및 Railway push:**
+- 로컬 파이프라인 실행: 신호 85건, 예측 5개 생성
+- Railway push 완료: `signals_imported=85`, `forecasts_imported=5`
+- verify endpoint 12/12 체크 전부 통과 (`ok=true`)
+
+**Railway 상태:**
+- 최신 배포 코드: c93e0b0 (2026-07-02)
+- 다음 Railway 재배포 시 init_db()에서 duplicate 제거 + unique index 생성 자동 실행
+- 이후 KAMIS sync가 UPSERT로 정상 작동 예상
+
 ## 현재 완성도
 
 코드와 로컬 파이프라인 기준:
 
-- 약 80~82%
+- 약 85%
 
 운영 서비스까지 포함:
 
-- 약 70~72%
+- 약 78%
 
-가장 큰 남은 차이는 운영 DB에 실제 pipeline 산출물이 들어가는지 확인하는 것이다.
-배추/무 AT settlement 코드 추가로 데이터 정확도가 개선될 예정.
+UPSERT 안정화로 Railway DB sync가 이제 올바르게 작동해야 한다. 다음 06:00 KST 스케줄러가 실행되면 Railway에서 자동으로 pipeline + sync가 진행된다.
