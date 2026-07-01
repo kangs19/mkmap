@@ -160,19 +160,27 @@ python scripts\verify_public_api_outputs.py --strict
 
 ## P1: RDA 농업기상 활용도 개선
 
-현재 RDA agri weather는 endpoint diagnostic이 붙어 있으나, 관측소 코드/지역 매핑이 약하다.
+**완료 (세션4, 커밋 0c1efe9)**
 
-해야 할 일:
+완료된 작업:
+- 전체 219개 RDA 관측소 코드 목록 확보 (2026-07-01 API live 확인)
+- 5개 품목별 주산지 RDA 관측소 매핑 추가 (`metadata/items/*.json` 의 `rda_weather.obsr_spot_codes`)
+  - 배추: 강원 고랭지 10개, 전남 겨울 5개, 충남 봄가을 3개 = 18개 관측소
+  - 무: 제주 7개, 울산 2개, 부산 1개, 충남 2개 = 12개 관측소
+  - 양파: 전남 5개, 경남 2개 = 7개 관측소
+  - 대파: 전남 3개, 경북 포항 3개 = 6개 관측소
+  - 마늘: 경북 의성 3개, 전남 3개, 충남 1개 = 7개 관측소
+- weather.py: `RdaAgriWeatherConnector.fetch_weather` 품목별 관측소 쿼리로 확장
+- weather.py: 전월 폴백 추가 (RDA 데이터는 ~1개월 lag 있음)
+- weather.py: `_xml_to_payload` root 태그 wrapping 수정 (extract_rows가 파싱 못하던 문제)
+- normalizers.py: `public_api_error`가 RDA 성공코드 `"200"`을 오류로 인식하던 버그 수정
+- normalizers.py: `obsr_Spot_Cd/Nm` 필드를 region 추출에 추가
 
-- RDA 관측소 코드 목록 확보
-- 품목 주산지와 RDA 관측소 매핑
-- `RDA_AGRI_WEATHER_OBSR_SPOT_CD` 고정값이 아니라 품목/지역별 mapping으로 확장
+실측 결과: 배추 540개, 마늘 210개, 양파 210개, 대파 180개, 무 330개 feature 수집 성공
+
+남은 개선:
 - RDA weather feature를 CachedWeatherConnector 기본 source에 포함할지 결정
-
-성공 기준:
-
-- RDA feature가 품목별로 1개 이상 수집된다.
-- risk signal에서 KMA crop weather와 충돌 없이 보조 weather source로 쓰인다.
+- 일일 파이프라인에서 RDA 수집 통합 확인
 
 ## P1: AT 정산정보 품목 매핑 확장
 
@@ -183,10 +191,19 @@ python scripts\verify_public_api_outputs.py --strict
 - 배추/무는 유사 품목명이 많아 broad query로 잘못 매핑하면 안 된다.
 - 예: 얼갈이, 양배추, 열무, 자두 후무사 같은 오염 가능성이 있었다.
 
+현재 상태:
+
+- 세션4 기준 AT 정산 API (apis.data.go.kr/B552845/katSale) 502 Bad Gateway 상태
+- 배추/무 코드 live 확인 불가
+- 기존 캐시 파일(20260701)에는 배추/무 settlement 데이터 없음 (빈 배열)
+- 양파/대파/마늘: lclsf "12"(조미채소류) 확인됨
+- 배추: lclsf 미확인 (엽채류), 무: lclsf 미확인 (근채류)
+
 해야 할 일:
 
+- AT API 복구 후 `discover_at_codes4.py` 스크립트로 lclsf 코드 확인
 - 공식 코드표 또는 실제 endpoint filtered 결과로 정확한 대분류/중분류/소분류 코드 확인
-- 배추/무 정산 mapping 추가
+- 배추/무 정산 mapping 추가 (cabbage.json, radish.json에 at_settlement 블록 추가)
 - `scripts/test_live_at_market_settlement.py`로 live 확인
 
 성공 기준:

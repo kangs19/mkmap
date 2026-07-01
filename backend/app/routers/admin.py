@@ -478,6 +478,84 @@ async def model_evaluation(target_date: Optional[str] = None, _=Depends(check_ad
     }
 
 
+@router.post("/meta-pipeline/verify")
+async def verify_meta_pipeline_outputs(
+    target_date: Optional[str] = None,
+    _=Depends(check_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify that today's pipeline outputs are present in the DB and pass basic sanity checks."""
+    from sqlalchemy import func
+    from app.models.signal import RegionSignal
+    from app.models.forecast import Forecast
+    from app.models.item import Item
+
+    check_date = target_date or kst_today().isoformat()
+    checks: list[dict] = []
+
+    def _check(name: str, ok: bool, detail: str = "") -> dict:
+        result = {"check": name, "ok": ok}
+        if detail:
+            result["detail"] = detail
+        checks.append(result)
+        return result
+
+    # Count signals for today
+    signal_count = (
+        await db.execute(
+            select(func.count()).select_from(RegionSignal).where(RegionSignal.date == check_date)
+        )
+    ).scalar() or 0
+    _check("signals_today", signal_count > 0, f"count={signal_count}")
+
+    # Count forecasts for today
+    forecast_count = (
+        await db.execute(
+            select(func.count()).select_from(Forecast).where(Forecast.base_date == check_date)
+        )
+    ).scalar() or 0
+    _check("forecasts_today", forecast_count > 0, f"count={forecast_count}")
+
+    # Check each item has a forecast
+    items = (await db.execute(select(Item.item_code).where(Item.is_active == True))).scalars().all()
+    for item_code in items:
+        item_forecast = (
+            await db.execute(
+                select(func.count()).select_from(Forecast).where(
+                    Forecast.item_code == item_code, Forecast.base_date == check_date
+                )
+            )
+        ).scalar() or 0
+        _check(f"forecast_{item_code}", item_forecast > 0, f"count={item_forecast}")
+
+    # Check signal coverage per item
+    for item_code in items:
+        item_signals = (
+            await db.execute(
+                select(func.count()).select_from(RegionSignal).where(
+                    RegionSignal.item_code == item_code, RegionSignal.date == check_date
+                )
+            )
+        ).scalar() or 0
+        _check(f"signals_{item_code}", item_signals > 0, f"count={item_signals}")
+
+    passed = sum(1 for c in checks if c["ok"])
+    failed = len(checks) - passed
+    return {
+        "ok": failed == 0,
+        "date": check_date,
+        "passed": passed,
+        "failed": failed,
+        "total": len(checks),
+        "checks": checks,
+        "pipeline_status": {
+            "last_date": _meta_pipeline_status.get("last_date"),
+            "last_status": _meta_pipeline_status.get("last_status"),
+            "last_step_completed": _meta_pipeline_status.get("last_step_completed"),
+        },
+    }
+
+
 @router.post("/meta-pipeline/run")
 async def manual_run_meta_pipeline(
     target_date: Optional[str] = None,
