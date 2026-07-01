@@ -83,7 +83,11 @@ def main() -> int:
         [sys.executable, "scripts/export_db_prices_to_cache.py", "--date", args.date, "--days-back", "90"],
         soft_fail=True,
     )
-    run_step("Build price training table", [sys.executable, "scripts/build_price_training_table.py", "--date", args.date])
+    training_ok = run_step(
+        "Build price training table",
+        [sys.executable, "scripts/build_price_training_table.py", "--date", args.date],
+        soft_fail=True,
+    )
 
     training_table = REPO_ROOT / "data" / "model" / f"price_training_table_{stamp}.csv"
     model_path = REPO_ROOT / "data" / "model" / f"price_baseline_model_{stamp}.json"
@@ -91,7 +95,7 @@ def main() -> int:
     prediction_path = REPO_ROOT / "data" / "model" / f"latest_price_predictions_{stamp}_risk.json"
     signal_path = REPO_ROOT / "data" / "signals" / stamp / "region_risk_signals.json"
 
-    model_ok = run_step(
+    model_ok = training_ok and run_step(
         "Train baseline price model",
         [
             sys.executable,
