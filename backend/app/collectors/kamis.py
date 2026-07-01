@@ -132,13 +132,14 @@ async def fetch_price_range(
     return results
 
 
-# periodProductList 메타데이터 — kamis_price 매핑에서 사용하는 코드
+# periodProductList 메타데이터 — config/external_mappings/kamis_price_mapping.csv 기준
+# itemcode/kindcode 검증: 봄 품종(01)이 30일 기준 가장 많은 데이터 보유
 _PERIOD_PRODUCT_META = {
-    "cabbage":     {"p_itemcategorycode": "200", "p_itemcode": "214", "p_kindcode": "01", "p_productrankcode": "04"},
-    "radish":      {"p_itemcategorycode": "200", "p_itemcode": "221", "p_kindcode": "01", "p_productrankcode": "04"},
-    "onion":       {"p_itemcategorycode": "200", "p_itemcode": "226", "p_kindcode": "01", "p_productrankcode": "04"},
-    "green_onion": {"p_itemcategorycode": "200", "p_itemcode": "223", "p_kindcode": "01", "p_productrankcode": "04"},
-    "garlic":      {"p_itemcategorycode": "200", "p_itemcode": "225", "p_kindcode": "01", "p_productrankcode": "04"},
+    "cabbage":     {"p_itemcategorycode": "200", "p_itemcode": "211", "p_kindcode": "01", "p_productrankcode": "04"},
+    "radish":      {"p_itemcategorycode": "200", "p_itemcode": "231", "p_kindcode": "01", "p_productrankcode": "04"},
+    "onion":       {"p_itemcategorycode": "200", "p_itemcode": "245", "p_kindcode": "00", "p_productrankcode": "04"},
+    "green_onion": {"p_itemcategorycode": "200", "p_itemcode": "246", "p_kindcode": "00", "p_productrankcode": "04"},
+    "garlic":      {"p_itemcategorycode": "200", "p_itemcode": "258", "p_kindcode": "03", "p_productrankcode": "04"},
 }
 
 
