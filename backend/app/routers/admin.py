@@ -1233,10 +1233,14 @@ _lgbm_train_status: dict = {
 _lgbm_sem = _asyncio.Semaphore(1)
 
 
-def _build_price_features_from_db(price_rows: list) -> "pd.DataFrame":
-    """DailyPrice rows → per-item feature DataFrame (lag + rolling features)."""
+def _build_price_features_from_db(
+    price_rows: list,
+    item_weather: "dict | None" = None,
+) -> "pd.DataFrame":
+    """DailyPrice rows → per-item feature DataFrame (lag + rolling + weather features)."""
     import pandas as pd
     import numpy as np
+    from datetime import timedelta
 
     records = [
         {"item_code": r.item_code, "date": r.date, "price": float(r.wholesale_price)}
@@ -1263,22 +1267,57 @@ def _build_price_features_from_db(price_rows: list) -> "pd.DataFrame":
             feat[f"ma_{w}"] = g["price"].shift(1).rolling(w, min_periods=max(1, w // 2)).mean()
             feat[f"std_{w}"] = g["price"].shift(1).rolling(w, min_periods=max(1, w // 2)).std()
 
-        # return vs lag-1
         feat["ret_1"] = (g["price"] - g["price"].shift(1)) / (g["price"].shift(1).abs() + 1e-8)
         feat["ret_7"] = (g["price"] - g["price"].shift(7)) / (g["price"].shift(7).abs() + 1e-8)
         feat["ret_14"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
 
-        # target: log-return vs lag-14
         feat["target"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
         feat["direction"] = (feat["target"] > 0).astype(int)
 
-        # calendar
         feat["month"] = [d.month for d in g.index]
         feat["dayofyear"] = [d.timetuple().tm_yday for d in g.index]
         feat["month_sin"] = np.sin(2 * np.pi * feat["month"] / 12)
         feat["month_cos"] = np.cos(2 * np.pi * feat["month"] / 12)
         feat["doy_sin"] = np.sin(2 * np.pi * feat["dayofyear"] / 365)
         feat["doy_cos"] = np.cos(2 * np.pi * feat["dayofyear"] / 365)
+
+        # Weather rolling features from daily_weather DB
+        if item_weather and item_code in item_weather:
+            wmap = item_weather[item_code]
+            temps_7, rains_7, hums_7 = [], [], []
+            temps_30, rains_30 = [], []
+            for d in g.index:
+                t7 = [wmap[d - timedelta(days=i)]["temp"]
+                      for i in range(1, 8) if (d - timedelta(days=i)) in wmap
+                      and wmap[d - timedelta(days=i)]["temp"] is not None]
+                r7 = [wmap[d - timedelta(days=i)]["rain"]
+                      for i in range(1, 8) if (d - timedelta(days=i)) in wmap
+                      and wmap[d - timedelta(days=i)]["rain"] is not None]
+                h7 = [wmap[d - timedelta(days=i)]["humidity"]
+                      for i in range(1, 8) if (d - timedelta(days=i)) in wmap
+                      and wmap[d - timedelta(days=i)]["humidity"] is not None]
+                t30 = [wmap[d - timedelta(days=i)]["temp"]
+                       for i in range(1, 31) if (d - timedelta(days=i)) in wmap
+                       and wmap[d - timedelta(days=i)]["temp"] is not None]
+                r30 = [wmap[d - timedelta(days=i)]["rain"]
+                       for i in range(1, 31) if (d - timedelta(days=i)) in wmap
+                       and wmap[d - timedelta(days=i)]["rain"] is not None]
+                temps_7.append(sum(t7) / len(t7) if t7 else 0.0)
+                rains_7.append(sum(r7) if r7 else 0.0)
+                hums_7.append(sum(h7) / len(h7) if h7 else 0.0)
+                temps_30.append(sum(t30) / len(t30) if t30 else 0.0)
+                rains_30.append(sum(r30) if r30 else 0.0)
+            feat["temp_7d_avg"] = temps_7
+            feat["rain_7d_sum"] = rains_7
+            feat["humidity_7d_avg"] = hums_7
+            feat["temp_30d_avg"] = temps_30
+            feat["rain_30d_sum"] = rains_30
+        else:
+            feat["temp_7d_avg"] = 0.0
+            feat["rain_7d_sum"] = 0.0
+            feat["humidity_7d_avg"] = 0.0
+            feat["temp_30d_avg"] = 0.0
+            feat["rain_30d_sum"] = 0.0
 
         feat["base_date"] = feat.index
         pieces.append(feat.reset_index(drop=True))
@@ -1412,9 +1451,10 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
 
 
 async def _run_lgbm_training(db: "AsyncSession") -> dict:
-    """Fetch price data from Railway DB, train ensemble per item, save results."""
+    """Fetch price + weather data from Railway DB, train ensemble per item, save results."""
     import time
     from app.models.price import DailyPrice
+    from app.models.weather import DailyWeather
 
     started = time.monotonic()
     results_per_item = {}
@@ -1425,9 +1465,57 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
         .where(DailyPrice.wholesale_price > 0)
         .order_by(DailyPrice.item_code, DailyPrice.date)
     )
-    rows = result.all()
-    if not rows:
+    price_rows = result.all()
+    if not price_rows:
         return {"error": "no price data in DB"}
+
+    # Load weather data: region_code → date → {avg_temp, precipitation, humidity}
+    # CROP_REGION_MAP의 region_code 목록
+    ITEM_WEATHER_REGIONS = {
+        "cabbage":     ["KR-42", "KR-43"],
+        "radish":      ["KR-42", "KR-48"],
+        "onion":       ["KR-46", "KR-48"],
+        "green_onion": ["KR-46", "KR-41"],
+        "garlic":      ["KR-47", "KR-46"],
+    }
+    all_region_codes = list({r for rs in ITEM_WEATHER_REGIONS.values() for r in rs})
+    weather_result = await db.execute(
+        select(DailyWeather.region_code, DailyWeather.date,
+               DailyWeather.avg_temp, DailyWeather.precipitation, DailyWeather.humidity)
+        .where(DailyWeather.region_code.in_(all_region_codes))
+        .order_by(DailyWeather.region_code, DailyWeather.date)
+    )
+    weather_rows = weather_result.all()
+
+    # Build weather lookup: {region_code: {date: {temp, rain, humidity}}}
+    weather_by_region: dict = {}
+    for r in weather_rows:
+        weather_by_region.setdefault(r.region_code, {})[r.date] = {
+            "temp": r.avg_temp,
+            "rain": r.precipitation,
+            "humidity": r.humidity,
+        }
+
+    # Build item-level weather: average across item's regions
+    # {item_code: {date: {temp, rain, humidity}}}
+    item_weather: dict = {}
+    for item_code, region_codes in ITEM_WEATHER_REGIONS.items():
+        daily: dict = {}
+        for rc in region_codes:
+            for d, w in weather_by_region.get(rc, {}).items():
+                if d not in daily:
+                    daily[d] = {"temps": [], "rains": [], "humids": []}
+                if w["temp"] is not None: daily[d]["temps"].append(w["temp"])
+                if w["rain"] is not None: daily[d]["rains"].append(w["rain"])
+                if w["humidity"] is not None: daily[d]["humids"].append(w["humidity"])
+        item_weather[item_code] = {
+            d: {
+                "temp": sum(v["temps"]) / len(v["temps"]) if v["temps"] else None,
+                "rain": sum(v["rains"]) / len(v["rains"]) if v["rains"] else None,
+                "humidity": sum(v["humids"]) / len(v["humids"]) if v["humids"] else None,
+            }
+            for d, v in daily.items()
+        }
 
     # Build features (runs in thread to avoid blocking event loop)
     import asyncio
@@ -1439,7 +1527,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
         return {"error": "pandas not available on Railway"}
 
     df = await asyncio.get_event_loop().run_in_executor(
-        None, functools.partial(_build_price_features_from_db, rows)
+        None, functools.partial(_build_price_features_from_db, price_rows, item_weather)
     )
     if df.empty:
         return {"error": "feature table is empty after dropna"}
