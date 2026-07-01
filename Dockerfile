@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY map_viewer/ ./map_viewer/
 COPY metadata/ ./metadata/
+COPY mkmap_meta/ ./mkmap_meta/
+COPY scripts/ ./scripts/
+COPY config/ ./config/
 COPY map_standalone.html ./map_standalone.html
 COPY index.html ./index.html
 
