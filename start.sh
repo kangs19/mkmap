@@ -20,8 +20,14 @@ UVICORN_PID=$!
 # 서버가 뜰 때까지 잠깐 대기
 sleep 5
 
-# DB가 없거나 비어있으면 초기화 (백그라운드)
-if [ ! -f "agri_twin.db" ] || [ ! -s "agri_twin.db" ]; then
+# PostgreSQL 환경(Railway)에서는 mock 시드 불필요 — DATABASE_URL이 postgres로 시작하면 스킵
+IS_POSTGRES=false
+if echo "${DATABASE_URL:-}" | grep -q "^postgres"; then
+    IS_POSTGRES=true
+fi
+
+# SQLite 환경(로컬 개발)에서만 초기화 블록 실행
+if [ "$IS_POSTGRES" = "false" ] && { [ ! -f "agri_twin.db" ] || [ ! -s "agri_twin.db" ]; }; then
     echo "[1/3] DB 초기화 및 품목 메타데이터 시드..."
     python -c "
 import asyncio, sys
@@ -47,16 +53,6 @@ async def run():
     print('  동기화 결과:', result)
 asyncio.run(run())
 " 2>/dev/null || echo "  실데이터 동기화 완료"
-
-    echo "[4/4] 초기 예측 파이프라인 실행..."
-    python -c "
-import asyncio, sys
-sys.path.insert(0, '.')
-async def run():
-    from app.pipeline.batch import run_batch
-    await run_batch(verbose=False)
-asyncio.run(run())
-" 2>/dev/null || echo "  파이프라인 완료"
 
     echo "=== 초기화 완료 ==="
 fi
