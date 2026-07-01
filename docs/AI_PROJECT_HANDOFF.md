@@ -182,6 +182,8 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - `/api/v1/dashboard/cards`: 품목 카드 5개는 나오지만 예측/위험/가격 값은 null
 - `/api/v1/items/cabbage/forecast`: 404
 - 로컬 `.env`에는 API 키와 `ADMIN_KEY`를 채웠다. 실제 값은 Git/문서에 기록하지 않는다.
+- 로컬 `.env`의 기본 endpoint/operation 설정도 채웠다. `KAMIS_CERT_ID`는 코드 fallback과 같은 `mkmap`으로 명시했다.
+- `KOSIS_PRODUCTION_TBL_ID`는 의도적으로 비워둔다. 품목별 KOSIS 통계표가 달라서 `metadata/items/*.json`의 `external_mappings.kosis_production.tbl_id`를 사용한다.
 - `/api/v1/admin/status`: 로컬 `ADMIN_KEY`로 호출 시 503. 운영 Railway에 `ADMIN_KEY`가 없거나 로컬 값과 다를 가능성이 높다.
 
 해석:
@@ -196,6 +198,20 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - Railway `ADMIN_KEY` 없이 원격 admin pipeline을 수동 실행하지 못했다.
 - 로컬 `.env`의 `ADMIN_KEY`와 Railway Variables의 `ADMIN_KEY`를 동일하게 맞춰야 한다.
 - auto-recover가 실행 중 실패했거나, 운영 환경변수/API 키/DB 연결/파이프라인 시간이 문제일 수 있다.
+
+로컬 `.env` 보정 후 라이브 진단:
+
+- `missing_env`: 0
+- KAMIS 가격: ok
+- AT 지역별 가격: ok
+- AT 정산정보: ok
+- KOSIS 생산통계: ok
+- KMA 중기예보: ok
+- KMA 작물별 농업주산지 상세날씨: 일부 ok, 일부 `NO_DATA`
+- RDA 농업기상: `NO_DATA`
+- KMA 기상특보: provider `DB_ERROR`
+- KMA 위성영상: provider/auth `HTTP_403`
+- KMA 일기도: provider `NO_DATA`
 
 ## 지금 가장 먼저 해야 할 일
 

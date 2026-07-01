@@ -23,7 +23,9 @@
 
 현재 상태:
 
-- 로컬 `.env`에는 API 키와 `ADMIN_KEY`가 채워져 있다.
+- 로컬 `.env`에는 API 키, `ADMIN_KEY`, endpoint/operation 기본 설정이 채워져 있다.
+- 로컬 라이브 진단 기준 `missing_env`는 0이다.
+- `KOSIS_PRODUCTION_TBL_ID`는 의도적으로 비워둔다. 품목별 통계표 ID는 메타데이터에서 읽는다.
 - `https://mk-map.com/api/v1/admin/status`는 로컬 `ADMIN_KEY` 헤더로 호출 시 503을 반환했다.
 - 다음 액션은 Railway Variables에 `ADMIN_KEY`가 있는지 확인하고, 로컬 `.env`와 같은 값으로 맞추는 것이다.
 
