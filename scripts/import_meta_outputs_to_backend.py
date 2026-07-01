@@ -267,9 +267,17 @@ async def main_async() -> int:
     result: dict[str, Any] = {"date": target_date.isoformat()}
 
     if not args.skip_signals:
-        result["signals_imported"] = await import_signals(signal_path, target_date)
+        if signal_path.exists():
+            result["signals_imported"] = await import_signals(signal_path, target_date)
+        else:
+            print(f"[WARN] Signal file not found, skipping: {signal_path}", file=sys.stderr)
+            result["signals_imported"] = 0
     if not args.skip_forecasts:
-        result["forecasts_imported"] = await import_forecasts(prediction_path, target_date)
+        if prediction_path.exists():
+            result["forecasts_imported"] = await import_forecasts(prediction_path, target_date)
+        else:
+            print(f"[WARN] Prediction file not found, skipping: {prediction_path}", file=sys.stderr)
+            result["forecasts_imported"] = 0
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
