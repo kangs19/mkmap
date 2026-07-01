@@ -46,7 +46,7 @@ async def sync_prices(days_back: int = 7) -> dict:
 
     for item_code in ALL_ITEMS:
         try:
-            features = await asyncio.get_event_loop().run_in_executor(
+            features = await asyncio.get_running_loop().run_in_executor(
                 None, connector.fetch_prices, item_code, end_date, days_back
             )
         except Exception as e:
