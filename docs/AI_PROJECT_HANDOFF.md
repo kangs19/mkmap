@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션5)
+마지막 업데이트: 2026-07-01 KST (세션6)
 
 ## 프로젝트 목적
 
@@ -247,6 +247,10 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - KMA 기상특보: provider `DB_ERROR`
 - KMA 위성영상: provider/auth `HTTP_403`
 - KMA 일기도: provider `NO_DATA`
+
+**세션6(2) 추가 완료 (2026-07-01):**
+- **index.html nav 링크** (커밋 bff0c80): "가격 예측" 버튼 → `<a href="/forecast-explanation">` 링크로 변경
+- `map_viewer/templates/forecast_explanation.html` 및 `admin.html` 존재 확인 (route와 파일 매핑 정상)
 
 **세션6 추가 완료 (2026-07-01):**
 - **FastAPI 라우트 추가** (커밋 877b9e5):
