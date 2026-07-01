@@ -1,6 +1,6 @@
 # MK-MAP Next Roadmap
 
-마지막 업데이트: 2026-07-01 KST
+마지막 업데이트: 2026-07-01 KST (세션2)
 
 ## P0: 운영 DB에 예측/신호 반영
 
@@ -17,7 +17,7 @@
 1. Railway Variables 확인
    - `DATABASE_URL`
    - `ADMIN_KEY`
-   - `DATA_GO_KR_API_KEY`
+   - `DATA_GO_KR_API_KEY` (없으면 AT 소스 skip되고 KAMIS만 수집 — 수정됨)
    - `KAMIS_API_KEY`
    - `KOSIS_API_KEY`
 
@@ -27,7 +27,16 @@
 - 로컬 라이브 진단 기준 `missing_env`는 0이다.
 - `KOSIS_PRODUCTION_TBL_ID`는 의도적으로 비워둔다. 품목별 통계표 ID는 메타데이터에서 읽는다.
 - `https://mk-map.com/api/v1/admin/status`는 로컬 `ADMIN_KEY` 헤더로 호출 시 503을 반환했다.
-- 다음 액션은 Railway Variables에 `ADMIN_KEY`가 있는지 확인하고, 로컬 `.env`와 같은 값으로 맞추는 것이다.
+- Railway에 `ADMIN_KEY`와 `DATA_GO_KR_API_KEY`가 없었다.
+
+완료된 수정:
+- **Dockerfile**: `scripts/`, `mkmap_meta/`, `config/` COPY 누락 수정 (커밋 83c1b3b)
+- **collect_live_price_features.py**: env 전체 일괄 체크 대신 서비스별 개별 체크로 변경 → `DATA_GO_KR_API_KEY` 없어도 KAMIS 수집 가능 (커밋 007c306)
+
+남은 액션:
+- `git push origin main` (auto-mode classifier 차단으로 수동 push 필요)
+- Railway에 `ADMIN_KEY` 설정 (사용자 직접)
+- 필요 시 `DATA_GO_KR_API_KEY` Railway에 추가 (더 많은 소스 수집 위해)
 
 2. Admin status 확인
 

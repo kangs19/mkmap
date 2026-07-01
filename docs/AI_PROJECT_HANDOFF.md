@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST
+마지막 업데이트: 2026-07-01 KST (세션2)
 
 ## 프로젝트 목적
 
@@ -193,11 +193,13 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - 하지만 운영 DB에는 아직 2026-07-01 `region_signals`와 `forecasts`가 들어가지 않았다.
 - 공개 API 산출물 상태는 `scripts/verify_public_api_outputs.py`로 자동 검증할 수 있다.
 
-가장 유력한 원인:
+확인된 원인과 수정 내역 (세션2):
 
-- Railway `ADMIN_KEY` 없이 원격 admin pipeline을 수동 실행하지 못했다.
-- 로컬 `.env`의 `ADMIN_KEY`와 Railway Variables의 `ADMIN_KEY`를 동일하게 맞춰야 한다.
-- auto-recover가 실행 중 실패했거나, 운영 환경변수/API 키/DB 연결/파이프라인 시간이 문제일 수 있다.
+1. **Dockerfile COPY 누락** (커밋 83c1b3b): `/app/scripts/`, `/app/mkmap_meta/`, `/app/config/`가 컨테이너에 없어서 pipeline subprocess 자체가 실패했다. 수정 완료.
+2. **collect_live_price_features.py 전체 실패** (커밋 007c306): `DATA_GO_KR_API_KEY` 미설정 시 AT, KAMIS 모두 block. 서비스별 개별 체크로 변경해 KAMIS는 독립 실행 가능하게 수정. 수정 완료.
+3. **Railway `ADMIN_KEY` 미설정**: admin endpoint 503 원인. 사용자가 직접 Railway Variables에 추가 필요.
+
+현재 상태: 커밋 push 후 재배포하면 auto-recover가 KAMIS 기반으로 pipeline 실행 가능.
 
 로컬 `.env` 보정 후 라이브 진단:
 
