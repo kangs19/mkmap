@@ -346,11 +346,25 @@ python scripts\push_outputs_to_server.py --date YYYY-MM-DD --server https://mk-m
 # POST https://mk-map.com/api/v1/admin/sync/run?source=kma&days_back=3&background=false
 ```
 
+## 세션12 완료 항목 (2026-07-01)
+
+최신 커밋: dea8732
+
+**코드 감사 수정 (20개 이슈):**
+- CRITICAL: signals.py 날짜 중복 제거, UniqueConstraint+UPSERT, 마늘 연도 경계, database.py 이중변환, training table 최소행 계산
+- WARNING: sync.py failed_items 반환, admin.py COUNT before DELETE, scheduler 개별 로깅
+- INFO: import_meta_outputs ok/forecasts_ok 분리, training 0행 exit 1, predict FileNotFoundError soft-fail
+
+**추가 버그 수정:**
+- `start.sh`: PostgreSQL 환경에서 mock data seed 완전 방지 (매 배포마다 mock 재생성 버그)
+- `database.py`: init_db() 시 UniqueConstraint 마이그레이션 (CREATE UNIQUE INDEX IF NOT EXISTS)
+- `run_meta_pipeline.py`: build_price_training_table soft_fail=True (0행 exit 1 후 파이프라인 블로킹 방지)
+
 ## 다음 우선순위
 
-1. garlic DB 단위 정합: Railway 배포 후 `POST /api/v1/admin/debug/fix-garlic-prices` 호출
-2. AT settlement 90일 재수집 (자정 KST 리셋 후) → 로컬 파이프라인 재실행 + push
-3. Railway forecasts 자동화 검증 (다음 06:00 KST 이후 확인)
+1. AT settlement 90일 재수집 (자정 KST 리셋 후) → 로컬 파이프라인 재실행 + push
+2. Railway 다음 06:00 KST 스케줄러 실행 후 forecasts 자동 생성 확인
+3. (완료됨) garlic DB 단위 정합 — fix-garlic-prices + mock cleanup 이미 실행됨
 
 ```powershell
 # garlic 진단 (Railway 배포 후)
