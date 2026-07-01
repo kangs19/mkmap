@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
@@ -51,7 +52,7 @@ async def init_db():
         if _db_url.startswith("postgresql"):
             try:
                 await conn.execute(
-                    __import__("sqlalchemy").text(
+                    text(
                         "CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_prices_item_date_source "
                         "ON daily_prices (item_code, date, source)"
                     )
