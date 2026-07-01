@@ -237,6 +237,18 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
 .loading-sub{font-size:11px;color:var(--muted);}
+/* Data status pill */
+#data-status-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid;cursor:default;white-space:nowrap;transition:all .3s;}
+#data-status-pill.live{background:#e8f5e9;color:#1a8a1a;border-color:#a8d8a8;}
+#data-status-pill.nodata{background:#fff4e8;color:#b86010;border-color:#f4c890;}
+#data-status-pill.loading{background:#f5f5f0;color:#9aaa8a;border-color:#d8e0cc;}
+.ds-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.ds-dot.live{background:#1a8a1a;animation:pulse 2s infinite;}
+.ds-dot.nodata{background:#b86010;}
+.ds-dot.loading{background:#9aaa8a;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* No-data notice in mini-cards */
+.mc-nodata-notice{padding:10px 8px;background:#fff8f0;border:1px solid #f4c890;border-radius:8px;margin-top:6px;font-size:10px;color:#b86010;line-height:1.6;}
 </style>
 </head>
 <body>
@@ -261,6 +273,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     </div>
     <div class="fm-weather-box">
       <span id="hdr-weather">☀️ 로딩 중</span>
+    </div>
+    <div id="data-status-pill" class="loading" title="실시간 AI 예측 데이터 상태">
+      <div class="ds-dot loading"></div>
+      <span id="data-status-txt">로딩 중</span>
     </div>
     <button class="fm-bell" id="bell-btn" title="알림">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
     <button class="fm-login-btn">로그인</button>
@@ -509,6 +525,16 @@ let curItem="cabbage",curMode="production",viewLevel="province",curProv=null,cur
 let map_,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
+let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
+
+function setDataStatusPill(state,text){
+  const pill=document.getElementById("data-status-pill");
+  const dot=pill.querySelector(".ds-dot");
+  const txt=document.getElementById("data-status-txt");
+  pill.className="";pill.classList.add(state);
+  dot.className="ds-dot "+state;
+  txt.textContent=text;
+}
 
 // ── 초기화 ────────────────────────────────────────────────────────────────
 window.onload=async()=>{
@@ -593,11 +619,16 @@ document.addEventListener("click",e=>{
 function renderMiniCards(){
   const RL={normal:"정상",caution:"주의",warning:"경고",high:"위험"};
   const RC_C={normal:"#3ab878",caution:"#f4b942",warning:"#e0882a",high:"#e05050"};
-  document.getElementById("mini-cards").innerHTML=Object.entries(ITEMS).map(([k,it])=>`
-    <div onclick="selectItem('${k}')" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border);">
-      <span style="font-size:12px;color:${k===curItem?'white':'var(--muted)'};">${it.emoji} ${it.name}</span>
-      <span style="font-size:10px;font-weight:700;color:${RC_C[it.risk_level]}">${RL[it.risk_level]}</span>
-    </div>`).join("");
+  const hasLive=Object.keys(LIVE_ITEMS).length>0;
+  const noDataNotice=hasLive?"":
+    `<div class="mc-nodata-notice">⏳ AI 예측 데이터가 아직 없습니다.<br>지도는 참고용 샘플 데이터로 표시됩니다.</div>`;
+  document.getElementById("mini-cards").innerHTML=Object.entries(ITEMS).map(([k,it])=>{
+    const isLive=!!LIVE_ITEMS[k];
+    return`<div onclick="selectItem('${k}')" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;color:var(--${k===curItem?'accent':'muted'});">${it.emoji} ${it.name}</span>
+      <span style="font-size:10px;font-weight:700;color:${isLive?RC_C[it.risk_level]:'#c8c8b8'}">${isLive?(RL[it.risk_level]||"정상"):"—"}</span>
+    </div>`;
+  }).join("")+noDataNotice;
 }
 
 // ── 품목 선택 ─────────────────────────────────────────────────────────────
@@ -661,9 +692,16 @@ function setView(type,el){
 async function fetchLiveData(){
   try{
     const res=await fetch("/api/v1/signals/today");
-    if(!res.ok) return;
+    if(!res.ok){setDataStatusPill("nodata","API 오류");return;}
     const d=await res.json();
-    (d.items||[]).forEach(it=>{
+    LIVE_BASE_DATE=d.base_date||null;
+    const items=d.items||[];
+    LIVE_ITEM_COUNT=items.length;
+    if(!items.length){
+      setDataStatusPill("nodata","예측 데이터 준비 중");
+      return;
+    }
+    items.forEach(it=>{
       if(!it.item_code) return;
       const dir=it.up_probability_14d>0.55?"up":it.up_probability_14d<0.45?"down":"neutral";
       LIVE_ITEMS[it.item_code]={
@@ -674,7 +712,12 @@ async function fetchLiveData(){
       };
       Object.assign(ITEMS[it.item_code],LIVE_ITEMS[it.item_code]);
     });
-  }catch(e){console.warn("실데이터 로드 실패:",e.message);}
+    const dateLabel=LIVE_BASE_DATE?LIVE_BASE_DATE.slice(5).replace("-","."):"오늘";
+    setDataStatusPill("live",`AI 예측 ${dateLabel} 기준`);
+  }catch(e){
+    console.warn("실데이터 로드 실패:",e.message);
+    setDataStatusPill("nodata","연결 실패");
+  }
 }
 async function fetchSignalsByItem(item_code){
   try{
@@ -760,21 +803,29 @@ function showRegionDetail(name,code,d){
   const badgeTxt={high:"⚠️ 위험 높음",warn:"🔶 주의 필요",ok:"✅ 정상"}[badgeCls];
   badge.className="fm-region-badge "+badgeCls;
   badge.textContent=badgeTxt;
-  document.getElementById("rp-update-lbl").textContent="데이터 기준: "+new Date().toLocaleDateString("ko-KR");
+  const baseDateStr=LIVE_BASE_DATE||new Date().toISOString().slice(0,10);
+  document.getElementById("rp-update-lbl").textContent="데이터 기준: "+baseDateStr+" (KST)";
 
   // ── 가격 예측
   document.getElementById("rp-horizon-badge").textContent=`${curPeriod}일 후`;
-  const predictedPrice=Math.round(pv*(1+chgPct/100));
-  document.getElementById("rp-price").textContent=predictedPrice.toLocaleString()+"원";
-  document.getElementById("rp-unit").textContent="/kg";
-  document.getElementById("rp-cur-price").textContent=pv.toLocaleString()+"원";
+  const predictedPrice=pv?Math.round(pv*(1+chgPct/100)):null;
+  document.getElementById("rp-price").textContent=predictedPrice?predictedPrice.toLocaleString()+"원":"—";
+  document.getElementById("rp-unit").textContent=predictedPrice?"/kg":"";
+  document.getElementById("rp-cur-price").textContent=pv?pv.toLocaleString()+"원":"—";
   const chgEl=document.getElementById("rp-chg");
-  chgEl.textContent=(chgPct>0?"+":"")+chgPct.toFixed(1)+"% "+(chgPct>0?"↑":"↓");
-  chgEl.className="fm-price-chg "+(chgPct>2?"up":chgPct<-2?"down":"neu");
+  if(pv&&chgPct!==0){
+    chgEl.textContent=(chgPct>0?"+":"")+chgPct.toFixed(1)+"% "+(chgPct>0?"↑":"↓");
+    chgEl.className="fm-price-chg "+(chgPct>2?"up":chgPct<-2?"down":"neu");
+  }else{chgEl.textContent="";chgEl.className="fm-price-chg neu";}
   document.getElementById("rp-conf-lbl").textContent="AI 신뢰도: "+(75+Math.floor(Math.random()*12))+"%";
 
   // 기간별 예측
   const setPfc=(id,cid,days)=>{
+    if(!pv){
+      document.getElementById(id).textContent="—";
+      const cel=document.getElementById(cid);cel.textContent="";cel.className="fm-fc-chg";
+      return;
+    }
     const p=Math.round(pv*(1+chgPct/100*(days/30)));
     const c=((p-pv)/pv*100).toFixed(1);
     document.getElementById(id).textContent=p.toLocaleString()+"원";
@@ -788,15 +839,15 @@ function showRegionDetail(name,code,d){
 
   // ── 재배 현황
   document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
-  document.getElementById("rp-area-sub").className="fm-stat-sub "+(yoy>0?"up":"down");
-  document.getElementById("rp-area-sub").textContent=(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"% 전년比";
+  document.getElementById("rp-area-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
+  document.getElementById("rp-area-sub").textContent=yoy?(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"% 전년比":"전년 대비 —";
   document.getElementById("rp-share").textContent=d.production_pct?d.production_pct+"%":"—";
   document.getElementById("rp-share-sub").className="fm-stat-sub neu";
   document.getElementById("rp-share-sub").textContent="전국 생산 비중";
-  document.getElementById("rp-yoy").textContent=(yoy>0?"+":"")+yoy.toFixed(1)+"%";
-  document.getElementById("rp-yoy-sub").className="fm-stat-sub "+(yoy>0?"up":"down");
+  document.getElementById("rp-yoy").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
+  document.getElementById("rp-yoy-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-yoy-sub").textContent="출하량 전년 대비";
-  document.getElementById("rp-rank").textContent=(d.rank||"—")+"위";
+  document.getElementById("rp-rank").textContent=d.rank?d.rank+"위":"—";
   document.getElementById("rp-rank-sub").className="fm-stat-sub neu";
   document.getElementById("rp-rank-sub").textContent="전국 주산지 순위";
 
@@ -825,19 +876,19 @@ function showRegionDetail(name,code,d){
 
   // ── 출하·시장 동향
   const sh=d.shipment_ton||0;
-  document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천 톤":sh+"톤";
-  document.getElementById("rp-shipment-sub").className="fm-mkt-sub "+(yoy>0?"up":"down");
-  document.getElementById("rp-shipment-sub").textContent=(yoy>0?"+":"")+yoy.toFixed(1)+"%";
-  const mktp=Math.round(pv*0.95);
-  document.getElementById("rp-mkt-price").textContent=mktp.toLocaleString()+"원";
-  document.getElementById("rp-mkt-price-sub").className="fm-mkt-sub "+(chgPct>0?"up":"down");
-  document.getElementById("rp-mkt-price-sub").textContent=(chgPct>0?"+":"")+chgPct.toFixed(1)+"%";
-  const arrival=Math.max(1,Math.round(sh/365*1.1));
-  document.getElementById("rp-arrival").textContent=arrival+"톤";
-  document.getElementById("rp-arrival-sub").className="fm-mkt-sub down";
-  document.getElementById("rp-arrival-sub").textContent="-"+Math.abs(yoy*0.7).toFixed(1)+"%";
-  const imp=Math.round(sh*0.05);
-  document.getElementById("rp-import").textContent=imp+"톤";
+  document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천 톤":sh>0?sh+"톤":"—";
+  document.getElementById("rp-shipment-sub").className="fm-mkt-sub "+(yoy?yoy>0?"up":"down":"neu");
+  document.getElementById("rp-shipment-sub").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
+  const mktp=pv?Math.round(pv*0.95):0;
+  document.getElementById("rp-mkt-price").textContent=mktp?mktp.toLocaleString()+"원":"—";
+  document.getElementById("rp-mkt-price-sub").className="fm-mkt-sub "+(chgPct?chgPct>0?"up":"down":"neu");
+  document.getElementById("rp-mkt-price-sub").textContent=chgPct?(chgPct>0?"+":"")+chgPct.toFixed(1)+"%":"—";
+  const arrival=sh?Math.max(1,Math.round(sh/365*1.1)):0;
+  document.getElementById("rp-arrival").textContent=arrival?arrival+"톤":"—";
+  document.getElementById("rp-arrival-sub").className="fm-mkt-sub "+(yoy?"down":"neu");
+  document.getElementById("rp-arrival-sub").textContent=yoy?"-"+Math.abs(yoy*0.7).toFixed(1)+"%":"일평균";
+  const imp=sh?Math.round(sh*0.05):0;
+  document.getElementById("rp-import").textContent=imp?imp+"톤":"—";
   document.getElementById("rp-import-sub").className="fm-mkt-sub neu";
   document.getElementById("rp-import-sub").textContent="수입산 비중";
 
