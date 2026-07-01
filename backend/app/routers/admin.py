@@ -837,6 +837,22 @@ async def debug_price_counts(db: AsyncSession = Depends(get_db), _=Depends(check
     return [{"item": r.item_code, "count": r.cnt, "min": str(r.min_date), "max": str(r.max_date)} for r in result.all()]
 
 
+@router.get("/debug/garlic-prices")
+async def debug_garlic_prices(days: int = 35, db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
+    """garlic 최근 N일 가격 데이터 진단"""
+    from datetime import timedelta
+    from app.models.price import DailyPrice
+    from app.timezone import kst_today
+    start = kst_today() - timedelta(days=days)
+    result = await db.execute(
+        select(DailyPrice.date, DailyPrice.wholesale_price, DailyPrice.retail_price, DailyPrice.source)
+        .where(DailyPrice.item_code == "garlic", DailyPrice.date >= start)
+        .order_by(DailyPrice.date)
+    )
+    rows = result.all()
+    return [{"date": str(r.date), "wholesale": r.wholesale_price, "retail": r.retail_price, "source": r.source} for r in rows]
+
+
 @router.get("/debug/fetch-prices")
 async def debug_fetch_prices(_=Depends(check_admin)):
     """fetch_all_prices_for_date(today) 실제 반환값 확인"""
