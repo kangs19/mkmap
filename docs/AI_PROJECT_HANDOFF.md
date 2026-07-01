@@ -293,25 +293,23 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
   - null-safe 가격 표시: `pv=0` → `"—"` (기존 `"0원"` 레이아웃 깨짐 수정)
   - null-safe 예측셀(7/30/90일), yoy, chgPct 전부 `"—"` 처리
 
-## 지금 가장 먼저 해야 할 일
+## 현재 운영 서버 상태 (2026-07-01 세션7 업데이트)
 
-1. Railway 환경변수 설정 (사용자 직접 필요)
-   - `DATABASE_URL` (이미 있을 수 있음)
-   - `ADMIN_KEY`
-   - `DATA_GO_KR_API_KEY`
-   - `KAMIS_API_KEY`
-   - `KOSIS_API_KEY`
-   - `KMA_API_KEY`
-   - `APP_ENV` = `production` (현재 `/health`가 `"env":"development"` 반환 중)
-   - 값은 `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git\.env` 참조
+**완료됨:**
+- Railway Variables 설정 완료 (Railway CLI로 자동 설정): ADMIN_KEY, KAMIS_API_KEY, DATA_GO_KR_API_KEY, KOSIS_API_KEY, KMA_API_KEY, APP_ENV=production
+- `/health` → `{"env":"production", "scheduler":true}` 확인
+- `/api/v1/admin/status` 인증 성공
+- 로컬 예측/신호 push_outputs_to_server.py로 운영 DB 반영 완료 (signals 85행, forecasts 5개)
+- 공개 API verify: 7/8 통과 (forecasts/signals 정상, dashboard_cards price_non_null=0만 미충족)
+- KAMIS SSL 오류 수정 (커밋 6a247c4): Railway에서 KAMIS API SSL handshake failure → verify_ssl=False
+- collect_live_price_features.py soft-fail 수정: 일부 소스 실패해도 데이터 있으면 exit 0
 
-2. Railway Variables 추가 후 즉시 실행 순서
+**남은 문제:**
+- `dashboard_cards` price_non_null=0 — 운영 DB에 `daily_prices` 없음 (원격 파이프라인이 성공해야 채워짐)
+- 원격 파이프라인 재실행 중 (SSL fix 적용 후, 2026-07-01 재시작)
+- ADMIN_KEY가 `.env`에 개발용 placeholder 값으로 저장됨 — 실제 운영 키로 변경 권장
 
-   **2-1. Railway 재배포 확인**
-   ```powershell
-   Invoke-RestMethod -Uri "https://mk-map.com/health"
-   # {"env":"production", "scheduler":true} 확인
-   ```
+## 다음 우선순위
 
    **2-2. admin 상태 확인**
    ```powershell

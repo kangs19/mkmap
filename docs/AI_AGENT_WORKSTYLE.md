@@ -145,19 +145,34 @@ Railway 서버는 UTC일 수 있으므로 public API와 scheduler는 반드시 K
 - 다음 작업 우선순위
 - provider API 해석
 
-## 현재 작업자의 다음 초점
+## 사용자 지정 작업 준수사항 (2026-07-01 추가)
 
-가장 먼저 볼 것:
+1. **git pull/fetch 먼저**: 작업 전 `git status` 확인, 다른 작업자 변경 되돌리지 말 것
+2. **시작 전 문서 읽기**: `AI_HANDOFF_INDEX.md` → `AI_PROJECT_HANDOFF.md` → `AI_WORKFLOW_AND_STORAGE.md` → `AI_NEXT_ROADMAP.md` → `AI_AGENT_WORKSTYLE.md`
+3. **우선순위**: 운영 DB 완성 → health/admin 확인 → pipeline 실행 → public API 검증
+4. **민감정보**: 키 값 출력 금지, "configured/present/length"만 언급
+5. **import 안전장치**: forecasts 5개 필수, signals 0이면 실패, push 후 verifier 필수
+6. **검증 명령**:
+   - `python scripts\run_smoke_suite.py --timeout-seconds 300`
+   - `python scripts\verify_public_api_outputs.py --expected-date YYYY-MM-DD`
+   - `python -m py_compile ...` + `git diff --check`
+7. **작업 후 문서 업데이트**: `AI_PROJECT_HANDOFF.md`, `AI_NEXT_ROADMAP.md` 필수 갱신
+8. **커밋**: 검증 통과 후 소단위 commit → push → GitHub Actions CI 성공 확인
+9. **주의사항**: `KOSIS_PRODUCTION_TBL_ID` 전역 env 금지, KMA 일부 오류는 provider 상태 문제
 
-1. 운영 DB에 signal/forecast가 비어 있는 문제
-2. Railway `ADMIN_KEY` 확보 또는 Railway console에서 pipeline 실행
-3. admin status output 확인
-4. 원격 pipeline 성공 후 public API 검증
+## 현재 작업자의 다음 초점 (2026-07-01 업데이트)
 
-그 다음:
+완료됨:
+- Railway Variables 설정, production 모드 확인
+- 운영 DB import (signals 85, forecasts 5)
+- KAMIS SSL 오류 수정 (커밋 6a247c4)
 
-1. 운영 pipeline 검증 자동화
-2. RDA 관측소 mapping
-3. AT settlement 배추/무 정확 매핑
-4. 모델 품질 개선
+현재 진행:
+- 원격 파이프라인 재실행 (KAMIS SSL fix 적용 후)
+
+다음 우선순위:
+1. 원격 파이프라인 성공 확인 → daily_prices DB 반영 여부 확인
+2. `verify_public_api_outputs.py` 8/8 통과 달성 (현재 7/8)
+3. 데이터 정확도: at_wholesale_norm 공백 58% 문제
+4. AT settlement 배추/무 코드 매핑 (API 502 복구 후)
 
