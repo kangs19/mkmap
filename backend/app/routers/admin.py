@@ -490,7 +490,9 @@ async def verify_meta_pipeline_outputs(
     from app.models.forecast import Forecast
     from app.models.item import Item
 
-    check_date = target_date or kst_today().isoformat()
+    from datetime import date as _date
+    _check_date_str = target_date or kst_today().isoformat()
+    check_date = _date.fromisoformat(_check_date_str)
     checks: list[dict] = []
 
     def _check(name: str, ok: bool, detail: str = "") -> dict:
@@ -543,7 +545,7 @@ async def verify_meta_pipeline_outputs(
     failed = len(checks) - passed
     return {
         "ok": failed == 0,
-        "date": check_date,
+        "date": _check_date_str,
         "passed": passed,
         "failed": failed,
         "total": len(checks),
