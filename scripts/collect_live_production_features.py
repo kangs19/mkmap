@@ -32,16 +32,18 @@ def main() -> int:
     target_date = date.fromisoformat(args.date)
     target_year = args.year or target_date.year
     if not os.getenv("KOSIS_API_KEY"):
+        print("[WARN] KOSIS_API_KEY not set; skipping production collection", file=sys.stderr)
         payload = {
-            "ok": False,
+            "ok": True,
+            "skipped": True,
             "reason": "missing_required_env",
             "missing": ["KOSIS_API_KEY"],
-            "feature_files": [],
+            "items": [],
         }
         out_path = dated_path("features", "kosis_production_collection_summary", target_date)
         write_json(out_path, payload)
         print(json.dumps(payload | {"summary_path": str(out_path)}, ensure_ascii=False, indent=2))
-        return 2
+        return 0
 
     registry = default_registry()
     item_codes = args.items or sorted(registry.all_items())
