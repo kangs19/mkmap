@@ -65,6 +65,13 @@ def collect_item(
                         "resultMsg": str(exc.reason),
                     }
                 }
+            except TimeoutError as exc:
+                payload = {
+                    "header": {
+                        "resultCode": "TIMEOUT",
+                        "resultMsg": str(exc),
+                    }
+                }
             error = public_api_error(payload)
             raw_payloads.append({"date": attempted_date.isoformat(), "params": params, "payload": payload})
             if error:

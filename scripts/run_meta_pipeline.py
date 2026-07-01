@@ -73,6 +73,7 @@ def main() -> int:
                     "--request-timeout-seconds",
                     str(args.weather_request_timeout_seconds),
                 ],
+                soft_fail=True,
             )
 
     run_step("Build region-risk model dataset", [sys.executable, "scripts/build_model_dataset.py", "--date", args.date])

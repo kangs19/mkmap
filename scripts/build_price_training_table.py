@@ -90,7 +90,7 @@ def _daily_average_series(prices: list[Any]) -> list[tuple[date, float]]:
 
 def _training_rows(item_code: str, series: list[tuple[date, float]], min_history: int) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    min_required_history = max(min_history, 28)
+    min_required_history = max(min_history, 14)
     if len(series) <= min_required_history:
         return rows
 
@@ -101,9 +101,9 @@ def _training_rows(item_code: str, series: list[tuple[date, float]], min_history
         lag_3 = values[idx - 3]
         lag_7 = values[idx - 7]
         lag_14 = values[idx - 14]
-        ma_7 = mean(values[idx - 7 : idx])
-        ma_14 = mean(values[idx - 14 : idx])
-        ma_28 = mean(values[idx - 28 : idx])
+        ma_7 = mean(values[max(0, idx - 7) : idx] or [current])
+        ma_14 = mean(values[max(0, idx - 14) : idx] or [current])
+        ma_28 = mean(values[max(0, idx - 28) : idx] or [current])
         returns_7 = _returns(values[idx - 7 : idx + 1])
         returns_14 = _returns(values[idx - 14 : idx + 1])
         next_value = values[idx + 1]
