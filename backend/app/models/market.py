@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, Date, DateTime, func, Index
+from sqlalchemy import String, Float, Date, DateTime, func, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date, datetime
 from app.database import Base
@@ -20,4 +20,5 @@ class DailyMarket(Base):
 
     __table_args__ = (
         Index("ix_daily_market_item_date", "item_code", "date"),
+        UniqueConstraint("item_code", "date", "source", name="uq_daily_market_item_date_source"),
     )

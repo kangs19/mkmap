@@ -213,19 +213,34 @@ async def sync_market_volume(days_back: int = 7) -> dict:
             continue
 
         async with AsyncSessionLocal() as db:
-            for row in rows:
-                existing = await db.execute(
-                    select(DailyMarket).where(
-                        DailyMarket.item_code == row["item_code"],
-                        DailyMarket.date == row["date"],
-                        DailyMarket.source == "kamis",
-                    )
+            try:
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                stmt = pg_insert(DailyMarket).values(rows).on_conflict_do_update(
+                    index_elements=["item_code", "date", "source"],
+                    set_={
+                        "volume_kg": pg_insert(DailyMarket).excluded.volume_kg,
+                        "trade_volume": pg_insert(DailyMarket).excluded.trade_volume,
+                        "trade_amount": pg_insert(DailyMarket).excluded.trade_amount,
+                    }
                 )
-                if existing.scalars().first():
-                    continue
-                db.add(DailyMarket(**row))
-                saved += 1
-            await db.commit()
+                result = await db.execute(stmt)
+                await db.commit()
+                saved += result.rowcount or len(rows)
+            except Exception:
+                await db.rollback()
+                for row in rows:
+                    existing = await db.execute(
+                        select(DailyMarket).where(
+                            DailyMarket.item_code == row["item_code"],
+                            DailyMarket.date == row["date"],
+                            DailyMarket.source == "kamis",
+                        )
+                    )
+                    if existing.scalars().first():
+                        continue
+                    db.add(DailyMarket(**row))
+                    saved += 1
+                await db.commit()
         await asyncio.sleep(0.5)
 
     return {"saved": saved, "items": ALL_ITEMS}
