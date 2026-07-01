@@ -1126,35 +1126,96 @@ async def import_prices(
 
 @router.post("/sync/historical")
 async def sync_historical_prices(
-    days_back: int = 365,
+    days_back: int = 1825,
+    chunk_days: int = 90,
     background: bool = True,
     _=Depends(check_admin),
 ):
-    """Railway 서버에서 직접 KAMIS API 호출해 수년치 가격 수집.
+    """Railway 서버에서 직접 KAMIS API를 청크 단위로 호출해 수년치 가격 수집.
 
-    days_back=365 → 1년, days_back=1825 → 5년.
-    Railway 환경에서 KAMIS SSL 우회 + 대용량 처리.
+    days_back=1825 → 5년. chunk_days=90씩 나눠 순차 요청.
+    KAMIS periodProductList는 단일 요청으로 대용량 조회 시 연도 파싱 오류가 있어
+    90일 청크로 분할 처리.
     """
     import asyncio
-    from app.collectors.sync import sync_prices
+    import datetime as _dt
+    from app.collectors.kamis import fetch_period_prices, ITEM_CODE_MAP
+    from app.models.price import DailyPrice
+    from app.database import AsyncSessionLocal
 
-    async def _run():
-        try:
-            result = await sync_prices(days_back=days_back)
-            print(f"[sync/historical] done: {result}")
-        except Exception as e:
-            print(f"[sync/historical error] {e}")
+    async def _run_chunked():
+        end = _dt.date.today()
+        start = end - _dt.timedelta(days=days_back)
+        total_saved = 0
+        total_chunks = 0
+
+        # 시간 역순으로 청크 처리 (최신 → 과거)
+        chunk_end = end
+        while chunk_end > start:
+            chunk_start = max(start, chunk_end - _dt.timedelta(days=chunk_days - 1))
+            print(f"[sync/historical] chunk {chunk_start} ~ {chunk_end}")
+            saved_chunk = 0
+
+            for item_code in ITEM_CODE_MAP:
+                try:
+                    rows = await fetch_period_prices(item_code, chunk_start, chunk_end)
+                    if not rows:
+                        continue
+                    values = [
+                        {
+                            "item_code": r["item_code"],
+                            "date": r["date"],
+                            "market": r.get("market", ""),
+                            "grade": r.get("grade", ""),
+                            "wholesale_price": r["wholesale_price"],
+                            "retail_price": r.get("retail_price"),
+                            "source": "kamis",
+                        }
+                        for r in rows if r.get("wholesale_price", 0) > 0
+                    ]
+                    if not values:
+                        continue
+                    async with AsyncSessionLocal() as db:
+                        try:
+                            from sqlalchemy.dialects.postgresql import insert as pg_insert
+                            stmt = pg_insert(DailyPrice).values(values).on_conflict_do_update(
+                                index_elements=["item_code", "date", "source"],
+                                set_={
+                                    "wholesale_price": pg_insert(DailyPrice).excluded.wholesale_price,
+                                    "retail_price": pg_insert(DailyPrice).excluded.retail_price,
+                                }
+                            )
+                            result = await db.execute(stmt)
+                            await db.commit()
+                            saved_chunk += result.rowcount or len(values)
+                        except Exception as e:
+                            await db.rollback()
+                            print(f"[sync/historical] DB error {item_code}: {e}")
+                except Exception as e:
+                    print(f"[sync/historical] fetch error {item_code}: {e}")
+                await asyncio.sleep(0.5)
+
+            total_saved += saved_chunk
+            total_chunks += 1
+            print(f"[sync/historical] chunk done saved={saved_chunk} total={total_saved}")
+            chunk_end = chunk_start - _dt.timedelta(days=1)
+            await asyncio.sleep(2)  # KAMIS API 과부하 방지
+
+        print(f"[sync/historical] ALL DONE: chunks={total_chunks} total_saved={total_saved}")
 
     if background:
-        asyncio.create_task(_run())
+        asyncio.create_task(_run_chunked())
+        total_chunks_est = (days_back + chunk_days - 1) // chunk_days
         return {
             "status": "started",
             "days_back": days_back,
-            "message": f"최근 {days_back}일 가격 수집 중 — /admin/debug/price-counts 로 확인"
+            "chunk_days": chunk_days,
+            "estimated_chunks": total_chunks_est,
+            "message": f"{days_back}일 / {chunk_days}일 청크 = {total_chunks_est}회 수집 중 — /admin/debug/price-counts 로 확인"
         }
     else:
-        result = await sync_prices(days_back=days_back)
-        return {"status": "ok", "days_back": days_back, "result": result}
+        await _run_chunked()
+        return {"status": "ok", "days_back": days_back}
 
 
 @router.post("/init-data")

@@ -195,7 +195,8 @@ async def fetch_period_prices(
         items = data.get("data", {}).get("item", [])
         for entry in items:
             regday = entry.get("regday", "")  # 예: "07/01"
-            yyyy = entry.get("yyyy", str(end_date.year))
+            # yyyy 필드가 있으면 사용, 없으면 start_date 연도로 추정
+            yyyy_raw = entry.get("yyyy") or entry.get("year") or ""
             price_str = str(entry.get("price", "0")).replace(",", "").strip()
             if not price_str or price_str in ("-", ""):
                 continue
@@ -209,11 +210,22 @@ async def fetch_period_prices(
             if regday and "/" in regday:
                 mm, dd = regday.split("/")
                 try:
-                    mm_int, dd_int, yyyy_int = int(mm), int(dd), int(yyyy)
+                    mm_int, dd_int = int(mm), int(dd)
+                    # yyyy 있으면 그대로, 없으면 청크 start_date 연도 기반으로 추정
+                    if yyyy_raw and yyyy_raw.isdigit():
+                        yyyy_int = int(yyyy_raw)
+                    else:
+                        # start_date 연도에서 mm/dd로 날짜 추정
+                        yyyy_int = start_date.year
                     row_date = date(yyyy_int, mm_int, dd_int)
-                    # 미래 날짜면 전년도로 보정 (연초 요청 시 전년 12월 데이터가 섞이는 경우)
+                    # 범위 밖이면 인접 연도 보정
                     if row_date > end_date:
                         row_date = date(yyyy_int - 1, mm_int, dd_int)
+                    elif row_date < start_date and (start_date - row_date).days > 365:
+                        row_date = date(yyyy_int + 1, mm_int, dd_int)
+                    # 그래도 범위 밖이면 스킵
+                    if not (start_date <= row_date <= end_date):
+                        continue
                 except (ValueError, OverflowError):
                     continue
             else:
