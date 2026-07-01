@@ -379,6 +379,28 @@
       "default_market_code": "110001",
       "notes": "Observed from aT katSale/trades live rows on 2026-06-30."
     },
+    "rda_weather": {
+      "mapping_status": "observed_from_api_2026-07-01",
+      "obsr_spot_codes": [
+        "769912A001",
+        "037339B009",
+        "037322D007",
+        "548912A001",
+        "536824B002",
+        "539823A001",
+        "323814A001"
+      ],
+      "obsr_spot_notes": {
+        "769912A001": "의성군 봉양면 (마늘 경북 의성 주산지)",
+        "037339B009": "의성군 의성읍 (마늘 경북 의성)",
+        "037322D007": "의성군 옥산면 (마늘 경북 의성)",
+        "548912A001": "고흥군 풍양면 (마늘 전남 고흥 주산지)",
+        "536824B002": "해남군 옥천면 (마늘 전남 해남)",
+        "539823A001": "진도군 군내면 (마늘 전남 진도)",
+        "323814A001": "부여군 규암면 (마늘 충남)"
+      },
+      "notes": "RDA 농업기상 관측소. 2026-07-01 전체 219개 관측소 목록 기준으로 마늘 주산지 권역 매핑."
+    },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
       "itemcategorycode": "200",

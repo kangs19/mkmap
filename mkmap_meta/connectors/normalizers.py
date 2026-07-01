@@ -90,8 +90,9 @@ def public_api_error(payload: Any) -> dict[str, Any] | None:
     if not isinstance(header, dict):
         return None
 
-    result_code = header.get("resultCode", header.get("result_Code"))
-    if result_code in (None, "", "00", "0"):
+    result_code = str(header.get("resultCode") or header.get("result_Code") or "")
+    # "00" / "0" = standard KOR JSON API success; "200" = RDA XML API success
+    if not result_code or result_code in ("00", "0", "200"):
         return None
 
     return {

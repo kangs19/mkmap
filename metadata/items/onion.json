@@ -198,6 +198,28 @@
       "default_market_code": "110001",
       "notes": "Observed from aT katSale/trades live rows on 2026-06-30."
     },
+    "rda_weather": {
+      "mapping_status": "observed_from_api_2026-07-01",
+      "obsr_spot_codes": [
+        "534833E001",
+        "534844A001",
+        "520821F001",
+        "520892A001",
+        "635821A001",
+        "627911A001",
+        "526821A001"
+      ],
+      "obsr_spot_notes": {
+        "534833E001": "무안군 청계면 (양파 전남 주산지)",
+        "534844A001": "무안군 현경면 (양파 전남 주산지)",
+        "520821F001": "나주시 금천면 (양파 전남)",
+        "520892A001": "나주시 공산면 (양파 전남)",
+        "635821A001": "창녕군 대지면 (양파 경남 주산지)",
+        "627911A001": "밀양시 상남면 (양파 경남)",
+        "526821A001": "영암군 덕진면 (양파 전남)"
+      },
+      "notes": "RDA 농업기상 관측소. 2026-07-01 전체 219개 관측소 목록 기준으로 양파 주산지 권역 매핑."
+    },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
       "itemcategorycode": "200",

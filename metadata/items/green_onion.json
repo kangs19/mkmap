@@ -622,6 +622,26 @@
       "default_market_code": "110001",
       "notes": "Observed from aT katSale/trades live rows on 2026-06-30."
     },
+    "rda_weather": {
+      "mapping_status": "observed_from_api_2026-07-01",
+      "obsr_spot_codes": [
+        "539823A001",
+        "536824B002",
+        "526821A001",
+        "791945A001",
+        "037947A004",
+        "037506A003"
+      ],
+      "obsr_spot_notes": {
+        "539823A001": "진도군 군내면 (대파 전남 주산지)",
+        "536824B002": "해남군 옥천면 (대파 전남)",
+        "526821A001": "영암군 덕진면 (대파 전남)",
+        "791945A001": "포항시 북구 (대파 경북)",
+        "037947A004": "포항시 장기면 (대파 경북)",
+        "037506A003": "포항시 죽장면 (대파 경북)"
+      },
+      "notes": "RDA 농업기상 관측소. 2026-07-01 전체 219개 관측소 목록 기준으로 대파 주산지 권역 매핑."
+    },
     "kamis_price": {
       "mapping_status": "mapped_from_kamis_code_table",
       "itemcategorycode": "200",

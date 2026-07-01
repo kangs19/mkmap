@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -148,20 +148,61 @@ class RdaAgriWeatherConnector(DataGoKrWeatherConnector):
             **kwargs,
         )
 
+    def _item_station_codes(self, item_code: str) -> list[str]:
+        """Return RDA observation station codes for an item from metadata."""
+        item = self.registry.get_item(item_code)
+        rda = item.get("external_mappings", {}).get("rda_weather", {})
+        codes = rda.get("obsr_spot_codes") or []
+        # Fall back to global env override if no item-level codes
+        global_code = os.getenv("RDA_AGRI_WEATHER_OBSR_SPOT_CD")
+        if not codes and global_code:
+            codes = [global_code]
+        return [str(c) for c in codes if c]
+
     def build_params(self, item_code: str, target_date: date) -> dict[str, Any]:
-        params = {
+        params: dict[str, Any] = {
             "Page_No": 1,
             "Page_Size": int(os.getenv("RDA_AGRI_WEATHER_PAGE_SIZE", "100")),
             "search_Year": f"{target_date:%Y}",
             "search_Month": f"{target_date:%m}",
         }
-        spot_code = os.getenv("RDA_AGRI_WEATHER_OBSR_SPOT_CD")
         spot_name = os.getenv("RDA_AGRI_WEATHER_OBSR_SPOT_NM")
-        if spot_code:
-            params["obsr_Spot_Cd"] = spot_code
         if spot_name:
             params["obsr_Spot_Nm"] = spot_name
         return params
+
+    def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
+        if not self.service.base_url:
+            return []
+
+        station_codes = self._item_station_codes(item_code)
+        features: list[WeatherFeature] = []
+
+        # Try current month, then previous month as fallback (RDA data has ~1-month lag)
+        candidate_dates = [target_date, (target_date.replace(day=1) - timedelta(days=1))]
+        for attempt_date in candidate_dates:
+            base_params = self.build_params(item_code, attempt_date)
+            param_sets = [base_params] if not station_codes else [
+                {**base_params, "obsr_Spot_Cd": code} for code in station_codes
+            ]
+            for params in param_sets:
+                payload = self.client.get(self.service, self.operation_path, **params)
+                if isinstance(payload, str) and payload.lstrip().startswith("<"):
+                    payload = _xml_to_payload(payload)
+                if public_api_error(payload):
+                    continue
+                features.extend(
+                    normalize_weather_rows(
+                        payload,
+                        item_code=item_code,
+                        default_date=attempt_date,
+                        source=self.service.name,
+                    )
+                )
+            if features:
+                break
+
+        return features
 
 
 def normalize_weather_rows(
@@ -184,8 +225,8 @@ def normalize_weather_rows(
             first_present(row, "base_date", "date", "ymd", "tm", "obsrDe", "date_Time"),
             default=default_date,
         )
-        region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId", "AREA_ID")
-        region_name = first_present(row, "region_name", "regionName", "areaName", "areaNm", "stnNm", "AREA_NM")
+        region_code = first_present(row, "region_code", "regionCode", "areaId", "areaCd", "stnId", "AREA_ID", "obsr_Spot_Cd")
+        region_name = first_present(row, "region_name", "regionName", "areaName", "areaNm", "stnNm", "AREA_NM", "obsr_Spot_Nm")
 
         features.append(
             WeatherFeature(
@@ -208,7 +249,8 @@ def normalize_weather_rows(
 
 def _xml_to_payload(text: str) -> dict[str, Any]:
     root = ET.fromstring(text)
-    return _element_to_dict(root)
+    tag = root.tag.rsplit("}", 1)[-1]
+    return {tag: _element_to_dict(root)}
 
 
 def _element_to_dict(element: ET.Element) -> dict[str, Any]:
