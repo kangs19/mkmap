@@ -439,7 +439,7 @@ def _evaluate(model: dict[str, object], rows: list[dict[str, float | str]], thre
 def _tune_direction_threshold(model: dict[str, object], rows: list[dict[str, float | str]]) -> float:
     if not rows:
         return 0.015
-    candidates = [idx / 10000 for idx in range(0, 301, 5)]
+    candidates = [idx / 10000 for idx in range(50, 301, 5)]  # min 0.5% — sub-0.5% thresholds overfit noise
     best_threshold = 0.015
     best_score = -1.0
     for threshold in candidates:
