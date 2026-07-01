@@ -167,7 +167,7 @@ async def get_dashboard_cards(
 
     price_res = await db.execute(
         select(DailyPrice)
-        .where(DailyPrice.date >= start_30d, DailyPrice.date <= base_date)
+        .where(DailyPrice.date >= start_30d, DailyPrice.date <= base_date, DailyPrice.source == "kamis")
         .order_by(DailyPrice.item_code, DailyPrice.date)
     )
     price_by_item: dict[str, list[DailyPrice]] = {}
@@ -396,10 +396,10 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
                 "summary": s.summary_text,
             }
 
-    # 가격 변동 (최근 30일 → 최신 vs 30일전)
+    # 가격 변동 (최근 30일 → 최신 vs 30일전, kamis 기준)
     price_res = await db.execute(
         select(DailyPrice)
-        .where(DailyPrice.date >= start_30d)
+        .where(DailyPrice.date >= start_30d, DailyPrice.source == "kamis")
         .order_by(DailyPrice.item_code, DailyPrice.date)
     )
     all_prices = price_res.scalars().all()
