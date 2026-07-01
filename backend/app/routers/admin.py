@@ -1419,6 +1419,30 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
         if dir_acc > best_dir:
             best_dir, best_thr = dir_acc, thr
 
+    # Probability calibration: Isotonic Regression on val predictions
+    # Maps raw ensemble scores → calibrated probabilities
+    calibrator = None
+    calibrator_b64 = None
+    try:
+        from sklearn.isotonic import IsotonicRegression
+        # Convert raw scores to pseudo-probabilities via sigmoid, then calibrate
+        def _sigmoid(x):
+            return 1.0 / (1.0 + np.exp(-np.clip(x * 20, -20, 20)))
+
+        val_probs = _sigmoid(pred_val_ens - best_thr)
+        val_labels = val["direction"].values.astype(float)
+        calibrator = IsotonicRegression(out_of_bounds="clip")
+        calibrator.fit(val_probs, val_labels)
+        # Calibrated test predictions
+        test_probs_raw = _sigmoid(pred_test_ens - best_thr)
+        test_probs_cal = calibrator.predict(test_probs_raw)
+        calibrated_dir_test_acc = float(np.mean((test_probs_cal > 0.5).astype(int) == dir_test))
+        calibrator_b64 = base64.b64encode(pickle.dumps(calibrator)).decode()
+    except Exception as e:
+        print(f"[lgbm] {item_code} calibration failed: {e}")
+        calibrated_dir_test_acc = None
+        test_probs_cal = None
+
     # Test metrics
     mae_test = float(np.mean(np.abs(pred_test_ens - y_test)))
     dir_test_acc = float(np.mean((pred_test_ens > best_thr).astype(int) == dir_test))
@@ -1441,11 +1465,14 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
         "val_mae": round(mae_val, 5),
         "test_mae": round(mae_test, 5),
         "test_dir_acc": round(dir_test_acc, 4),
+        "calibrated_dir_acc": round(calibrated_dir_test_acc, 4) if calibrated_dir_test_acc else None,
         "overfit_ratio": round(overfit, 3) if overfit else None,
         "lgbm_best_iter": lgbm_model.best_iteration if lgbm_model else None,
         "model": {
             "ridge": ridge_b64,
             "lgbm": lgbm_b64,
+            "calibrator": calibrator_b64,
+            "threshold": best_thr,
         },
     }
 
@@ -1532,6 +1559,10 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     if df.empty:
         return {"error": "feature table is empty after dropna"}
 
+    import json as _json
+    model_dir = REPO_ROOT / "data" / "model"
+    model_dir.mkdir(parents=True, exist_ok=True)
+
     item_codes = df["item_code"].unique().tolist()
     for item_code in item_codes:
         df_item = df[df["item_code"] == item_code].copy()
@@ -1539,21 +1570,97 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
             None, functools.partial(_train_lgbm_for_item, df_item, item_code)
         )
         results_per_item[item_code] = {k: v for k, v in item_result.items() if k != "model"}
+
+        if "error" in item_result:
+            continue
+
         # Save model file
-        if "model" in item_result and "error" not in item_result:
-            model_dir = REPO_ROOT / "data" / "model"
-            model_dir.mkdir(parents=True, exist_ok=True)
-            import json
-            model_path = model_dir / f"lgbm_ensemble_{item_code}.json"
-            model_path.write_text(
-                json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
+        model_path = model_dir / f"lgbm_ensemble_{item_code}.json"
+        model_path.write_text(
+            _json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
+        )
+
+        # Generate today's prediction and save to Forecast table
+        try:
+            from app.models.forecast import Forecast
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            import pickle, base64, numpy as np
+
+            # Load model objects from result
+            model_data = item_result["model"]
+            ridge_obj = pickle.loads(base64.b64decode(model_data["ridge"]))
+            scaler, ridge = ridge_obj["scaler"], ridge_obj["ridge"]
+            lgbm_model = pickle.loads(base64.b64decode(model_data["lgbm"])) if model_data.get("lgbm") else None
+            calibrator = pickle.loads(base64.b64decode(model_data["calibrator"])) if model_data.get("calibrator") else None
+            threshold = float(model_data.get("threshold", 0.0))
+
+            # Get latest feature row for prediction
+            df_item_sorted = df_item.sort_values("base_date")
+            FEATURE_COLS = [c for c in df_item.columns if c not in
+                            ("item_code", "price", "target", "direction", "base_date", "month", "dayofyear")]
+            latest = df_item_sorted.iloc[-1]
+            X_latest = latest[FEATURE_COLS].values.astype(float).reshape(1, -1)
+
+            X_scaled = scaler.transform(X_latest)
+            pred_ridge = float(ridge.predict(X_scaled)[0])
+            pred_lgbm = float(lgbm_model.predict(X_latest)[0]) if lgbm_model else None
+            pred_ens = (pred_ridge + pred_lgbm) / 2 if pred_lgbm is not None else pred_ridge
+
+            # Direction + probability
+            direction = "up" if pred_ens > threshold else "down"
+            if calibrator is not None:
+                sigmoid_val = 1.0 / (1.0 + np.exp(-np.clip((pred_ens - threshold) * 20, -20, 20)))
+                up_prob = float(calibrator.predict([sigmoid_val])[0])
+            else:
+                up_prob = float(1.0 / (1.0 + np.exp(-np.clip((pred_ens - threshold) * 10, -10, 10))))
+            up_prob = max(0.05, min(0.95, up_prob))
+
+            today = kst_today()
+            top_factors = [
+                {"factor": "lgbm_ensemble", "contribution": round(abs(pred_ens), 6), "direction": direction},
+                {"factor": "weather_features", "contribution": round(abs(item_result.get("features", 0)) / 100, 4), "direction": direction},
+            ]
+
+            stmt = pg_insert(Forecast).values([{
+                "item_code": item_code,
+                "base_date": today,
+                "model_version": f"lgbm_ensemble_v1_{item_code}",
+                "direction_14d": direction,
+                "up_probability_14d": round(up_prob, 4),
+                "surge_probability_14d": round(max(0.0, up_prob - 0.6), 4),
+                "volatility_risk_30d": "high" if item_result.get("overfit_ratio", 0) and item_result["overfit_ratio"] > 2 else "medium",
+                "bottom_probability": round(1.0 - up_prob, 4),
+                "top_factors": top_factors,
+                "national_supply_shock": round(pred_ens, 6),
+                "confidence": "high" if item_result.get("test_dir_acc", 0) >= 0.75 else "medium",
+            }]).on_conflict_do_update(
+                index_elements=["item_code", "base_date"],
+                set_={
+                    "model_version": pg_insert(Forecast).excluded.model_version,
+                    "direction_14d": pg_insert(Forecast).excluded.direction_14d,
+                    "up_probability_14d": pg_insert(Forecast).excluded.up_probability_14d,
+                    "surge_probability_14d": pg_insert(Forecast).excluded.surge_probability_14d,
+                    "volatility_risk_30d": pg_insert(Forecast).excluded.volatility_risk_30d,
+                    "bottom_probability": pg_insert(Forecast).excluded.bottom_probability,
+                    "top_factors": pg_insert(Forecast).excluded.top_factors,
+                    "national_supply_shock": pg_insert(Forecast).excluded.national_supply_shock,
+                    "confidence": pg_insert(Forecast).excluded.confidence,
+                }
             )
+            await db.execute(stmt)
+            await db.commit()
+            results_per_item[item_code]["forecast_saved"] = True
+            results_per_item[item_code]["forecast_direction"] = direction
+            results_per_item[item_code]["forecast_up_prob"] = round(up_prob, 4)
+        except Exception as e:
+            results_per_item[item_code]["forecast_error"] = str(e)
+            await db.rollback()
 
     elapsed = round(time.monotonic() - started, 1)
     return {
         "elapsed_seconds": elapsed,
         "items": results_per_item,
-        "total_rows": len(rows),
+        "total_rows": len(price_rows),
         "total_features_rows": len(df),
     }
 
