@@ -165,29 +165,47 @@ async def sync_kosis(years: int = 3) -> dict:
         for item_code, rows in all_data.items():
             if not rows:
                 continue
-            async with AsyncSessionLocal() as db:
+            values = []
                 for row in rows:
-                    existing = await db.execute(
-                        select(CropProduction).where(
-                            CropProduction.item_code == row["item_code"],
-                            CropProduction.year == row["year"],
-                        )
-                    )
-                    if existing.scalars().first():
-                        continue
                     yield_per_ha = None
                     if row.get("area_ha") and row.get("production_ton"):
                         yield_per_ha = round(row["production_ton"] / row["area_ha"], 2)
-                    db.add(CropProduction(
-                        item_code=row["item_code"],
-                        year=row["year"],
-                        area_ha=row.get("area_ha"),
-                        production_ton=row.get("production_ton"),
-                        yield_per_ha=yield_per_ha,
-                        source="kosis",
-                    ))
-                    saved += 1
-                await db.commit()
+                    values.append({
+                        "item_code": row["item_code"],
+                        "year": row["year"],
+                        "area_ha": row.get("area_ha"),
+                        "production_ton": row.get("production_ton"),
+                        "yield_per_ha": yield_per_ha,
+                        "source": "kosis",
+                    })
+                async with AsyncSessionLocal() as db:
+                    try:
+                        from sqlalchemy.dialects.postgresql import insert as pg_insert
+                        stmt = pg_insert(CropProduction).values(values).on_conflict_do_update(
+                            index_elements=["item_code", "year"],
+                            set_={
+                                "area_ha": pg_insert(CropProduction).excluded.area_ha,
+                                "production_ton": pg_insert(CropProduction).excluded.production_ton,
+                                "yield_per_ha": pg_insert(CropProduction).excluded.yield_per_ha,
+                            }
+                        )
+                        result = await db.execute(stmt)
+                        await db.commit()
+                        saved += result.rowcount or len(values)
+                    except Exception:
+                        await db.rollback()
+                        for v in values:
+                            existing = await db.execute(
+                                select(CropProduction).where(
+                                    CropProduction.item_code == v["item_code"],
+                                    CropProduction.year == v["year"],
+                                )
+                            )
+                            if existing.scalars().first():
+                                continue
+                            db.add(CropProduction(**v))
+                            saved += 1
+                        await db.commit()
         log.info(f"KOSIS 생산통계 저장: {saved}건")
         return {"saved": saved, "items": list(all_data.keys())}
     except Exception as e:
