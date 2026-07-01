@@ -279,7 +279,7 @@ def main() -> int:
     print(f"[upload] Date range: {dates[0]} ~ {dates[-1]}")
 
     if args.dry_run:
-        print("[upload] DRY RUN — 실제 전송하지 않음")
+        print("[upload] DRY RUN - no data will be sent")
         per_item = {}
         for r in deduped:
             per_item.setdefault(r["item_code"], 0)

@@ -1218,6 +1218,326 @@ async def sync_historical_prices(
         return {"status": "ok", "days_back": days_back}
 
 
+
+# ── LightGBM server-side training ────────────────────────────────────────────
+
+_lgbm_train_status: dict = {
+    "running": False,
+    "last_status": None,
+    "last_started_at": None,
+    "last_finished_at": None,
+    "last_duration_seconds": None,
+    "last_results": None,
+    "last_error": None,
+}
+_lgbm_sem = _asyncio.Semaphore(1)
+
+
+def _build_price_features_from_db(price_rows: list) -> "pd.DataFrame":
+    """DailyPrice rows → per-item feature DataFrame (lag + rolling features)."""
+    import pandas as pd
+    import numpy as np
+
+    records = [
+        {"item_code": r.item_code, "date": r.date, "price": float(r.wholesale_price)}
+        for r in price_rows
+        if r.wholesale_price and r.wholesale_price > 0
+    ]
+    if not records:
+        return pd.DataFrame()
+
+    df_raw = pd.DataFrame(records).sort_values(["item_code", "date"])
+    LAGS = [1, 2, 3, 7, 14, 21, 28]
+    WINDOWS = [7, 14, 30, 60]
+
+    pieces = []
+    for item_code, grp in df_raw.groupby("item_code"):
+        g = grp.set_index("date").sort_index()
+        feat = pd.DataFrame(index=g.index)
+        feat["item_code"] = item_code
+        feat["price"] = g["price"]
+
+        for lag in LAGS:
+            feat[f"lag_{lag}"] = g["price"].shift(lag)
+        for w in WINDOWS:
+            feat[f"ma_{w}"] = g["price"].shift(1).rolling(w, min_periods=max(1, w // 2)).mean()
+            feat[f"std_{w}"] = g["price"].shift(1).rolling(w, min_periods=max(1, w // 2)).std()
+
+        # return vs lag-1
+        feat["ret_1"] = (g["price"] - g["price"].shift(1)) / (g["price"].shift(1).abs() + 1e-8)
+        feat["ret_7"] = (g["price"] - g["price"].shift(7)) / (g["price"].shift(7).abs() + 1e-8)
+        feat["ret_14"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
+
+        # target: log-return vs lag-14
+        feat["target"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
+        feat["direction"] = (feat["target"] > 0).astype(int)
+
+        # calendar
+        feat["month"] = [d.month for d in g.index]
+        feat["dayofyear"] = [d.timetuple().tm_yday for d in g.index]
+        feat["month_sin"] = np.sin(2 * np.pi * feat["month"] / 12)
+        feat["month_cos"] = np.cos(2 * np.pi * feat["month"] / 12)
+        feat["doy_sin"] = np.sin(2 * np.pi * feat["dayofyear"] / 365)
+        feat["doy_cos"] = np.cos(2 * np.pi * feat["dayofyear"] / 365)
+
+        feat["base_date"] = feat.index
+        pieces.append(feat.reset_index(drop=True))
+
+    if not pieces:
+        return pd.DataFrame()
+
+    df = pd.concat(pieces, ignore_index=True)
+    df = df.dropna(subset=["target", "lag_14", "ma_7"])
+    return df
+
+
+def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
+    """Train Ridge + LightGBM ensemble on a single item. Returns metrics dict."""
+    import numpy as np
+    import pickle
+    import base64
+
+    FEATURE_COLS = [c for c in df_item.columns if c not in
+                    ("item_code", "price", "target", "direction", "base_date", "month", "dayofyear")]
+
+    # Time-ordered 3-way split: 65 / 15 / 20
+    n = len(df_item)
+    i_val = int(n * 0.65)
+    i_test = int(n * 0.80)
+    train = df_item.iloc[:i_val]
+    val = df_item.iloc[i_val:i_test]
+    test = df_item.iloc[i_test:]
+
+    if len(train) < 30 or len(val) < 5 or len(test) < 5:
+        return {"item_code": item_code, "error": f"insufficient data: n={n}"}
+
+    X_tr = train[FEATURE_COLS].values.astype(float)
+    y_tr = train["target"].values
+    X_val = val[FEATURE_COLS].values.astype(float)
+    y_val = val["target"].values
+    X_test = test[FEATURE_COLS].values.astype(float)
+    y_test = test["target"].values
+    dir_test = test["direction"].values
+
+    # sklearn Ridge
+    try:
+        from sklearn.linear_model import Ridge
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        X_tr_s = scaler.fit_transform(X_tr)
+        X_val_s = scaler.transform(X_val)
+        X_test_s = scaler.transform(X_test)
+        ridge = Ridge(alpha=0.01)
+        ridge.fit(X_tr_s, y_tr)
+        pred_val_ridge = ridge.predict(X_val_s)
+        pred_test_ridge = ridge.predict(X_test_s)
+    except Exception as e:
+        return {"item_code": item_code, "error": f"Ridge failed: {e}"}
+
+    # LightGBM
+    pred_val_lgbm = None
+    pred_test_lgbm = None
+    lgbm_model = None
+    try:
+        import lightgbm as lgb
+        dtrain = lgb.Dataset(X_tr, label=y_tr)
+        dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
+        params = {
+            "objective": "regression",
+            "metric": "mae",
+            "learning_rate": 0.05,
+            "num_leaves": 15,
+            "min_data_in_leaf": 5,
+            "feature_fraction": 0.8,
+            "bagging_fraction": 0.8,
+            "bagging_freq": 5,
+            "lambda_l1": 0.1,
+            "lambda_l2": 0.1,
+            "verbose": -1,
+        }
+        callbacks = [lgb.early_stopping(20, verbose=False), lgb.log_evaluation(-1)]
+        lgbm_model = lgb.train(
+            params, dtrain, num_boost_round=300,
+            valid_sets=[dval], callbacks=callbacks
+        )
+        pred_val_lgbm = lgbm_model.predict(X_val)
+        pred_test_lgbm = lgbm_model.predict(X_test)
+    except Exception as e:
+        print(f"[lgbm] {item_code} LightGBM failed: {e}, using Ridge only")
+
+    # Ensemble (simple average if both available)
+    if pred_val_lgbm is not None:
+        pred_val_ens = (pred_val_ridge + pred_val_lgbm) / 2
+        pred_test_ens = (pred_test_ridge + pred_test_lgbm) / 2
+    else:
+        pred_val_ens = pred_val_ridge
+        pred_test_ens = pred_test_ridge
+
+    # Threshold tuning on val only
+    best_thr, best_dir = 0.0, 0.0
+    for thr in [t / 200 for t in range(-20, 21)]:
+        dir_acc = float(np.mean((pred_val_ens > thr).astype(int) == val["direction"].values))
+        if dir_acc > best_dir:
+            best_dir, best_thr = dir_acc, thr
+
+    # Test metrics
+    mae_test = float(np.mean(np.abs(pred_test_ens - y_test)))
+    dir_test_acc = float(np.mean((pred_test_ens > best_thr).astype(int) == dir_test))
+    mae_val = float(np.mean(np.abs(pred_val_ens - y_val)))
+    overfit = mae_test / mae_val if mae_val > 0 else None
+
+    # Serialize models as base64 pickle for storage
+    ridge_b64 = base64.b64encode(pickle.dumps({"scaler": scaler, "ridge": ridge})).decode()
+    lgbm_b64 = None
+    if lgbm_model:
+        lgbm_b64 = base64.b64encode(pickle.dumps(lgbm_model)).decode()
+
+    return {
+        "item_code": item_code,
+        "n_train": len(train),
+        "n_val": len(val),
+        "n_test": len(test),
+        "features": len(FEATURE_COLS),
+        "threshold": best_thr,
+        "val_mae": round(mae_val, 5),
+        "test_mae": round(mae_test, 5),
+        "test_dir_acc": round(dir_test_acc, 4),
+        "overfit_ratio": round(overfit, 3) if overfit else None,
+        "lgbm_best_iter": lgbm_model.best_iteration if lgbm_model else None,
+        "model": {
+            "ridge": ridge_b64,
+            "lgbm": lgbm_b64,
+        },
+    }
+
+
+async def _run_lgbm_training(db: "AsyncSession") -> dict:
+    """Fetch price data from Railway DB, train ensemble per item, save results."""
+    import time
+    from app.models.price import DailyPrice
+
+    started = time.monotonic()
+    results_per_item = {}
+
+    # Load price data
+    result = await db.execute(
+        select(DailyPrice.item_code, DailyPrice.date, DailyPrice.wholesale_price)
+        .where(DailyPrice.wholesale_price > 0)
+        .order_by(DailyPrice.item_code, DailyPrice.date)
+    )
+    rows = result.all()
+    if not rows:
+        return {"error": "no price data in DB"}
+
+    # Build features (runs in thread to avoid blocking event loop)
+    import asyncio
+    import functools
+
+    try:
+        import pandas as pd
+    except ImportError:
+        return {"error": "pandas not available on Railway"}
+
+    df = await asyncio.get_event_loop().run_in_executor(
+        None, functools.partial(_build_price_features_from_db, rows)
+    )
+    if df.empty:
+        return {"error": "feature table is empty after dropna"}
+
+    item_codes = df["item_code"].unique().tolist()
+    for item_code in item_codes:
+        df_item = df[df["item_code"] == item_code].copy()
+        item_result = await asyncio.get_event_loop().run_in_executor(
+            None, functools.partial(_train_lgbm_for_item, df_item, item_code)
+        )
+        results_per_item[item_code] = {k: v for k, v in item_result.items() if k != "model"}
+        # Save model file
+        if "model" in item_result and "error" not in item_result:
+            model_dir = REPO_ROOT / "data" / "model"
+            model_dir.mkdir(parents=True, exist_ok=True)
+            import json
+            model_path = model_dir / f"lgbm_ensemble_{item_code}.json"
+            model_path.write_text(
+                json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
+            )
+
+    elapsed = round(time.monotonic() - started, 1)
+    return {
+        "elapsed_seconds": elapsed,
+        "items": results_per_item,
+        "total_rows": len(rows),
+        "total_features_rows": len(df),
+    }
+
+
+@router.post("/train/lightgbm")
+async def train_lightgbm(
+    background: bool = True,
+    _=Depends(check_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Railway DB 가격 데이터로 품목별 Ridge+LightGBM 앙상블 학습.
+
+    Railway Docker에 설치된 sklearn==1.5.2 + lightgbm==4.5.0 사용.
+    모델은 /data/model/lgbm_ensemble_{item}.json 에 저장.
+    background=True(기본): 즉시 202 반환, 백그라운드 학습.
+    GET /admin/train/lightgbm/status 로 진행 확인.
+    """
+    if _lgbm_train_status["running"]:
+        raise HTTPException(status_code=409, detail="LightGBM training already running")
+
+    from app.timezone import kst_now
+
+    async def _bg():
+        async with _lgbm_sem:
+            started_at = kst_now()
+            _lgbm_train_status.update({
+                "running": True,
+                "last_status": "running",
+                "last_started_at": started_at.isoformat(timespec="seconds"),
+                "last_finished_at": None,
+                "last_results": None,
+                "last_error": None,
+            })
+            try:
+                async with __import__("app.database", fromlist=["AsyncSessionLocal"]).AsyncSessionLocal() as sess:
+                    result = await _run_lgbm_training(sess)
+                finished_at = kst_now()
+                _lgbm_train_status.update({
+                    "running": False,
+                    "last_status": "ok" if "error" not in result else "error",
+                    "last_finished_at": finished_at.isoformat(timespec="seconds"),
+                    "last_duration_seconds": result.get("elapsed_seconds"),
+                    "last_results": {k: v for k, v in result.items() if k != "model"},
+                    "last_error": result.get("error"),
+                })
+            except Exception as exc:
+                _lgbm_train_status.update({
+                    "running": False,
+                    "last_status": "error",
+                    "last_finished_at": kst_now().isoformat(timespec="seconds"),
+                    "last_error": str(exc),
+                })
+                print(f"[lgbm train error] {exc}")
+
+    if background:
+        _asyncio.create_task(_bg())
+        return {"status": "started", "message": "LightGBM training started in background. GET /admin/train/lightgbm/status to check."}
+
+    # Foreground
+    async with _lgbm_sem:
+        try:
+            return await _run_lgbm_training(db)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/train/lightgbm/status")
+async def lgbm_training_status(_=Depends(check_admin)):
+    """LightGBM 학습 진행 상태 및 최근 결과 조회."""
+    return _lgbm_train_status
+
+
 @router.post("/init-data")
 async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """Item 시드 수동 실행 — 재배포 후 빈 items 테이블 복구"""
