@@ -11,7 +11,7 @@ from app.models.price import DailyPrice
 from app.models.weather import DailyWeather
 from app.models.production import CropProduction
 from app.models.market import DailyMarket
-from app.collectors.kamis import fetch_price_range, ITEM_CODE_MAP
+from app.collectors.kamis import ITEM_CODE_MAP
 from app.collectors.kamis_market import fetch_market_volume
 from app.collectors.kma import fetch_forecast, REGION_GRID
 from app.collectors.kma_agri import fetch_crop_weather, CROP_REGION_MAP
@@ -26,40 +26,62 @@ ALL_REGIONS = list(REGION_GRID.keys())
 
 
 async def sync_prices(days_back: int = 7) -> dict:
-    """KAMIS 가격 최근 N일 동기화"""
+    """KAMIS periodProductList 기반 날짜별 가격 동기화.
+
+    기존 dailySalesList는 날짜 파라미터를 무시하고 항상 최신값을 반환해
+    change_30d_pct가 0.0으로 고정되는 문제가 있었다.
+    mkmap_meta.KamisPriceConnector(periodProductList)로 교체.
+    """
     settings = get_settings()
     if not settings.kamis_api_key:
         log.warning("KAMIS_API_KEY 없음 — 가격 동기화 스킵")
         return {"skipped": True}
 
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days_back)
+    from mkmap_meta.connectors.price import KamisPriceConnector
+    from app.timezone import kst_today
+
+    connector = KamisPriceConnector()
+    end_date = kst_today()
     saved = 0
 
     for item_code in ALL_ITEMS:
-        rows = await fetch_price_range(item_code, start_date, end_date)
-        if not rows:
+        try:
+            features = await asyncio.get_event_loop().run_in_executor(
+                None, connector.fetch_prices, item_code, end_date, days_back
+            )
+        except Exception as e:
+            log.warning(f"KAMIS 가격 수집 실패: {item_code} — {e}")
+            continue
+
+        if not features:
             log.info(f"KAMIS 가격 없음: {item_code}")
             continue
 
         async with AsyncSessionLocal() as db:
-            for row in rows:
-                # 이미 있으면 upsert (날짜+품목+source 기준)
+            for feat in features:
                 existing = await db.execute(
                     select(DailyPrice).where(
-                        DailyPrice.item_code == row["item_code"],
-                        DailyPrice.date == row["date"],
+                        DailyPrice.item_code == feat.item_code,
+                        DailyPrice.date == feat.base_date,
                         DailyPrice.source == "kamis",
                     )
                 )
                 if existing.scalars().first():
                     continue
-                db.add(DailyPrice(**row))
+                db.add(DailyPrice(
+                    item_code=feat.item_code,
+                    date=feat.base_date,
+                    market="가락시장",
+                    grade="상품",
+                    wholesale_price=feat.wholesale_price or feat.retail_price,
+                    retail_price=feat.retail_price,
+                    source="kamis",
+                ))
                 saved += 1
             await db.commit()
 
-        log.info(f"KAMIS 가격 저장: {item_code} {len(rows)}건")
-        await asyncio.sleep(0.5)  # API 과부하 방지
+        log.info(f"KAMIS 가격 저장: {item_code} {len(features)}건")
+        await asyncio.sleep(0.5)
 
     return {"saved": saved, "items": ALL_ITEMS}
 
