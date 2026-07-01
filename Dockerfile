@@ -30,6 +30,9 @@ RUN chmod +x /app/start.sh
 
 ENV PYTHONUNBUFFERED=1
 ENV APP_ENV=production
+# mkmap_meta, scripts, config는 /app 하위에 있으나 WORKDIR=/app/backend라서
+# 명시적으로 /app을 path에 추가
+ENV PYTHONPATH="/app"
 
 EXPOSE 8100
 
