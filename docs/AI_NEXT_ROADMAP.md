@@ -1,6 +1,6 @@
 # MK-MAP Next Roadmap
 
-마지막 업데이트: 2026-07-01 KST (세션3)
+마지막 업데이트: 2026-07-01 KST (세션4)
 
 ## P0: 운영 DB에 예측/신호 반영
 
@@ -38,6 +38,12 @@
 - run_meta_pipeline: 날씨/모델/예측 단계 soft_fail 적용 (커밋 ecd6994)
 - build_price_training_table: min_required_history 28→14 (커밋 ecd6994)
 - 로컬 파이프라인 전체 성공 확인: signals 85행, forecasts 5개 import 완료
+
+완료된 수정 (세션4):
+- scripts/push_outputs_to_server.py 추가 — 로컬 생성 JSON을 Railway에 HTTP POST (커밋 3d88171)
+- admin import-outputs 엔드포인트 추가 (커밋 3d88171)
+- pipeline status step-level summary 추가 (커밋 41b20c6)
+- start.sh APP_ENV 기본값 production 설정 (커밋 85049a6)
 
 **남은 P0 차단 요소 (사용자 직접 필요)**:
 - Railway Variables에 다음 키 추가:

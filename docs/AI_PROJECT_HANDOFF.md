@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션3)
+마지막 업데이트: 2026-07-01 KST (세션4)
 
 ## 프로젝트 목적
 
@@ -217,7 +217,14 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - Railway에서 pipeline이 실행되면 자체 Variables를 읽음
 - 해결 방법 2가지:
   1. Railway Variables에 API 키 추가 → auto-recover가 자동 실행
-  2. 또는: 로컬에서 생성된 data/ 파일을 Railway admin API로 import (아직 미구현)
+  2. 또는: 로컬에서 생성된 data/ 파일을 Railway admin API로 import
+
+**세션4 추가 완료:**
+- `scripts/push_outputs_to_server.py` (커밋 3d88171): 로컬 파이프라인 출력을 Railway DB에 HTTP POST로 import하는 스크립트 추가
+- `backend/app/routers/admin.py` (커밋 3d88171): `POST /api/v1/admin/import-outputs` 엔드포인트 추가 — 로컬 JSON을 바로 DB에 삽입 가능
+- `backend/app/routers/admin.py` (커밋 41b20c6): pipeline status 개선 — step별 summary, duration, last_step_completed/failed 저장
+- `start.sh` (커밋 85049a6): `export APP_ENV="${APP_ENV:-production}"` 추가 — Railway에서 APP_ENV 미설정 시 development 모드로 뜨는 버그 수정
+- verify_public_api_outputs 재확인: 서버 alive, 날짜 정확, 7/8 체크 missing_data (Railway DB 미반영 확인됨)
 
 로컬 `.env` 보정 후 라이브 진단:
 
