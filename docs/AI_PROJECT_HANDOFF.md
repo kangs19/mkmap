@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션9 계속)
+마지막 업데이트: 2026-07-01 KST (세션10)
 
 ## 프로젝트 목적
 
@@ -293,59 +293,67 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
   - null-safe 가격 표시: `pv=0` → `"—"` (기존 `"0원"` 레이아웃 깨짐 수정)
   - null-safe 예측셀(7/30/90일), yoy, chgPct 전부 `"—"` 처리
 
-## 현재 운영 서버 상태 (2026-07-01 세션9 업데이트)
+## 현재 운영 서버 상태 (2026-07-01 세션10 업데이트)
 
 **완료됨:**
 - Railway Variables 설정 완료: ADMIN_KEY(rotated), KAMIS_API_KEY, DATA_GO_KR_API_KEY, KOSIS_API_KEY, KMA_API_KEY, APP_ENV=production
 - `/health` → `{"env":"production", "scheduler":true, "version":"0.3.0"}` 정상
-- `/api/v1/admin/status` 인증 성공
-- **공개 API 8/8 전부 통과** (2026-07-01 세션9 최종 확인):
-  - `health` ✓
-  - `signals_today` ✓ (5개 품목, base_date 2026-07-01)
-  - `dashboard_cards` ✓ (cards=5, price_non_null=5 — daily_prices=155 채워짐)
-  - `forecast_cabbage/radish/onion/green_onion/garlic` ✓ 5개 모두
-- Railway KAMIS sync 완료: daily_prices=155행 채워짐
-- DB 상태: region_signals=85, forecasts=5(2026-07-01), daily_prices=155
+- **공개 API 8/8 전부 통과** ✓
+- **PostgreSQL 전환 완료** (커밋 a1b5465, 세션10):
+  - Railway PostgreSQL addon 추가 (`railway add --database postgres`)
+  - DATABASE_URL Reference Variable로 자동 연결 (`${{Postgres.DATABASE_URL}}`)
+  - `database.py` URL 자동변환: `postgresql://` → `postgresql+asyncpg://`
+  - **DB 데이터 재배포 후에도 영구 보존** — SQLite ephemeral 문제 완전 해결
+- **KAMIS periodProductList + httpx** (커밋 4753a3d + ebbc50d):
+  - `dailySalesList` 날짜 무시 버그 → `periodProductList` 교체
+  - itemcode CSV 기준 수정: 211/231/245/246/258
+  - `change_30d_pct` 실제 변동률로 정상화
+- **현재 DB 상태 (PostgreSQL, 세션10)**:
+  - `daily_prices`: 3,903건 (2024-07-01~2026-07-01, 2년치)
+  - `daily_weather`: 4,404건
+  - `region_signals`: 85건 (2026-07-01)
+  - `forecasts`: 5건 (2026-07-01)
+- **change_30d_pct 실값**: cabbage+29.7%, radish-10.9%, green_onion+7.3%, onion-6.5%, garlic-10.8%
 
-**세션8/9 핵심 수정:**
-- **AT settlement 매핑 추가** (커밋 cbc696a): cabbage(lclsf=10,mclsf=01), radish(lclsf=11,mclsf=01) — 기존 0건 → 수집 가능
-- **direction_threshold 최솟값 0.5%** (커밋 07a5cca): `range(0,301,5)` → `range(50,301,5)` — 노이즈 과적합 방지
-- **AT settlement 429 방어** (커밋 b796da8): `_MAX_DAYS_BACK=90`, 30일 초과 시 0.3s sleep — 1460번 호출 → 360번으로 감소
-- **KAMIS sync periodProductList 교체** (커밋 6e8f6d5): `dailySalesList`는 날짜 파라미터 무시 → 모든 날짜 동일 가격 저장 → `change_30d_pct=0.0` 버그. `mkmap_meta.KamisPriceConnector(periodProductList)`로 교체해 날짜별 가격 올바르게 저장.
-- **ADMIN_KEY rotate 완료**: Railway Variables + 로컬 .env 동기화, 값은 문서에 없음
+**세션10 핵심 수정:**
+- **KAMIS SSL 우회** (커밋 4753a3d): SimpleHttpClient(urllib) → httpx(verify=False), Railway SSLV3 오류 해결
+- **KAMIS itemcode 수정** (커밋 ebbc50d): 잘못된 코드(214/221/226/223/225) → CSV 기준 정확한 코드
+- **PostgreSQL 전환** (커밋 a1b5465): asyncpg 추가, URL 자동변환, Railway addon 연결
+- **KMA weather sync 방법 확인**: `source=kma` (source=weather 아님!)
 
 **남은 문제:**
-- `daily_weather=0` — KMA weather sync 미완료 (daily_prices는 해결됨)
-- AT settlement 429 — 오늘 일일 한도 소진. 내일부터 90일 제한 버전으로 정상 수집 예정
-- Railway SQLite ephemeral — 재배포마다 초기화. 재배포 후 push_outputs_to_server.py 필요
-- `git push origin main` — Claude auto mode에서 차단됨. 사용자가 직접 실행 필요
+- AT settlement 429 — 매일 일일 쿼터 소진. 내일 자정 리셋 후 시도
+- `git push origin main` — Claude auto mode 차단, 사용자 직접 실행 필요 (현재 9커밋 쌓임)
 
-## 재배포 후 필수 절차
+## 재배포 후 절차 (PostgreSQL 전환 후)
+
+PostgreSQL은 영구 저장소이므로 재배포 후 DB 초기화 없음.
+단, signals/forecasts는 로컬 파이프라인 실행 후 push 필요:
 
 ```powershell
-# 1. 예측/신호 재주입
+# 1. 로컬 파이프라인 실행 (날씨 제외, 빠른 버전)
 cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
-python scripts\push_outputs_to_server.py --date 2026-07-01 --server https://mk-map.com
+python scripts\run_meta_pipeline.py --date YYYY-MM-DD --skip-weather
 
-# 2. Railway KAMIS sync (daily_prices 채우기)
-# admin API로 트리거:
-# POST https://mk-map.com/api/v1/admin/sync/run?source=kamis&days_back=30&background=true
+# 2. 예측/신호 재주입
+python scripts\push_outputs_to_server.py --date YYYY-MM-DD --server https://mk-map.com
+
+# 3. KAMIS sync (새 날짜 가격 채우기)
+# POST https://mk-map.com/api/v1/admin/sync/run?source=kamis&days_back=7&background=false
+
+# 4. KMA weather sync (source=kma, weather 아님!)
+# POST https://mk-map.com/api/v1/admin/sync/run?source=kma&days_back=3&background=false
 ```
 
 ## 다음 우선순위
 
-1. `git push origin main` 수동 실행 (AT settlement 429 방어 코드 반영)
-2. 내일 AT settlement 90일 재수집 → 파이프라인 재실행 → push (cabbage/radish at_wholesale_norm 개선 확인)
-3. Railway daily_weather 채우기 (`sync/run?source=kma`)
-4. 장기: Railway 영구 저장소 (Volume 또는 PostgreSQL) 검토 — 재배포마다 push 필요성 제거
-
-4. 실행 후 공개 API 재확인
+1. `git push origin main` 수동 실행 (9커밋)
+2. AT settlement 90일 재수집 (자정 리셋 후) → 파이프라인 재실행
+3. 매일 06:00 KST 스케줄러가 자동 실행 — PostgreSQL이므로 데이터 유지됨
 
 ```powershell
 python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
 ```
-
-현재 스크립트는 기본적으로 진단 결과를 JSON으로 출력하고 exit code 0을 반환한다. 배포 gate처럼 실패 처리해야 할 때는 `--strict`를 붙인다.
 
 **세션8 추가 완료 (2026-07-01):**
 - **AT settlement 코드 발견 및 추가** (커밋 cbc696a):
