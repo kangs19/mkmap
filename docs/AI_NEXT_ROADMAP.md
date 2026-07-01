@@ -213,29 +213,29 @@ python scripts\verify_public_api_outputs.py --strict
 
 ## P2: 모델 품질 개선
 
-현재 모델은 baseline linear model이다.
+**세션5 일부 완료 (커밋 59c53e8)**
 
-현재 확인된 결과:
+실제 확인된 훈련 데이터 상황:
+- KAMIS 캐시: 20개 날짜 (2026-06-02 ~ 2026-06-30), 5개 품목 × 5행 = 25행 (매우 부족)
+- AT regional price: region_code="1101" (숫자 코드), "평균" 필터에 걸리지 않아 0행 사용됨
+- 훈련 행 25개로 모델이 의미 있는 패턴 학습 불가 (이전 "120행"은 오기)
 
-- 2026-07-01 cached run
-- train rows: 120
-- test rows: 30
-- features: 20
-- direction threshold: 0.0295
-- accepted item models: 1
-- MAE: 0.015109
-- RMSE: 0.019224
-- sign accuracy: 0.4333
-- 3-class direction accuracy: 0.9667
+완료된 수정 (커밋 59c53e8):
+- `build_price_training_table.py`:
+  - `_daily_retail_series`: KAMIS "평균" 전국 평균 소매가 추출 (기존 로직 개선)
+  - `_daily_at_wholesale`: AT regional/settlement 도매가 일별 평균 별도 추출
+  - `price_pct_of_hist_mean`: 현재가/역사적평균 - 1 (품목 간 스케일 정규화)
+  - `at_wholesale_norm`: AT 도매가/KAMIS 소매가 - 1 (도소매 스프레드 신호)
+- `train_price_baseline_model.py`:
+  - `EXCLUDED_COLUMNS`에 절대가격 컬럼 추가 (`avg_price`, `lag_*_price`, `ma_*_price`)
+  - 크로스 아이템 훈련 시 배추(400원) vs 마늘(5000원) 스케일 혼동 방지
+  - 모델이 정규화된 피처만 사용: change_*, ma_*_gap, volatility_*, cyclicals, at_wholesale_norm
 
-해야 할 일:
-
-- 더 긴 가격 history 확보
-- AT/KAMIS 단위 차이 정규화
-- wholesale/retail/settlement 각각 별도 feature로 분리
-- 품목별 item model acceptance gate 개선
-- rolling backtest window 확대
-- 외부 위험 신호의 price adjustment scale 검증
+남은 핵심 작업:
+- **데이터 수집 확장 (진행 중)**: `collect_live_price_features.py --days-back 365` 실행 → 약 180개 날짜 확보 예상
+- 365일 데이터 수집 완료 후 `run_meta_pipeline.py` 재실행 → 품목별 ~165행 훈련 데이터 → 모델 재평가
+- AT/KAMIS 단위 차이: at_wholesale_norm으로 처리됨 (상대 비율)
+- 외부 위험 신호의 price adjustment scale 검증 (별도 태스크)
 
 ## P2: 프론트 UI 실제 데이터 대응
 

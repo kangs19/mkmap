@@ -249,6 +249,11 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - KMA 일기도: provider `NO_DATA`
 
 **세션5 추가 완료:**
+- **P2 모델 품질 개선** (커밋 59c53e8):
+  - 훈련 데이터 현황 파악: KAMIS 캐시 20날짜, 실제 훈련 행 25개 (5 품목 × 5행)
+  - `build_price_training_table.py`: AT 도매가 별도 추출, price_pct_of_hist_mean/at_wholesale_norm 피처 추가
+  - `train_price_baseline_model.py`: 절대가격 피처(avg_price, lag_*_price 등) 모델에서 제외 → 품목 간 스케일 혼동 방지
+  - 365일 데이터 수집 중 (`collect_live_price_features.py --days-back 365`)
 - **P3 Discord 알림 강화** (커밋 b35ed7d):
   - `scheduler.py`: pipeline 성공 후 DB에서 `signal_count`, `forecast_count` 쿼리 후 Discord 전송
   - `notify.py`: `notify_pipeline_success` 개선 — signal/forecast 수 + 로그 3줄 code block embed
