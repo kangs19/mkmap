@@ -864,6 +864,15 @@
       "item_name": "배추",
       "region_level": "province",
       "notes": "KOSIS 농작물생산조사 채소생산량(엽채류)"
+    },
+    "at_settlement": {
+      "mapping_status": "observed_from_kat_sale_live",
+      "gds_lclsf_cd": "10",
+      "gds_lclsf_nm": "엽경채류",
+      "gds_mclsf_cd": "01",
+      "gds_mclsf_nm": "배추",
+      "default_market_code": "110001",
+      "notes": "Observed from aT katSale/trades live rows on 2026-07-01. sclsf not set to capture all cabbage variants (봄/가을/월동 등)."
     }
   },
   "crop_profile": {
