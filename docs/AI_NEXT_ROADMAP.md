@@ -46,12 +46,13 @@
 - start.sh APP_ENV 기본값 production 설정 (커밋 85049a6)
 
 **남은 P0 차단 요소 (사용자 직접 필요)**:
-- Railway Variables에 다음 키 추가:
+- Railway Variables에 다음 키 추가/수정:
   - `KAMIS_API_KEY`
   - `DATA_GO_KR_API_KEY`
   - `KOSIS_API_KEY`
   - `KMA_API_KEY`
   - `ADMIN_KEY`
+  - `APP_ENV` = `production` (현재 Railway에 `development`로 설정되어 있거나 없는 경우, `/health`가 `"env":"development"` 반환 중 — 2026-07-01 확인)
 - 값은 `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git\.env` 참조
 - Railway Variables 추가 후 재배포하면 auto-recover가 자동으로 파이프라인 실행
 
@@ -231,10 +232,18 @@ python scripts\verify_public_api_outputs.py --strict
   - 크로스 아이템 훈련 시 배추(400원) vs 마늘(5000원) 스케일 혼동 방지
   - 모델이 정규화된 피처만 사용: change_*, ma_*_gap, volatility_*, cyclicals, at_wholesale_norm
 
-남은 핵심 작업:
-- **데이터 수집 확장 (진행 중)**: `collect_live_price_features.py --days-back 365` 실행 → 약 180개 날짜 확보 예상
-- 365일 데이터 수집 완료 후 `run_meta_pipeline.py` 재실행 → 품목별 ~165행 훈련 데이터 → 모델 재평가
-- AT/KAMIS 단위 차이: at_wholesale_norm으로 처리됨 (상대 비율)
+**세션6 완료:**
+- 365일 가격 수집 완료 — KAMIS 3000~4700건/품목
+- 파이프라인 재실행 결과:
+  - 훈련 행: **1118행** (기존 25행 → 45배)
+  - direction_accuracy: **81.7%** (test), **87.5%** (backtest)
+  - confidence: **"high"**
+  - garlic/green_onion 품목별 모델 채택
+- `build_price_training_table.py`, `train_price_baseline_model.py` Codex 클론 동기화 완료
+
+남은 작업:
+- Railway ADMIN_KEY 추가 후 `import_meta_outputs_to_backend.py` 실행으로 운영 DB 반영
+- 실제 다음날 가격 확인 후 direction 예측 정확도 검증 (base_date 2026-06-29 예측 → 2026-06-30 실제)
 - 외부 위험 신호의 price adjustment scale 검증 (별도 태스크)
 
 ## P2: 프론트 UI 실제 데이터 대응

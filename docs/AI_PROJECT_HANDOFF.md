@@ -248,6 +248,24 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - KMA 위성영상: provider/auth `HTTP_403`
 - KMA 일기도: provider `NO_DATA`
 
+**세션6 추가 완료 (2026-07-01):**
+- **FastAPI 라우트 추가** (커밋 877b9e5):
+  - `/admin-panel`, `/admin-panel.html` → `map_viewer/templates/admin.html` 서빙
+  - `/forecast-explanation`, `/forecast-explanation.html` → `map_viewer/templates/forecast_explanation.html` 서빙
+- **운영 서버 상태 재확인** (2026-07-01):
+  - `/health`: `{"env":"development"}` — Railway에 `APP_ENV=development` 명시 설정 또는 미설정으로 config.py 기본값(`development`)이 사용 중
+  - `/api/v1/admin/status`: `503 ADMIN_KEY is not configured` — Railway에 ADMIN_KEY 없음 확인
+- **365일 가격 수집 완료**:
+  - KAMIS: 배추 3572건, 마늘 4698건, 대파 3402건, 양파 3382건, 무 3712건 (vs 30일 기준 280건)
+  - AT regional price: 100~358건/품목
+  - AT market settlement: 양파 245건, 나머지 0건 또는 HTTP_502
+- **파이프라인 재실행 완료 (세션6)**:
+  - 훈련 행: **1118행** (vs 25행 — 45배 개선)
+  - 모델 MAE: 0.024, sign_accuracy: 57.1%, direction_accuracy: **81.7%**
+  - 백테스트 direction_accuracy: **87.5%**, confidence: **"high"**
+  - 품목별 모델: garlic (MAE ratio 0.42, 채택), green_onion (direction +8.7%p 개선, 채택)
+  - 예측 5개 품목 모두 생성 완료 (base_date 2026-06-29)
+
 **세션5 추가 완료:**
 - **P2 모델 품질 개선** (커밋 59c53e8):
   - 훈련 데이터 현황 파악: KAMIS 캐시 20날짜, 실제 훈련 행 25개 (5 품목 × 5행)
@@ -267,13 +285,22 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 
 ## 지금 가장 먼저 해야 할 일
 
-1. Railway 환경변수 확인
-   - `DATABASE_URL`
+1. Railway 환경변수 설정 (사용자 직접 필요)
+   - `DATABASE_URL` (이미 있을 수 있음)
    - `ADMIN_KEY`
    - `DATA_GO_KR_API_KEY`
    - `KAMIS_API_KEY`
    - `KOSIS_API_KEY`
-   - 그 외 `.env.example`에 있는 public API endpoint 변수
+   - `KMA_API_KEY`
+   - `APP_ENV` = `production` (현재 `/health`가 `"env":"development"` 반환 중)
+   - 값은 `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git\.env` 참조
+
+2. 365일 가격 수집 완료 후 파이프라인 재실행 (Claude가 직접)
+   ```powershell
+   cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
+   python scripts\run_meta_pipeline.py --date 2026-07-01 --skip-collect --skip-backend-import
+   ```
+   성공하면 훈련 행이 ~165행/품목으로 증가 예상 (현재 5행/품목)
 
 2. 원격 admin 상태 확인
 
