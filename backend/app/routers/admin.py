@@ -1327,6 +1327,9 @@ def _build_price_features_from_db(
 
     df = pd.concat(pieces, ignore_index=True)
     df = df.dropna(subset=["target", "lag_14", "ma_7"])
+    # Fill remaining NaN with 0 (weather features on dates with no data, sparse lags)
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    df[numeric_cols] = df[numeric_cols].fillna(0.0)
     return df
 
 
