@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션4)
+마지막 업데이트: 2026-07-01 KST (세션5)
 
 ## 프로젝트 목적
 
@@ -247,6 +247,15 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - KMA 기상특보: provider `DB_ERROR`
 - KMA 위성영상: provider/auth `HTTP_403`
 - KMA 일기도: provider `NO_DATA`
+
+**세션5 추가 완료:**
+- **P2 프론트 UI 개선** (커밋 b0ef561):
+  - `#data-status-pill` 헤더 추가 — live(초록)/nodata(주황)/loading(회색) 상태 + 애니메이션 dot
+  - `fetchLiveData()` 개선: `LIVE_BASE_DATE`, `LIVE_ITEM_COUNT` 저장; items=[] 시 "예측 데이터 준비 중" 표시
+  - `renderMiniCards()` 개선: live 데이터 없는 품목은 위험도 "—" 표시; 전체 no-data 시 안내 배너
+  - `showRegionDetail()` 개선: `rp-update-lbl`에 `LIVE_BASE_DATE` KST 기준 표시
+  - null-safe 가격 표시: `pv=0` → `"—"` (기존 `"0원"` 레이아웃 깨짐 수정)
+  - null-safe 예측셀(7/30/90일), yoy, chgPct 전부 `"—"` 처리
 
 ## 지금 가장 먼저 해야 할 일
 

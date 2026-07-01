@@ -1,6 +1,6 @@
 # MK-MAP Next Roadmap
 
-마지막 업데이트: 2026-07-01 KST (세션4)
+마지막 업데이트: 2026-07-01 KST (세션5)
 
 ## P0: 운영 DB에 예측/신호 반영
 
@@ -239,15 +239,17 @@ python scripts\verify_public_api_outputs.py --strict
 
 ## P2: 프론트 UI 실제 데이터 대응
 
-현재 공개 dashboard cards는 데이터가 없으면 안내 문구를 반환한다.
+**완료 (세션5, 커밋 b0ef561)**
 
-해야 할 일:
+완료된 작업:
+- 데이터 없음 상태 UI — `mc-nodata-notice` 배너, 품목별 위험도 "—" 표시
+- 데이터 freshness 표시 — `#data-status-pill` (live/nodata/loading 3상태, base_date KST 표시)
+- `showRegionDetail` KST 기준 date 표시 — `LIVE_BASE_DATE` 사용
+- null 데이터 레이아웃 깨짐 수정 — price/yoy/chgPct/forecast 모두 null-safe
 
-- 데이터 없음 상태 UI 개선
-- last pipeline status 표시
-- freshness 표시
-- forecast explanation 페이지에서 KST 기준 date 표시
-- 데이터가 null일 때 카드 레이아웃 깨짐 확인
+남은 개선 (낮은 우선순위):
+- 우측 패널에 마지막 pipeline 실행 시각/결과 표시 (admin status API 연동)
+- forecast explanation 페이지 별도 구현 (현재 없음)
 
 ## P2: API 진단 결과 운영 UI 연결
 
