@@ -1028,6 +1028,135 @@ async def import_outputs(
     return result
 
 
+# ── Bulk historical price import (Railway DB expansion) ───────────────────────
+
+class PriceRow(BaseModel):
+    item_code: str
+    date: str
+    wholesale_price: float
+    retail_price: Optional[float] = None
+    market: str = ""
+    grade: str = ""
+    source: str = "kamis"
+
+
+class ImportPricesRequest(BaseModel):
+    prices: list[PriceRow]
+
+
+@router.post("/import-prices")
+async def import_prices(
+    body: ImportPricesRequest,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """로컬에서 수집한 KAMIS 대량 가격 데이터를 Railway DB에 UPSERT.
+
+    용도: KAMIS API는 수년치 과거 데이터 제공 가능하나 Railway 자동 sync는
+    최근 90일만 수집했음. 이 엔드포인트로 다년치 데이터를 한 번에 벌크 import.
+
+    Body: {"prices": [{"item_code","date","wholesale_price","retail_price","market","grade","source"}]}
+    UPSERT 기준: (item_code, date, source)
+    """
+    import datetime
+    from app.models.price import DailyPrice
+
+    if not body.prices:
+        return {"saved": 0, "message": "no data"}
+
+    valid_rows = []
+    skipped = 0
+    for row in body.prices:
+        try:
+            date_obj = datetime.date.fromisoformat(row.date)
+            if row.wholesale_price <= 0:
+                skipped += 1
+                continue
+            valid_rows.append({
+                "item_code": row.item_code,
+                "date": date_obj,
+                "wholesale_price": row.wholesale_price,
+                "retail_price": row.retail_price,
+                "market": row.market,
+                "grade": row.grade,
+                "source": row.source,
+            })
+        except (ValueError, TypeError):
+            skipped += 1
+
+    if not valid_rows:
+        return {"saved": 0, "skipped": skipped, "message": "no valid rows"}
+
+    # Batch UPSERT in chunks of 500 to avoid parameter limit
+    saved = 0
+    chunk_size = 500
+    for i in range(0, len(valid_rows), chunk_size):
+        chunk = valid_rows[i:i + chunk_size]
+        try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            stmt = pg_insert(DailyPrice).values(chunk).on_conflict_do_update(
+                index_elements=["item_code", "date", "source"],
+                set_={
+                    "wholesale_price": pg_insert(DailyPrice).excluded.wholesale_price,
+                    "retail_price": pg_insert(DailyPrice).excluded.retail_price,
+                    "market": pg_insert(DailyPrice).excluded.market,
+                    "grade": pg_insert(DailyPrice).excluded.grade,
+                }
+            )
+            result = await db.execute(stmt)
+            await db.commit()
+            saved += result.rowcount or len(chunk)
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail=f"Chunk {i//chunk_size} UPSERT failed: {e}")
+
+    items = list({r["item_code"] for r in valid_rows})
+    date_range = (
+        min(str(r["date"]) for r in valid_rows),
+        max(str(r["date"]) for r in valid_rows),
+    )
+    return {
+        "saved": saved,
+        "skipped": skipped,
+        "total_input": len(body.prices),
+        "items": items,
+        "date_range": {"start": date_range[0], "end": date_range[1]},
+    }
+
+
+@router.post("/sync/historical")
+async def sync_historical_prices(
+    days_back: int = 365,
+    background: bool = True,
+    _=Depends(check_admin),
+):
+    """Railway 서버에서 직접 KAMIS API 호출해 수년치 가격 수집.
+
+    days_back=365 → 1년, days_back=1825 → 5년.
+    Railway 환경에서 KAMIS SSL 우회 + 대용량 처리.
+    """
+    import asyncio
+    from app.collectors.sync import sync_prices
+
+    async def _run():
+        try:
+            result = await sync_prices(days_back=days_back)
+            print(f"[sync/historical] done: {result}")
+        except Exception as e:
+            print(f"[sync/historical error] {e}")
+
+    if background:
+        asyncio.create_task(_run())
+        return {
+            "status": "started",
+            "days_back": days_back,
+            "message": f"최근 {days_back}일 가격 수집 중 — /admin/debug/price-counts 로 확인"
+        }
+    else:
+        result = await sync_prices(days_back=days_back)
+        return {"status": "ok", "days_back": days_back, "result": result}
+
+
 @router.post("/init-data")
 async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """Item 시드 수동 실행 — 재배포 후 빈 items 테이블 복구"""
