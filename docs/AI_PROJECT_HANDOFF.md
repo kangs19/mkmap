@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션8)
+마지막 업데이트: 2026-07-01 KST (세션9)
 
 ## 프로젝트 목적
 
@@ -293,65 +293,50 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
   - null-safe 가격 표시: `pv=0` → `"—"` (기존 `"0원"` 레이아웃 깨짐 수정)
   - null-safe 예측셀(7/30/90일), yoy, chgPct 전부 `"—"` 처리
 
-## 현재 운영 서버 상태 (2026-07-01 세션7 업데이트)
+## 현재 운영 서버 상태 (2026-07-01 세션9 업데이트)
 
 **완료됨:**
-- Railway Variables 설정 완료 (Railway CLI로 자동 설정): ADMIN_KEY, KAMIS_API_KEY, DATA_GO_KR_API_KEY, KOSIS_API_KEY, KMA_API_KEY, APP_ENV=production
-- `/health` → `{"env":"production", "scheduler":true}` 확인
+- Railway Variables 설정 완료: ADMIN_KEY(rotated), KAMIS_API_KEY, DATA_GO_KR_API_KEY, KOSIS_API_KEY, KMA_API_KEY, APP_ENV=production
+- `/health` → `{"env":"production", "scheduler":true, "version":"0.3.0"}` 정상
 - `/api/v1/admin/status` 인증 성공
-- 로컬 예측/신호 push_outputs_to_server.py로 운영 DB 반영 완료 (signals 85행, forecasts 5개)
-- 공개 API verify: 7/8 통과 (forecasts/signals 정상, dashboard_cards price_non_null=0만 미충족)
-- KAMIS SSL 오류 수정 (커밋 6a247c4): Railway에서 KAMIS API SSL handshake failure → verify_ssl=False
-- collect_live_price_features.py soft-fail 수정: 일부 소스 실패해도 데이터 있으면 exit 0
+- **공개 API 8/8 전부 통과** (2026-07-01 세션9 최종 확인):
+  - `health` ✓
+  - `signals_today` ✓ (5개 품목, base_date 2026-07-01)
+  - `dashboard_cards` ✓ (cards=5, price_non_null=5 — daily_prices=155 채워짐)
+  - `forecast_cabbage/radish/onion/green_onion/garlic` ✓ 5개 모두
+- Railway KAMIS sync 완료: daily_prices=155행 채워짐
+- DB 상태: region_signals=85, forecasts=5(2026-07-01), daily_prices=155
+
+**세션8/9 핵심 수정:**
+- **AT settlement 매핑 추가** (커밋 cbc696a): cabbage(lclsf=10,mclsf=01), radish(lclsf=11,mclsf=01) — 기존 0건 → 수집 가능
+- **direction_threshold 최솟값 0.5%** (커밋 07a5cca): `range(0,301,5)` → `range(50,301,5)` — 노이즈 과적합 방지
+- **AT settlement 429 방어** (커밋 b796da8): `_MAX_DAYS_BACK=90`, 30일 초과 시 0.3s sleep — 1460번 호출 → 360번으로 감소
+- **ADMIN_KEY rotate 완료**: Railway Variables + 로컬 .env 동기화, 값은 문서에 없음
 
 **남은 문제:**
-- `dashboard_cards` price_non_null=0 — 운영 DB에 `daily_prices` 없음 (원격 파이프라인이 성공해야 채워짐)
-- 원격 파이프라인 재실행 중 (SSL fix 적용 후, 2026-07-01 재시작)
-- ADMIN_KEY가 `.env`에 개발용 placeholder 값으로 저장됨 — 실제 운영 키로 변경 권장
+- `daily_weather=0` — KMA weather sync 미완료 (daily_prices는 해결됨)
+- AT settlement 429 — 오늘 일일 한도 소진. 내일부터 90일 제한 버전으로 정상 수집 예정
+- Railway SQLite ephemeral — 재배포마다 초기화. 재배포 후 push_outputs_to_server.py 필요
+- `git push origin main` — Claude auto mode에서 차단됨. 사용자가 직접 실행 필요
+
+## 재배포 후 필수 절차
+
+```powershell
+# 1. 예측/신호 재주입
+cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
+python scripts\push_outputs_to_server.py --date 2026-07-01 --server https://mk-map.com
+
+# 2. Railway KAMIS sync (daily_prices 채우기)
+# admin API로 트리거:
+# POST https://mk-map.com/api/v1/admin/sync/run?source=kamis&days_back=30&background=true
+```
 
 ## 다음 우선순위
 
-   **2-2. admin 상태 확인**
-   ```powershell
-   $key = "<ADMIN_KEY>"
-   $h = @{"X-Admin-Key"=$key}
-   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/admin/status" -Headers $h
-   ```
-
-   **2-3. 로컬 예측 결과를 Railway에 push (이미 생성된 결과 사용)**
-   ```powershell
-   cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
-   python scripts\push_outputs_to_server.py --date 2026-07-01 --server https://mk-map.com
-   ```
-   이 스크립트가 Railway admin HTTP endpoint로 region_signals.json + predictions.json을 POST함
-
-   **2-4. 공개 API 확인**
-   ```powershell
-   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/signals/today"
-   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/items/cabbage/forecast"
-   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
-   ```
-   signals/today.items에 5개 품목, forecast에 예측값이 나오면 성공
-
-   **※ auto-recover**: Variables 추가 후 재배포만 해도 Railway에서 자동으로 파이프라인 실행 → DB 채워짐 (수동 push 불필요할 수 있음)
-
-2. 원격 admin 상태 확인
-
-```powershell
-$headers = @{ "X-Admin-Key" = "<Railway ADMIN_KEY>" }
-Invoke-RestMethod -Uri "https://mk-map.com/api/v1/admin/status" -Headers $headers
-Invoke-RestMethod -Uri "https://mk-map.com/api/v1/admin/meta-pipeline/status" -Headers $headers
-```
-
-3. 원격 pipeline 수동 실행
-
-```powershell
-$headers = @{ "X-Admin-Key" = "<Railway ADMIN_KEY>" }
-Invoke-RestMethod `
-  -Method Post `
-  -Uri "https://mk-map.com/api/v1/admin/meta-pipeline/run?background=false&weather_lookback_days=3&weather_max_requests_per_item=16&weather_request_timeout_seconds=8" `
-  -Headers $headers
-```
+1. `git push origin main` 수동 실행 (AT settlement 429 방어 코드 반영)
+2. 내일 AT settlement 90일 재수집 → 파이프라인 재실행 → push (cabbage/radish at_wholesale_norm 개선 확인)
+3. Railway daily_weather 채우기 (`sync/run?source=kma`)
+4. 장기: Railway 영구 저장소 (Volume 또는 PostgreSQL) 검토 — 재배포마다 push 필요성 제거
 
 4. 실행 후 공개 API 재확인
 
