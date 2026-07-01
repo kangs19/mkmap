@@ -90,22 +90,16 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
 
 ## P0: 원격 pipeline 실패 로그 확보
 
-원격 pipeline이 실패하면 admin status의 `last_output_tail`을 확인한다.
+**완료 (세션4, 커밋 41b20c6)**
 
-가능한 실패 원인:
+원격 pipeline이 실패하면 admin status의 `last_output_tail`과 `last_step_summary`를 확인한다.
 
-- Railway에 API 키 누락
-- `ADMIN_KEY` 누락
-- `DATABASE_URL`이 다른 DB를 바라봄
-- KMA weather gateway timeout
-- provider API 오류가 아직 특정 collector에서 예외로 터짐
-- Railway 실행 시간이 너무 길어짐
-
-해야 할 보강:
-
-- admin pipeline status에 명령어 전체와 duration 저장
-- pipeline 실패 시 어느 step에서 실패했는지 별도 필드 저장
-- stdout tail 80줄보다 step summary를 구조화해서 저장
+현재 구현 내용:
+- `last_step_completed`: 마지막으로 완료된 step 이름
+- `last_step_failed`: 실패한 step 이름 (실패 시)
+- `last_step_summary`: step별 `{step, status, duration_s}` 리스트
+- `last_output_tail`: stdout 최근 80줄
+- `last_duration_seconds`: 전체 실행 시간
 
 ## P1: 운영 pipeline 결과 자동 검증
 
@@ -259,7 +253,7 @@ python scripts\verify_public_api_outputs.py --strict
 
 남은 개선 (낮은 우선순위):
 - 우측 패널에 마지막 pipeline 실행 시각/결과 표시 (admin status API 연동)
-- forecast explanation 페이지 별도 구현 (현재 없음)
+- ~~forecast explanation 페이지 별도 구현~~ **완료** — `map_viewer/templates/forecast_explanation.html` 존재, `/forecast-explanation` 라우트 연결됨 (세션6 커밋 877b9e5, bff0c80)
 
 ## P2: API 진단 결과 운영 UI 연결
 
