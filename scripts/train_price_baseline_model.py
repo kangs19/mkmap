@@ -320,6 +320,12 @@ def _probability_calibration(backtest: dict[str, object], direction_threshold: f
 
 
 def _fit_linear_model(rows: list[dict[str, float | str]], features: list[str]) -> dict[str, object]:
+    try:
+        import numpy as np
+        return _fit_linear_model_numpy(rows, features)
+    except ImportError:
+        pass
+
     y_mean = mean(float(row["target_next_change"]) for row in rows)
     stats = _feature_stats(rows, features)
     weights = {feature: 0.0 for feature in features}
@@ -347,6 +353,38 @@ def _fit_linear_model(rows: list[dict[str, float | str]], features: list[str]) -
     coefficients = {feature: round(weight, 10) for feature, weight in weights.items()}
     return {
         "intercept": round(intercept, 10),
+        "features": features,
+        "coefficients": coefficients,
+        "feature_stats": stats,
+    }
+
+
+def _fit_linear_model_numpy(rows: list[dict[str, float | str]], features: list[str]) -> dict[str, object]:
+    import numpy as np
+
+    stats = _feature_stats(rows, features)
+    X_raw = np.array([[float(row[f]) for f in features] for row in rows], dtype=np.float64)
+    y = np.array([float(row["target_next_change"]) for row in rows], dtype=np.float64)
+
+    means = np.array([stats[f]["mean"] for f in features], dtype=np.float64)
+    stds = np.array([stats[f]["std"] for f in features], dtype=np.float64)
+    X = (X_raw - means) / stds
+
+    n_rows, n_features = X.shape
+    w = np.zeros(n_features, dtype=np.float64)
+    b = float(np.mean(y))
+    lr = 0.03
+    l2 = 0.01
+
+    for _ in range(2500):
+        pred = X @ w + b
+        err = pred - y
+        b -= lr * np.mean(err)
+        w -= lr * (X.T @ err / n_rows + l2 * w)
+
+    coefficients = {f: round(float(w[i]), 10) for i, f in enumerate(features)}
+    return {
+        "intercept": round(float(b), 10),
         "features": features,
         "coefficients": coefficients,
         "feature_stats": stats,
