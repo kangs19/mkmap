@@ -24,10 +24,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_step(name: str, args: list[str]) -> None:
+def run_step(name: str, args: list[str], soft_fail: bool = False) -> bool:
+    """Run a pipeline step. Returns True on success, False on failure.
+    If soft_fail=True, logs a warning on non-zero exit instead of raising.
+    """
     print(f"\n== {name} ==")
     print(" ".join(args))
-    subprocess.run(args, cwd=REPO_ROOT, check=True)
+    result = subprocess.run(args, cwd=REPO_ROOT)
+    if result.returncode != 0:
+        if soft_fail:
+            print(f"[WARN] {name} exited with code {result.returncode}; continuing", file=sys.stderr)
+            return False
+        raise subprocess.CalledProcessError(result.returncode, args)
+    return True
 
 
 def main() -> int:
@@ -76,7 +85,7 @@ def main() -> int:
     prediction_path = REPO_ROOT / "data" / "model" / f"latest_price_predictions_{stamp}_risk.json"
     signal_path = REPO_ROOT / "data" / "signals" / stamp / "region_risk_signals.json"
 
-    run_step(
+    model_ok = run_step(
         "Train baseline price model",
         [
             sys.executable,
@@ -88,22 +97,27 @@ def main() -> int:
             "--report-output",
             str(model_report_path),
         ],
+        soft_fail=True,
     )
-    run_step(
-        "Predict latest prices with risk overlay",
-        [
-            sys.executable,
-            "scripts/predict_latest_prices.py",
-            "--features",
-            str(training_table),
-            "--model",
-            str(model_path),
-            "--signals",
-            str(signal_path),
-            "--output",
-            str(prediction_path),
-        ],
-    )
+    if model_ok:
+        run_step(
+            "Predict latest prices with risk overlay",
+            [
+                sys.executable,
+                "scripts/predict_latest_prices.py",
+                "--features",
+                str(training_table),
+                "--model",
+                str(model_path),
+                "--signals",
+                str(signal_path),
+                "--output",
+                str(prediction_path),
+            ],
+            soft_fail=True,
+        )
+    else:
+        print("[WARN] Skipping price prediction: model training failed", file=sys.stderr)
 
     if not args.skip_backend_import:
         run_step("Import outputs into backend DB", [sys.executable, "scripts/import_meta_outputs_to_backend.py", "--date", args.date])

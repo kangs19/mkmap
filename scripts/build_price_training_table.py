@@ -70,7 +70,9 @@ def main() -> int:
         writer.writerows(rows)
 
     print(f"Exported {out_path.relative_to(REPO_ROOT)} rows={len(rows)}")
-    return 0 if rows else 1
+    if not rows:
+        print("[WARN] No training rows produced; price history may be insufficient", file=sys.stderr)
+    return 0
 
 
 def _daily_average_series(prices: list[Any]) -> list[tuple[date, float]]:
