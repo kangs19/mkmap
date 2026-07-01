@@ -866,6 +866,29 @@ async def debug_fetch_prices(_=Depends(check_admin)):
     }
 
 
+@router.post("/debug/cleanup-mock-data")
+async def cleanup_mock_data(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
+    """daily_prices/daily_weather에서 source='mock_generator' 행 삭제.
+    초기 시드 데이터가 실 데이터 계산을 오염시키는 문제 해결.
+    실 데이터(kamis/kma 등)가 충분히 쌓인 후 1회만 실행하면 됨.
+    """
+    from sqlalchemy import delete as sa_delete
+    from app.models.price import DailyPrice
+    from app.models.weather import DailyWeather
+
+    price_del = await db.execute(
+        sa_delete(DailyPrice).where(DailyPrice.source == "mock_generator")
+    )
+    weather_del = await db.execute(
+        sa_delete(DailyWeather).where(DailyWeather.source == "mock_generator")
+    )
+    await db.commit()
+    return {
+        "deleted_mock_prices": price_del.rowcount,
+        "deleted_mock_weather": weather_del.rowcount,
+    }
+
+
 @router.post("/debug/fix-garlic-prices")
 async def fix_garlic_prices(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """garlic daily_prices 중 1kg 단위 잘못 저장된 행(wholesale_price < 50000) 삭제 후 재sync.
