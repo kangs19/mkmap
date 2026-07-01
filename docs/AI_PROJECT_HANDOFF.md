@@ -224,6 +224,14 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - `backend/app/routers/admin.py` (커밋 3d88171): `POST /api/v1/admin/import-outputs` 엔드포인트 추가 — 로컬 JSON을 바로 DB에 삽입 가능
 - `backend/app/routers/admin.py` (커밋 41b20c6): pipeline status 개선 — step별 summary, duration, last_step_completed/failed 저장
 - `start.sh` (커밋 85049a6): `export APP_ENV="${APP_ENV:-production}"` 추가 — Railway에서 APP_ENV 미설정 시 development 모드로 뜨는 버그 수정
+- **RDA 농업기상 완전 수정** (커밋 0c1efe9):
+  - `weather.py` `_xml_to_payload` 루트 태그 wrapping 수정 → `extract_rows`가 RDA XML 파싱 가능
+  - `normalizers.py` `public_api_error` RDA 성공코드 `"200"` 처리 추가
+  - `weather.py` `RdaAgriWeatherConnector.fetch_weather` 품목별 관측소 쿼리 + 전월 폴백
+  - `weather.py` `obsr_Spot_Cd/Nm` 필드 → region_code/name 추출에 추가
+  - 전체 5개 품목 메타데이터에 `rda_weather.obsr_spot_codes` 추가 (219개 관측소에서 주산지 기반 선정)
+  - 실측: 배추 540개, 마늘 210개, 양파 210개, 대파 180개, 무 330개 feature 수집 성공
+- **verify 엔드포인트** (커밋 19fa179): `POST /api/v1/admin/meta-pipeline/verify` — DB에서 오늘 날짜 signals/forecasts 존재 여부 품목별 체크
 - verify_public_api_outputs 재확인: 서버 alive, 날짜 정확, 7/8 체크 missing_data (Railway DB 미반영 확인됨)
 
 로컬 `.env` 보정 후 라이브 진단:
