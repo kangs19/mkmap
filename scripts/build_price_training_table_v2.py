@@ -523,6 +523,160 @@ def _daily_at_wholesale(prices: list[Any]) -> dict[date, float]:
     return {day: mean(vs) for day, vs in values_by_day.items() if vs}
 
 
+def _daily_volume_series(prices: list[Any]) -> dict[date, float]:
+    """날짜별 일 거래량 합계."""
+    vol_by_day: dict[date, float] = defaultdict(float)
+    for f in prices:
+        v = getattr(f, "volume", None)
+        if v and v > 0:
+            vol_by_day[f.base_date] += v
+    return dict(vol_by_day)
+
+
+def _load_weather_series(item_code: str, target_date: date) -> dict[date, dict]:
+    """data/features/{date}/kma_crop_weather_{item}.json 전부 스캔 → 날짜별 평균 기상."""
+    import json
+    features_root = data_dir() / "features"
+    result: dict[date, dict] = {}
+    for folder in sorted(features_root.iterdir()):
+        if not folder.is_dir():
+            continue
+        jf = folder / f"kma_crop_weather_{item_code}.json"
+        if not jf.exists():
+            continue
+        try:
+            rows = json.loads(jf.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not rows:
+            continue
+        # 날짜 파싱
+        try:
+            stamp = folder.name  # YYYYMMDD
+            row_date = date(int(stamp[:4]), int(stamp[4:6]), int(stamp[6:8]))
+        except Exception:
+            continue
+        if row_date > target_date:
+            continue
+        # 여러 지역 평균
+        temps, rains, humids = [], [], []
+        for row in rows:
+            if isinstance(row, dict):
+                t = row.get("temperature")
+                r = row.get("rainfall")
+                h = row.get("humidity")
+                if t is not None: temps.append(float(t))
+                if r is not None: rains.append(float(r))
+                if h is not None: humids.append(float(h))
+        result[row_date] = {
+            "temp": mean(temps) if temps else None,
+            "rain": mean(rains) if rains else None,
+            "humidity": mean(humids) if humids else None,
+        }
+    return result
+
+
+def _weather_features(base_date: date, weather_by_date: dict[date, dict]) -> dict:
+    """날짜 기준 7일/30일 rolling 날씨 피처."""
+    temps_7, rains_7, humids_7 = [], [], []
+    temps_30, rains_30, humids_30 = [], [], []
+
+    for lag in range(1, 31):
+        d = base_date - timedelta(days=lag)
+        w = weather_by_date.get(d)
+        if w is None:
+            continue
+        if lag <= 7:
+            if w.get("temp") is not None: temps_7.append(w["temp"])
+            if w.get("rain") is not None: rains_7.append(w["rain"])
+            if w.get("humidity") is not None: humids_7.append(w["humidity"])
+        if w.get("temp") is not None: temps_30.append(w["temp"])
+        if w.get("rain") is not None: rains_30.append(w["rain"])
+        if w.get("humidity") is not None: humids_30.append(w["humidity"])
+
+    # 이번달 날씨
+    month_temps, month_rains = [], []
+    d = date(base_date.year, base_date.month, 1)
+    while d < base_date:
+        w = weather_by_date.get(d)
+        if w:
+            if w.get("temp") is not None: month_temps.append(w["temp"])
+            if w.get("rain") is not None: month_rains.append(w["rain"])
+        d += timedelta(days=1)
+
+    # 전월
+    first_of_month = date(base_date.year, base_date.month, 1)
+    last_month_end = first_of_month - timedelta(days=1)
+    last_month_start = date(last_month_end.year, last_month_end.month, 1)
+    prev_temps, prev_rains = [], []
+    d = last_month_start
+    while d <= last_month_end:
+        w = weather_by_date.get(d)
+        if w:
+            if w.get("temp") is not None: prev_temps.append(w["temp"])
+            if w.get("rain") is not None: prev_rains.append(w["rain"])
+        d += timedelta(days=1)
+
+    has_weather = bool(temps_7 or temps_30)
+    return {
+        "weather_available": 1 if has_weather else 0,
+        "temp_7d_avg": round(_safe_mean(temps_7, 0.0), 2),
+        "rain_7d_sum": round(sum(rains_7), 2),
+        "humidity_7d_avg": round(_safe_mean(humids_7, 0.0), 2),
+        "temp_30d_avg": round(_safe_mean(temps_30, 0.0), 2),
+        "rain_30d_sum": round(sum(rains_30), 2),
+        "temp_month_avg": round(_safe_mean(month_temps, 0.0), 2),
+        "rain_month_sum": round(sum(month_rains), 2),
+        "temp_vs_prev_month": round(
+            _pct(_safe_mean(month_temps, 0.0), _safe_mean(prev_temps, 1.0)), 4
+        ) if prev_temps and month_temps else 0.0,
+        "rain_vs_prev_month": round(
+            _pct(sum(month_rains) + 0.1, sum(prev_rains) + 0.1), 4
+        ) if prev_rains else 0.0,
+    }
+
+
+def _volume_features(base_date: date, vol_by_date: dict[date, float]) -> dict:
+    """날짜 기준 거래량 rolling 피처."""
+    vols_7 = [vol_by_date[base_date - timedelta(days=i)]
+              for i in range(1, 8) if (base_date - timedelta(days=i)) in vol_by_date]
+    vols_30 = [vol_by_date[base_date - timedelta(days=i)]
+               for i in range(1, 31) if (base_date - timedelta(days=i)) in vol_by_date]
+
+    # 이번달 누적 거래량
+    month_vol = 0.0
+    d = date(base_date.year, base_date.month, 1)
+    while d < base_date:
+        month_vol += vol_by_date.get(d, 0.0)
+        d += timedelta(days=1)
+
+    # 전월 거래량
+    first_of_month = date(base_date.year, base_date.month, 1)
+    last_month_end = first_of_month - timedelta(days=1)
+    last_month_start = date(last_month_end.year, last_month_end.month, 1)
+    prev_month_vol = 0.0
+    d = last_month_start
+    while d <= last_month_end:
+        prev_month_vol += vol_by_date.get(d, 0.0)
+        d += timedelta(days=1)
+
+    today_vol = vol_by_date.get(base_date, 0.0)
+    avg_7d = _safe_mean(vols_7, today_vol)
+    avg_30d = _safe_mean(vols_30, today_vol)
+
+    return {
+        "volume_today": round(today_vol, 2),
+        "volume_7d_avg": round(avg_7d, 2),
+        "volume_7d_sum": round(sum(vols_7), 2),
+        "volume_30d_avg": round(avg_30d, 2),
+        "volume_vs_7d_avg": round(_pct(today_vol, avg_7d), 4) if avg_7d else 0.0,
+        "volume_month_sum": round(month_vol, 2),
+        "volume_vs_prev_month": round(
+            _pct(month_vol + 0.1, prev_month_vol + 0.1), 4
+        ),
+    }
+
+
 # ── training row 생성 ─────────────────────────────────────────────────────────
 
 COMMON_FIELDS = [
@@ -536,6 +690,15 @@ COMMON_FIELDS = [
     "weekday_sin", "weekday_cos",
     "month_sin", "month_cos",
     "at_wholesale_norm",
+    # volume 피처
+    "volume_today", "volume_7d_avg", "volume_7d_sum", "volume_30d_avg",
+    "volume_vs_7d_avg", "volume_month_sum", "volume_vs_prev_month",
+    # weather 피처
+    "weather_available",
+    "temp_7d_avg", "rain_7d_sum", "humidity_7d_avg",
+    "temp_30d_avg", "rain_30d_sum",
+    "temp_month_avg", "rain_month_sum",
+    "temp_vs_prev_month", "rain_vs_prev_month",
 ]
 
 
@@ -543,6 +706,8 @@ def _build_rows_for_item(
     item_code: str,
     series: list[tuple[date, float]],
     at_wholesale_by_date: dict[date, float],
+    vol_by_date: dict[date, float],
+    weather_by_date: dict[date, dict],
     min_history: int,
 ) -> list[dict]:
     rows = []
@@ -558,7 +723,7 @@ def _build_rows_for_item(
         base_date, current = series[idx]
         next_value = values[idx + 1]
 
-        # 공통 피처
+        # 공통 가격 피처
         common = _common_price_features(idx, values, base_date, hist_mean)
         at_ws = at_wholesale_by_date.get(base_date)
         at_wholesale_norm = round(_pct(at_ws, current), 6) if at_ws and current else 0.0
@@ -569,6 +734,12 @@ def _build_rows_for_item(
             **common,
             "at_wholesale_norm": at_wholesale_norm,
         }
+
+        # 거래량 피처
+        row.update(_volume_features(base_date, vol_by_date))
+
+        # 날씨 피처
+        row.update(_weather_features(base_date, weather_by_date))
 
         # 품목별 특화 피처
         if extra_fn:
@@ -615,7 +786,11 @@ def main() -> int:
         prices = connector.fetch_prices(item_code, target_date)
         retail_series = _daily_retail_series(prices)
         at_ws = _daily_at_wholesale(prices)
-        rows = _build_rows_for_item(item_code, retail_series, at_ws, args.min_history)
+        vol_by_date = _daily_volume_series(prices)
+        weather_by_date = _load_weather_series(item_code, target_date)
+        rows = _build_rows_for_item(
+            item_code, retail_series, at_ws, vol_by_date, weather_by_date, args.min_history
+        )
 
         if rows:
             item_path = _write_item_csv(item_code, rows, out_dir, suffix)

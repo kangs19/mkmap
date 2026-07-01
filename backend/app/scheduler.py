@@ -121,6 +121,24 @@ async def daily_pipeline():
         logger.warning("[scheduler] daily report notification failed: %s", exc)
 
 
+async def daily_retrain():
+    """매일 07:30 KST: 최신 데이터로 LightGBM 앙상블 재학습."""
+    logger.info("[scheduler] daily retrain start")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.routers.admin import _run_lgbm_training
+        async with AsyncSessionLocal() as db:
+            result = await _run_lgbm_training(db)
+        items = result.get("items", {})
+        summary = {
+            k: {"test_dir_acc": v.get("test_dir_acc"), "test_mae": v.get("test_mae")}
+            for k, v in items.items() if "error" not in v
+        }
+        logger.info("[scheduler] retrain done: %s", summary)
+    except Exception as exc:
+        logger.error("[scheduler] retrain error: %s", exc, exc_info=True)
+
+
 def start_scheduler():
     scheduler.add_job(
         daily_pipeline,
@@ -129,8 +147,15 @@ def start_scheduler():
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    scheduler.add_job(
+        daily_retrain,
+        trigger=CronTrigger(hour=7, minute=30),
+        id="daily_retrain",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     scheduler.start()
-    logger.info("[scheduler] started: daily 06:00 KST")
+    logger.info("[scheduler] started: daily_pipeline 06:00, daily_retrain 07:30 KST")
 
 
 def stop_scheduler():
