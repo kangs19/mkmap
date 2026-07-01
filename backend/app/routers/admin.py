@@ -13,7 +13,13 @@ from app.database import get_db
 from app.models.api_key import ApiKey, ApiUsageLog
 from app.auth import generate_key, hash_key
 from datetime import timedelta
-from typing import Optional
+from typing import Any, Optional
+from pydantic import BaseModel
+
+
+class ImportOutputsRequest(BaseModel):
+    signals: Optional[list[Any]] = None
+    predictions: Optional[list[Any]] = None
 from app.timezone import kst_now, kst_today
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -728,6 +734,105 @@ async def debug_fetch_prices(_=Depends(check_admin)):
         "items_found": list(result.keys()),
         "data": {k: {"price": v.get("wholesale_price")} for k, v in result.items()},
     }
+
+
+@router.post("/import-outputs")
+async def import_outputs(
+    target_date: str,
+    body: ImportOutputsRequest,
+    _=Depends(check_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """로컬에서 생성한 signal/forecast JSON을 DB에 직접 import.
+    Railway API 키 없이 로컬 파이프라인 결과를 운영 DB에 반영할 때 사용.
+    Body: {"signals": [...], "predictions": [...]}
+    """
+    from sqlalchemy import delete
+    from app.models.signal import RegionSignal
+    from app.models.forecast import Forecast
+    import datetime
+
+    try:
+        date_obj = datetime.date.fromisoformat(target_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date: {target_date}")
+
+    result: dict = {"date": target_date, "signals_imported": 0, "forecasts_imported": 0}
+
+    signals = body.signals
+    predictions = body.predictions
+
+    if signals is not None:
+        rows: list[RegionSignal] = []
+        item_codes: set[str] = set()
+        for item_payload in signals:
+            if not isinstance(item_payload, dict):
+                continue
+            item_code = str(item_payload.get("item_code") or "")
+            if not item_code:
+                continue
+            item_codes.add(item_code)
+            data_status = item_payload.get("data_status") if isinstance(item_payload.get("data_status"), dict) else {}
+            for signal in item_payload.get("signals") or []:
+                if not isinstance(signal, dict):
+                    continue
+                top_factors = signal.get("top_factors") if isinstance(signal.get("top_factors"), list) else []
+                rows.append(RegionSignal(
+                    item_code=item_code,
+                    region_code=str(signal.get("region_code") or ""),
+                    region_name=str(signal.get("region_name") or ""),
+                    date=date_obj,
+                    risk_score=round(float(signal.get("risk_score") or 0.0) * 100, 2),
+                    risk_level={"normal":"normal","watch":"caution","warning":"warning","critical":"high","high":"high"}.get(str(signal.get("risk_level") or ""), "normal"),
+                    supply_shock=round(float(next((f.get("contribution",0) for f in top_factors if isinstance(f,dict) and f.get("factor")=="production_region_weight"), 0)), 4),
+                    price_effect=("up" if "up" in str(signal.get("price_effect","")) else "down" if "down" in str(signal.get("price_effect","")) else "neutral"),
+                    weather_summary={"feature_count": data_status.get("weather",0), "weather_pressure": next((f.get("contribution",0) for f in top_factors if isinstance(f,dict) and f.get("factor")=="weather_pressure"), 0)},
+                    market_summary={"price_feature_count": data_status.get("prices",0), "event_feature_count": data_status.get("events",0), "top_factors": top_factors},
+                    summary_text=signal.get("summary"),
+                ))
+        for item_code in item_codes:
+            await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code, RegionSignal.date == date_obj))
+        db.add_all(rows)
+        await db.commit()
+        result["signals_imported"] = len(rows)
+
+    if predictions is not None:
+        rows_f: list[Forecast] = []
+        item_codes_f: set[str] = set()
+        for pred in predictions:
+            if not isinstance(pred, dict):
+                continue
+            item_code = str(pred.get("item_code") or "")
+            if not item_code:
+                continue
+            item_codes_f.add(item_code)
+            adjusted_change = float(pred.get("risk_adjusted_next_change", pred.get("predicted_next_change", 0.0)) or 0.0)
+            pure_change = float(pred.get("predicted_next_change") or 0.0)
+            risk_overlay = pred.get("risk_overlay") if isinstance(pred.get("risk_overlay"), dict) else {}
+            up_prob = round(max(0.0, min(1.0, float(pred.get("up_probability_14d") or (0.5 + max(-0.2, min(0.2, adjusted_change * 5.0)))))), 4)
+            rows_f.append(Forecast(
+                item_code=item_code,
+                base_date=date_obj,
+                model_version="mkmap_meta_hybrid_linear_risk_overlay_v2_" + str(pred.get("model_scope","global")),
+                direction_14d=("up" if str(pred.get("risk_adjusted_direction","stable")) == "up" else "down" if str(pred.get("risk_adjusted_direction","")) == "down" else "neutral"),
+                up_probability_14d=up_prob,
+                surge_probability_14d=round(max(0.0, min(1.0, float(pred.get("surge_probability_14d") or 0.0))), 4),
+                volatility_risk_30d=("high" if float(risk_overlay.get("max_risk_score") or 0) >= 0.45 else "medium" if float(risk_overlay.get("max_risk_score") or 0) >= 0.25 else "low"),
+                bottom_probability=round(max(0.0, min(1.0, float(pred.get("bottom_probability") or (1.0 - up_prob)))), 4),
+                top_factors=[
+                    {"factor":"price_lag_model","contribution":abs(round(pure_change,6)),"direction":"up" if pure_change>=0 else "down"},
+                    {"factor":"risk_overlay","contribution":abs(round(adjusted_change-pure_change,6)),"direction":"up" if adjusted_change>=pure_change else "down"},
+                ] + ([{"factor": risk_overlay.get("top_factor") or "region_risk", "contribution": round(float(risk_overlay.get("max_risk_score") or 0), 6), "direction": "up"}] if risk_overlay else []),
+                national_supply_shock=round(adjusted_change - pure_change, 6),
+                confidence=str(pred.get("confidence") or ("medium" if risk_overlay else "low")),
+            ))
+        for item_code in item_codes_f:
+            await db.execute(delete(Forecast).where(Forecast.item_code == item_code, Forecast.base_date == date_obj))
+        db.add_all(rows_f)
+        await db.commit()
+        result["forecasts_imported"] = len(rows_f)
+
+    return result
 
 
 @router.post("/init-data")

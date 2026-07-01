@@ -279,8 +279,16 @@ async def main_async() -> int:
             print(f"[WARN] Prediction file not found, skipping: {prediction_path}", file=sys.stderr)
             result["forecasts_imported"] = 0
 
+    signals_ok = result.get("signals_imported", 0) > 0
+    forecasts_ok = result.get("forecasts_imported", 0) > 0
+    if not signals_ok:
+        print("[WARN] No signals were imported", file=sys.stderr)
+    if not forecasts_ok:
+        print("[WARN] No forecasts were imported", file=sys.stderr)
+
+    result["ok"] = signals_ok
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0
+    return 0 if signals_ok else 1
 
 
 def main() -> int:
