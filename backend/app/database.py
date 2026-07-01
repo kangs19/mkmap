@@ -47,3 +47,14 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 기존 테이블에 UniqueConstraint가 없을 경우 안전하게 추가 (PostgreSQL only)
+        if _db_url.startswith("postgresql"):
+            try:
+                await conn.execute(
+                    __import__("sqlalchemy").text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_prices_item_date_source "
+                        "ON daily_prices (item_code, date, source)"
+                    )
+                )
+            except Exception:
+                pass  # 이미 존재하거나 다른 이유로 실패해도 무시
