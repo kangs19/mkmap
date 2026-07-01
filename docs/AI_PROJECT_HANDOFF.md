@@ -251,6 +251,12 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 **세션6(2) 추가 완료 (2026-07-01):**
 - **index.html nav 링크** (커밋 bff0c80): "가격 예측" 버튼 → `<a href="/forecast-explanation">` 링크로 변경
 - `map_viewer/templates/forecast_explanation.html` 및 `admin.html` 존재 확인 (route와 파일 매핑 정상)
+- **import 검증 강화** (커밋 506bdd9): forecasts<5 실패 처리, signals<50 경고 추가
+- **Codex 클론 sync** (b6dbe68까지 fast-forward)
+- **로컬 파이프라인 실행 완료** (2026-07-01, --skip-collect):
+  - 훈련 행: **1123개**, direction_accuracy: **78.2%** (test), 백테스트 **87.5%**
+  - 예측 5개 품목 생성 (base_date 2026-06-30)
+  - 로컬 DB import: signals 85행, forecasts 5개 완료 (ok: true)
 
 **세션6 추가 완료 (2026-07-01):**
 - **FastAPI 라우트 추가** (커밋 877b9e5):
