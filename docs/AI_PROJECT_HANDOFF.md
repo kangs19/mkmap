@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션9)
+마지막 업데이트: 2026-07-01 KST (세션9 계속)
 
 ## 프로젝트 목적
 
@@ -311,6 +311,7 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - **AT settlement 매핑 추가** (커밋 cbc696a): cabbage(lclsf=10,mclsf=01), radish(lclsf=11,mclsf=01) — 기존 0건 → 수집 가능
 - **direction_threshold 최솟값 0.5%** (커밋 07a5cca): `range(0,301,5)` → `range(50,301,5)` — 노이즈 과적합 방지
 - **AT settlement 429 방어** (커밋 b796da8): `_MAX_DAYS_BACK=90`, 30일 초과 시 0.3s sleep — 1460번 호출 → 360번으로 감소
+- **KAMIS sync periodProductList 교체** (커밋 6e8f6d5): `dailySalesList`는 날짜 파라미터 무시 → 모든 날짜 동일 가격 저장 → `change_30d_pct=0.0` 버그. `mkmap_meta.KamisPriceConnector(periodProductList)`로 교체해 날짜별 가격 올바르게 저장.
 - **ADMIN_KEY rotate 완료**: Railway Variables + 로컬 .env 동기화, 값은 문서에 없음
 
 **남은 문제:**
