@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, Date, DateTime, Boolean, func, Index
+from sqlalchemy import String, Float, Date, DateTime, Boolean, func, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date, datetime
 from app.database import Base
@@ -29,4 +29,5 @@ class DailyWeather(Base):
 
     __table_args__ = (
         Index("ix_daily_weather_region_date", "region_code", "date"),
+        UniqueConstraint("region_code", "date", "source", name="uq_daily_weather_region_date_source"),
     )

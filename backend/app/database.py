@@ -80,5 +80,19 @@ async def init_db():
                         "ON daily_market (item_code, date, source)"
                     )
                 )
+                await conn.execute(text("""
+                    DELETE FROM daily_weather a
+                    USING daily_weather b
+                    WHERE a.id > b.id
+                      AND a.region_code = b.region_code
+                      AND a.date = b.date
+                      AND a.source = b.source
+                """))
+                await conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_weather_region_date_source "
+                        "ON daily_weather (region_code, date, source)"
+                    )
+                )
             except Exception:
                 pass  # 이미 존재하거나 다른 이유로 실패해도 무시

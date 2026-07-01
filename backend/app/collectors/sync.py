@@ -128,25 +128,36 @@ async def sync_weather(days_back: int = 3) -> dict:
         for offset in range(days_back, -1, -1):
             target = end_date - timedelta(days=offset)
 
-            async with AsyncSessionLocal() as db:
-                existing = await db.execute(
-                    select(DailyWeather).where(
-                        DailyWeather.region_code == region_code,
-                        DailyWeather.date == target,
-                        DailyWeather.source.in_(["kma_forecast", "kma_ultra"]),
-                    )
-                )
-                if existing.scalars().first():
-                    continue
-
             row = await fetch_forecast(region_code, target)
             if not row:
                 continue
 
             async with AsyncSessionLocal() as db:
-                db.add(DailyWeather(**row))
-                await db.commit()
-                saved += 1
+                try:
+                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    stmt = pg_insert(DailyWeather).values([row]).on_conflict_do_update(
+                        index_elements=["region_code", "date", "source"],
+                        set_={k: pg_insert(DailyWeather).excluded[k]
+                              for k in ("avg_temp", "max_temp", "min_temp", "precipitation",
+                                        "humidity", "wind_speed", "sunshine_hours", "snowfall",
+                                        "heat_alert", "cold_alert", "heavy_rain_alert")}
+                    )
+                    result = await db.execute(stmt)
+                    await db.commit()
+                    saved += result.rowcount or 1
+                except Exception:
+                    await db.rollback()
+                    existing = await db.execute(
+                        select(DailyWeather).where(
+                            DailyWeather.region_code == region_code,
+                            DailyWeather.date == target,
+                            DailyWeather.source.in_(["kma_forecast", "kma_ultra"]),
+                        )
+                    )
+                    if not existing.scalars().first():
+                        db.add(DailyWeather(**row))
+                        await db.commit()
+                        saved += 1
 
             await asyncio.sleep(0.3)
 
