@@ -34,8 +34,9 @@ def main() -> int:
 
     for item_code in sorted(registry.all_items()):
         prices = connector.fetch_prices(item_code, target_date)
-        series = _daily_average_series(prices)
-        rows.extend(_training_rows(item_code, series, min_history=args.min_history))
+        retail_series = _daily_retail_series(prices)
+        at_wholesale_by_date = _daily_at_wholesale(prices)
+        rows.extend(_training_rows(item_code, retail_series, at_wholesale_by_date, min_history=args.min_history))
 
     out_path = data_dir() / "model" / f"price_training_table_{target_date:%Y%m%d}.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -43,6 +44,7 @@ def main() -> int:
         "base_date",
         "item_code",
         "avg_price",
+        "price_pct_of_hist_mean",
         "lag_1_price",
         "lag_3_price",
         "lag_7_price",
@@ -62,6 +64,7 @@ def main() -> int:
         "weekday_cos",
         "month_sin",
         "month_cos",
+        "at_wholesale_norm",
         "target_next_change",
     ]
     with out_path.open("w", encoding="utf-8-sig", newline="") as handle:
@@ -75,7 +78,8 @@ def main() -> int:
     return 0
 
 
-def _daily_average_series(prices: list[Any]) -> list[tuple[date, float]]:
+def _daily_retail_series(prices: list[Any]) -> list[tuple[date, float]]:
+    """KAMIS national average retail price per date."""
     values_by_day: dict[date, list[float]] = defaultdict(list)
     for feature in prices:
         if feature.region_code not in (None, "평균"):
@@ -84,17 +88,36 @@ def _daily_average_series(prices: list[Any]) -> list[tuple[date, float]]:
         if price is None:
             continue
         values_by_day[feature.base_date].append(price)
-
     return sorted((day, mean(values)) for day, values in values_by_day.items() if values)
 
 
-def _training_rows(item_code: str, series: list[tuple[date, float]], min_history: int) -> list[dict[str, Any]]:
+def _daily_at_wholesale(prices: list[Any]) -> dict[date, float]:
+    """Average AT regional wholesale price per date (all regions)."""
+    values_by_day: dict[date, list[float]] = defaultdict(list)
+    for feature in prices:
+        if feature.source not in ("at_regional_price", "at_market_settlement"):
+            continue
+        price = feature.wholesale_price or feature.settlement_price
+        if price is None:
+            continue
+        values_by_day[feature.base_date].append(price)
+    return {day: mean(vals) for day, vals in values_by_day.items() if vals}
+
+
+def _training_rows(
+    item_code: str,
+    series: list[tuple[date, float]],
+    at_wholesale_by_date: dict[date, float],
+    min_history: int,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     min_required_history = max(min_history, 14)
     if len(series) <= min_required_history:
         return rows
 
     values = [value for _, value in series]
+    hist_mean = mean(values) if values else 1.0
+
     for idx in range(min_required_history, len(series) - 1):
         base_date, current = series[idx]
         lag_1 = values[idx - 1]
@@ -107,11 +130,17 @@ def _training_rows(item_code: str, series: list[tuple[date, float]], min_history
         returns_7 = _returns(values[idx - 7 : idx + 1])
         returns_14 = _returns(values[idx - 14 : idx + 1])
         next_value = values[idx + 1]
+
+        # AT wholesale price normalized relative to KAMIS retail (wholesale/retail - 1)
+        at_ws = at_wholesale_by_date.get(base_date)
+        at_wholesale_norm = round(_pct_change(at_ws, current), 6) if at_ws and current else 0.0
+
         rows.append(
             {
                 "base_date": base_date.isoformat(),
                 "item_code": item_code,
                 "avg_price": round(current, 4),
+                "price_pct_of_hist_mean": round(_pct_change(current, hist_mean), 6),
                 "lag_1_price": round(lag_1, 4),
                 "lag_3_price": round(lag_3, 4),
                 "lag_7_price": round(lag_7, 4),
@@ -131,6 +160,7 @@ def _training_rows(item_code: str, series: list[tuple[date, float]], min_history
                 "weekday_cos": _cyclical_cos(base_date.weekday(), 7),
                 "month_sin": _cyclical_sin(base_date.month - 1, 12),
                 "month_cos": _cyclical_cos(base_date.month - 1, 12),
+                "at_wholesale_norm": at_wholesale_norm,
                 "target_next_change": _pct_change(next_value, current),
             }
         )

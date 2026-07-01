@@ -12,7 +12,21 @@ from statistics import mean
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-EXCLUDED_COLUMNS = {"base_date", "item_code", "target_next_change"}
+EXCLUDED_COLUMNS = {
+    "base_date",
+    "item_code",
+    "target_next_change",
+    # Absolute prices hurt cross-item training (cabbage=400원 vs garlic=5000원).
+    # Only normalized/relative features are used as model inputs.
+    "avg_price",
+    "lag_1_price",
+    "lag_3_price",
+    "lag_7_price",
+    "lag_14_price",
+    "ma_7_price",
+    "ma_14_price",
+    "ma_28_price",
+}
 
 
 def parse_args() -> argparse.Namespace:
