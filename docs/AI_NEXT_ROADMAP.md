@@ -1,6 +1,6 @@
 # MK-MAP Next Roadmap
 
-마지막 업데이트: 2026-07-01 KST (세션2)
+마지막 업데이트: 2026-07-01 KST (세션3)
 
 ## P0: 운영 DB에 예측/신호 반영
 
@@ -33,10 +33,21 @@
 - **Dockerfile**: `scripts/`, `mkmap_meta/`, `config/` COPY 누락 수정 (커밋 83c1b3b)
 - **collect_live_price_features.py**: env 전체 일괄 체크 대신 서비스별 개별 체크로 변경 → `DATA_GO_KR_API_KEY` 없어도 KAMIS 수집 가능 (커밋 007c306)
 
-남은 액션:
-- `git push origin main` (auto-mode classifier 차단으로 수동 push 필요)
-- Railway에 `ADMIN_KEY` 설정 (사용자 직접)
-- 필요 시 `DATA_GO_KR_API_KEY` Railway에 추가 (더 많은 소스 수집 위해)
+완료된 수정 (세션3):
+- collect_live_weather_features: TimeoutError 캐치 추가 (커밋 ecd6994)
+- run_meta_pipeline: 날씨/모델/예측 단계 soft_fail 적용 (커밋 ecd6994)
+- build_price_training_table: min_required_history 28→14 (커밋 ecd6994)
+- 로컬 파이프라인 전체 성공 확인: signals 85행, forecasts 5개 import 완료
+
+**남은 P0 차단 요소 (사용자 직접 필요)**:
+- Railway Variables에 다음 키 추가:
+  - `KAMIS_API_KEY`
+  - `DATA_GO_KR_API_KEY`
+  - `KOSIS_API_KEY`
+  - `KMA_API_KEY`
+  - `ADMIN_KEY`
+- 값은 `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git\.env` 참조
+- Railway Variables 추가 후 재배포하면 auto-recover가 자동으로 파이프라인 실행
 
 2. Admin status 확인
 

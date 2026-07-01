@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션2)
+마지막 업데이트: 2026-07-01 KST (세션3)
 
 ## 프로젝트 목적
 
@@ -199,7 +199,25 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 2. **collect_live_price_features.py 전체 실패** (커밋 007c306): `DATA_GO_KR_API_KEY` 미설정 시 AT, KAMIS 모두 block. 서비스별 개별 체크로 변경해 KAMIS는 독립 실행 가능하게 수정. 수정 완료.
 3. **Railway `ADMIN_KEY` 미설정**: admin endpoint 503 원인. 사용자가 직접 Railway Variables에 추가 필요.
 
-현재 상태: 커밋 push 후 재배포하면 auto-recover가 KAMIS 기반으로 pipeline 실행 가능.
+현재 상태 (세션3 업데이트):
+
+**로컬 파이프라인 전체 성공 확인 (2026-07-01)**
+- Codex 경로: `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git`
+- `.env` 파일 위치: 위 Codex 경로. GitHub에 없음. 실제 API 키 포함.
+- 실행 결과: signals 85행, forecasts 5개, 모델 학습 성공 (MAE 0.013)
+- 로컬 SQLite DB에 import 완료
+
+**추가 수정 커밋 (ecd6994)**
+- collect_live_weather_features: TimeoutError 처리 추가
+- run_meta_pipeline: 날씨 수집 soft_fail 처리
+- build_price_training_table: min_required_history 28→14, ma_28 안전 슬라이싱
+
+**Railway 운영 DB 미반영 원인**:
+- Railway Variables에 API 키가 없음 (로컬 .env에만 있음)
+- Railway에서 pipeline이 실행되면 자체 Variables를 읽음
+- 해결 방법 2가지:
+  1. Railway Variables에 API 키 추가 → auto-recover가 자동 실행
+  2. 또는: 로컬에서 생성된 data/ 파일을 Railway admin API로 import (아직 미구현)
 
 로컬 `.env` 보정 후 라이브 진단:
 
