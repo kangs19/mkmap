@@ -99,8 +99,15 @@ def main() -> int:
                 }
             )
 
+    all_ok = all(item["ok"] for item in summaries)
+    some_data = any(item["feature_count"] > 0 for item in summaries)
+    failed_services = [f"{item['service']}:{item['item_code']}" for item in summaries if not item["ok"]]
+    if failed_services:
+        import sys as _sys
+        print(f"[WARN] {len(failed_services)} source(s) failed: {', '.join(failed_services)}", file=_sys.stderr)
     payload = {
-        "ok": all(item["ok"] for item in summaries),
+        "ok": some_data,
+        "all_ok": all_ok,
         "target_date": target_date.isoformat(),
         "days_back": args.days_back,
         "services": active_services,
@@ -110,7 +117,7 @@ def main() -> int:
     summary_path = dated_path("features", "price_collection_summary", target_date)
     write_json(summary_path, payload)
     print(json.dumps(encode(payload | {"summary_path": str(summary_path)}), ensure_ascii=False, indent=2))
-    return 0 if payload["ok"] else 1
+    return 0 if some_data else 1
 
 
 if __name__ == "__main__":

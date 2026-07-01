@@ -45,7 +45,9 @@ class KamisPriceConnector(PriceConnector):
             "yes",
         }
         self.registry = registry or default_registry()
-        self.http = http or SimpleHttpClient()
+        # KAMIS API (kamis.or.kr) causes SSLv3 handshake failures from some hosting IPs.
+        # verify_ssl=False is required for Railway/cloud deployments.
+        self.http = http or SimpleHttpClient(verify_ssl=False)
 
     def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
         if not self.base_url or not self.api_key or not self.cert_id:
