@@ -217,6 +217,34 @@ async def index_html():
     return FileResponse(str(p), media_type="text/html")
 
 
+@app.get("/admin-panel")
+@app.get("/admin-panel.html")
+async def admin_panel():
+    candidates = [
+        Path(__file__).parent.parent.parent / "map_viewer" / "templates" / "admin.html",
+        Path("/app/map_viewer/templates/admin.html"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="text/html")
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"error": "admin panel not found"}, status_code=404)
+
+
+@app.get("/forecast-explanation")
+@app.get("/forecast-explanation.html")
+async def forecast_explanation():
+    candidates = [
+        Path(__file__).parent.parent.parent / "map_viewer" / "templates" / "forecast_explanation.html",
+        Path("/app/map_viewer/templates/forecast_explanation.html"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="text/html")
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"error": "forecast explanation not found"}, status_code=404)
+
+
 @app.get("/")
 async def root():
     p = Path(__file__).parent.parent.parent / "index.html"
