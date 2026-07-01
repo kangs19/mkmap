@@ -228,15 +228,22 @@ class AtMarketSettlementConnector(PriceConnector):
         self.market_code = os.getenv("AT_MARKET_SETTLEMENT_DEFAULT_MARKET_CODE", "110001")
         self.num_rows = int(os.getenv("AT_MARKET_SETTLEMENT_NUM_ROWS", "100"))
 
+    # aT 정산 API는 날짜 하나씩 호출 — 대량 호출 시 429 발생. 최대 90일로 제한.
+    _MAX_DAYS_BACK = 90
+
     def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
+        import time
+
         if not self.service.base_url:
             return []
 
         mapping = self._mapping_for(item_code)
         if not mapping:
             return []
+
+        effective_days = min(days_back, self._MAX_DAYS_BACK)
         features: list[PriceFeature] = []
-        for offset in range(days_back):
+        for offset in range(effective_days):
             current_date = target_date - timedelta(days=offset)
             payload = self.client.get(
                 self.service,
@@ -251,6 +258,8 @@ class AtMarketSettlementConnector(PriceConnector):
                     source="at_market_settlement",
                 )
             )
+            if effective_days > 30:
+                time.sleep(0.3)  # 대량 수집 시 rate limit 방어
         return _dedupe_price_features(features)
 
     def _mapping_for(self, item_code: str) -> dict[str, Any]:
