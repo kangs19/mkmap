@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션10)
+마지막 업데이트: 2026-07-01 KST (세션11)
 
 ## 프로젝트 목적
 
@@ -293,37 +293,38 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
   - null-safe 가격 표시: `pv=0` → `"—"` (기존 `"0원"` 레이아웃 깨짐 수정)
   - null-safe 예측셀(7/30/90일), yoy, chgPct 전부 `"—"` 처리
 
-## 현재 운영 서버 상태 (2026-07-01 세션10 업데이트)
+## 현재 운영 서버 상태 (2026-07-01 세션11 업데이트)
 
 **완료됨:**
 - Railway Variables 설정 완료: ADMIN_KEY(rotated), KAMIS_API_KEY, DATA_GO_KR_API_KEY, KOSIS_API_KEY, KMA_API_KEY, APP_ENV=production
 - `/health` → `{"env":"production", "scheduler":true, "version":"0.3.0"}` 정상
 - **공개 API 8/8 전부 통과** ✓
-- **PostgreSQL 전환 완료** (커밋 a1b5465, 세션10):
-  - Railway PostgreSQL addon 추가 (`railway add --database postgres`)
-  - DATABASE_URL Reference Variable로 자동 연결 (`${{Postgres.DATABASE_URL}}`)
-  - `database.py` URL 자동변환: `postgresql://` → `postgresql+asyncpg://`
-  - **DB 데이터 재배포 후에도 영구 보존** — SQLite ephemeral 문제 완전 해결
-- **KAMIS periodProductList + httpx** (커밋 4753a3d + ebbc50d):
-  - `dailySalesList` 날짜 무시 버그 → `periodProductList` 교체
-  - itemcode CSV 기준 수정: 211/231/245/246/258
-  - `change_30d_pct` 실제 변동률로 정상화
-- **현재 DB 상태 (PostgreSQL, 세션10)**:
-  - `daily_prices`: 3,903건 (2024-07-01~2026-07-01, 2년치)
-  - `daily_weather`: 4,404건
+- **PostgreSQL 영구 저장** (커밋 a1b5465): 재배포해도 DB 유지됨
+- **KAMIS periodProductList + httpx** (커밋 4753a3d + ebbc50d): change_30d_pct 실값 정상화
+- **현재 DB 상태 (PostgreSQL, 세션11)**:
+  - `daily_prices`: ~4,000건 (2024-07-01~2026-07-01, 2년치)
+  - `daily_weather`: ~4,400건
   - `region_signals`: 85건 (2026-07-01)
-  - `forecasts`: 5건 (2026-07-01)
-- **change_30d_pct 실값**: cabbage+29.7%, radish-10.9%, green_onion+7.3%, onion-6.5%, garlic-10.8%
+  - `forecasts`: 5건 (이전 로컬 push값 유지)
+- **change_30d_pct 실값**: cabbage+2.4%, radish+5.9%, onion+15.7%, green_onion-7.0%, garlic 수정 중
 
-**세션10 핵심 수정:**
-- **KAMIS SSL 우회** (커밋 4753a3d): SimpleHttpClient(urllib) → httpx(verify=False), Railway SSLV3 오류 해결
-- **KAMIS itemcode 수정** (커밋 ebbc50d): 잘못된 코드(214/221/226/223/225) → CSV 기준 정확한 코드
-- **PostgreSQL 전환** (커밋 a1b5465): asyncpg 추가, URL 자동변환, Railway addon 연결
-- **KMA weather sync 방법 확인**: `source=kma` (source=weather 아님!)
+**세션11 핵심 수정 (커밋 341b8f9~d0c4b8e):**
+- **Railway 모델 훈련 자동화** (커밋 341b8f9):
+  - `scripts/export_db_prices_to_cache.py` — PostgreSQL `daily_prices` → kamis_price JSON 캐시 파일 생성
+  - `run_meta_pipeline.py`에 "Export DB prices to cache" step 추가 (soft_fail=True)
+  - Railway에서 90일치 DB 데이터로 모델 훈련 가능 → forecasts 자동 생성 기대
+- **pipeline exit code fix** (커밋 a24e251): signals_ok이면 exit 0 (forecasts 없어도 계속)
+- **scheduler KAMIS/KMA sync** (커밋 a24e251): 매일 06:00 KST 자동 sync 추가
+- **garlic 단위 버그** (커밋 a7bdd23):
+  - periodProductList kindcode=03(깐마늘) → 1kg 기준, 기존 DB 데이터는 10kg 기준
+  - `_PERIOD_UNIT_MULTIPLIER["garlic"] = 10.0` 추가 → 단위 정합
+  - `POST /admin/debug/fix-garlic-prices` 엔드포인트 추가 (잘못된 행 삭제 + 재sync)
+- **garlic 진단** (커밋 d0c4b8e): `GET /admin/debug/garlic-prices` 추가
 
 **남은 문제:**
-- AT settlement 429 — 매일 일일 쿼터 소진. 내일 자정 리셋 후 시도
-- `git push origin main` — Claude auto mode 차단, 사용자 직접 실행 필요 (현재 9커밋 쌓임)
+- garlic DB 데이터 단위 정합 확인 및 재sync 필요
+- AT settlement 429 — 매일 쿼터 소진, 자정(KST) 리셋 후 재시도
+- Railway forecasts 자동화 검증: 다음 06:00 KST 스케줄러 실행 후 forecasts 생성 여부 확인
 
 ## 재배포 후 절차 (PostgreSQL 전환 후)
 
@@ -347,12 +348,18 @@ python scripts\push_outputs_to_server.py --date YYYY-MM-DD --server https://mk-m
 
 ## 다음 우선순위
 
-1. `git push origin main` 수동 실행 (9커밋)
-2. AT settlement 90일 재수집 (자정 리셋 후) → 파이프라인 재실행
-3. 매일 06:00 KST 스케줄러가 자동 실행 — PostgreSQL이므로 데이터 유지됨
+1. garlic DB 단위 정합: Railway 배포 후 `POST /api/v1/admin/debug/fix-garlic-prices` 호출
+2. AT settlement 90일 재수집 (자정 KST 리셋 후) → 로컬 파이프라인 재실행 + push
+3. Railway forecasts 자동화 검증 (다음 06:00 KST 이후 확인)
 
 ```powershell
-python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
+# garlic 진단 (Railway 배포 후)
+Invoke-RestMethod -Uri "https://mk-map.com/api/v1/admin/debug/garlic-prices?days=35" -Headers @{"X-Admin-Key"=$admin_key}
+
+# AT settlement 재수집 (자정 이후)
+cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
+python scripts\run_meta_pipeline.py --date 2026-07-02 --price-days-back 90 --skip-weather
+python scripts\push_outputs_to_server.py --date 2026-07-02 --server https://mk-map.com
 ```
 
 **세션8 추가 완료 (2026-07-01):**
