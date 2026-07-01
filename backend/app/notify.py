@@ -54,30 +54,44 @@ async def notify_pipeline_success(results: dict):
         if result.get("status") != "ok":
             continue
 
+        signal_count = result.get("signal_count")
+        forecast_count = result.get("forecast_count")
         forecast = result.get("forecast", {})
         direction = DIR_LABEL.get(forecast.get("direction", "neutral"), "neutral")
         up_probability = forecast.get("up_probability")
         auc = forecast.get("dir_auc")
 
-        if up_probability is None and auc is None:
-            value = f"status ok | date {result.get('date', today)}"
+        if signal_count is not None or forecast_count is not None:
+            parts = []
+            if signal_count is not None:
+                parts.append(f"signals {signal_count}")
+            if forecast_count is not None:
+                parts.append(f"forecasts {forecast_count}")
+            value = " | ".join(parts) or f"date {result.get('date', today)}"
+        elif up_probability is None and auc is None:
+            value = f"date {result.get('date', today)}"
         else:
             value = f"up probability {up_probability or 0:.0%} | AUC {auc or 0:.3f}"
 
+        log_tail = result.get("log_tail", [])
+        if log_tail:
+            tail_str = "\n".join(log_tail[-3:])
+            value += f"\n```{tail_str[:300]}```"
+
         fields.append(
             {
-                "name": f"{code} ({direction})",
-                "value": value,
-                "inline": True,
+                "name": f"{code} ({direction})" if direction != "neutral" else code,
+                "value": value or "ok",
+                "inline": False,
             }
         )
 
     color = 0x27AE60 if not err_items else 0xE67E22
     embed = {
-        "title": f"Daily pipeline completed - {today}",
+        "title": f"Daily pipeline completed — {today}",
         "color": color,
         "fields": fields or [{"name": "result", "value": "pipeline completed", "inline": False}],
-        "footer": {"text": f"success {len(ok_items)} / failed {len(err_items)}"},
+        "footer": {"text": f"success {len(ok_items)} / failed {len(err_items)} | mk-map.com"},
     }
     if err_items:
         embed["description"] = f"Failed items: {', '.join(err_items)}"

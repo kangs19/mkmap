@@ -61,12 +61,31 @@ async def daily_pipeline():
 
         cache.clear_prefix("signals:")
         cache.clear_prefix("report:")
+
+        # Count DB rows for Discord summary
+        signal_count, forecast_count = 0, 0
+        try:
+            from sqlalchemy import func, select
+            from app.database import AsyncSessionLocal
+            from app.models import Forecast, RegionSignal
+            async with AsyncSessionLocal() as db:
+                signal_count = (await db.execute(
+                    select(func.count()).select_from(RegionSignal).where(RegionSignal.date == today)
+                )).scalar() or 0
+                forecast_count = (await db.execute(
+                    select(func.count()).select_from(Forecast).where(Forecast.base_date == today)
+                )).scalar() or 0
+        except Exception as count_exc:
+            logger.warning("[scheduler] DB count query failed: %s", count_exc)
+
         await notify_pipeline_success(
             {
                 "mkmap_meta": {
                     "status": "ok",
                     "date": today.isoformat(),
-                    "log_tail": output_lines[-10:],
+                    "signal_count": signal_count,
+                    "forecast_count": forecast_count,
+                    "log_tail": output_lines[-5:],
                 }
             }
         )
