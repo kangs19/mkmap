@@ -85,6 +85,7 @@ API 서비스 카탈로그와 외부 매핑 템플릿이 있다.
 - `train_price_baseline_model.py`
 - `predict_latest_prices.py`
 - `import_meta_outputs_to_backend.py`
+- `verify_public_api_outputs.py`
 - `run_smoke_suite.py`
 
 ### `data/`
@@ -289,6 +290,19 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
 Invoke-RestMethod -Uri "https://mk-map.com/api/v1/items/cabbage/forecast"
 ```
 
+공개 산출물 자동 검증:
+
+```powershell
+python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
+```
+
+해석:
+
+- `ok: true`: 공개 API와 예측/위험/가격 산출물이 채워져 있다.
+- `missing_data`: 서버는 살아있지만 운영 DB에 pipeline 산출물이 없다.
+- `date_mismatch`: 운영 날짜 기준이 기대 날짜와 다르다.
+- `--strict`: 실패 상태를 exit code 1로 돌려 CI나 배포 gate에 쓸 수 있다.
+
 Admin 상태:
 
 ```powershell
@@ -324,4 +338,3 @@ Invoke-RestMethod `
 10. smoke 실행
 
 AT settlement는 추측 금지다. 검색 결과에 유사 품목이 섞이기 쉽다.
-

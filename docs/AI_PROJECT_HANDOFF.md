@@ -59,6 +59,7 @@ MK-MAP은 농산물 가격 예측과 주산지 위험 신호를 결합하는 서
 - `e1866d0 Add bounded weather collection for daily pipeline`
 - `2ffdc79 Use bounded weather pipeline in backend runners`
 - `31978cc Use KST dates for backend public data`
+- `307b59b Add AI handoff documentation`
 
 ### 2. API 서비스 카탈로그 정리
 
@@ -186,6 +187,7 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - 최신 코드 배포는 반영됐다.
 - 날짜 기준 버그는 해결됐다.
 - 하지만 운영 DB에는 아직 2026-07-01 `region_signals`와 `forecasts`가 들어가지 않았다.
+- 공개 API 산출물 상태는 `scripts/verify_public_api_outputs.py`로 자동 검증할 수 있다.
 
 가장 유력한 원인:
 
@@ -223,10 +225,10 @@ Invoke-RestMethod `
 4. 실행 후 공개 API 재확인
 
 ```powershell
-Invoke-RestMethod -Uri "https://mk-map.com/api/v1/signals/today"
-Invoke-RestMethod -Uri "https://mk-map.com/api/v1/items/cabbage/forecast"
-Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
+python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
 ```
+
+현재 스크립트는 기본적으로 진단 결과를 JSON으로 출력하고 exit code 0을 반환한다. 배포 gate처럼 실패 처리해야 할 때는 `--strict`를 붙인다.
 
 ## 현재 완성도
 
@@ -239,4 +241,3 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
 - 약 65~70%
 
 가장 큰 남은 차이는 운영 DB에 실제 pipeline 산출물이 들어가는지 확인하는 것이다.
-

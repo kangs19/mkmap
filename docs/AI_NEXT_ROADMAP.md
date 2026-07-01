@@ -76,7 +76,7 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
 
 현재 로컬에서는 검증이 잘 되지만, 운영에서 성공 여부를 사람이 직접 확인해야 한다.
 
-추가할 것:
+완료됨:
 
 - `scripts/verify_public_api_outputs.py`
   - `/health`
@@ -85,6 +85,20 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
   - `/items/{item}/forecast`
   - expected date check
   - empty/null check
+
+실행:
+
+```powershell
+python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
+```
+
+기본은 진단용이라 데이터가 비어도 exit code 0이다. CI나 배포 gate에서 실패 처리하고 싶으면 `--strict`를 붙인다.
+
+```powershell
+python scripts\verify_public_api_outputs.py --strict
+```
+
+남은 일:
 
 - admin endpoint:
   - `POST /api/v1/admin/meta-pipeline/verify`
@@ -214,4 +228,3 @@ Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
 - 보류
 - 실패 원인
 - 다음 액션
-
