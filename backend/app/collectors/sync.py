@@ -72,7 +72,7 @@ async def sync_prices(days_back: int = 7) -> dict:
                     for row in rows
                     if row.get("wholesale_price") and row["wholesale_price"] > 0
                 ]).on_conflict_do_update(
-                    constraint="uq_daily_prices_item_date_source",
+                    index_elements=["item_code", "date", "source"],
                     set_={
                         "wholesale_price": pg_insert(DailyPrice).excluded.wholesale_price,
                         "retail_price": pg_insert(DailyPrice).excluded.retail_price,

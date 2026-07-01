@@ -51,6 +51,15 @@ async def init_db():
         # 기존 테이블에 UniqueConstraint가 없을 경우 안전하게 추가 (PostgreSQL only)
         if _db_url.startswith("postgresql"):
             try:
+                # 중복 rows 제거 (unique index 생성 전 필수)
+                await conn.execute(text("""
+                    DELETE FROM daily_prices a
+                    USING daily_prices b
+                    WHERE a.id > b.id
+                      AND a.item_code = b.item_code
+                      AND a.date = b.date
+                      AND a.source = b.source
+                """))
                 await conn.execute(
                     text(
                         "CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_prices_item_date_source "
