@@ -249,6 +249,9 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - KMA 일기도: provider `NO_DATA`
 
 **세션5 추가 완료:**
+- **P3 Discord 알림 강화** (커밋 b35ed7d):
+  - `scheduler.py`: pipeline 성공 후 DB에서 `signal_count`, `forecast_count` 쿼리 후 Discord 전송
+  - `notify.py`: `notify_pipeline_success` 개선 — signal/forecast 수 + 로그 3줄 code block embed
 - **P2 프론트 UI 개선** (커밋 b0ef561):
   - `#data-status-pill` 헤더 추가 — live(초록)/nodata(주황)/loading(회색) 상태 + 애니메이션 dot
   - `fetchLiveData()` 개선: `LIVE_BASE_DATE`, `LIVE_ITEM_COUNT` 저장; items=[] 시 "예측 데이터 준비 중" 표시

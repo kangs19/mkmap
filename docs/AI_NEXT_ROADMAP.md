@@ -263,12 +263,16 @@ python scripts\verify_public_api_outputs.py --strict
 
 ## P3: 자동화와 운영 알림
 
-해야 할 일:
+**완료 (세션5, 커밋 b35ed7d)**
 
-- daily pipeline 성공/실패 Discord 알림 강화
-- 실패 step 표시
-- forecast count, signal count, public verify 결과 포함
-- Railway restart 후 auto-recover 결과 알림
+완료된 작업:
+- Discord 성공 알림에 signal_count, forecast_count 포함 (DB에서 직접 쿼리)
+- 마지막 로그 3줄 코드블록으로 embed에 포함
+- 실패 시 `notify_pipeline_error`로 에러 메시지 전송 (기존 유지)
+
+남은 개선 (선택):
+- Railway restart 후 auto-recover 결과를 별도로 Discord 전송
+- public verify 결과 (signals/today, items/cabbage/forecast 등) 포함
 
 ## 계속 업데이트할 것
 
