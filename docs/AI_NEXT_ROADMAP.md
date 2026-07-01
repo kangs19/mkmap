@@ -21,6 +21,12 @@
    - `KAMIS_API_KEY`
    - `KOSIS_API_KEY`
 
+현재 상태:
+
+- 로컬 `.env`에는 API 키와 `ADMIN_KEY`가 채워져 있다.
+- `https://mk-map.com/api/v1/admin/status`는 로컬 `ADMIN_KEY` 헤더로 호출 시 503을 반환했다.
+- 다음 액션은 Railway Variables에 `ADMIN_KEY`가 있는지 확인하고, 로컬 `.env`와 같은 값으로 맞추는 것이다.
+
 2. Admin status 확인
 
 ```powershell

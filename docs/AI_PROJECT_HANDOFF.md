@@ -181,6 +181,8 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 - `/api/v1/signals/today`: `base_date`는 2026-07-01로 정상이나 `items`는 빈 배열
 - `/api/v1/dashboard/cards`: 품목 카드 5개는 나오지만 예측/위험/가격 값은 null
 - `/api/v1/items/cabbage/forecast`: 404
+- 로컬 `.env`에는 API 키와 `ADMIN_KEY`를 채웠다. 실제 값은 Git/문서에 기록하지 않는다.
+- `/api/v1/admin/status`: 로컬 `ADMIN_KEY`로 호출 시 503. 운영 Railway에 `ADMIN_KEY`가 없거나 로컬 값과 다를 가능성이 높다.
 
 해석:
 
@@ -192,6 +194,7 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
 가장 유력한 원인:
 
 - Railway `ADMIN_KEY` 없이 원격 admin pipeline을 수동 실행하지 못했다.
+- 로컬 `.env`의 `ADMIN_KEY`와 Railway Variables의 `ADMIN_KEY`를 동일하게 맞춰야 한다.
 - auto-recover가 실행 중 실패했거나, 운영 환경변수/API 키/DB 연결/파이프라인 시간이 문제일 수 있다.
 
 ## 지금 가장 먼저 해야 할 일
