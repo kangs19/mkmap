@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the mkmap_meta daily pipeline end to end.")
     parser.add_argument("--date", default=date.today().isoformat(), help="YYYY-MM-DD")
     parser.add_argument("--year", type=int, default=None, help="KOSIS production target year. Defaults to date year.")
-    parser.add_argument("--price-days-back", type=int, default=90)
+    parser.add_argument("--price-days-back", type=int, default=365)
     parser.add_argument("--weather-lookback-days", type=int, default=0)
     parser.add_argument("--weather-max-requests-per-item", type=int, default=16)
     parser.add_argument("--weather-request-timeout-seconds", type=int, default=8)
