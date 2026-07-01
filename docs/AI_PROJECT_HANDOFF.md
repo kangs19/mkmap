@@ -295,12 +295,37 @@ Railway 서버는 UTC 기준으로 동작할 수 있어서, 한국 시간 2026-0
    - `APP_ENV` = `production` (현재 `/health`가 `"env":"development"` 반환 중)
    - 값은 `C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git\.env` 참조
 
-2. 365일 가격 수집 완료 후 파이프라인 재실행 (Claude가 직접)
+2. Railway Variables 추가 후 즉시 실행 순서
+
+   **2-1. Railway 재배포 확인**
+   ```powershell
+   Invoke-RestMethod -Uri "https://mk-map.com/health"
+   # {"env":"production", "scheduler":true} 확인
+   ```
+
+   **2-2. admin 상태 확인**
+   ```powershell
+   $key = "<ADMIN_KEY>"
+   $h = @{"X-Admin-Key"=$key}
+   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/admin/status" -Headers $h
+   ```
+
+   **2-3. 로컬 예측 결과를 Railway에 push (이미 생성된 결과 사용)**
    ```powershell
    cd "C:\Users\kang_\Documents\Codex\2026-06-29\kang-s19-naver-com-rkdtn3303-git"
-   python scripts\run_meta_pipeline.py --date 2026-07-01 --skip-collect --skip-backend-import
+   python scripts\push_outputs_to_server.py --date 2026-07-01 --server https://mk-map.com
    ```
-   성공하면 훈련 행이 ~165행/품목으로 증가 예상 (현재 5행/품목)
+   이 스크립트가 Railway admin HTTP endpoint로 region_signals.json + predictions.json을 POST함
+
+   **2-4. 공개 API 확인**
+   ```powershell
+   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/signals/today"
+   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/items/cabbage/forecast"
+   Invoke-RestMethod -Uri "https://mk-map.com/api/v1/dashboard/cards"
+   ```
+   signals/today.items에 5개 품목, forecast에 예측값이 나오면 성공
+
+   **※ auto-recover**: Variables 추가 후 재배포만 해도 Railway에서 자동으로 파이프라인 실행 → DB 채워짐 (수동 push 불필요할 수 있음)
 
 2. 원격 admin 상태 확인
 

@@ -239,7 +239,8 @@ python scripts\verify_public_api_outputs.py --strict
   - direction_accuracy: **81.7%** (test), **87.5%** (backtest)
   - confidence: **"high"**
   - garlic/green_onion 품목별 모델 채택
-- `build_price_training_table.py`, `train_price_baseline_model.py` Codex 클론 동기화 완료
+- `train_price_baseline_model.py` numpy 가속 (커밋 4b698c1) — **9초** (기존 30분)
+- Codex 클론에 개선된 스크립트 동기화 완료
 
 남은 작업:
 - Railway ADMIN_KEY 추가 후 `import_meta_outputs_to_backend.py` 실행으로 운영 DB 반영
