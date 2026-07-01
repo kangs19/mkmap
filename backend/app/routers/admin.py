@@ -850,6 +850,32 @@ async def debug_fetch_prices(_=Depends(check_admin)):
     }
 
 
+@router.post("/debug/fix-garlic-prices")
+async def fix_garlic_prices(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
+    """garlic daily_prices 중 1kg 단위 잘못 저장된 행(wholesale_price < 50000) 삭제 후 재sync.
+    periodProductList kindcode=03(깐마늘) → 1kg 기준 가격을 10kg 기준으로 재수집.
+    """
+    from sqlalchemy import delete as sa_delete
+    from app.models.price import DailyPrice
+    from app.collectors.sync import sync_prices
+
+    # 잘못된 단위 행 삭제 (garlic 10kg 기준 최소가 50,000원 이상이어야 함)
+    del_result = await db.execute(
+        sa_delete(DailyPrice).where(
+            DailyPrice.item_code == "garlic",
+            DailyPrice.source == "kamis",
+            DailyPrice.wholesale_price < 50000,
+        )
+    )
+    await db.commit()
+    deleted = del_result.rowcount
+
+    # 최근 35일 재sync (10배 multiplier 적용됨)
+    sync_result = await sync_prices(days_back=35)
+
+    return {"deleted_wrong_unit_rows": deleted, "sync": sync_result}
+
+
 @router.post("/import-outputs")
 async def import_outputs(
     target_date: str,

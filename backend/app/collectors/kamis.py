@@ -142,6 +142,12 @@ _PERIOD_PRODUCT_META = {
     "garlic":      {"p_itemcategorycode": "200", "p_itemcode": "258", "p_kindcode": "03", "p_productrankcode": "04"},
 }
 
+# periodProductList 가격 단위 보정 계수 (ITEM_CODE_MAP 단위 기준으로 맞춤)
+# 마늘 kindcode=03(깐마늘,국산)은 1kg 단위로 반환 → 기존 DB 데이터(10kg)와 단위 일치를 위해 10 곱함
+_PERIOD_UNIT_MULTIPLIER: dict[str, float] = {
+    "garlic": 10.0,
+}
+
 
 async def fetch_period_prices(
     item_code: str,
@@ -207,13 +213,15 @@ async def fetch_period_prices(
             else:
                 continue
 
+            multiplier = _PERIOD_UNIT_MULTIPLIER.get(item_code, 1.0)
+            adj_price = round(price * multiplier, 0)
             results.append({
                 "item_code": item_code,
                 "date": row_date,
                 "market": "가락시장",
                 "grade": "상품",
-                "wholesale_price": price,
-                "retail_price": round(price * 1.35, 0),
+                "wholesale_price": adj_price,
+                "retail_price": round(adj_price * 1.35, 0),
                 "source": "kamis",
             })
     except Exception:
