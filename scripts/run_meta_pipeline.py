@@ -78,6 +78,11 @@ def main() -> int:
 
     run_step("Build region-risk model dataset", [sys.executable, "scripts/build_model_dataset.py", "--date", args.date])
     run_step("Export live risk signals", [sys.executable, "scripts/export_live_signals.py", "--date", args.date])
+    run_step(
+        "Export DB prices to cache",
+        [sys.executable, "scripts/export_db_prices_to_cache.py", "--date", args.date, "--days-back", "90"],
+        soft_fail=True,
+    )
     run_step("Build price training table", [sys.executable, "scripts/build_price_training_table.py", "--date", args.date])
 
     training_table = REPO_ROOT / "data" / "model" / f"price_training_table_{stamp}.csv"
