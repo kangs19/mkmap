@@ -132,6 +132,95 @@ async def fetch_price_range(
     return results
 
 
+# periodProductList 메타데이터 — kamis_price 매핑에서 사용하는 코드
+_PERIOD_PRODUCT_META = {
+    "cabbage":     {"p_itemcategorycode": "200", "p_itemcode": "214", "p_kindcode": "01", "p_productrankcode": "04"},
+    "radish":      {"p_itemcategorycode": "200", "p_itemcode": "221", "p_kindcode": "01", "p_productrankcode": "04"},
+    "onion":       {"p_itemcategorycode": "200", "p_itemcode": "226", "p_kindcode": "01", "p_productrankcode": "04"},
+    "green_onion": {"p_itemcategorycode": "200", "p_itemcode": "223", "p_kindcode": "01", "p_productrankcode": "04"},
+    "garlic":      {"p_itemcategorycode": "200", "p_itemcode": "225", "p_kindcode": "01", "p_productrankcode": "04"},
+}
+
+
+async def fetch_period_prices(
+    item_code: str,
+    start_date: date,
+    end_date: date,
+) -> list[dict]:
+    """periodProductList로 기간별 날짜별 소매가격 수집 (httpx — SSL 우회 포함).
+
+    dailySalesList는 날짜 파라미터를 무시해 change_30d_pct가 항상 0.0이 되는 버그가 있다.
+    periodProductList는 p_startday~p_endday 범위의 날짜별 가격 배열을 반환한다.
+    wholesale_price가 없으면 retail_price를 사용.
+    """
+    settings = get_settings()
+    if not settings.kamis_api_key:
+        return []
+
+    meta = _PERIOD_PRODUCT_META.get(item_code)
+    if not meta:
+        return []
+
+    params = {
+        "action": "periodProductList",
+        "p_cert_key": settings.kamis_api_key,
+        "p_cert_id": "5300",
+        "p_returntype": "json",
+        "p_startday": start_date.isoformat(),
+        "p_endday": end_date.isoformat(),
+        "p_countrycode": MARKET_CODE,
+        "p_convert_kg_yn": "N",
+        **meta,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30, verify=False) as client:
+            r = await client.get(KAMIS_BASE, params=params)
+            r.raise_for_status()
+            data = r.json()
+    except Exception:
+        return []
+
+    results = []
+    try:
+        items = data.get("data", {}).get("item", [])
+        for entry in items:
+            regday = entry.get("regday", "")  # 예: "07/01"
+            yyyy = entry.get("yyyy", str(end_date.year))
+            price_str = str(entry.get("price", "0")).replace(",", "").strip()
+            if not price_str or price_str in ("-", ""):
+                continue
+            try:
+                price = float(price_str)
+            except ValueError:
+                continue
+            if price <= 0:
+                continue
+
+            if regday and "/" in regday:
+                mm, dd = regday.split("/")
+                try:
+                    row_date = date(int(yyyy), int(mm), int(dd))
+                except ValueError:
+                    continue
+            else:
+                continue
+
+            results.append({
+                "item_code": item_code,
+                "date": row_date,
+                "market": "가락시장",
+                "grade": "상품",
+                "wholesale_price": price,
+                "retail_price": round(price * 1.35, 0),
+                "source": "kamis",
+            })
+    except Exception:
+        pass
+
+    return results
+
+
 def _parse_response(data: dict, item_code: str, target_date: date, code_map: dict) -> Optional[dict]:
     """dailySalesList 응답 파싱 — price 배열에서 도매(02) + productno 필터링"""
     try:
