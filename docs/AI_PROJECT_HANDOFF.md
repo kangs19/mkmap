@@ -1,6 +1,6 @@
 # MK-MAP Project Handoff
 
-마지막 업데이트: 2026-07-01 KST (세션6)
+마지막 업데이트: 2026-07-01 KST (세션8)
 
 ## 프로젝트 목적
 
@@ -361,14 +361,36 @@ python scripts\verify_public_api_outputs.py --expected-date 2026-07-01
 
 현재 스크립트는 기본적으로 진단 결과를 JSON으로 출력하고 exit code 0을 반환한다. 배포 gate처럼 실패 처리해야 할 때는 `--strict`를 붙인다.
 
+**세션8 추가 완료 (2026-07-01):**
+- **AT settlement 코드 발견 및 추가** (커밋 cbc696a):
+  - AT settlement API lclsf 코드 전수 탐색 결과:
+    - lclsf=10 → 엽경채류 (배추 포함)
+    - lclsf=11 → 근채류 (무 포함)
+    - lclsf=12 → 조미채소류 (대파, 마늘 등)
+  - `metadata/items/cabbage.json`: `at_settlement` 추가 — lclsf=10, mclsf=01(배추)
+  - `metadata/items/radish.json`: `at_settlement` 추가 — lclsf=11, mclsf=01(무)
+  - 배추/무 AT settlement 수집 테스트 성공 (배추 11건/14일, 무 확인 완료)
+- **at_wholesale_norm 분석**: 기존 fill rate 문제 원인 파악
+  - green_onion: 코드 올바름(lclsf=12, mclsf=02), AT API 502 에러가 주원인 (API provider 측 불안정)
+  - cabbage/radish: AT settlement 매핑 자체가 없어서 0건이었음 → 이번 세션에서 해결
+- **Railway 영구 스토리지 없음 확인**: 매 배포마다 data/ 초기화, --days-back 365 유지 필요
+- **원격 파이프라인 진행 중**: KAMIS SSL fix(6a247c4) 적용, 365일 수집 중
+
+**남은 문제:**
+- `dashboard_cards` price_non_null=0 — 운영 DB `daily_prices` 미채움 (원격 파이프라인 성공 후 채워짐)
+- 원격 파이프라인 아직 KAMIS 수집 중 (365일 × 5품목 = ~27분)
+- 다음 파이프라인 실행 시 배추/무 AT settlement 데이터가 처음으로 수집됨
+- at_wholesale_norm 개선 확인: 다음 pipeline 실행 후 training table에서 cabbage/radish fill rate 확인 필요
+
 ## 현재 완성도
 
 코드와 로컬 파이프라인 기준:
 
-- 약 75~80%
+- 약 80~82%
 
 운영 서비스까지 포함:
 
-- 약 65~70%
+- 약 70~72%
 
 가장 큰 남은 차이는 운영 DB에 실제 pipeline 산출물이 들어가는지 확인하는 것이다.
+배추/무 AT settlement 코드 추가로 데이터 정확도가 개선될 예정.
