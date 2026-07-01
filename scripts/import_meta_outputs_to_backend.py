@@ -293,9 +293,11 @@ async def main_async() -> int:
     elif forecasts_count < 5:
         print(f"[WARN] Only {forecasts_count} forecasts imported (expected 5)", file=sys.stderr)
 
-    # signals가 있으면 성공으로 처리. forecasts 없음은 모델 훈련 실패(데이터 부족) 시 발생하며
+    # ok = signals imported successfully. forecasts 없음은 모델 훈련 데이터 부족 시 발생하며
     # 운영 서버에서는 이전 예측값이 유지되므로 경고만 내고 exit 0으로 계속 진행.
-    result["ok"] = signals_ok and forecasts_ok
+    # forecasts_ok는 별도 필드로 표시하여 파이프라인 단계별 상태를 명확히 구분.
+    result["ok"] = signals_ok
+    result["forecasts_ok"] = forecasts_ok
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if signals_ok else 1
 

@@ -75,6 +75,7 @@ def main() -> int:
     print(f"Exported {out_path.relative_to(REPO_ROOT)} rows={len(rows)}")
     if not rows:
         print("[WARN] No training rows produced; price history may be insufficient", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -112,7 +113,8 @@ def _training_rows(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     min_required_history = max(min_history, 14)
-    if len(series) <= min_required_history:
+    # lag_14 접근(idx=14) + target_next_change(idx+1) = 최소 16행 필요
+    if len(series) < min_required_history + 2:
         return rows
 
     values = [value for _, value in series]

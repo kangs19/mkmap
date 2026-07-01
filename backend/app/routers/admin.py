@@ -872,20 +872,24 @@ async def cleanup_mock_data(db: AsyncSession = Depends(get_db), _=Depends(check_
     초기 시드 데이터가 실 데이터 계산을 오염시키는 문제 해결.
     실 데이터(kamis/kma 등)가 충분히 쌓인 후 1회만 실행하면 됨.
     """
-    from sqlalchemy import delete as sa_delete
+    from sqlalchemy import delete as sa_delete, func
     from app.models.price import DailyPrice
     from app.models.weather import DailyWeather
 
-    price_del = await db.execute(
-        sa_delete(DailyPrice).where(DailyPrice.source == "mock_generator")
-    )
-    weather_del = await db.execute(
-        sa_delete(DailyWeather).where(DailyWeather.source == "mock_generator")
-    )
+    price_before = (await db.execute(
+        select(func.count()).select_from(DailyPrice).where(DailyPrice.source == "mock_generator")
+    )).scalar() or 0
+    weather_before = (await db.execute(
+        select(func.count()).select_from(DailyWeather).where(DailyWeather.source == "mock_generator")
+    )).scalar() or 0
+
+    await db.execute(sa_delete(DailyPrice).where(DailyPrice.source == "mock_generator"))
+    await db.execute(sa_delete(DailyWeather).where(DailyWeather.source == "mock_generator"))
     await db.commit()
+
     return {
-        "deleted_mock_prices": price_del.rowcount,
-        "deleted_mock_weather": weather_del.rowcount,
+        "deleted_mock_prices": price_before,
+        "deleted_mock_weather": weather_before,
     }
 
 
@@ -894,12 +898,21 @@ async def fix_garlic_prices(db: AsyncSession = Depends(get_db), _=Depends(check_
     """garlic daily_prices 중 1kg 단위 잘못 저장된 행(wholesale_price < 50000) 삭제 후 재sync.
     periodProductList kindcode=03(깐마늘) → 1kg 기준 가격을 10kg 기준으로 재수집.
     """
-    from sqlalchemy import delete as sa_delete
+    from sqlalchemy import delete as sa_delete, func
     from app.models.price import DailyPrice
     from app.collectors.sync import sync_prices
 
+    # COUNT before delete (asyncpg rowcount unreliable)
+    deleted = (await db.execute(
+        select(func.count()).select_from(DailyPrice).where(
+            DailyPrice.item_code == "garlic",
+            DailyPrice.source == "kamis",
+            DailyPrice.wholesale_price < 50000,
+        )
+    )).scalar() or 0
+
     # 잘못된 단위 행 삭제 (garlic 10kg 기준 최소가 50,000원 이상이어야 함)
-    del_result = await db.execute(
+    await db.execute(
         sa_delete(DailyPrice).where(
             DailyPrice.item_code == "garlic",
             DailyPrice.source == "kamis",
@@ -907,7 +920,6 @@ async def fix_garlic_prices(db: AsyncSession = Depends(get_db), _=Depends(check_
         )
     )
     await db.commit()
-    deleted = del_result.rowcount
 
     # 최근 35일 재sync (10배 multiplier 적용됨)
     sync_result = await sync_prices(days_back=35)

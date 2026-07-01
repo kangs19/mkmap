@@ -144,6 +144,8 @@ _PERIOD_PRODUCT_META = {
 
 # periodProductList 가격 단위 보정 계수 (ITEM_CODE_MAP 단위 기준으로 맞춤)
 # 마늘 kindcode=03(깐마늘,국산)은 1kg 단위로 반환 → 기존 DB 데이터(10kg)와 단위 일치를 위해 10 곱함
+# 배추(01)/무(01)/양파(00)/대파(00)는 각 ITEM_CODE_MAP 단위(10kg/20kg/20kg/1kg)와 일치하는지
+# 실제 API 응답 기준으로 주기적 검증 필요 (KAMIS periodProductList 단위는 품종코드별로 상이할 수 있음)
 _PERIOD_UNIT_MULTIPLIER: dict[str, float] = {
     "garlic": 10.0,
 }
@@ -207,8 +209,12 @@ async def fetch_period_prices(
             if regday and "/" in regday:
                 mm, dd = regday.split("/")
                 try:
-                    row_date = date(int(yyyy), int(mm), int(dd))
-                except ValueError:
+                    mm_int, dd_int, yyyy_int = int(mm), int(dd), int(yyyy)
+                    row_date = date(yyyy_int, mm_int, dd_int)
+                    # 미래 날짜면 전년도로 보정 (연초 요청 시 전년 12월 데이터가 섞이는 경우)
+                    if row_date > end_date:
+                        row_date = date(yyyy_int - 1, mm_int, dd_int)
+                except (ValueError, OverflowError):
                     continue
             else:
                 continue

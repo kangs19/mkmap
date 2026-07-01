@@ -97,10 +97,16 @@ async def daily_pipeline():
     # daily_prices / daily_weather 업데이트 — change_30d_pct 계산에 필요
     try:
         from app.collectors.sync import sync_prices, sync_weather, sync_market_volume
-        await sync_prices(days_back=3)
-        await sync_weather(days_back=1)
-        await sync_market_volume(days_back=3)
-        logger.info("[scheduler] KAMIS/KMA sync completed")
+        price_r = await sync_prices(days_back=3)
+        weather_r = await sync_weather(days_back=1)
+        market_r = await sync_market_volume(days_back=3)
+        logger.info(
+            "[scheduler] KAMIS/KMA sync completed — prices: saved=%s failed=%s, weather: saved=%s, market: saved=%s",
+            price_r.get("saved", "?"),
+            price_r.get("failed_items", []),
+            weather_r.get("saved", "?"),
+            market_r.get("saved", "?"),
+        )
     except Exception as exc:
         logger.warning("[scheduler] KAMIS/KMA sync failed: %s", exc)
 

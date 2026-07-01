@@ -50,7 +50,8 @@ def _latest_rows_by_item(path: Path) -> list[dict[str, str]]:
 
 def _load_risk_overlays(path: Path) -> dict[str, dict[str, object]]:
     if not path.exists():
-        raise FileNotFoundError(f"Risk signal file not found: {path}")
+        print(f"[WARN] Risk signal file not found, skipping overlays: {path}", file=sys.stderr)
+        return {}
 
     payload = json.loads(path.read_text(encoding="utf-8"))
     overlays: dict[str, dict[str, object]] = {}

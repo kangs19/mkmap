@@ -42,12 +42,14 @@ async def sync_prices(days_back: int = 7) -> dict:
     end_date = kst_today()
     start_date = end_date - timedelta(days=days_back)
     saved = 0
+    failed_items: list[str] = []
 
     for item_code in ALL_ITEMS:
         try:
             rows = await fetch_period_prices(item_code, start_date, end_date)
         except Exception as e:
             log.warning(f"KAMIS 가격 수집 실패: {item_code} — {e}")
+            failed_items.append(item_code)
             continue
 
         if not rows:
@@ -55,32 +57,61 @@ async def sync_prices(days_back: int = 7) -> dict:
             continue
 
         async with AsyncSessionLocal() as db:
-            for row in rows:
-                existing = await db.execute(
-                    select(DailyPrice).where(
-                        DailyPrice.item_code == row["item_code"],
-                        DailyPrice.date == row["date"],
-                        DailyPrice.source == "kamis",
-                    )
+            try:
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                stmt = pg_insert(DailyPrice).values([
+                    {
+                        "item_code": row["item_code"],
+                        "date": row["date"],
+                        "market": row.get("market", ""),
+                        "grade": row.get("grade", ""),
+                        "wholesale_price": row["wholesale_price"],
+                        "retail_price": row.get("retail_price"),
+                        "source": "kamis",
+                    }
+                    for row in rows
+                    if row.get("wholesale_price") and row["wholesale_price"] > 0
+                ]).on_conflict_do_update(
+                    constraint="uq_daily_prices_item_date_source",
+                    set_={
+                        "wholesale_price": pg_insert(DailyPrice).excluded.wholesale_price,
+                        "retail_price": pg_insert(DailyPrice).excluded.retail_price,
+                    }
                 )
-                if existing.scalars().first():
-                    continue
-                db.add(DailyPrice(
-                    item_code=row["item_code"],
-                    date=row["date"],
-                    market=row["market"],
-                    grade=row["grade"],
-                    wholesale_price=row["wholesale_price"],
-                    retail_price=row["retail_price"],
-                    source="kamis",
-                ))
-                saved += 1
-            await db.commit()
+                result = await db.execute(stmt)
+                await db.commit()
+                saved += result.rowcount or len(rows)
+            except Exception:
+                # SQLite 환경 폴백 (로컬 개발)
+                await db.rollback()
+                for row in rows:
+                    if not row.get("wholesale_price") or row["wholesale_price"] <= 0:
+                        continue
+                    existing = await db.execute(
+                        select(DailyPrice).where(
+                            DailyPrice.item_code == row["item_code"],
+                            DailyPrice.date == row["date"],
+                            DailyPrice.source == "kamis",
+                        )
+                    )
+                    if existing.scalars().first():
+                        continue
+                    db.add(DailyPrice(
+                        item_code=row["item_code"],
+                        date=row["date"],
+                        market=row.get("market", ""),
+                        grade=row.get("grade", ""),
+                        wholesale_price=row["wholesale_price"],
+                        retail_price=row.get("retail_price"),
+                        source="kamis",
+                    ))
+                    saved += 1
+                await db.commit()
 
         log.info(f"KAMIS 가격 저장: {item_code} {len(rows)}건")
         await asyncio.sleep(0.5)
 
-    return {"saved": saved, "items": ALL_ITEMS}
+    return {"saved": saved, "items": ALL_ITEMS, "failed_items": failed_items}
 
 
 async def sync_weather(days_back: int = 3) -> dict:

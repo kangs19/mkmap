@@ -9,7 +9,10 @@ def _resolve_db_url(raw: str) -> str:
     """Railway PostgreSQL addon은 postgresql:// 형식으로 DATABASE_URL을 주입한다.
     SQLAlchemy async 드라이버는 postgresql+asyncpg:// 형식이 필요하므로 변환.
     로컬 sqlite+aiosqlite:// URL은 그대로 통과.
+    이미 +asyncpg 형식이면 이중 변환 방지.
     """
+    if raw.startswith("postgresql+asyncpg://"):
+        return raw  # 이미 올바른 형식
     if raw.startswith("postgresql://"):
         return raw.replace("postgresql://", "postgresql+asyncpg://", 1)
     if raw.startswith("postgres://"):

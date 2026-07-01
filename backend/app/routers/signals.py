@@ -283,11 +283,16 @@ def _dashboard_card(
 
 
 def _price_change_pct(prices: list[DailyPrice]) -> float | None:
-    if len(prices) < 2:
+    # 날짜별 1행으로 중복 제거 (같은 날짜 여러 소스 혼재 방지)
+    by_date: dict = {}
+    for p in prices:
+        by_date[p.date] = p
+    deduped = sorted(by_date.values(), key=lambda p: p.date)
+    if len(deduped) < 2:
         return None
-    oldest = prices[0].wholesale_price
-    latest = prices[-1].wholesale_price
-    if not oldest:
+    oldest = deduped[0].wholesale_price
+    latest = deduped[-1].wholesale_price
+    if not oldest or not latest:
         return None
     return round((latest - oldest) / oldest * 100, 1)
 
@@ -408,11 +413,15 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
         price_by_item.setdefault(p.item_code, []).append(p)
 
     def price_change_30d(rows):
-        if len(rows) < 2:
+        by_date: dict = {}
+        for p in rows:
+            by_date[p.date] = p
+        deduped = sorted(by_date.values(), key=lambda p: p.date)
+        if len(deduped) < 2:
             return None
-        latest = rows[-1].wholesale_price
-        oldest = rows[0].wholesale_price
-        if not oldest:
+        oldest = deduped[0].wholesale_price
+        latest = deduped[-1].wholesale_price
+        if not oldest or not latest:
             return None
         return round((latest - oldest) / oldest * 100, 1)
 
