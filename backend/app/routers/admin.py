@@ -158,9 +158,13 @@ _meta_pipeline_status = {
     "last_status": None,
     "last_started_at": None,
     "last_finished_at": None,
+    "last_duration_seconds": None,
     "last_date": None,
     "last_output_tail": [],
     "last_error": None,
+    "last_step_completed": None,
+    "last_step_failed": None,
+    "last_step_summary": [],
 }
 
 
@@ -351,15 +355,20 @@ async def _run_meta_pipeline_process(
     if skip_collect:
         cmd.append("--skip-collect")
 
+    started_at = kst_now()
     _meta_pipeline_status.update(
         {
             "running": True,
             "last_status": "running",
-            "last_started_at": kst_now().isoformat(timespec="seconds"),
+            "last_started_at": started_at.isoformat(timespec="seconds"),
             "last_finished_at": None,
+            "last_duration_seconds": None,
             "last_date": pipeline_date,
             "last_output_tail": [],
             "last_error": None,
+            "last_step_completed": None,
+            "last_step_failed": None,
+            "last_step_summary": [],
         }
     )
 
@@ -372,6 +381,11 @@ async def _run_meta_pipeline_process(
         )
         assert process.stdout is not None
         output_lines: list[str] = []
+        step_summary: list[dict] = []
+        current_step: str | None = None
+        import time as _time
+        step_start = _time.monotonic()
+
         while True:
             line = await process.stdout.readline()
             if not line:
@@ -380,8 +394,24 @@ async def _run_meta_pipeline_process(
             output_lines.append(text)
             _meta_pipeline_status["last_output_tail"] = output_lines[-80:]
 
+            # "== Step name ==" 패턴으로 step 추적
+            if text.startswith("== ") and text.endswith(" =="):
+                if current_step:
+                    step_summary.append({"step": current_step, "status": "ok", "duration_s": round(_time.monotonic() - step_start, 1)})
+                current_step = text[3:-3]
+                step_start = _time.monotonic()
+                _meta_pipeline_status["last_step_completed"] = current_step
+            elif "[WARN]" in text and current_step:
+                pass  # warn은 ok로 처리
+            _meta_pipeline_status["last_step_summary"] = step_summary
+
         return_code = await process.wait()
-        finished_at = kst_now().isoformat(timespec="seconds")
+        finished_at = kst_now()
+        duration = round((finished_at - started_at).total_seconds(), 1)
+
+        if current_step:
+            step_summary.append({"step": current_step, "status": "ok" if return_code == 0 else "failed", "duration_s": round(_time.monotonic() - step_start, 1)})
+
         if return_code == 0:
             cache.clear_prefix("signals:")
             cache.clear_prefix("report:")
@@ -389,9 +419,12 @@ async def _run_meta_pipeline_process(
                 {
                     "running": False,
                     "last_status": "ok",
-                    "last_finished_at": finished_at,
+                    "last_finished_at": finished_at.isoformat(timespec="seconds"),
+                    "last_duration_seconds": duration,
                     "last_error": None,
                     "last_output_tail": output_lines[-80:],
+                    "last_step_failed": None,
+                    "last_step_summary": step_summary,
                 }
             )
         else:
@@ -399,9 +432,12 @@ async def _run_meta_pipeline_process(
                 {
                     "running": False,
                     "last_status": "error",
-                    "last_finished_at": finished_at,
+                    "last_finished_at": finished_at.isoformat(timespec="seconds"),
+                    "last_duration_seconds": duration,
                     "last_error": f"process exited with code {return_code}",
                     "last_output_tail": output_lines[-80:],
+                    "last_step_failed": current_step,
+                    "last_step_summary": step_summary,
                 }
             )
         return dict(_meta_pipeline_status)
