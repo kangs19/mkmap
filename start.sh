@@ -3,8 +3,11 @@ set -e
 
 cd /app/backend
 
+# Ensure APP_ENV is set (railway.toml environmentVariables may not apply in all Railway versions)
+export APP_ENV="${APP_ENV:-production}"
+
 echo "=== AgriDigitalTwin 서버 시작 ==="
-echo "환경: ${APP_ENV:-production}"
+echo "환경: ${APP_ENV}"
 
 # uvicorn 먼저 백그라운드 시작 (헬스체크 통과용)
 echo "서버 시작: 0.0.0.0:${PORT:-8100}"
