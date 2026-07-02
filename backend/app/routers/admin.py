@@ -1751,6 +1751,70 @@ async def lgbm_training_reset(_=Depends(check_admin)):
     return {"status": "reset", "message": "running flag cleared. You may now trigger a new training."}
 
 
+class MarketVolumeRow(BaseModel):
+    item_code: str
+    date: str          # YYYY-MM-DD
+    market: str = "at_market"
+    origin_region: Optional[str] = None
+    volume_kg: Optional[float] = None
+    trade_volume: Optional[float] = None
+    trade_amount: Optional[float] = None
+    source: str = "at_settlement"
+
+
+@router.post("/import/market-volume")
+async def import_market_volume(
+    rows: list[MarketVolumeRow],
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """로컬 수집 AT settlement 거래량을 Railway DB에 직접 import.
+    최대 5000 rows. UPSERT (item_code, date, source) 기준.
+    """
+    from app.models.market import DailyMarket
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    import datetime as _dt
+
+    if not rows:
+        return {"saved": 0}
+    if len(rows) > 5000:
+        raise HTTPException(status_code=400, detail="최대 5000 rows")
+
+    records = []
+    for r in rows:
+        try:
+            d = _dt.date.fromisoformat(r.date)
+        except ValueError:
+            continue
+        records.append({
+            "item_code": r.item_code,
+            "date": d,
+            "market": r.market,
+            "origin_region": r.origin_region,
+            "volume_kg": r.volume_kg,
+            "trade_volume": r.trade_volume,
+            "trade_amount": r.trade_amount,
+            "source": r.source,
+        })
+
+    if not records:
+        return {"saved": 0}
+
+    stmt = pg_insert(DailyMarket).values(records).on_conflict_do_update(
+        index_elements=["item_code", "date", "source"],
+        set_={
+            "volume_kg": pg_insert(DailyMarket).excluded.volume_kg,
+            "trade_volume": pg_insert(DailyMarket).excluded.trade_volume,
+            "trade_amount": pg_insert(DailyMarket).excluded.trade_amount,
+            "market": pg_insert(DailyMarket).excluded.market,
+            "origin_region": pg_insert(DailyMarket).excluded.origin_region,
+        }
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    return {"saved": len(records), "status": "ok"}
+
+
 @router.post("/init-data")
 async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     """Item 시드 수동 실행 — 재배포 후 빈 items 테이블 복구"""
