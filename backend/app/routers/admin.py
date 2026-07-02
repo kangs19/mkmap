@@ -1590,7 +1590,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     model_dir = REPO_ROOT / "data" / "model"
     model_dir.mkdir(parents=True, exist_ok=True)
 
-    HORIZONS = [7, 14, 21, 28, 30, 60, 90]
+    HORIZONS = [7, 14, 21, 28, 60, 90]
 
     # price_rows를 한 번만 기본 feature로 변환 (horizon-independent 부분)
     # 각 horizon별로 target만 다름 → horizon별로 별도 df 빌드
@@ -1886,3 +1886,133 @@ async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
         return {"status": "ok", "added_items": added_items}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── 모델 성능 / 백테스트 ──────────────────────────────────────────────────────
+
+@router.get("/model/metrics")
+async def get_model_metrics(_=Depends(check_admin)):
+    """저장된 모델 JSON에서 품목×horizon 성능 메트릭 반환."""
+    import json as _json
+
+    model_dir = REPO_ROOT / "data" / "model"
+    HORIZONS = [7, 14, 21, 28, 60, 90]
+    ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic"]
+    ITEM_NAMES = {"cabbage": "배추", "radish": "무", "onion": "양파", "green_onion": "대파", "garlic": "마늘"}
+    HORIZON_LABELS = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월"}
+
+    result = {}
+    for item_code in ITEMS:
+        result[item_code] = {"item_name": ITEM_NAMES[item_code], "horizons": {}}
+        for h in HORIZONS:
+            f = model_dir / f"lgbm_ensemble_{item_code}_h{h}.json"
+            if not f.exists():
+                continue
+            try:
+                m = _json.loads(f.read_text(encoding="utf-8"))
+                result[item_code]["horizons"][str(h)] = {
+                    "label": HORIZON_LABELS[h],
+                    "n_train": m.get("n_train"),
+                    "n_test": m.get("n_test"),
+                    "test_dir_acc": m.get("test_dir_acc"),
+                    "calibrated_dir_acc": m.get("calibrated_dir_acc"),
+                    "val_mae": m.get("val_mae"),
+                    "test_mae": m.get("test_mae"),
+                    "overfit_ratio": m.get("overfit_ratio"),
+                }
+            except Exception:
+                pass
+    return result
+
+
+def _run_backtest_sync(price_rows, horizon: int, item_code: str) -> dict:
+    """모델을 로드해 테스트 구간 예측 vs 실제를 반환 (동기 함수)."""
+    import pickle as _pickle
+    import numpy as np
+
+    model_dir = REPO_ROOT / "data" / "model"
+    pkl_path = model_dir / f"lgbm_ensemble_{item_code}_h{horizon}.pkl"
+    if not pkl_path.exists():
+        return {"error": f"model not found: {pkl_path.name}"}
+
+    objects = _pickle.loads(pkl_path.read_bytes())
+    scaler = objects["scaler"]
+    ridge = objects["ridge"]
+    lgbm_model = objects.get("lgbm")
+    calibrator = objects.get("calibrator")
+    threshold = float(objects.get("threshold", 0.0))
+
+    df = _build_price_features_from_db(price_rows, None, horizon)
+    if df.empty:
+        return {"error": "feature table empty"}
+
+    df_item = df[df["item_code"] == item_code].copy()
+    if len(df_item) < 40:
+        return {"error": f"insufficient data: n={len(df_item)}"}
+
+    FEATURE_COLS = [c for c in df_item.columns if c not in
+                    ("item_code", "price", "target", "direction", "base_date", "month", "dayofyear")]
+
+    n = len(df_item)
+    test = df_item.iloc[int(n * 0.80):].copy()
+    X = test[FEATURE_COLS].values.astype(float)
+    X_s = scaler.transform(X)
+    pred_ridge = ridge.predict(X_s)
+    pred_lgbm = lgbm_model.predict(X) if lgbm_model else None
+    pred_ens = (pred_ridge + pred_lgbm) / 2 if pred_lgbm is not None else pred_ridge
+
+    if calibrator is not None:
+        probs = calibrator.predict(pred_ens)
+        pred_dirs = (probs > 0.5).astype(int)
+    else:
+        pred_dirs = (pred_ens > threshold).astype(int)
+
+    actual_dirs = test["direction"].values.astype(int)
+    prices = test["price"].values
+    dates = [str(d) for d in test["base_date"].values]
+
+    correct = (pred_dirs == actual_dirs)
+    accuracy = float(np.mean(correct))
+
+    return {
+        "item_code": item_code,
+        "horizon": horizon,
+        "n_test": len(test),
+        "accuracy": round(accuracy, 4),
+        "dates": dates,
+        "prices": [round(float(p), 0) for p in prices],
+        "actual": actual_dirs.tolist(),
+        "predicted": pred_dirs.tolist(),
+        "correct": correct.tolist(),
+    }
+
+
+@router.get("/model/backtest/{item_code}")
+async def get_model_backtest(
+    item_code: str,
+    horizon: int = 7,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """품목+horizon 테스트 구간 예측 vs 실제 방향 반환."""
+    import asyncio
+    import functools
+    from app.models.price import DailyPrice
+
+    result = await db.execute(
+        select(DailyPrice.item_code, DailyPrice.date, DailyPrice.wholesale_price)
+        .where(DailyPrice.item_code == item_code, DailyPrice.wholesale_price > 0)
+        .order_by(DailyPrice.date)
+    )
+    price_rows = result.all()
+    if not price_rows:
+        raise HTTPException(status_code=404, detail="no price data")
+
+    loop = asyncio.get_running_loop()
+    data = await loop.run_in_executor(
+        None, functools.partial(_run_backtest_sync, price_rows, horizon, item_code)
+    )
+    if "error" in data:
+        raise HTTPException(status_code=404, detail=data["error"])
+    return data
+

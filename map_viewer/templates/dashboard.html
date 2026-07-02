@@ -226,6 +226,26 @@
       margin-top: 20px;
       line-height: 1.7;
     }
+    /* 모델 성능 섹션 */
+    .perf-section { margin-top: 24px; }
+    .perf-section .section-title {
+      font-size: 15px; font-weight: 600; color: #1a3a5c;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .perf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .perf-table th {
+      background: #f0f4fa; color: #555; font-weight: 600;
+      padding: 8px 10px; text-align: center; border-bottom: 2px solid #dde3ed;
+    }
+    .perf-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+    .perf-table tr:hover td { background: #f8f9ff; cursor: pointer; }
+    .perf-table .item-name { text-align: left; font-weight: 600; color: #1a3a5c; }
+    .acc-high  { color: #27ae60; font-weight: 700; }
+    .acc-mid   { color: #e67e22; font-weight: 600; }
+    .acc-low   { color: #e74c3c; }
+    .backtest-wrap { margin-top: 16px; }
+    .backtest-legend { display: flex; gap: 16px; font-size: 12px; color: #666; margin-bottom: 6px; }
+    .leg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
   </style>
 </head>
 <body>
@@ -246,18 +266,16 @@
     <button class="horizon-tab"        data-horizon="14"  onclick="selectHorizon(14)">2주</button>
     <button class="horizon-tab"        data-horizon="21"  onclick="selectHorizon(21)">3주</button>
     <button class="horizon-tab"        data-horizon="28"  onclick="selectHorizon(28)">4주</button>
-    <button class="horizon-tab"        data-horizon="30"  onclick="selectHorizon(30)">1개월</button>
     <button class="horizon-tab"        data-horizon="60"  onclick="selectHorizon(60)">2개월</button>
     <button class="horizon-tab"        data-horizon="90"  onclick="selectHorizon(90)">3개월</button>
   </div>
 
-  <!-- 멀티 horizon 예측 카드 (7개) -->
+  <!-- 멀티 horizon 예측 카드 (6개) -->
   <div class="horizon-grid" id="horizon-grid">
     <div class="horizon-card" id="hcard-7" ><div class="horizon-label">1주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-14"><div class="horizon-label">2주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-21"><div class="horizon-label">3주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-28"><div class="horizon-label">4주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-30"><div class="horizon-label">1개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-60"><div class="horizon-label">2개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-90"><div class="horizon-label">3개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
   </div>
@@ -323,8 +341,26 @@
     </div>
   </div>
 
+  <!-- 모델 성능 섹션 -->
+  <div class="card perf-section">
+    <div class="section-title">
+      모델 백테스트 성능
+      <button onclick="loadModelMetrics()" style="font-size:12px;padding:4px 10px;border:1px solid #2e74b5;border-radius:4px;background:white;color:#2e74b5;cursor:pointer;">새로고침</button>
+    </div>
+    <div id="perf-table-wrap"><span style="color:#aaa;font-size:13px;">품목 탭을 선택하거나 새로고침을 누르세요.</span></div>
+    <div class="backtest-wrap" id="backtest-wrap" style="display:none;">
+      <div class="section-title" id="backtest-title" style="font-size:13px;margin-top:16px;"></div>
+      <div class="backtest-legend">
+        <span><span class="leg-dot" style="background:#27ae60;"></span>예측 적중</span>
+        <span><span class="leg-dot" style="background:#e74c3c;"></span>예측 오류</span>
+        <span style="color:#999;">● 상승 예측 &nbsp; ○ 하락 예측</span>
+      </div>
+      <canvas id="backtest-chart" height="120"></canvas>
+    </div>
+  </div>
+
   <div class="disclaimer">
-    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(1주·2주·3주·4주·1개월·2개월·3개월)을 기반으로 한 참고 정보입니다.
+    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(1주·2주·3주·4주·2개월·3개월)을 기반으로 한 참고 정보입니다.
     실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
   </div>
 </div>
@@ -337,7 +373,8 @@ const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
 const RISK_LABEL = { normal: "정상", caution: "주의", warning: "경고", high: "위험" };
 const VOL_LABEL  = { low: "안정", medium: "보통", high: "높음" };
 const CONF_LABEL = { high: "높음", medium: "중간", low: "낮음" };
-const HORIZON_LABEL = { 7: "1주", 14: "2주", 21: "3주", 28: "4주", 30: "1개월", 60: "2개월", 90: "3개월" };
+const HORIZON_LABEL = { 7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월" };
+const HORIZONS_ALL = [7, 14, 21, 28, 60, 90];
 
 let items = [];
 let currentItem = null;
@@ -406,7 +443,7 @@ async function selectItem(item_code) {
 
 // ── horizon 카드 4개 렌더 ────────────────────────────────
 function renderHorizonCards(horizons) {
-  [7, 14, 21, 28, 30, 60, 90].forEach(h => {
+  HORIZONS_ALL.forEach(h => {
     const el = document.getElementById(`hcard-${h}`);
     if (!el) return;
     const hz = horizons[String(h)];
@@ -578,7 +615,7 @@ async function loadOverview() {
 
   // 테이블 헤더 업데이트
   document.querySelector(".overview-table thead tr").innerHTML =
-    `<th>품목</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>1개월</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
+    `<th>품목</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
 
   const nameMap = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
 
@@ -605,10 +642,127 @@ async function loadOverview() {
     return `
       <tr onclick="selectItem('${code}')" style="cursor:pointer;">
         <td><strong>${name}</strong></td>
-        ${cell(7)}${cell(14)}${cell(21)}${cell(28)}${cell(30)}${cell(60)}${cell(90)}
+        ${cell(7)}${cell(14)}${cell(21)}${cell(28)}${cell(60)}${cell(90)}
         <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
       </tr>`;
   }).join("");
+}
+
+// ── 모델 성능 / 백테스트 ────────────────────────────────
+let backtestChart = null;
+
+async function loadModelMetrics() {
+  const wrap = document.getElementById("perf-table-wrap");
+  wrap.innerHTML = '<span style="color:#aaa;font-size:13px;">로딩 중...</span>';
+  try {
+    const r = await fetch(`${API}/admin/model/metrics`, { headers: {"X-Admin-Key": window._adminKey || ""} });
+    if (!r.ok) { wrap.innerHTML = '<span style="color:#e74c3c;">관리자 키 필요 (콘솔에서 window._adminKey 설정)</span>'; return; }
+    const data = await r.json();
+    renderPerfTable(data);
+  } catch(e) {
+    wrap.innerHTML = `<span style="color:#e74c3c;">오류: ${e.message}</span>`;
+  }
+}
+
+function renderPerfTable(data) {
+  const wrap = document.getElementById("perf-table-wrap");
+  const ITEM_ORDER = ["cabbage","radish","onion","green_onion","garlic"];
+  const hCols = HORIZONS_ALL;
+
+  let html = `<table class="perf-table"><thead><tr>
+    <th>품목</th>${hCols.map(h=>`<th>${HORIZON_LABEL[h]}</th>`).join("")}
+  </tr></thead><tbody>`;
+
+  for (const code of ITEM_ORDER) {
+    const item = data[code];
+    if (!item) continue;
+    html += `<tr onclick="loadBacktest('${code}', currentHorizon)" title="클릭 시 백테스트 차트">`;
+    html += `<td class="item-name">${item.item_name}</td>`;
+    for (const h of hCols) {
+      const m = item.horizons[String(h)];
+      if (!m) { html += `<td style="color:#ccc">—</td>`; continue; }
+      const acc = m.calibrated_dir_acc ?? m.test_dir_acc;
+      const pct = acc != null ? `${(acc*100).toFixed(1)}%` : "—";
+      const cls = acc == null ? "" : acc >= 0.60 ? "acc-high" : acc >= 0.52 ? "acc-mid" : "acc-low";
+      const n = m.n_test ? `<br><small style="color:#aaa;font-weight:normal;">n=${m.n_test}</small>` : "";
+      html += `<td class="${cls}">${pct}${n}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  html += `<p style="font-size:11px;color:#aaa;margin-top:6px;">※ 테스트셋(최근 20%) 방향 예측 정확도. 행 클릭 시 백테스트 차트 표시.</p>`;
+  wrap.innerHTML = html;
+}
+
+async function loadBacktest(item_code, horizon) {
+  const wrap = document.getElementById("backtest-wrap");
+  const title = document.getElementById("backtest-title");
+  const ITEM_NAMES = {cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘"};
+  title.textContent = `${ITEM_NAMES[item_code]||item_code} — ${HORIZON_LABEL[horizon]||horizon+"일"} 백테스트 (테스트셋)`;
+  wrap.style.display = "block";
+
+  try {
+    const r = await fetch(`${API}/admin/model/backtest/${item_code}?horizon=${horizon}`,
+      { headers: {"X-Admin-Key": window._adminKey || ""} });
+    if (!r.ok) { title.textContent += " — 오류(관리자 키 필요)"; return; }
+    const d = await r.json();
+    renderBacktestChart(d);
+  } catch(e) {
+    title.textContent += ` — 오류: ${e.message}`;
+  }
+}
+
+function renderBacktestChart(d) {
+  const ctx = document.getElementById("backtest-chart").getContext("2d");
+  if (backtestChart) backtestChart.destroy();
+
+  const labels = d.dates.map(dt => dt.slice(5)); // MM-DD
+  const prices = d.prices;
+  const pointColors = d.correct.map((ok, i) => ok ? "#27ae60" : "#e74c3c");
+  const pointStyles = d.predicted.map(p => p === 1 ? "circle" : "rectRot");
+  const pointRadius = 5;
+
+  backtestChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "실제 가격",
+          data: prices,
+          borderColor: "#2e74b5",
+          borderWidth: 1.5,
+          pointRadius: pointRadius,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointStyle: pointStyles,
+          tension: 0.2,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              const pred = d.predicted[i] === 1 ? "↑상승" : "↓하락";
+              const act  = d.actual[i]    === 1 ? "↑상승" : "↓하락";
+              const ok   = d.correct[i] ? "✓ 적중" : "✗ 오류";
+              return [`가격: ${ctx.parsed.y.toLocaleString()}원`, `예측: ${pred}`, `실제: ${act}`, ok];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font: { size: 11 } } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
 }
 
 init();

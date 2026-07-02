@@ -127,7 +127,7 @@ def _build_summary(fc: Forecast, item_name: str, horizon: int = 14) -> str:
     direction = direction_map.get(fc.direction or fc.direction_14d or "", "불명확")
     up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
     prob = int((up_prob or 0) * 100)
-    label = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 30: "1개월", 60: "2개월", 90: "3개월"}.get(horizon, f"{horizon}일")
+    label = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월"}.get(horizon, f"{horizon}일")
     return f"{item_name}은(는) {label} 내 {direction} 가능성이 {prob}%입니다."
 
 
