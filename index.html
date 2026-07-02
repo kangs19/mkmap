@@ -276,8 +276,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
       <div class="ds-dot loading"></div>
       <span id="data-status-txt">로딩 중</span>
     </div>
-    <button class="fm-bell" id="bell-btn" title="알림">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
-    <button class="fm-login-btn">로그인</button>
+    <button class="fm-bell" id="bell-btn" onclick="showToast('알림 기능은 준비 중입니다')" title="알림">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
+    <button class="fm-login-btn" onclick="showToast('로그인 기능은 준비 중입니다 (v2 예정)')">로그인</button>
   </div>
 </header>
 
@@ -369,10 +369,41 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <!-- RIGHT PANEL -->
   <aside id="fm-right">
     <div class="fm-rp-scroll" id="right-panel-content">
-      <!-- 기본 힌트 -->
-      <div class="fm-hint" id="right-hint">
-        <div class="fm-hint-ico">🗺️</div>
-        <div class="fm-hint-txt">지도에서 지역을 클릭하면<br>상세 정보가 표시됩니다<br><br>품목을 선택하고<br>주산지를 확인하세요</div>
+      <!-- AI 브리핑 패널 (기본 상태) -->
+      <div id="right-hint" style="display:flex;flex-direction:column;gap:0;">
+        <!-- 브리핑 헤더 -->
+        <div style="padding:14px 18px 10px;background:white;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#267a18,#4aab30);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">🤖</div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:var(--text)">오늘의 AI 브리핑</div>
+              <div style="font-size:10px;color:var(--muted)" id="brief-date">데이터 로딩 중...</div>
+            </div>
+            <div style="margin-left:auto" id="brief-status-pill"></div>
+          </div>
+          <div style="font-size:12px;color:var(--text);line-height:1.7;background:#f7f9f4;border-radius:8px;padding:9px 11px;border-left:3px solid var(--accent)" id="brief-summary">
+            전국 농산물 시장 현황을 분석 중입니다...
+          </div>
+        </div>
+        <!-- 위험 품목 TOP 리스트 -->
+        <div style="padding:12px 18px;background:white;border-bottom:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">주요 위험 품목</div>
+          <div id="brief-risk-list" style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:11px;color:var(--muted)">데이터 로딩 중...</div>
+          </div>
+        </div>
+        <!-- 현재 시세 요약 -->
+        <div style="padding:12px 18px;background:white;border-bottom:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">현재 가락시장 시세</div>
+          <div id="brief-prices" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <div style="font-size:11px;color:var(--muted)">로딩 중...</div>
+          </div>
+        </div>
+        <!-- 지도 안내 -->
+        <div style="padding:14px 18px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;opacity:.3">🗺️</div>
+          <div style="font-size:11px;color:var(--muted);line-height:2">지도에서 지역을 클릭하면<br>상세 가격 예측 정보가 표시됩니다</div>
+        </div>
       </div>
       <!-- 상세 패널 (클릭 후 표시) -->
       <div id="right-detail" style="display:none;">
@@ -602,6 +633,11 @@ window.onload=async()=>{
   // UI 렌더
   renderItemMenu();
   renderMiniCards();
+  renderDefaultPanel();
+
+  // 주요 5품목 시세도 백그라운드 로드해서 브리핑 채우기
+  const TOP5=["cabbage","onion","garlic","radish","green_onion"];
+  Promise.allSettled(TOP5.map(k=>fetchNationalPrice(k))).then(()=>renderDefaultPanel());
 
   // 지도 초기화
   map_=L.map("map",{zoomControl:true,preferCanvas:true,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
@@ -855,34 +891,63 @@ function removeMarketLayer(){
   marketMarkerLayer=null;
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
-function setPeriod(p,el){
+const PERIOD_ORDER=[7,14,21,28,60,90];
+function setPeriod(p,btn){
   curPeriod=p;
+  // 버튼 active 동기화
   document.querySelectorAll(".fm-period-btn").forEach(b=>b.classList.remove("active"));
-  el.classList.add("active");
+  if(btn) btn.classList.add("active");
+  else{
+    // 타임라인/자동재생 호출 시 버튼 id로 찾기
+    document.querySelectorAll(".fm-period-btn").forEach(b=>{
+      if(b.textContent.trim()===PERIOD_LABEL[p]) b.classList.add("active");
+    });
+  }
   document.getElementById("rp-horizon-badge").textContent=`${PERIOD_LABEL[p]||p+"일"} 후`;
-  // 오른쪽 패널 열려 있으면 해당 기간으로 재렌더
-  if(curDetailData){
-    showRegionDetail(curDetailData.name,curDetailData.code,curDetailData.d);
+  // 지도 색상 + 오른쪽 패널 동시 갱신
+  redrawMap();
+  if(curDetailData) showRegionDetail(curDetailData.name,curDetailData.code,curDetailData.d);
+  // 타임라인 바 위치도 동기화
+  const idx=PERIOD_ORDER.indexOf(p);
+  if(idx>=0){
+    const pct=Math.round(idx/(PERIOD_ORDER.length-1)*100);
+    document.getElementById("tl-fill").style.width=pct+"%";
+    document.getElementById("tl-thumb").style.left=pct+"%";
   }
 }
 
 // ── 타임라인 ──────────────────────────────────────────────────────────────
 function buildTimeline(){
-  const now=new Date(),labels=[];
-  for(let i=-5;i<=7;i+=2){const d=new Date(now);d.setDate(d.getDate()+i*7);labels.push(`${d.getMonth()+1}.${String(d.getDate()).padStart(2,'0')}`);}
-  document.getElementById("tl-labels").innerHTML=labels.map(l=>`<span>${l}</span>`).join("");
+  const labels=PERIOD_ORDER.map(p=>PERIOD_LABEL[p]+"후");
+  document.getElementById("tl-labels").innerHTML=labels.map(l=>`<span style="font-size:9px">${l}</span>`).join("");
 }
-let tlPlaying=false;
+let tlPlaying=false,tlTimer=null,tlIdx=0;
 function togglePlay(){
   tlPlaying=!tlPlaying;
   document.getElementById("tl-play").textContent=tlPlaying?"⏸":"▶";
+  if(tlPlaying){
+    // 현재 curPeriod에서 시작
+    tlIdx=Math.max(0,PERIOD_ORDER.indexOf(curPeriod));
+    tlStep();
+  } else {
+    clearTimeout(tlTimer);
+  }
+}
+function tlStep(){
+  if(!tlPlaying) return;
+  setPeriod(PERIOD_ORDER[tlIdx],null);
+  tlIdx=(tlIdx+1)%PERIOD_ORDER.length;
+  // 마지막 기간 도달 시 잠깐 멈춘 뒤 다시 처음부터
+  const delay=tlIdx===0?2500:1600;
+  tlTimer=setTimeout(tlStep,delay);
 }
 function seekTimeline(e){
   const track=document.getElementById("tl-track");
   const rect=track.getBoundingClientRect();
-  const pct=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width))*100;
-  document.getElementById("tl-fill").style.width=pct+"%";
-  document.getElementById("tl-thumb").style.left=pct+"%";
+  const pct=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  // pct → 가장 가까운 period 인덱스
+  const idx=Math.round(pct*(PERIOD_ORDER.length-1));
+  setPeriod(PERIOD_ORDER[idx],null);
 }
 function setView(type,el){
   document.querySelectorAll(".fm-vt-btn").forEach(b=>b.classList.remove("active"));
@@ -895,6 +960,87 @@ function setView(type,el){
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map_);
   }
   redrawMap();
+}
+
+// ── AI 브리핑 기본 패널 렌더 ──────────────────────────────────────────────
+function renderDefaultPanel(){
+  const now=new Date();
+  const dateStr=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const elDate=document.getElementById("brief-date");
+  if(elDate) elDate.textContent=`${dateStr} 기준 · ${LIVE_BASE_DATE?"AI 분석 완료":"데이터 수집 중"}`;
+
+  const RL={normal:"정상",caution:"주의",warning:"경고",high:"위험"};
+  const RC={normal:"#1a8a1a",caution:"#a07010",warning:"#b86010",high:"#c02828"};
+  const RB={normal:"#e8f5e9",caution:"#fefce2",warning:"#fef0e2",high:"#fde8e8"};
+
+  // 위험 품목 정렬
+  const hasLive=Object.keys(LIVE_ITEMS).length>0;
+  const ranked=Object.entries(ITEMS).map(([k,it])=>{
+    const live=LIVE_ITEMS[k]||{};
+    return{k,it,score:live.risk_score||it.risk_score||0,level:live.risk_level||it.risk_level||"normal",prob:live.up_prob??it.up_prob??0.5};
+  }).sort((a,b)=>b.score-a.score);
+
+  // 브리핑 요약 문구
+  const topRisk=ranked[0];
+  const highCount=ranked.filter(r=>r.level==="high"||r.level==="warning").length;
+  let summary="";
+  if(!hasLive){
+    summary="AI 예측 모델 가동 중입니다. 곧 전국 농산물 가격 예측 데이터가 표시됩니다.";
+  } else if(highCount===0){
+    summary=`현재 전국 농산물 가격은 전반적으로 안정적입니다. ${topRisk.it.name}(${(topRisk.prob*100).toFixed(0)}% 상승 가능성) 등 주요 품목을 모니터링 중입니다.`;
+  } else {
+    summary=`⚠️ 현재 ${highCount}개 품목에서 가격 변동 신호가 감지됐습니다. ${topRisk.it.name}이(가) 가장 높은 위험 수준입니다. 주산지 기상·출하량을 종합 분석한 결과입니다.`;
+  }
+  const elSummary=document.getElementById("brief-summary");
+  if(elSummary) elSummary.textContent=summary;
+
+  // 위험 품목 TOP 5
+  const elList=document.getElementById("brief-risk-list");
+  if(elList){
+    elList.innerHTML=ranked.slice(0,5).map(({k,it,score,level,prob})=>{
+      const lv=RL[level]||"정상";
+      const col=RC[level]||"#1a8a1a";
+      const bg=RB[level]||"#e8f5e9";
+      const probPct=Math.round(prob*100);
+      const dir=prob>0.55?"↑ 상승 가능":prob<0.45?"↓ 하락 가능":"→ 보합";
+      return`<div onclick="selectItem('${k}')" style="display:flex;align-items:center;gap:8px;padding:7px 9px;
+        background:${bg};border:1px solid ${col}22;border-radius:8px;cursor:pointer;transition:all .1s"
+        onmouseenter="this.style.opacity='.8'" onmouseleave="this.style.opacity='1'">
+        <span style="font-size:16px">${it.emoji}</span>
+        <div style="flex:1">
+          <div style="font-size:11px;font-weight:700;color:var(--text)">${it.name}</div>
+          <div style="font-size:9px;color:${col};font-weight:600">${dir} · ${probPct}%</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;font-weight:800;color:${col};background:white;border:1px solid ${col}44;
+            border-radius:12px;padding:2px 8px">${lv}</div>
+          <div style="font-size:9px;color:var(--dimmed);margin-top:2px">위험 ${score}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // 현재 시세 — LIVE_NATIONAL_PRICES에서 5종 표시
+  const elPrices=document.getElementById("brief-prices");
+  if(elPrices){
+    const priceItems=Object.entries(LIVE_NATIONAL_PRICES).slice(0,6);
+    if(priceItems.length){
+      elPrices.innerHTML=priceItems.map(([k,price])=>{
+        const it=ITEMS[k];if(!it||!price) return"";
+        const live=LIVE_ITEMS[k]||{};
+        const prob=live.up_prob??0.5;
+        const dir=prob>0.55?'↑':prob<0.45?'↓':'→';
+        const col=prob>0.55?"#c02828":prob<0.45?"#1a8a1a":"#6a1e9a";
+        return`<div onclick="selectItem('${k}')" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer">
+          <div style="font-size:9px;color:var(--muted);font-weight:600">${it.emoji} ${it.name}</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text)">${Math.round(price).toLocaleString()}원</div>
+          <div style="font-size:9px;font-weight:700;color:${col}">${dir} ${Math.round(Math.abs(prob-0.5)*40)}%</div>
+        </div>`;
+      }).join("");
+    } else {
+      elPrices.innerHTML=`<div style="font-size:11px;color:var(--muted);grid-column:span 2">시세 데이터 수집 중...</div>`;
+    }
+  }
 }
 
 // ── 실데이터 fetch ────────────────────────────────────────────────────────
@@ -924,6 +1070,7 @@ async function fetchLiveData(){
     });
     const dateLabel=LIVE_BASE_DATE?LIVE_BASE_DATE.slice(5).replace("-","."):"오늘";
     setDataStatusPill("live",`AI 예측 ${dateLabel} 기준`);
+    renderDefaultPanel();
   }catch(e){
     console.warn("실데이터 로드 실패:",e.message);
     setDataStatusPill("nodata","연결 실패");
@@ -1287,6 +1434,9 @@ function regionalPriceColor(sido){
   if(!sd) return null;
   return priceColor(sd.vs_national_pct||0);
 }
+// 기간 스케일 계수 (28일=1.0 기준, 90일=2.5)
+function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
+
 function modeColor(ents, sido){
   if(!ents.length) return"rgba(80,80,60,.18)";
   if(curMode==="production"){
@@ -1297,16 +1447,23 @@ function modeColor(ents, sido){
     const avg=ents.reduce((s,[,d])=>s+(d.risk_score||20),0)/ents.length;
     return riskColor(avg);
   }
-  // price — 실 지역 시세 우선
-  if(sido){const rc=regionalPriceColor(sido);if(rc)return rc;}
+  // price — 실 지역 시세 우선 (기간 스케일 적용)
+  if(sido){
+    const sidoName=SIDO_SHORT[sido];
+    const rp=LIVE_REGIONAL_PRICES[curItem];
+    if(rp&&sidoName&&rp.sido_avg){
+      const sd=rp.sido_avg[sidoName];
+      if(sd) return priceColor((sd.vs_national_pct||0)*periodScale());
+    }
+  }
   const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
-  return priceColor(avg);
+  return priceColor(avg*periodScale());
 }
 function modeCityColor(d){
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
   if(curMode==="risk")       return riskColor(d.risk_score||20);
-  return priceColor(d.price_vs_avg||0);
+  return priceColor((d.price_vs_avg||0)*periodScale());
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
