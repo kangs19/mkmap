@@ -197,12 +197,12 @@
     /* ── 멀티 horizon 예측 카드 ─── */
     .horizon-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
       margin-bottom: 16px;
     }
-    @media (max-width: 900px) { .horizon-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 500px) { .horizon-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 1100px) { .horizon-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 700px)  { .horizon-grid { grid-template-columns: repeat(2, 1fr); } }
     .horizon-card {
       background: white;
       border-radius: 10px;
@@ -242,15 +242,21 @@
 <div class="main">
   <!-- 예측 기간 탭 -->
   <div class="horizon-tabs" id="horizon-tabs">
-    <button class="horizon-tab active" data-horizon="14"  onclick="selectHorizon(14)">14일</button>
+    <button class="horizon-tab active" data-horizon="7"   onclick="selectHorizon(7)">1주</button>
+    <button class="horizon-tab"        data-horizon="14"  onclick="selectHorizon(14)">2주</button>
+    <button class="horizon-tab"        data-horizon="21"  onclick="selectHorizon(21)">3주</button>
+    <button class="horizon-tab"        data-horizon="28"  onclick="selectHorizon(28)">4주</button>
     <button class="horizon-tab"        data-horizon="30"  onclick="selectHorizon(30)">1개월</button>
     <button class="horizon-tab"        data-horizon="60"  onclick="selectHorizon(60)">2개월</button>
     <button class="horizon-tab"        data-horizon="90"  onclick="selectHorizon(90)">3개월</button>
   </div>
 
-  <!-- 멀티 horizon 예측 카드 (4개) -->
+  <!-- 멀티 horizon 예측 카드 (7개) -->
   <div class="horizon-grid" id="horizon-grid">
-    <div class="horizon-card" id="hcard-14"><div class="horizon-label">14일 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-7" ><div class="horizon-label">1주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-14"><div class="horizon-label">2주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-21"><div class="horizon-label">3주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-28"><div class="horizon-label">4주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-30"><div class="horizon-label">1개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-60"><div class="horizon-label">2개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
     <div class="horizon-card" id="hcard-90"><div class="horizon-label">3개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
@@ -259,13 +265,13 @@
   <!-- 상단 요약 카드 (선택된 horizon 기준) -->
   <div class="grid grid-3" style="margin-bottom:16px;">
     <div class="card">
-      <div class="card-title" id="kpi-direction-title">14일 가격 방향 예측</div>
+      <div class="card-title" id="kpi-direction-title">1주 가격 방향 예측</div>
       <div id="kpi-direction" class="direction-badge dir-neutral">— 로딩 중</div>
       <div class="prob-bar"><div class="prob-fill" id="kpi-prob-bar" style="width:50%; background:#ccc;"></div></div>
       <div class="card-sub" id="kpi-prob-text">데이터 없음</div>
     </div>
     <div class="card">
-      <div class="card-title">급등 확률 (14일 내 +15%)</div>
+      <div class="card-title">급등 확률 (1주 내 +15%)</div>
       <div id="kpi-surge" class="card-value">—</div>
       <div class="card-sub" id="kpi-volatility">변동성: —</div>
     </div>
@@ -318,7 +324,7 @@
   </div>
 
   <div class="disclaimer">
-    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(14일·1개월·2개월·3개월)을 기반으로 한 참고 정보입니다.
+    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(1주·2주·3주·4주·1개월·2개월·3개월)을 기반으로 한 참고 정보입니다.
     실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
   </div>
 </div>
@@ -331,11 +337,11 @@ const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
 const RISK_LABEL = { normal: "정상", caution: "주의", warning: "경고", high: "위험" };
 const VOL_LABEL  = { low: "안정", medium: "보통", high: "높음" };
 const CONF_LABEL = { high: "높음", medium: "중간", low: "낮음" };
-const HORIZON_LABEL = { 14: "14일", 30: "1개월", 60: "2개월", 90: "3개월" };
+const HORIZON_LABEL = { 7: "1주", 14: "2주", 21: "3주", 28: "4주", 30: "1개월", 60: "2개월", 90: "3개월" };
 
 let items = [];
 let currentItem = null;
-let currentHorizon = 14;
+let currentHorizon = 7;
 let priceChart = null;
 let allHorizonsCache = {};   // item_code → horizons 응답 캐시
 
@@ -392,8 +398,7 @@ async function selectItem(item_code) {
     renderHorizonCards(allHz.horizons);
     const hz = allHz.horizons[String(currentHorizon)];
     if (hz) renderKPIsFromHorizon(hz, item_code);
-    // factors는 14일 기준 forecast에서 가져옴
-    const fc14 = await fetch(`${API}/api/v1/items/${item_code}/forecast?horizon=14`).then(r=>r.json()).catch(()=>null);
+    const fc14 = await fetch(`${API}/api/v1/items/${item_code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null);
     renderFactors(fc14);
   }
   renderChart(history);
@@ -401,7 +406,7 @@ async function selectItem(item_code) {
 
 // ── horizon 카드 4개 렌더 ────────────────────────────────
 function renderHorizonCards(horizons) {
-  [14, 30, 60, 90].forEach(h => {
+  [7, 14, 21, 28, 30, 60, 90].forEach(h => {
     const el = document.getElementById(`hcard-${h}`);
     if (!el) return;
     const hz = horizons[String(h)];
@@ -573,7 +578,7 @@ async function loadOverview() {
 
   // 테이블 헤더 업데이트
   document.querySelector(".overview-table thead tr").innerHTML =
-    `<th>품목</th><th>14일</th><th>1개월</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
+    `<th>품목</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>1개월</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
 
   const nameMap = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
 
@@ -600,7 +605,7 @@ async function loadOverview() {
     return `
       <tr onclick="selectItem('${code}')" style="cursor:pointer;">
         <td><strong>${name}</strong></td>
-        ${cell(14)}${cell(30)}${cell(60)}${cell(90)}
+        ${cell(7)}${cell(14)}${cell(21)}${cell(28)}${cell(30)}${cell(60)}${cell(90)}
         <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
       </tr>`;
   }).join("");

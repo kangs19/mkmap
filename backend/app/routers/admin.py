@@ -1590,7 +1590,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     model_dir = REPO_ROOT / "data" / "model"
     model_dir.mkdir(parents=True, exist_ok=True)
 
-    HORIZONS = [14, 30, 60, 90]
+    HORIZONS = [7, 14, 21, 28, 30, 60, 90]
 
     # price_rows를 한 번만 기본 feature로 변환 (horizon-independent 부분)
     # 각 horizon별로 target만 다름 → horizon별로 별도 df 빌드
