@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/v1/items", tags=["forecasts"])
 async def get_forecast(
     item_code: str,
     target_date: str = None,
+    horizon: int = 14,
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Item).where(Item.item_code == item_code))
@@ -33,18 +34,21 @@ async def get_forecast(
     fc_result = await db.execute(
         select(Forecast).where(
             Forecast.item_code == item_code,
-            Forecast.base_date == base_date
+            Forecast.base_date == base_date,
+            Forecast.horizon_days == horizon,
         ).order_by(Forecast.created_at.desc())
     )
     fc = fc_result.scalar_one_or_none()
 
     if not fc:
-        # 예측 데이터 없을 때 — 파이프라인 미실행 상태
         raise HTTPException(status_code=404, detail={
             "error": "forecast_not_found",
-            "message": f"'{base_date}' 날짜의 예측 데이터가 없습니다. 파이프라인을 먼저 실행하세요.",
+            "message": f"'{base_date}' 날짜 horizon={horizon}일 예측 데이터가 없습니다.",
             "code": 404
         })
+
+    direction = fc.direction or fc.direction_14d
+    up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
 
     return ForecastResponse(
         item_code=fc.item_code,
@@ -53,6 +57,9 @@ async def get_forecast(
         model_version=fc.model_version,
         model_scope=_model_scope(fc),
         forecast={
+            "horizon_days": fc.horizon_days,
+            "direction": direction,
+            "up_probability": up_prob,
             "direction_14d": fc.direction_14d,
             "up_probability_14d": fc.up_probability_14d,
             "surge_probability_14d": fc.surge_probability_14d,
@@ -62,15 +69,66 @@ async def get_forecast(
         top_factors=[TopFactor(**f) for f in (fc.top_factors or [])],
         national_supply_shock=fc.national_supply_shock,
         confidence=fc.confidence,
-        summary=_build_summary(fc, item.item_name),
+        summary=_build_summary(fc, item.item_name, horizon),
     )
 
 
-def _build_summary(fc: Forecast, item_name: str) -> str:
+@router.get("/{item_code}/forecasts")
+async def get_all_horizons(
+    item_code: str,
+    target_date: str = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """14/30/60/90일 예측을 한 번에 반환."""
+    result = await db.execute(select(Item).where(Item.item_code == item_code))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail={"error": "item_not_found", "code": 404})
+
+    base_date = date.fromisoformat(target_date) if target_date else kst_today()
+
+    fc_rows = (await db.execute(
+        select(Forecast).where(
+            Forecast.item_code == item_code,
+            Forecast.base_date == base_date,
+        ).order_by(Forecast.horizon_days)
+    )).scalars().all()
+
+    if not fc_rows:
+        raise HTTPException(status_code=404, detail={
+            "error": "forecast_not_found",
+            "message": f"'{base_date}' 날짜의 예측 데이터가 없습니다.",
+            "code": 404,
+        })
+
+    horizons = {}
+    for fc in fc_rows:
+        direction = fc.direction or fc.direction_14d
+        up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
+        horizons[str(fc.horizon_days)] = {
+            "horizon_days": fc.horizon_days,
+            "direction": direction,
+            "up_probability": up_prob,
+            "bottom_probability": fc.bottom_probability,
+            "confidence": fc.confidence,
+            "model_version": fc.model_version,
+        }
+
+    return {
+        "item_code": item_code,
+        "item_name": item.item_name,
+        "base_date": str(base_date),
+        "horizons": horizons,
+    }
+
+
+def _build_summary(fc: Forecast, item_name: str, horizon: int = 14) -> str:
     direction_map = {"up": "상승", "down": "하락", "neutral": "보합"}
-    direction = direction_map.get(fc.direction_14d, "불명확")
-    prob = int((fc.up_probability_14d or 0) * 100)
-    return f"{item_name}은(는) 14일 내 {direction} 가능성이 {prob}%입니다."
+    direction = direction_map.get(fc.direction or fc.direction_14d or "", "불명확")
+    up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
+    prob = int((up_prob or 0) * 100)
+    label = {14: "14일", 30: "1개월", 60: "2개월", 90: "3개월"}.get(horizon, f"{horizon}일")
+    return f"{item_name}은(는) {label} 내 {direction} 가능성이 {prob}%입니다."
 
 
 def _model_scope(fc: Forecast) -> str:
@@ -150,6 +208,7 @@ async def _load_item_forecast(
     item_code: str,
     target_date: str | None,
     db: AsyncSession,
+    horizon: int = 14,
 ) -> tuple[Item, Forecast, date]:
     result = await db.execute(select(Item).where(Item.item_code == item_code))
     item = result.scalar_one_or_none()
@@ -165,6 +224,7 @@ async def _load_item_forecast(
         select(Forecast).where(
             Forecast.item_code == item_code,
             Forecast.base_date == base_date,
+            Forecast.horizon_days == horizon,
         ).order_by(Forecast.created_at.desc())
     )
     fc = fc_result.scalar_one_or_none()

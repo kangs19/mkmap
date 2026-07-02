@@ -94,18 +94,42 @@ async def init_db():
                         "ON daily_weather (region_code, date, source)"
                     )
                 )
+                # forecasts: horizon_days 컬럼 추가 + 새 unique constraint
+                await conn.execute(text(
+                    "ALTER TABLE forecasts ADD COLUMN IF NOT EXISTS horizon_days INTEGER NOT NULL DEFAULT 14"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE forecasts ADD COLUMN IF NOT EXISTS direction VARCHAR(20)"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE forecasts ADD COLUMN IF NOT EXISTS up_probability FLOAT"
+                ))
+                # 기존 단일 인덱스 삭제 후 horizon 포함 인덱스 생성
+                await conn.execute(text(
+                    "DROP INDEX IF EXISTS uq_forecasts_item_date"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE forecasts DROP CONSTRAINT IF EXISTS uq_forecasts_item_date"
+                ))
+                # 기존 데이터에 horizon_days=14 반영 (direction/up_probability 동기화)
+                await conn.execute(text("""
+                    UPDATE forecasts
+                    SET direction = direction_14d,
+                        up_probability = up_probability_14d
+                    WHERE direction IS NULL AND direction_14d IS NOT NULL
+                """))
+                # 중복 제거 (item_code + base_date + horizon_days 기준)
                 await conn.execute(text("""
                     DELETE FROM forecasts a
                     USING forecasts b
                     WHERE a.id > b.id
                       AND a.item_code = b.item_code
                       AND a.base_date = b.base_date
+                      AND a.horizon_days = b.horizon_days
                 """))
-                await conn.execute(
-                    text(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_forecasts_item_date "
-                        "ON forecasts (item_code, base_date)"
-                    )
-                )
+                await conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_forecasts_item_date_horizon "
+                    "ON forecasts (item_code, base_date, horizon_days)"
+                ))
             except Exception:
                 pass  # 이미 존재하거나 다른 이유로 실패해도 무시

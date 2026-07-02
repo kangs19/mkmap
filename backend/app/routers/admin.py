@@ -1236,6 +1236,7 @@ _lgbm_sem = _asyncio.Semaphore(1)
 def _build_price_features_from_db(
     price_rows: list,
     item_weather: "dict | None" = None,
+    horizon: int = 14,
 ) -> "pd.DataFrame":
     """DailyPrice rows → per-item feature DataFrame (lag + rolling + weather features)."""
     import pandas as pd
@@ -1271,7 +1272,7 @@ def _build_price_features_from_db(
         feat["ret_7"] = (g["price"] - g["price"].shift(7)) / (g["price"].shift(7).abs() + 1e-8)
         feat["ret_14"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
 
-        feat["target"] = (g["price"] - g["price"].shift(14)) / (g["price"].shift(14).abs() + 1e-8)
+        feat["target"] = (g["price"] - g["price"].shift(horizon)) / (g["price"].shift(horizon).abs() + 1e-8)
         feat["direction"] = (feat["target"] > 0).astype(int)
 
         feat["month"] = [d.month for d in g.index]
@@ -1333,7 +1334,7 @@ def _build_price_features_from_db(
     return df
 
 
-def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
+def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str, horizon: int = 14) -> dict:
     """Train Ridge + LightGBM ensemble on a single item. Returns metrics dict."""
     import numpy as np
     import pickle
@@ -1552,120 +1553,126 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     except ImportError:
         return {"error": "pandas not available on Railway"}
 
-    df = await asyncio.get_running_loop().run_in_executor(
-        None, functools.partial(_build_price_features_from_db, price_rows, item_weather)
-    )
-    if df.empty:
-        return {"error": "feature table is empty after dropna"}
-
     import json as _json
+    import pickle as _pickle
+    import numpy as _np
+    from app.models.forecast import Forecast
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     model_dir = REPO_ROOT / "data" / "model"
     model_dir.mkdir(parents=True, exist_ok=True)
 
-    item_codes = df["item_code"].unique().tolist()
-    for item_code in item_codes:
-        df_item = df[df["item_code"] == item_code].copy()
-        item_result = await asyncio.get_running_loop().run_in_executor(
-            None, functools.partial(_train_lgbm_for_item, df_item, item_code)
-        )
-        # Separate in-memory model objects before storing metrics
-        _objects = item_result.pop("_objects", {})
-        results_per_item[item_code] = {k: v for k, v in item_result.items()}
+    HORIZONS = [14, 30, 60, 90]
 
-        if "error" in item_result:
+    # price_rows를 한 번만 기본 feature로 변환 (horizon-independent 부분)
+    # 각 horizon별로 target만 다름 → horizon별로 별도 df 빌드
+    for horizon in HORIZONS:
+        df = await asyncio.get_running_loop().run_in_executor(
+            None, functools.partial(_build_price_features_from_db, price_rows, item_weather, horizon)
+        )
+        if df.empty:
+            results_per_item[f"horizon_{horizon}"] = {"error": "feature table empty"}
             continue
 
-        # Save model objects to .pkl file (no base64 JSON embed)
-        import pickle as _pickle
-        pkl_path = model_dir / f"lgbm_ensemble_{item_code}.pkl"
-        pkl_path.write_bytes(_pickle.dumps(_objects))
-        # Save metrics as JSON
-        metrics_path = model_dir / f"lgbm_ensemble_{item_code}.json"
-        metrics_path.write_text(
-            _json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
-        )
-
-        # Generate today's prediction and save to Forecast table
-        try:
-            from app.models.forecast import Forecast
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-            import numpy as np
-
-            # Use model objects already in memory
-            scaler = _objects.get("scaler")
-            ridge = _objects.get("ridge")
-            lgbm_model = _objects.get("lgbm")
-            calibrator = _objects.get("calibrator")
-            threshold = float(_objects.get("threshold", 0.0))
-
-            # Get latest feature row for prediction
-            df_item_sorted = df_item.sort_values("base_date")
-            FEATURE_COLS = [c for c in df_item.columns if c not in
-                            ("item_code", "price", "target", "direction", "base_date", "month", "dayofyear")]
-            latest = df_item_sorted.iloc[-1]
-            X_latest = latest[FEATURE_COLS].values.astype(float).reshape(1, -1)
-
-            X_scaled = scaler.transform(X_latest)
-            pred_ridge = float(ridge.predict(X_scaled)[0])
-            pred_lgbm = float(lgbm_model.predict(X_latest)[0]) if lgbm_model else None
-            pred_ens = (pred_ridge + pred_lgbm) / 2 if pred_lgbm is not None else pred_ridge
-
-            # Direction + probability
-            direction = "up" if pred_ens > threshold else "down"
-            if calibrator is not None:
-                sigmoid_val = 1.0 / (1.0 + np.exp(-np.clip((pred_ens - threshold) * 20, -20, 20)))
-                up_prob = float(calibrator.predict([sigmoid_val])[0])
-            else:
-                up_prob = float(1.0 / (1.0 + np.exp(-np.clip((pred_ens - threshold) * 10, -10, 10))))
-            up_prob = max(0.05, min(0.95, up_prob))
-
-            today = kst_today()
-            top_factors = [
-                {"factor": "lgbm_ensemble", "contribution": round(abs(pred_ens), 6), "direction": direction},
-                {"factor": "weather_features", "contribution": round(abs(item_result.get("features", 0)) / 100, 4), "direction": direction},
-            ]
-
-            stmt = pg_insert(Forecast).values([{
-                "item_code": item_code,
-                "base_date": today,
-                "model_version": f"lgbm_ensemble_v1_{item_code}",
-                "direction_14d": direction,
-                "up_probability_14d": round(up_prob, 4),
-                "surge_probability_14d": round(max(0.0, up_prob - 0.6), 4),
-                "volatility_risk_30d": "high" if item_result.get("overfit_ratio", 0) and item_result["overfit_ratio"] > 2 else "medium",
-                "bottom_probability": round(1.0 - up_prob, 4),
-                "top_factors": top_factors,
-                "national_supply_shock": round(pred_ens, 6),
-                "confidence": "high" if item_result.get("test_dir_acc", 0) >= 0.75 else "medium",
-            }]).on_conflict_do_update(
-                index_elements=["item_code", "base_date"],
-                set_={
-                    "model_version": pg_insert(Forecast).excluded.model_version,
-                    "direction_14d": pg_insert(Forecast).excluded.direction_14d,
-                    "up_probability_14d": pg_insert(Forecast).excluded.up_probability_14d,
-                    "surge_probability_14d": pg_insert(Forecast).excluded.surge_probability_14d,
-                    "volatility_risk_30d": pg_insert(Forecast).excluded.volatility_risk_30d,
-                    "bottom_probability": pg_insert(Forecast).excluded.bottom_probability,
-                    "top_factors": pg_insert(Forecast).excluded.top_factors,
-                    "national_supply_shock": pg_insert(Forecast).excluded.national_supply_shock,
-                    "confidence": pg_insert(Forecast).excluded.confidence,
-                }
+        item_codes = df["item_code"].unique().tolist()
+        for item_code in item_codes:
+            key = f"{item_code}_h{horizon}"
+            df_item = df[df["item_code"] == item_code].copy()
+            item_result = await asyncio.get_running_loop().run_in_executor(
+                None, functools.partial(_train_lgbm_for_item, df_item, item_code, horizon)
             )
-            await db.execute(stmt)
-            await db.commit()
-            results_per_item[item_code]["forecast_saved"] = True
-            results_per_item[item_code]["forecast_direction"] = direction
-            results_per_item[item_code]["forecast_up_prob"] = round(up_prob, 4)
-        except Exception as e:
-            results_per_item[item_code]["forecast_error"] = str(e)
-            await db.rollback()
+            _objects = item_result.pop("_objects", {})
+            results_per_item[key] = {k: v for k, v in item_result.items()}
+
+            if "error" in item_result:
+                continue
+
+            # Save model .pkl
+            pkl_path = model_dir / f"lgbm_ensemble_{item_code}_h{horizon}.pkl"
+            pkl_path.write_bytes(_pickle.dumps(_objects))
+            # Save metrics JSON
+            metrics_path = model_dir / f"lgbm_ensemble_{item_code}_h{horizon}.json"
+            metrics_path.write_text(
+                _json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
+            )
+
+            # Predict today → save Forecast row
+            try:
+                scaler = _objects.get("scaler")
+                ridge = _objects.get("ridge")
+                lgbm_model = _objects.get("lgbm")
+                calibrator = _objects.get("calibrator")
+                threshold = float(_objects.get("threshold", 0.0))
+
+                df_item_sorted = df_item.sort_values("base_date")
+                FEATURE_COLS = [c for c in df_item.columns if c not in
+                                ("item_code", "price", "target", "direction", "base_date", "month", "dayofyear")]
+                latest = df_item_sorted.iloc[-1]
+                X_latest = latest[FEATURE_COLS].values.astype(float).reshape(1, -1)
+
+                X_scaled = scaler.transform(X_latest)
+                pred_ridge = float(ridge.predict(X_scaled)[0])
+                pred_lgbm = float(lgbm_model.predict(X_latest)[0]) if lgbm_model else None
+                pred_ens = (pred_ridge + pred_lgbm) / 2 if pred_lgbm is not None else pred_ridge
+
+                direction = "up" if pred_ens > threshold else "down"
+                if calibrator is not None:
+                    sigmoid_val = 1.0 / (1.0 + _np.exp(-_np.clip((pred_ens - threshold) * 20, -20, 20)))
+                    up_prob = float(calibrator.predict([sigmoid_val])[0])
+                else:
+                    up_prob = float(1.0 / (1.0 + _np.exp(-_np.clip((pred_ens - threshold) * 10, -10, 10))))
+                up_prob = max(0.05, min(0.95, up_prob))
+
+                today = kst_today()
+                top_factors = [
+                    {"factor": "lgbm_ensemble", "contribution": round(abs(pred_ens), 6), "direction": direction},
+                ]
+                stmt = pg_insert(Forecast).values([{
+                    "item_code": item_code,
+                    "base_date": today,
+                    "horizon_days": horizon,
+                    "model_version": f"lgbm_v2_{item_code}_h{horizon}",
+                    "direction": direction,
+                    "up_probability": round(up_prob, 4),
+                    "direction_14d": direction if horizon == 14 else None,
+                    "up_probability_14d": round(up_prob, 4) if horizon == 14 else None,
+                    "surge_probability_14d": round(max(0.0, up_prob - 0.6), 4) if horizon == 14 else None,
+                    "volatility_risk_30d": "high" if item_result.get("overfit_ratio", 0) and item_result["overfit_ratio"] > 2 else "medium",
+                    "bottom_probability": round(1.0 - up_prob, 4),
+                    "top_factors": top_factors,
+                    "national_supply_shock": round(pred_ens, 6),
+                    "confidence": "high" if item_result.get("test_dir_acc", 0) >= 0.65 else "medium",
+                }]).on_conflict_do_update(
+                    index_elements=["item_code", "base_date", "horizon_days"],
+                    set_={
+                        "model_version": pg_insert(Forecast).excluded.model_version,
+                        "direction": pg_insert(Forecast).excluded.direction,
+                        "up_probability": pg_insert(Forecast).excluded.up_probability,
+                        "direction_14d": pg_insert(Forecast).excluded.direction_14d,
+                        "up_probability_14d": pg_insert(Forecast).excluded.up_probability_14d,
+                        "surge_probability_14d": pg_insert(Forecast).excluded.surge_probability_14d,
+                        "volatility_risk_30d": pg_insert(Forecast).excluded.volatility_risk_30d,
+                        "bottom_probability": pg_insert(Forecast).excluded.bottom_probability,
+                        "top_factors": pg_insert(Forecast).excluded.top_factors,
+                        "national_supply_shock": pg_insert(Forecast).excluded.national_supply_shock,
+                        "confidence": pg_insert(Forecast).excluded.confidence,
+                    }
+                )
+                await db.execute(stmt)
+                await db.commit()
+                results_per_item[key]["forecast_saved"] = True
+                results_per_item[key]["forecast_direction"] = direction
+                results_per_item[key]["forecast_up_prob"] = round(up_prob, 4)
+            except Exception as e:
+                results_per_item[key]["forecast_error"] = str(e)[:200]
+                await db.rollback()
 
     elapsed = round(time.monotonic() - started, 1)
     return {
         "elapsed_seconds": elapsed,
         "items": results_per_item,
         "total_rows": len(price_rows),
-        "total_features_rows": len(df),
+        "horizons": HORIZONS,
     }
 
 
