@@ -260,11 +260,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     FARM <span>MAP</span>
   </div>
   <nav class="fm-nav">
-    <button class="fm-nav-item active">실시간 지도</button>
+    <button class="fm-nav-item active" onclick="switchNavView('map',this)">실시간 지도</button>
     <a href="/forecast-explanation" class="fm-nav-item" style="text-decoration:none">가격 예측 설명</a>
-    <button class="fm-nav-item">재배 면적</button>
-    <button class="fm-nav-item">리스크 분석</button>
-    <button class="fm-nav-item">시장 동향</button>
+    <button class="fm-nav-item" onclick="switchNavView('production',this)">재배 면적</button>
+    <button class="fm-nav-item" onclick="switchNavView('risk',this)">리스크 분석</button>
+    <button class="fm-nav-item" onclick="switchNavView('price',this)">시장 동향</button>
   </nav>
   <div class="fm-header-right">
     <div class="fm-date-box" id="hdr-date">
@@ -492,11 +492,29 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 <script>
 // ── 데이터 ──────────────────────────────────────────────────────────────────
 const ITEMS={
-  cabbage:{name:"배추",emoji:"🥬",unit:"10kg",unitkg:"kg",direction:"down",up_prob:.39,surge_prob:.28,volatility:"high",confidence:"medium",hotspot:"강원도",risk_level:"normal",risk_score:22,horizon:14},
-  radish:{name:"무",emoji:"🌿",unit:"20kg",unitkg:"kg",direction:"neutral",up_prob:.51,surge_prob:.18,volatility:"medium",confidence:"medium",hotspot:"제주도",risk_level:"normal",risk_score:19,horizon:14},
-  onion:{name:"양파",emoji:"🧅",unit:"20kg",unitkg:"kg",direction:"up",up_prob:.59,surge_prob:.48,volatility:"high",confidence:"medium",hotspot:"경상남도",risk_level:"caution",risk_score:52,horizon:21},
-  green_onion:{name:"대파",emoji:"🌱",unit:"1kg",unitkg:"kg",direction:"down",up_prob:.38,surge_prob:.32,volatility:"high",confidence:"low",hotspot:"전라남도",risk_level:"warning",risk_score:62,horizon:7},
-  garlic:{name:"마늘",emoji:"🧄",unit:"10kg",unitkg:"kg",direction:"down",up_prob:.26,surge_prob:.12,volatility:"low",confidence:"high",hotspot:"경상북도",risk_level:"normal",risk_score:24,horizon:21},
+  cabbage:     {name:"배추",  emoji:"🥬",unit:"10kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.25,volatility:"medium",confidence:"medium",hotspot:"강원도",  risk_level:"normal",risk_score:25,horizon:14},
+  radish:      {name:"무",   emoji:"🌿",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.18,volatility:"medium",confidence:"medium",hotspot:"제주도",  risk_level:"normal",risk_score:20,horizon:14},
+  onion:       {name:"양파", emoji:"🧅",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.30,volatility:"medium",confidence:"medium",hotspot:"경상남도",risk_level:"normal",risk_score:30,horizon:14},
+  green_onion: {name:"대파", emoji:"🌱",unit:"1kg",  unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.25,volatility:"medium",confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:25,horizon:14},
+  garlic:      {name:"마늘", emoji:"🧄",unit:"10kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  potato:      {name:"감자", emoji:"🥔",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"강원도",  risk_level:"normal",risk_score:20,horizon:14},
+  sweet_potato:{name:"고구마",emoji:"🍠",unit:"20kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:20,horizon:14},
+  pepper:      {name:"건고추",emoji:"🌶️",unit:"30kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  fresh_pepper:{name:"풋고추",emoji:"🌶️",unit:"10kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:20,horizon:14},
+  tomato:      {name:"토마토",emoji:"🍅",unit:"10kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  cucumber:    {name:"오이", emoji:"🥒",unit:"100개",unitkg:"개",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경기도",  risk_level:"normal",risk_score:20,horizon:14},
+  zucchini:    {name:"애호박",emoji:"🫑",unit:"20kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경기도",  risk_level:"normal",risk_score:20,horizon:14},
+  carrot:      {name:"당근", emoji:"🥕",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"제주도",  risk_level:"normal",risk_score:15,horizon:14},
+  spinach:     {name:"시금치",emoji:"🌿",unit:"4kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상남도",risk_level:"normal",risk_score:20,horizon:14},
+  lettuce:     {name:"상추", emoji:"🥬",unit:"4kg",  unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경기도",  risk_level:"normal",risk_score:20,horizon:14},
+  perilla:     {name:"깻잎", emoji:"🍃",unit:"100장",unitkg:"장",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상남도",risk_level:"normal",risk_score:15,horizon:14},
+  watermelon:  {name:"수박", emoji:"🍉",unit:"1개",  unitkg:"개",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"충청남도",risk_level:"normal",risk_score:20,horizon:14},
+  chamoe:      {name:"참외", emoji:"🍈",unit:"10개", unitkg:"개",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  sesame:      {name:"참깨", emoji:"🌾",unit:"30kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:15,horizon:14},
+  apple:       {name:"사과", emoji:"🍎",unit:"10kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  pear:        {name:"배",   emoji:"🍐",unit:"15kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"충청남도",risk_level:"normal",risk_score:15,horizon:14},
+  grape:       {name:"포도", emoji:"🍇",unit:"5kg",  unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:15,horizon:14},
+  strawberry:  {name:"딸기", emoji:"🍓",unit:"1kg",  unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상남도",risk_level:"normal",risk_score:15,horizon:14},
 };
 
 const CITY_DATA={
@@ -645,6 +663,26 @@ function selectItem(k){
   } else { redrawMap(); }
 }
 
+// ── 상단 네비게이션 뷰 전환 ──────────────────────────────────────────────
+function switchNavView(mode, btn){
+  document.querySelectorAll(".fm-nav-item").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(mode==="map"){
+    curMode="production";
+  } else if(mode==="production"){
+    curMode="production";
+  } else if(mode==="risk"){
+    curMode="risk";
+  } else if(mode==="price"){
+    curMode="price";
+  }
+  // 지도 모드 버튼 동기화
+  document.querySelectorAll(".fm-map-mode-btn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.mode===curMode);
+  });
+  redrawMap();
+}
+
 // ── 레이어·기간 ───────────────────────────────────────────────────────────
 function handleLayer(el,layer){
   el.closest(".fm-layer-item").classList.toggle("active",el.checked);
@@ -703,10 +741,11 @@ async function fetchLiveData(){
     }
     items.forEach(it=>{
       if(!it.item_code) return;
-      const dir=it.up_probability_14d>0.55?"up":it.up_probability_14d<0.45?"down":"neutral";
+      const prob=it.up_probability??it.up_probability_14d??0.5;
+      const dir=prob>0.55?"up":prob<0.45?"down":"neutral";
       LIVE_ITEMS[it.item_code]={
         direction:it.direction_14d||dir,
-        up_prob:it.up_probability_14d??ITEMS[it.item_code]?.up_prob,
+        up_prob:prob,
         risk_level:it.risk_level||ITEMS[it.item_code]?.risk_level,
         risk_score:it.risk_score||ITEMS[it.item_code]?.risk_score,
       };
