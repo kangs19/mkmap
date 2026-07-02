@@ -1436,6 +1436,17 @@ function regionalPriceColor(sido){
 }
 // 기간 스케일 계수 (28일=1.0 기준, 90일=2.5)
 function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
+// 기간별 글로벌 예측 변화율 (핀 라벨용) — up_prob 기반
+function globalForecastPct(days){
+  const upProb=LIVE_ITEMS[curItem]?.up_prob??0.5;
+  // ±20% max at 90days; neutral(0.5)→0%
+  return (upProb-0.5)*40*(days/90);
+}
+// 현재가에 기간 예측 반영한 가격 계산
+function applyForecast(basePrice,days){
+  if(!basePrice||days<=7) return basePrice;
+  return Math.round(basePrice*(1+globalForecastPct(days)/100));
+}
 
 function modeColor(ents, sido){
   if(!ents.length) return"rgba(80,80,60,.18)";
@@ -1663,16 +1674,22 @@ function getRegionalSidoData(sidoKR){
 }
 function makePinHtml(name,d,sidoKR){
   const rp=sidoKR?getRegionalSidoData(sidoKR):null;
+  const isCurrent=(curPeriod<=7);
+  const periodLabel=isCurrent?'현재':(PERIOD_LABEL[curPeriod]||curPeriod+'일')+' 후 예측';
   if(rp){
     const w=rp.wholesale,rt=rp.retail,pct=rp.vs_national_pct||0;
+    const pw=applyForecast(w,curPeriod);
+    const pr=applyForecast(rt,curPeriod);
     const pctStr=(pct>0?'+':'')+pct.toFixed(1)+'%';
     const pctColor=pct>5?'#c02828':pct<-5?'#1a8a1a':'#6a1e9a';
-    // 실가격 표시 — 도매/소매 나란히
+    const fctPct=globalForecastPct(curPeriod);
+    const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
+    const fctStr=isCurrent?(pctStr+' vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     return`<div class="region-pin">
       <div class="rp-name">${name}</div>
-      <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.4">🏪 ${w.toLocaleString()}원</div>
-      <div style="font-size:10px;font-weight:700;color:#5a7a9a;line-height:1.4">🛒 ${rt.toLocaleString()}원</div>
-      <div style="font-size:9px;font-weight:700;color:${pctColor}">${pctStr} vs평균</div>
+      <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.4">🏪 ${pw.toLocaleString()}원</div>
+      <div style="font-size:10px;font-weight:700;color:#5a7a9a;line-height:1.4">🛒 ${pr.toLocaleString()}원</div>
+      <div style="font-size:9px;font-weight:700;color:${isCurrent?pctColor:fctColor}">${fctStr}</div>
     </div>`;
   }
   if(!d)return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
@@ -1680,10 +1697,13 @@ function makePinHtml(name,d,sidoKR){
   const sign=chg>0?'+':'';
   const cls=chg>5?'up':chg<-5?'down':'flat';
   const baseP=d.avg_price||LIVE_NATIONAL_PRICES[curItem]||0;
+  const predP=applyForecast(baseP,curPeriod);
+  const fctPct=globalForecastPct(curPeriod);
+  const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
   return`<div class="region-pin">
     <div class="rp-name">${name}</div>
-    ${baseP?`<div class="rp-price">${baseP.toLocaleString()}원</div>`:''}
-    <div class="rp-chg ${cls}">${sign}${chg.toFixed(1)}%</div>
+    ${predP?`<div class="rp-price">${predP.toLocaleString()}원</div>`:''}
+    <div class="rp-chg ${cls}">${fctStr}</div>
   </div>`;
 }
 
