@@ -252,3 +252,45 @@ async def get_map_production(
             for r in rows
         ],
     }
+
+
+@router.get("/api/v1/map/weather")
+async def get_map_weather(
+    db: AsyncSession = Depends(get_db),
+):
+    """지도 날씨 레이어 — 지역별 최신 날씨"""
+    from app.models.weather import DailyWeather
+    from sqlalchemy import func as sqlfunc
+
+    subq = (
+        select(DailyWeather.region_code, sqlfunc.max(DailyWeather.date).label("max_date"))
+        .group_by(DailyWeather.region_code)
+        .subquery()
+    )
+    result = await db.execute(
+        select(DailyWeather).join(
+            subq,
+            (DailyWeather.region_code == subq.c.region_code) &
+            (DailyWeather.date == subq.c.max_date)
+        )
+    )
+    rows = result.scalars().all()
+    return {
+        "base_date": str(rows[0].date) if rows else None,
+        "regions": [
+            {
+                "region_code": r.region_code,
+                "region_name": r.region_name,
+                "avg_temp": r.avg_temp,
+                "max_temp": r.max_temp,
+                "min_temp": r.min_temp,
+                "precipitation": r.precipitation,
+                "humidity": r.humidity,
+                "heat_alert": r.heat_alert,
+                "cold_alert": r.cold_alert,
+                "heavy_rain_alert": r.heavy_rain_alert,
+                "temp_anomaly": round(r.avg_temp - r.normal_avg_temp, 1) if r.avg_temp and r.normal_avg_temp else None,
+            }
+            for r in rows
+        ],
+    }

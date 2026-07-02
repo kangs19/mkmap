@@ -706,9 +706,121 @@ function switchNavView(mode, btn){
   redrawMap();
 }
 
+// ── 레이어 상태 ──────────────────────────────────────────────────────────
+const activeLayers=new Set(["production","price","weather"]);
+let weatherMarkerLayer=null, marketMarkerLayer=null;
+
+// 주요 도매시장 위치 (위도, 경도, 이름)
+const MARKETS=[
+  {lat:37.494,lng:127.114,name:"가락시장",type:"중앙도매"},
+  {lat:37.569,lng:126.863,name:"강서시장",type:"중앙도매"},
+  {lat:35.152,lng:129.072,name:"반여시장",type:"지방도매"},
+  {lat:35.876,lng:128.602,name:"북부시장",type:"지방도매"},
+  {lat:35.826,lng:127.108,name:"전주시장",type:"지방도매"},
+  {lat:34.748,lng:127.736,name:"순천시장",type:"지방도매"},
+  {lat:36.351,lng:127.378,name:"대전오정",type:"지방도매"},
+  {lat:37.756,lng:128.896,name:"강릉시장",type:"지방도매"},
+];
+
+function showToast(msg){
+  let t=document.getElementById("fm-toast");
+  if(!t){t=document.createElement("div");t.id="fm-toast";
+    t.style.cssText="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;";
+    document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity="1";
+  clearTimeout(t._timer);t._timer=setTimeout(()=>t.style.opacity="0",2500);
+}
+
 // ── 레이어·기간 ───────────────────────────────────────────────────────────
 function handleLayer(el,layer){
   el.closest(".fm-layer-item").classList.toggle("active",el.checked);
+  if(el.checked) activeLayers.add(layer); else activeLayers.delete(layer);
+  applyLayer(layer,el.checked,el);
+}
+
+function applyLayer(layer,on,el){
+  if(layer==="production"||layer==="price"){
+    // 체크된 레이어 중 우선순위: production > price
+    if(activeLayers.has("production")) curMode="production";
+    else if(activeLayers.has("price")) curMode="price";
+    else curMode="production"; // 둘 다 꺼도 기본값
+    redrawMap();
+  } else if(layer==="weather"){
+    on ? loadWeatherLayer() : removeWeatherLayer();
+  } else if(layer==="market"){
+    on ? loadMarketLayer() : removeMarketLayer();
+  } else if(layer==="pest"||layer==="soil"){
+    // 미구현 레이어 — 체크 해제 후 안내
+    if(on){
+      el.checked=false;
+      el.closest(".fm-layer-item").classList.remove("active");
+      activeLayers.delete(layer);
+      showToast(`${layer==="pest"?"병해충 위험":"토양 정보"} 데이터는 준비 중입니다`);
+    }
+  }
+}
+
+async function loadWeatherLayer(){
+  removeWeatherLayer();
+  try{
+    const r=await fetch("/api/v1/map/weather");
+    if(!r.ok) throw new Error("no weather");
+    const d=await r.json();
+    // region_code (KR-41 형식) → 지도 중심 좌표
+    const REGION_POS={
+      "KR-11":[37.56,126.97],"KR-41":[37.41,127.52],"KR-42":[37.88,128.41],
+      "KR-43":[36.63,127.49],"KR-44":[36.65,126.67],"KR-45":[35.82,127.15],
+      "KR-46":[34.82,126.99],"KR-47":[36.45,128.73],"KR-48":[35.46,128.29],
+      "KR-49":[33.49,126.53],"KR-26":[35.11,129.04],"KR-27":[35.87,128.60],
+      "KR-28":[37.46,126.71],"KR-29":[35.16,126.85],"KR-30":[36.35,127.38],
+      "KR-31":[35.54,129.31],"KR-36":[36.48,127.29],
+    };
+    weatherMarkerLayer=L.layerGroup();
+    (d.regions||[]).forEach(reg=>{
+      const pos=REGION_POS[reg.region_code];
+      if(!pos||reg.avg_temp==null) return;
+      const anom=reg.temp_anomaly;
+      const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"";
+      const alert=reg.heat_alert?"🌡️":reg.cold_alert?"🥶":reg.heavy_rain_alert?"🌧️":"";
+      const color=anom>=3?"#e05050":anom<=-3?"#4488cc":"#444";
+      const icon=L.divIcon({
+        html:`<div style="background:white;border:1.5px solid ${color};border-radius:8px;padding:3px 6px;font-size:10px;font-weight:700;color:${color};white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.15)">${alert}${reg.region_name?.slice(0,2)||""} ${reg.avg_temp.toFixed(1)}℃ <span style="font-size:9px;color:#888">${anomStr}</span></div>`,
+        className:"",iconSize:[0,0],iconAnchor:[-4,-10]
+      });
+      L.marker(pos,{icon}).bindTooltip(
+        `<b>${reg.region_name}</b><br>평균기온: ${reg.avg_temp}℃ (평년比 ${anomStr})<br>강수: ${reg.precipitation??0}mm<br>습도: ${reg.humidity??"-"}%`,
+        {direction:"top",offset:[0,-5]}
+      ).addTo(weatherMarkerLayer);
+    });
+    if(map_) weatherMarkerLayer.addTo(map_);
+  }catch(e){
+    showToast("날씨 데이터를 불러오지 못했습니다");
+    document.querySelector('input[onchange*="weather"]').checked=false;
+    activeLayers.delete("weather");
+  }
+}
+function removeWeatherLayer(){
+  if(weatherMarkerLayer&&map_){map_.removeLayer(weatherMarkerLayer);}
+  weatherMarkerLayer=null;
+}
+
+function loadMarketLayer(){
+  removeMarketLayer();
+  marketMarkerLayer=L.layerGroup();
+  MARKETS.forEach(m=>{
+    const icon=L.divIcon({
+      html:`<div style="background:#1a3a5c;color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)">🏪</div>`,
+      className:"",iconSize:[22,22],iconAnchor:[11,11]
+    });
+    L.marker([m.lat,m.lng],{icon}).bindTooltip(
+      `<b>${m.name}</b><br>${m.type}`,{direction:"top",offset:[0,-5]}
+    ).addTo(marketMarkerLayer);
+  });
+  if(map_) marketMarkerLayer.addTo(map_);
+}
+function removeMarketLayer(){
+  if(marketMarkerLayer&&map_){map_.removeLayer(marketMarkerLayer);}
+  marketMarkerLayer=null;
 }
 function setPeriod(p,el){
   curPeriod=p;
