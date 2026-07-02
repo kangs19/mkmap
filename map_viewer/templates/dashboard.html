@@ -20,6 +20,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Noto Sans KR','Malgun Gothic',sans-serif; background:#f0f4f8; color:#222; }
@@ -389,6 +391,50 @@
     .backtest-legend { display:flex; gap:14px; font-size:11px; color:#777; margin-bottom:6px; }
     .leg-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
 
+    /* ── 지도 ── */
+    .map-card {
+      background:white;
+      border-radius:12px;
+      box-shadow:0 1px 4px rgba(0,0,0,0.06);
+      margin-bottom:16px;
+      overflow:hidden;
+    }
+    .map-header {
+      padding:14px 20px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      border-bottom:1px solid #f0f4f8;
+    }
+    .map-title { font-size:14px; font-weight:700; color:#0f2744; }
+    .map-mode-btns { display:flex; gap:6px; margin-left:auto; }
+    .map-mode-btn {
+      padding:4px 12px;
+      border-radius:14px;
+      border:1.5px solid #d5dce8;
+      background:white;
+      color:#666;
+      font-size:11px;
+      font-weight:500;
+      cursor:pointer;
+      font-family:inherit;
+      transition:all 0.15s;
+    }
+    .map-mode-btn.active { background:#0f2744; color:white; border-color:#0f2744; }
+    #map-container { height:340px; }
+    .map-legend {
+      display:flex;
+      gap:16px;
+      padding:8px 20px;
+      font-size:11px;
+      color:#777;
+      border-top:1px solid #f0f4f8;
+      flex-wrap:wrap;
+    }
+    .map-leg-item { display:flex; align-items:center; gap:5px; }
+    .map-leg-dot { width:12px; height:12px; border-radius:3px; }
+
     /* ── 미디어 쿼리 ── */
     @media (max-width:768px) {
       .nav { padding:0 14px; height:50px; }
@@ -515,6 +561,28 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── 주산지 지도 ── -->
+  <div class="map-card">
+    <div class="map-header">
+      <span style="font-size:17px;">🗺️</span>
+      <span class="map-title" id="map-title">주산지 생산 분포</span>
+      <div class="map-mode-btns">
+        <button class="map-mode-btn active" data-mode="production" onclick="setMapMode('production')">생산 비중</button>
+        <button class="map-mode-btn" data-mode="risk" onclick="setMapMode('risk')">위험도</button>
+        <button class="map-mode-btn" data-mode="shipment" onclick="setMapMode('shipment')">출하량</button>
+      </div>
+    </div>
+    <div id="map-container"></div>
+    <div class="map-legend" id="map-legend">
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#f0e0ff"></div>취급 없음</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#bde0fb"></div>소량</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#5db5e8"></div>중간</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#1a6bab"></div>주요 산지</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#0b2e5c"></div>최대 산지</div>
+      <span style="margin-left:auto;font-size:10px;color:#bbb;">클릭하면 시·군구 보기</span>
     </div>
   </div>
 
@@ -816,6 +884,7 @@ async function selectItem(code, scroll = true) {
   renderFactors(fc7);
   loadProductionStats(code);
   loadDataCoverage(code);
+  loadMap(code);
 }
 
 function closeDetail() {
@@ -1114,6 +1183,191 @@ async function loadBacktest(code, horizon) {
       }
     });
   } catch(e) {}
+}
+
+// ── 지도 ─────────────────────────────────────────────────
+const PROV_NAME_TO_SIDO = {
+  "서울특별시":"KR-11","부산광역시":"KR-26","대구광역시":"KR-27","인천광역시":"KR-28",
+  "광주광역시":"KR-29","대전광역시":"KR-30","울산광역시":"KR-31","세종특별자치시":"KR-36",
+  "경기도":"KR-41","강원도":"KR-42","충청북도":"KR-43","충청남도":"KR-44",
+  "전라북도":"KR-45","전라남도":"KR-46","경상북도":"KR-47","경상남도":"KR-48","제주특별자치도":"KR-49"
+};
+const SIDO_TO_PREFIX = {
+  "KR-11":"11","KR-26":"21","KR-27":"22","KR-28":"23","KR-29":"24","KR-30":"25",
+  "KR-31":"26","KR-36":"29","KR-41":"31","KR-42":"32","KR-43":"33","KR-44":"34",
+  "KR-45":"35","KR-46":"36","KR-47":"37","KR-48":"38","KR-49":"39"
+};
+
+let leafletMap = null, provLayer = null, cityLayer_ = null;
+let provGeo = null, cityGeo = null, cityDataAll = null, mapItemCode = null;
+let mapMode = "production";
+let mapViewLevel = "province", mapCurrentProv = null;
+
+function productionColor(v) {
+  if (v <= 0)    return "#f0e0ff";
+  if (v < 0.05)  return "#bde0fb";
+  if (v < 0.15)  return "#5db5e8";
+  if (v < 0.35)  return "#1a6bab";
+  return "#0b2e5c";
+}
+function riskColor(v) {
+  if (!v || v < 20) return "#d4edda";
+  if (v < 40)  return "#fff3cd";
+  if (v < 60)  return "#fde8d8";
+  return "#f8d7da";
+}
+function shipmentColor(v) {
+  if (!v || v <= 0) return "#f0e0ff";
+  if (v < 1000)  return "#bde0fb";
+  if (v < 5000)  return "#5db5e8";
+  if (v < 20000) return "#1a6bab";
+  return "#0b2e5c";
+}
+
+async function initMap() {
+  if (leafletMap) return;
+  const el = document.getElementById("map-container");
+  if (!el) return;
+  leafletMap = L.map("map-container", { zoomControl:true, attributionControl:false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:"© OpenStreetMap", opacity:0.35
+  }).addTo(leafletMap);
+  leafletMap.setView([36.2, 127.8], 7);
+
+  const [pGeo, cGeo, cData] = await Promise.all([
+    fetch("/static/skorea_provinces.json").then(r=>r.json()),
+    fetch("/static/skorea_municipalities_simple.json").then(r=>r.json()),
+    fetch("/static/city_agri_data.json").then(r=>r.json()),
+  ]);
+  provGeo = pGeo; cityGeo = cGeo; cityDataAll = cData;
+}
+
+async function loadMap(code) {
+  await initMap();
+  mapItemCode = code;
+  mapViewLevel = "province";
+  mapCurrentProv = null;
+  if (cityLayer_) { leafletMap.removeLayer(cityLayer_); cityLayer_ = null; }
+  const meta = ITEM_META[code] || {};
+  document.getElementById("map-title").textContent = `${meta.icon||""} ${meta.name||code} 주산지 분포`;
+  drawProvinces_();
+}
+
+function drawProvinces_() {
+  if (provLayer) { leafletMap.removeLayer(provLayer); provLayer = null; }
+  if (!provGeo || !cityDataAll || !mapItemCode) return;
+  const cityData = cityDataAll[mapItemCode] || {};
+
+  provLayer = L.geoJSON(provGeo, {
+    style: feat => {
+      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || feat.properties.CTP_KOR_NM || "";
+      const prefix = SIDO_TO_PREFIX[sido] || "";
+      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
+      if (!entries.length) return {fillColor:"#f0e0ff", weight:1.5, color:"#bbb", fillOpacity:0.55};
+      let color = "#5db5e8";
+      if (mapMode === "production") color = productionColor(entries.reduce((s,[,d])=>s+(d.production_weight||0),0));
+      else if (mapMode === "risk")  color = riskColor(Math.max(...entries.map(([,d])=>d.risk_score||0)));
+      else if (mapMode === "shipment") color = shipmentColor(entries.reduce((s,[,d])=>s+(d.shipment_ton||0),0));
+      return {fillColor:color, weight:1.5, color:"#555", fillOpacity:0.75};
+    },
+    onEachFeature: (feat, layer) => {
+      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || "";
+      const prefix = SIDO_TO_PREFIX[sido] || "";
+      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
+      const pname = feat.properties.name || "";
+      layer.on({
+        mouseover: e => {
+          e.target.setStyle({weight:2.5, fillOpacity:0.92});
+          const tot = entries.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
+          const pw  = entries.reduce((s,[,d])=>s+(d.production_weight||0),0);
+          layer.bindTooltip(
+            `<b>${pname}</b><br>주요 산지 ${entries.length}개 시·군<br>생산 비중 ${(pw*100).toFixed(0)}%<br>연간 출하 ${(tot/1000).toFixed(0)}천 톤`,
+            {sticky:true}
+          ).openTooltip();
+        },
+        mouseout: e => { if(provLayer) provLayer.resetStyle(e.target); layer.closeTooltip(); },
+        click: () => {
+          if (!entries.length) return;
+          mapViewLevel = "city"; mapCurrentProv = {feat, sido, pname};
+          drawCities_(prefix, pname);
+          const bounds = layer.getBounds();
+          leafletMap.fitBounds(bounds, {padding:[20,20]});
+        }
+      });
+    }
+  }).addTo(leafletMap);
+}
+
+function drawCities_(prefix, pname) {
+  if (cityLayer_) { leafletMap.removeLayer(cityLayer_); cityLayer_ = null; }
+  if (!cityGeo || !cityDataAll || !mapItemCode) return;
+  const cityData = cityDataAll[mapItemCode] || {};
+
+  const filtered = {
+    type:"FeatureCollection",
+    features: cityGeo.features.filter(f => {
+      const c = String(f.properties.code || f.properties.SIG_CD || "");
+      return c.startsWith(prefix);
+    })
+  };
+
+  cityLayer_ = L.geoJSON(filtered, {
+    style: feat => {
+      const c = String(feat.properties.code || feat.properties.SIG_CD || "");
+      const d = cityData[c] || {};
+      let color = "#f0e0ff";
+      if (mapMode==="production") color = productionColor(d.production_weight||0);
+      else if (mapMode==="risk")  color = riskColor(d.risk_score||0);
+      else if (mapMode==="shipment") color = shipmentColor(d.shipment_ton||0);
+      return {fillColor:color, weight:1, color:"#777", fillOpacity:0.8};
+    },
+    onEachFeature: (feat, layer) => {
+      const c = String(feat.properties.code || feat.properties.SIG_CD || "");
+      const d = cityData[c] || {};
+      const name = feat.properties.name || feat.properties.SIG_KOR_NM || c;
+      layer.on({
+        mouseover: e => {
+          e.target.setStyle({weight:2, fillOpacity:0.95});
+          layer.bindTooltip(
+            `<b>${name}</b><br>생산 비중: ${((d.production_weight||0)*100).toFixed(1)}%<br>출하량: ${((d.shipment_ton||0)/1000).toFixed(0)}천 톤`,
+            {sticky:true}
+          ).openTooltip();
+        },
+        mouseout: e => { if(cityLayer_) cityLayer_.resetStyle(e.target); layer.closeTooltip(); }
+      });
+    }
+  }).addTo(leafletMap);
+
+  // 도로 돌아가기 버튼
+  if (!document.getElementById("map-back-btn")) {
+    const btn = L.control({position:"topleft"});
+    btn.onAdd = () => {
+      const d = L.DomUtil.create("button","");
+      d.id = "map-back-btn";
+      d.textContent = "← 전국 보기";
+      d.style.cssText = "padding:5px 12px;background:white;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.1)";
+      L.DomEvent.on(d,"click",() => {
+        mapViewLevel="province";
+        drawProvinces_();
+        leafletMap.setView([36.2,127.8],7);
+        d.remove();
+      });
+      return d;
+    };
+    btn.addTo(leafletMap);
+  }
+}
+
+function setMapMode(mode) {
+  mapMode = mode;
+  document.querySelectorAll(".map-mode-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === mode)
+  );
+  if (mapViewLevel === "province") drawProvinces_();
+  else if (mapCurrentProv) {
+    const prefix = SIDO_TO_PREFIX[mapCurrentProv.sido] || "";
+    drawCities_(prefix, mapCurrentProv.pname);
+  }
 }
 
 // ── Admin 표시 ──────────────────────────────────────────
