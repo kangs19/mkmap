@@ -1640,11 +1640,26 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
       const pname=f.properties.name||"";
-      const tot=ents.reduce((s,[,d])=>s+d.shipment_ton,0);
-      const pw=ents.reduce((s,[,d])=>s+d.production_weight,0);
-      const avgChg=ents.length?ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length:0;
+      const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
+      const totArea=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
+      // production_weight: 소수점 합계(0.20+0.10=0.30)이므로 *100하면 전국비중%로 사용
+      const pwSum=ents.reduce((s,[,d])=>s+(d.production_weight||0),0);
+      const avgChg=ents.length?ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length:0;
       const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
-      const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',risk_score:Math.round(Math.abs(avgChg)*3+30)}:null;
+      const avgYoy=ents.length?ents.reduce((s,[,d])=>s+(d.shipment_yoy||0),0)/ents.length:0;
+      const topCity=ents.length?ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a)):null;
+      const mockD=ents.length?{
+        avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
+        price_vs_avg:Math.round(avgChg*10)/10,
+        shipment_ton:tot,
+        shipment_yoy:Math.round(avgYoy*10)/10,
+        area_ha:totArea,
+        production_pct:Math.round(pwSum*100), // 전국비중 % (소수→정수%)
+        rank:topCity?topCity[1].rank:null,
+        risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',
+        risk_score:Math.round(Math.abs(avgChg)*3+30),
+        _cities:ents.map(([,c])=>c.name).join('·'),
+      }:null;
       layer.on({
         mouseover:e=>{e.target.setStyle({weight:3,color:"#1a3d66",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
@@ -1901,7 +1916,9 @@ function makeHoverCard(name,d,sidoKR){
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
   const risk=riskMap[d?.risk_level]||{l:'정상',c:'normal'};
   const rs=d?.risk_score||0;
-  const curPrice=rp?rp.wholesale:(d?.avg_price||0);
+  // curPrice: LIVE 지역가 → city 평균가 → 전국 평균 순 fallback
+  const rawWs=rp?.wholesale;
+  const curPrice=rawWs||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||0;
   const predicted=Math.round(curPrice*(1+chg/100));
   const ship=d?.shipment_ton>=10000?(d.shipment_ton/10000).toFixed(1)+'만 톤':d?.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(0)+'천 톤':(d?.shipment_ton||0)+'톤';
   const area=d?.area_ha>=10000?(d.area_ha/10000).toFixed(1)+'만 ha':d?.area_ha?d.area_ha.toLocaleString()+' ha':'—';
@@ -1980,11 +1997,14 @@ function makeHoverCard(name,d,sidoKR){
   const cropTags=crops.map((c,i)=>`<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;
     background:${i===0?'#e8f4e0':'#f5f5f0'};color:${i===0?'#267a18':'#6a7a5a'};border:1px solid ${i===0?'#c0dca8':'#e0e0d8'};margin-right:4px">${i===0?it.emoji+' ':''}${c}</span>`).join('');
 
+  const citiesStr=d?._cities?`<div style="font-size:9px;color:#7a9a6a;margin-top:2px">📍 ${d._cities}</div>`:'';
+
   return`<div class="rhc">
     <div class="rhc-header">
       <div>
         <span class="rhc-title">${name}</span>
         <div style="font-size:10px;color:#6a7a5a;margin-top:1px">${it.name} 주산지 ${rank}</div>
+        ${citiesStr}
       </div>
       <span class="rhc-badge ${risk.c}">${risk.l}</span>
     </div>
@@ -1995,7 +2015,7 @@ function makeHoverCard(name,d,sidoKR){
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
         <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">재배 면적</div>
         <div style="font-size:12px;font-weight:800;color:#1a2410">${area}</div>
-        <div style="font-size:9px;color:${yoy>0?'#c02828':'#1a8a1a'};font-weight:600;margin-top:1px">${yoy>0?'▲':'▼'}${Math.abs(yoy).toFixed(1)}%</div>
+        <div style="font-size:9px;color:${yoy>0?'#c02828':'#1a8a1a'};font-weight:600;margin-top:1px">${yoy?((yoy>0?'▲':'▼')+Math.abs(yoy).toFixed(1)+'%'):'—'}</div>
       </div>
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
         <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">전국 비중</div>
@@ -2005,7 +2025,7 @@ function makeHoverCard(name,d,sidoKR){
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
         <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">출하량</div>
         <div style="font-size:12px;font-weight:800;color:#1a2410">${ship}</div>
-        <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-top:1px">연간</div>
+        <div style="font-size:9px;color:${yoy>0?'#c02828':yoy<0?'#1a8a1a':'#9aaa8a'};font-weight:600;margin-top:1px">${yoy?(yoy>0?'+':'')+yoy.toFixed(1)+'% yoy':'연간'}</div>
       </div>
     </div>
 
