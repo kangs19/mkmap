@@ -19,6 +19,7 @@ _rate_counter: dict[str, dict[str, int]] = defaultdict(dict)  # key_hash → {da
 # 인증 불필요 경로 (지도·대시보드 UI + 위젯)
 PUBLIC_PATHS = {
     "/", "/dashboard", "/forecast-explanation", "/widget", "/widget/embed",
+    "/performance",  # 예측 신뢰 현황 공개 페이지
     "/admin/ui",  # 관리자 HTML UI (API 호출은 X-Admin-Key로 별도 보호)
     "/docs", "/openapi.json", "/redoc", "/health",
     "/map_standalone.html", "/index.html",
