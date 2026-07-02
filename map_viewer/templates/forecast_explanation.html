@@ -401,6 +401,37 @@
       margin: 0;
     }
 
+    /* 기간 선택 탭 */
+    .hz-btn {
+      padding: 5px 11px;
+      border-radius: 20px;
+      border: 1.5px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .hz-btn:hover { border-color: var(--green); color: var(--green); }
+    .hz-btn.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+    .phase-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--green-soft);
+      color: var(--green);
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
     @media (max-width: 900px) {
       .workspace {
         grid-template-columns: 1fr;
@@ -466,7 +497,10 @@
           <p>품목별 예측 상세</p>
         </div>
       </div>
-      <div class="date-pill" id="base-date">기준일 확인 중</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="date-pill" id="base-date">기준일 확인 중</div>
+        <div id="horizon-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
     </header>
 
     <div class="workspace">
@@ -485,8 +519,8 @@
 
         <div class="empty-state hidden" id="empty-state">
           <div>
-            <strong>오늘 예측 설명 데이터가 아직 없습니다</strong>
-            <span id="empty-message">파이프라인 실행 후 다시 확인할 수 있습니다.</span>
+            <strong>예측 설명 데이터를 준비 중입니다</strong>
+            <span id="empty-message">파이프라인 실행 후 AI 수치가 업데이트됩니다.</span>
           </div>
         </div>
 
@@ -568,13 +602,25 @@
       { code: "strawberry",   name: "딸기"   },
     ];
 
+    const HORIZONS = [
+      { days: 7,  label: "1주" },
+      { days: 14, label: "2주" },
+      { days: 21, label: "3주" },
+      { days: 28, label: "4주" },
+      { days: 60, label: "2개월" },
+      { days: 90, label: "3개월" },
+    ];
+
+    const params = new URLSearchParams(window.location.search);
     const state = {
-      activeItem: new URLSearchParams(window.location.search).get("item") || "cabbage",
+      activeItem: params.get("item") || "cabbage",
+      activeHorizon: parseInt(params.get("horizon") || "14", 10),
       loading: false
     };
 
     const el = {
       tabs: document.getElementById("item-tabs"),
+      horizonTabs: document.getElementById("horizon-tabs"),
       select: document.getElementById("item-select"),
       loading: document.getElementById("loading-state"),
       empty: document.getElementById("empty-state"),
@@ -616,6 +662,12 @@
 
       el.select.innerHTML = ITEMS.map((item) => `
         <option value="${item.code}" ${item.code === state.activeItem ? "selected" : ""}>${item.name}</option>
+      `).join("");
+    }
+
+    function renderHorizonTabs() {
+      el.horizonTabs.innerHTML = HORIZONS.map(({ days, label }) => `
+        <button class="hz-btn ${days === state.activeHorizon ? "active" : ""}" data-hz="${days}" type="button">${label}</button>
       `).join("");
     }
 
@@ -710,20 +762,27 @@
       const model = data.model || {};
       const itemLabel = data.item_name || itemName(data.item_code);
       const probability = Number(forecast.up_probability_14d || 0);
+      const phaseLabel = data.horizon_phase_label || "";
 
-      el.baseDate.textContent = `기준일 ${data.base_date || forecast.base_date || "-"}`;
-      el.itemLabel.textContent = `${itemLabel} 예측 설명`;
+      el.baseDate.textContent = `기준일 ${data.base_date || "-"}`;
+      el.itemLabel.innerHTML = `${itemLabel} 예측 설명 <span class="phase-badge">${phaseLabel}</span>`;
       el.headline.textContent = data.headline || "예측 설명을 준비 중입니다";
 
-      el.directionChip.className = chipTone(forecast.direction);
+      el.directionChip.className = chipTone(forecast.direction_14d);
       el.directionChip.textContent = forecast.direction_label || "방향 미정";
-      el.scopeChip.textContent = model.scope_label || model.scope || "모델 범위 미정";
-      el.confidenceChip.textContent = model.confidence_label || model.confidence || "신뢰도 미정";
-      el.volatilityChip.textContent = forecast.volatility_risk_label || forecast.volatility_risk_30d || "변동성 미정";
+      el.scopeChip.textContent = model.scope_label || "분석 중";
+      el.confidenceChip.textContent = model.confidence_label || "참고용";
+      el.volatilityChip.textContent = forecast.volatility_risk_30d || "분석 중";
 
-      el.upProbability.textContent = formatPercent(probability);
-      el.probabilityFill.style.width = `${Math.max(0, Math.min(100, Math.round(probability * 100)))}%`;
-      el.surgeProbability.textContent = `급등 확률 ${formatPercent(forecast.surge_probability_14d)}`;
+      if (forecast.up_probability_14d != null) {
+        el.upProbability.textContent = formatPercent(probability);
+        el.probabilityFill.style.width = `${Math.max(0, Math.min(100, Math.round(probability * 100)))}%`;
+        el.surgeProbability.textContent = `급등 확률 ${formatPercent(forecast.surge_probability_14d)}`;
+      } else {
+        el.upProbability.textContent = "—";
+        el.probabilityFill.style.width = "50%";
+        el.surgeProbability.textContent = "AI 예측 준비 중";
+      }
 
       renderReasons(data.reasons);
       renderRegions(data.risk_regions);
@@ -731,26 +790,27 @@
       renderNotes(data.notes, data.disclaimer);
     }
 
-    async function loadExplanation(itemCode) {
+    async function loadExplanation(itemCode, horizon) {
       state.activeItem = itemCode;
+      state.activeHorizon = horizon || state.activeHorizon;
       renderItems();
+      renderHorizonTabs();
       setVisible("loading");
 
-      const url = `${API_BASE}/api/v1/items/${encodeURIComponent(itemCode)}/forecast/explanation`;
+      const url = `${API_BASE}/api/v1/items/${encodeURIComponent(itemCode)}/forecast/explanation?horizon=${state.activeHorizon}`;
       try {
         const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         renderExplanation(data);
         setVisible("ready");
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("item", itemCode);
+        nextUrl.searchParams.set("horizon", state.activeHorizon);
         window.history.replaceState(null, "", nextUrl);
       } catch (error) {
         el.baseDate.textContent = "데이터 없음";
-        el.emptyMessage.textContent = `${itemName(itemCode)} 예측 설명을 아직 만들 수 없습니다. 관리자 파이프라인 실행 상태를 확인하세요.`;
+        el.emptyMessage.textContent = `${itemName(itemCode)} 예측 설명을 불러올 수 없습니다.`;
         setVisible("empty");
       }
     }
@@ -764,7 +824,13 @@
       loadExplanation(event.target.value);
     });
 
+    el.horizonTabs.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-hz]");
+      if (button) loadExplanation(state.activeItem, parseInt(button.dataset.hz, 10));
+    });
+
     renderItems();
+    renderHorizonTabs();
     loadExplanation(state.activeItem);
   </script>
 </body>
