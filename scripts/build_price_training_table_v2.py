@@ -467,14 +467,613 @@ def _radish_features(base_date: date, idx: int, values: list[float]) -> dict:
     }
 
 
+def _potato_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    감자: 봄감자(5-6월 고랭지) + 가을감자(10-11월 평지) 이모작.
+    저장 감자 출하(1-4월) → 재고 소진 시 가격 급등.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 봄 수확기 근접도 (yday 135~181)
+    spring_harvest_prox = max(0.0, 1.0 - abs(d - 158) / 60.0)
+    # 가을 수확기 근접도 (yday 274~319)
+    fall_harvest_prox = max(0.0, 1.0 - abs(d - 296) / 55.0)
+    in_spring_harvest = 135 <= d <= 181
+    in_fall_harvest = 274 <= d <= 319
+    # 저장 소진기 (1-4월) — 봄 수확 전 재고 부족
+    storage_depletion = int(m in (1, 2, 3, 4))
+    storage_depletion_progress = max(0.0, (d - 1) / 120.0) if m <= 4 else 0.0
+    # 여름 고랭지 프리미엄기 (7-8월, 봄감자 출하 후 가격 안정)
+    highland_season = int(m in (7, 8))
+    # 30일 모멘텀 (저장 소진 감지)
+    lag_30 = values[max(0, idx - 30)]
+    momentum_30d = _pct(values[idx], lag_30) if idx >= 30 else 0.0
+    mf = [1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.9, 1.0, 1.0, 0.9, 0.9, 1.1][m - 1]
+    return {
+        "spring_harvest_prox": round(spring_harvest_prox, 4),
+        "fall_harvest_prox": round(fall_harvest_prox, 4),
+        "in_spring_harvest": int(in_spring_harvest),
+        "in_fall_harvest": int(in_fall_harvest),
+        "storage_depletion_phase": storage_depletion,
+        "storage_depletion_progress": round(storage_depletion_progress, 4),
+        "highland_premium_season": highland_season,
+        "momentum_30d": round(momentum_30d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _sweet_potato_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    고구마: 9-11월 수확 집중 + 큐어링(후숙) 기간 후 본격 출하(11월~).
+    저장 소진기(3-5월) 가격 급등 패턴.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 수확기 (9-11월, yday 244~319)
+    in_harvest = 244 <= d <= 319
+    # 큐어링 완료 후 본격 출하 (11-12월)
+    peak_supply = int(m in (11, 12))
+    # 저장 소진기 (3-5월)
+    in_depletion = int(m in (3, 4, 5))
+    depletion_progress = max(0.0, (d - 60) / 90.0) if 60 <= d <= 150 else 0.0
+    # 명절 수요 (추석, 설): 8월말-9월초 / 1-2월
+    chuseok_prox = max(0.0, 1.0 - abs(d - 263) / 45.0)  # 추석 근접 (9/20 기준)
+    seollal_prox = max(0.0, 1.0 - abs(d - 25) / 30.0)    # 설 근접
+    gift_season_prox = max(chuseok_prox, seollal_prox)
+    # 30일 모멘텀
+    lag_30 = values[max(0, idx - 30)]
+    momentum_30d = _pct(values[idx], lag_30) if idx >= 30 else 0.0
+    mf = [1.2, 1.1, 1.3, 1.2, 1.0, 0.9, 0.8, 0.9, 1.0, 0.9, 0.9, 1.0][m - 1]
+    return {
+        "in_harvest_period": int(in_harvest),
+        "peak_supply_period": peak_supply,
+        "storage_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "gift_season_proximity": round(gift_season_prox, 4),
+        "momentum_30d": round(momentum_30d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _tomato_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    토마토: 주로 온실 재배. 봄(3-5월) / 가을(9-11월) 2회 피크.
+    여름(6-8월) 고온기 온실 비용 증가 → 가격 상승.
+    겨울(12-2월) 난방비 부담 → 가격 최고점.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 봄 성수기 (3-5월)
+    spring_peak = max(0.0, 1.0 - abs(d - 105) / 60.0)
+    # 가을 성수기 (9-11월)
+    fall_peak = max(0.0, 1.0 - abs(d - 289) / 60.0)
+    season_peak = max(spring_peak, fall_peak)
+    # 여름 고온기 공급 부담 (6-8월)
+    summer_supply_stress = int(m in (6, 7, 8))
+    # 겨울 난방비 부담 (12-2월)
+    winter_heating_cost = int(m in (12, 1, 2))
+    # 단기 가격 가속도 (7일)
+    if idx >= 7:
+        chg7 = _pct(values[idx], values[idx - 7])
+        chg14 = _pct(values[idx], values[idx - 14]) if idx >= 14 else chg7
+        acceleration = chg7 - chg14 / 2
+    else:
+        acceleration = 0.0
+    mf = [1.3, 1.2, 1.0, 0.9, 0.9, 1.0, 1.1, 1.1, 0.9, 0.9, 1.1, 1.3][m - 1]
+    return {
+        "season_peak_proximity": round(season_peak, 4),
+        "summer_supply_stress": summer_supply_stress,
+        "winter_heating_cost": winter_heating_cost,
+        "price_acceleration_7d": round(acceleration, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _pepper_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    건고추: 8-9월 수확 → 건조 후 10-11월 본격 출하. 연간 1회 생산.
+    재고 소진기(5-7월) 가격 급등. 수입산 대체재 영향 큼.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 수확기 (8-9월, yday 213~273)
+    in_harvest = 213 <= d <= 273
+    # 건조·본격 출하기 (10-11월)
+    peak_supply = int(m in (10, 11))
+    # 재고 소진기 (5-7월) — 다음 수확 전 가격 최고점
+    in_depletion = int(m in (5, 6, 7))
+    depletion_progress = max(0.0, (d - 120) / 92.0) if 120 <= d <= 212 else 0.0
+    # 수입 위험기 (4-7월: 국내 재고 부족 → 수입 대체)
+    import_risk = int(m in (4, 5, 6, 7))
+    # 60일 모멘텀 (연간 주기 추세)
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [1.1, 1.1, 1.2, 1.2, 1.3, 1.3, 1.2, 0.9, 0.8, 0.9, 1.0, 1.1][m - 1]
+    return {
+        "in_harvest_period": int(in_harvest),
+        "peak_supply_period": peak_supply,
+        "stock_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "import_substitution_risk": import_risk,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _fresh_pepper_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    붉은고추(생고추): 여름 노지 재배 중심. 7-9월 집중 출하 → 가격 최저.
+    겨울(12-3월) 온실 생산 원가 높아 가격 최고.
+    여름 고온·폭우 = 병해 위험.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 여름 노지 집중 출하기 (7-9월) — 가격 최저
+    in_peak_supply = int(m in (7, 8, 9))
+    supply_proximity = max(0.0, 1.0 - abs(d - 228) / 75.0)
+    # 겨울 온실 원가 부담 (12-3월)
+    winter_cost_burden = int(m in (12, 1, 2, 3))
+    # 고온 병해 위험 (7-8월)
+    heat_disease_risk = int(m in (7, 8))
+    # 봄 이식기 (3-4월) — 작황 예고 구간
+    planting_period = int(m in (3, 4))
+    # 7일 가격 모멘텀
+    lag_7 = values[idx - 7]
+    spike_7d = _pct(values[idx], lag_7) if idx >= 7 else 0.0
+    mf = [1.3, 1.2, 1.1, 1.0, 1.0, 0.9, 0.7, 0.7, 0.8, 1.0, 1.1, 1.3][m - 1]
+    return {
+        "in_peak_supply": in_peak_supply,
+        "supply_season_proximity": round(supply_proximity, 4),
+        "winter_cost_burden": winter_cost_burden,
+        "heat_disease_risk": heat_disease_risk,
+        "planting_period": planting_period,
+        "spike_7d": round(spike_7d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _cucumber_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    오이: 온실 주년 생산. 여름(6-8월) 노지 출하 증가 → 가격 하락.
+    봄(3-5월) / 가을(9-11월) 온실 성수기.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 봄 성수기 (3-5월)
+    spring_peak = max(0.0, 1.0 - abs(d - 105) / 55.0)
+    # 가을 성수기 (9-11월)
+    fall_peak = max(0.0, 1.0 - abs(d - 289) / 55.0)
+    season_peak = max(spring_peak, fall_peak)
+    # 여름 공급 과잉 (6-8월) — 노지 대량 출하
+    summer_oversupply = int(m in (6, 7, 8))
+    # 겨울 난방비 원가 (12-2월)
+    winter_heating_cost = int(m in (12, 1, 2))
+    # 단기 변동성 (오이는 가격 변동 빠름)
+    if idx >= 7:
+        returns_7 = _returns(values[max(0, idx - 7):idx + 1])
+        vol_7d = _safe_std(returns_7)
+    else:
+        vol_7d = 0.0
+    mf = [1.2, 1.2, 1.0, 0.9, 0.9, 1.0, 1.1, 1.0, 0.9, 0.9, 1.0, 1.2][m - 1]
+    return {
+        "season_peak_proximity": round(season_peak, 4),
+        "summer_oversupply": summer_oversupply,
+        "winter_heating_cost": winter_heating_cost,
+        "extra_volatility_7d": round(vol_7d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _carrot_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    당근: 제주(10-12월 수확) + 강원 고랭지(8-9월) 이원 생산.
+    제주 당근이 전국 공급량의 60% 이상 차지.
+    저장 소진기(3-6월) 가격 급등.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 제주 수확 근접도 (10-12월)
+    jeju_harvest_prox = max(0.0, 1.0 - abs(d - 305) / 75.0)
+    in_jeju_harvest = 274 <= d <= 366
+    # 강원 고랭지 수확 (8-9월)
+    highland_harvest = int(m in (8, 9))
+    # 저장 소진기 (3-6월) — 제주 수확 전 재고 최저
+    in_depletion = int(m in (3, 4, 5, 6))
+    depletion_progress = max(0.0, (d - 60) / 121.0) if 60 <= d <= 181 else 0.0
+    # 겨울 제주 출하 성수기 (1-2월)
+    peak_supply = int(m in (1, 2))
+    # 60일 모멘텀
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [0.9, 0.9, 1.1, 1.2, 1.3, 1.2, 1.0, 0.9, 0.9, 1.0, 1.0, 0.9][m - 1]
+    return {
+        "jeju_harvest_proximity": round(jeju_harvest_prox, 4),
+        "in_jeju_harvest": int(in_jeju_harvest),
+        "highland_harvest_period": highland_harvest,
+        "storage_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "peak_supply_period": peak_supply,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _apple_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    사과: 수확(9-11월) 후 저장 출하. 추석 수요 최대.
+    후지 품종 기준 11월~다음해 7월 저장 출하.
+    저장 소진기(6-8월) 가격 최고.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 추석 근접도 (9월 중순, yday 258 기준)
+    chuseok_prox = max(0.0, 1.0 - abs(d - 258) / 45.0)
+    # 설날 근접도 (1월 말, yday 25 기준)
+    seollal_prox = max(0.0, 1.0 - abs(d - 25) / 30.0)
+    gift_season_prox = max(chuseok_prox, seollal_prox)
+    # 수확기 (9-11월)
+    in_harvest = 244 <= d <= 334
+    # 저장 출하기 (12-7월)
+    in_storage_supply = not in_harvest
+    # 저장 소진기 (6-8월) — 수확 전 재고 최저
+    in_depletion = int(m in (6, 7, 8))
+    depletion_progress = max(0.0, (d - 152) / 92.0) if 152 <= d <= 244 else 0.0
+    # 동해·냉해 위험기 (꽃피기 직후, 4-5월 늦서리)
+    late_frost_risk = int(m in (4, 5))
+    # 60일 모멘텀 (저장 소진 추세)
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [1.1, 1.1, 1.0, 1.0, 1.0, 1.1, 1.2, 1.2, 1.0, 0.9, 0.9, 1.1][m - 1]
+    return {
+        "chuseok_proximity": round(chuseok_prox, 4),
+        "gift_season_proximity": round(gift_season_prox, 4),
+        "in_harvest_period": int(in_harvest),
+        "storage_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "late_frost_risk": late_frost_risk,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _pear_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    배: 추석 수요 집중(8-9월 수확). 신고 품종 기준.
+    배는 저장성이 사과보다 낮아 수확 후 3-4개월 내 출하.
+    수확기(8-9월) 직전 가격 최고 → 수확 후 급락 패턴.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 추석 근접도 (8월말-9월초, yday 244 기준)
+    chuseok_prox = max(0.0, 1.0 - abs(d - 244) / 50.0)
+    # 수확 직전 가격 상승기 (7-8월 초)
+    pre_harvest_premium = max(0.0, 1.0 - abs(d - 213) / 45.0)
+    # 수확기 (8-10월, yday 213~304)
+    in_harvest = 213 <= d <= 304
+    # 저장 소진기 (4-7월)
+    in_depletion = int(m in (4, 5, 6, 7))
+    depletion_progress = max(0.0, (d - 90) / 120.0) if 90 <= d <= 210 else 0.0
+    # 늦서리 위험 (4월 개화기)
+    blossom_frost_risk = int(m == 4)
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [1.0, 1.0, 1.0, 1.0, 1.1, 1.2, 1.2, 1.0, 0.9, 0.9, 1.0, 1.0][m - 1]
+    return {
+        "chuseok_proximity": round(chuseok_prox, 4),
+        "pre_harvest_premium": round(pre_harvest_premium, 4),
+        "in_harvest_period": int(in_harvest),
+        "storage_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "blossom_frost_risk": blossom_frost_risk,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _watermelon_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    수박: 여름(6-8월) 최대 수요·공급. 초여름(5-6월) 가격 최고.
+    봄 촉성 재배(4-5월 하우스) → 여름 노지 출하(6-8월) 가격 하락.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 수요 최성기 근접도 (7월 중순, yday 196 기준)
+    peak_demand_prox = max(0.0, 1.0 - abs(d - 196) / 60.0)
+    # 초여름 하우스 출하 시작 (5-6월) — 가격 최고
+    early_supply_prox = max(0.0, 1.0 - abs(d - 150) / 45.0)
+    # 여름 노지 대량 출하 (7-8월) — 가격 하락
+    in_peak_supply = int(m in (7, 8))
+    # 비수기 (10-4월) — 하우스 재배, 공급 적음
+    in_offseason = int(m in (10, 11, 12, 1, 2, 3, 4))
+    # 폭염 수요 증가 신호 (7-8월 전주 기온 상관)
+    summer_heat_demand = int(m in (7, 8))
+    lag_14 = values[idx - 14] if idx >= 14 else values[0]
+    momentum_14d = _pct(values[idx], lag_14) if idx >= 14 else 0.0
+    mf = [1.0, 1.0, 1.0, 1.1, 1.3, 1.2, 0.9, 0.8, 1.0, 1.1, 1.1, 1.0][m - 1]
+    return {
+        "peak_demand_proximity": round(peak_demand_prox, 4),
+        "early_supply_proximity": round(early_supply_prox, 4),
+        "in_peak_supply": in_peak_supply,
+        "in_offseason": in_offseason,
+        "summer_heat_demand": summer_heat_demand,
+        "momentum_14d": round(momentum_14d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _strawberry_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    딸기: 역계절 작물. 가을 정식(9-10월) → 겨울 출하(11-4월) 최성기.
+    발렌타인데이(2/14) / 화이트데이(3/14) 수요 스파이크.
+    여름(6-8월)은 완전 비수기.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 겨울 성수기 근접도 (12-2월)
+    winter_peak_prox = max(0.0, 1.0 - min(
+        abs(d - 15),   # 1/15
+        abs(d - 365 + 15)
+    ) / 90.0)
+    # 발렌타인/화이트데이 수요 (2월 초~3월 중순, yday 32~73)
+    gift_day_prox = max(0.0, 1.0 - abs(d - 52) / 45.0)
+    # 본격 출하기 (11-3월)
+    in_peak_supply = int(m in (11, 12, 1, 2, 3))
+    # 여름 완전 비수기 (6-8월) — 하우스 정식 준비
+    in_offseason = int(m in (6, 7, 8))
+    # 가을 정식기 (9-10월) — 가격 예고 구간
+    planting_period = int(m in (9, 10))
+    # 4월 이후 물량 감소 → 가격 반등
+    supply_taper = max(0.0, (d - 90) / 60.0) if 90 <= d <= 150 else 0.0
+    lag_14 = values[idx - 14] if idx >= 14 else values[0]
+    momentum_14d = _pct(values[idx], lag_14) if idx >= 14 else 0.0
+    mf = [1.2, 1.3, 1.2, 1.0, 0.9, 0.7, 0.6, 0.6, 0.8, 1.0, 1.2, 1.3][m - 1]
+    return {
+        "winter_peak_proximity": round(winter_peak_prox, 4),
+        "gift_day_proximity": round(gift_day_prox, 4),
+        "in_peak_supply": in_peak_supply,
+        "in_offseason": in_offseason,
+        "planting_period": planting_period,
+        "supply_taper": round(supply_taper, 4),
+        "momentum_14d": round(momentum_14d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _grape_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    포도: 8-10월 수확 집중. 추석 선물 수요 큼.
+    거봉/캠벨 8-9월, 샤인머스캣 9-10월.
+    겨울·봄은 수입산 의존도 증가.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 추석 근접도 (9월 중순, yday 258 기준)
+    chuseok_prox = max(0.0, 1.0 - abs(d - 258) / 45.0)
+    # 수확기 (8-10월, yday 213~304)
+    in_harvest = 213 <= d <= 304
+    # 수확 직전 최고가 구간 (7월, yday 182~212)
+    pre_harvest_premium = max(0.0, 1.0 - abs(d - 197) / 30.0)
+    # 비수기 수입 의존기 (12-6월)
+    import_dependency = int(m in (12, 1, 2, 3, 4, 5, 6))
+    # 저온 창고 재고 소진 (4-7월)
+    in_depletion = int(m in (4, 5, 6, 7))
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [1.0, 1.0, 1.0, 1.0, 1.1, 1.1, 1.2, 1.1, 1.0, 1.0, 1.0, 1.0][m - 1]
+    return {
+        "chuseok_proximity": round(chuseok_prox, 4),
+        "in_harvest_period": int(in_harvest),
+        "pre_harvest_premium": round(pre_harvest_premium, 4),
+        "import_dependency_period": import_dependency,
+        "storage_depletion_phase": in_depletion,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _zucchini_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    애호박: 온실 주년 생산. 여름(6-8월) 고온 공급 스트레스.
+    봄(4-5월) / 가을(9-10월) 성수기.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    spring_peak = max(0.0, 1.0 - abs(d - 120) / 50.0)
+    fall_peak = max(0.0, 1.0 - abs(d - 274) / 50.0)
+    season_peak = max(spring_peak, fall_peak)
+    summer_stress = int(m in (6, 7, 8))
+    winter_cost = int(m in (12, 1, 2))
+    if idx >= 7:
+        vol = _safe_std(_returns(values[max(0, idx - 7):idx + 1]))
+    else:
+        vol = 0.0
+    mf = [1.2, 1.1, 1.0, 0.9, 0.9, 1.0, 1.1, 1.0, 0.9, 0.9, 1.0, 1.2][m - 1]
+    return {
+        "season_peak_proximity": round(season_peak, 4),
+        "summer_supply_stress": summer_stress,
+        "winter_cost_burden": winter_cost,
+        "short_cycle_volatility": round(vol, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _spinach_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    시금치: 겨울 노지(남해안) 최고 품질. 봄·가을 성수기.
+    여름(6-8월) 고온 취약 → 공급 급감 → 가격 급등.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 겨울 노지 성수기 (11-2월)
+    winter_quality_peak = max(0.0, 1.0 - min(abs(d - 350), abs(d - 365 + 350)) / 90.0)
+    # 봄 성수기 (3-4월)
+    spring_peak = max(0.0, 1.0 - abs(d - 90) / 45.0)
+    season_quality = max(winter_quality_peak, spring_peak)
+    # 여름 공급 충격 위험 (6-8월)
+    summer_shock_risk = int(m in (6, 7, 8))
+    # 한파 출하 지연 (1-2월 강추위)
+    cold_supply_delay = int(m in (1, 2))
+    spike_7d = _pct(values[idx], values[idx - 7]) if idx >= 7 else 0.0
+    mf = [1.1, 1.2, 1.1, 1.0, 0.9, 1.0, 1.2, 1.2, 1.0, 0.9, 1.0, 1.1][m - 1]
+    return {
+        "seasonal_quality_peak": round(season_quality, 4),
+        "summer_supply_shock_risk": summer_shock_risk,
+        "cold_supply_delay": cold_supply_delay,
+        "price_spike_7d": round(spike_7d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _lettuce_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    상추: 60일 초단기 생육. 여름 삼겹살 수요 최고.
+    여름 고온 공급 차질 → 수요·공급 동시 피크 → 가격 급등락.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 삼겹살 수요 성수기 (5-8월)
+    bbq_demand = int(m in (5, 6, 7, 8))
+    bbq_peak_prox = max(0.0, 1.0 - abs(d - 196) / 75.0)
+    # 여름 고온 공급 스트레스 (7-8월) — 수요는 높은데 공급 불안정
+    summer_supply_stress = int(m in (7, 8))
+    # 겨울 난방비 (12-2월)
+    winter_cost = int(m in (12, 1, 2))
+    # 60일 사이클 (재배 주기)
+    cycle_phase = d % 60
+    cycle_sin = _sin_cycle(cycle_phase, 60)
+    # 단기 변동성 (상추는 가격 변동 매우 빠름)
+    if idx >= 7:
+        vol = _safe_std(_returns(values[max(0, idx - 7):idx + 1]))
+        spike = _pct(values[idx], values[idx - 7])
+    else:
+        vol = 0.0
+        spike = 0.0
+    mf = [1.1, 1.0, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1, 0.9, 0.9, 1.0, 1.1][m - 1]
+    return {
+        "bbq_demand_season": bbq_demand,
+        "bbq_peak_proximity": round(bbq_peak_prox, 4),
+        "summer_supply_stress": summer_supply_stress,
+        "winter_cost_burden": winter_cost,
+        "short_cycle_sin": round(cycle_sin, 6),
+        "volatility_7d_extra": round(vol, 6),
+        "spike_7d": round(spike, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _perilla_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    깻잎: 온실 주년 생산. 삼겹살 문화로 상추와 수요 연동.
+    여름 고온 시 재배 난이도 증가 → 공급 압박.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    bbq_prox = max(0.0, 1.0 - abs(d - 196) / 75.0)
+    summer_stress = int(m in (7, 8))
+    winter_cost = int(m in (12, 1, 2))
+    if idx >= 7:
+        spike = _pct(values[idx], values[idx - 7])
+    else:
+        spike = 0.0
+    mf = [1.1, 1.0, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1, 0.9, 0.9, 1.0, 1.1][m - 1]
+    return {
+        "bbq_season_proximity": round(bbq_prox, 4),
+        "summer_heat_stress": summer_stress,
+        "winter_cost_burden": winter_cost,
+        "price_spike_7d": round(spike, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _chamoe_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    참외: 성주(경북) 집중 생산(전국 80%). 5-8월 노지 출하 집중.
+    5월 초 하우스 출하 시작 → 6-7월 최성기 → 8월 말 종료.
+    비수기(10-4월) 하우스 소량 생산.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 성수기 근접도 (6-7월, yday 166 기준)
+    peak_prox = max(0.0, 1.0 - abs(d - 196) / 75.0)
+    in_peak = int(m in (6, 7))
+    in_supply = int(m in (5, 6, 7, 8))
+    # 비수기 (10-4월) — 하우스 소량
+    in_offseason = int(m in (10, 11, 12, 1, 2, 3, 4))
+    # 초여름 가격 하락 가속 (6월)
+    early_drop_prox = max(0.0, 1.0 - abs(d - 166) / 30.0)
+    lag_14 = values[idx - 14] if idx >= 14 else values[0]
+    momentum_14d = _pct(values[idx], lag_14) if idx >= 14 else 0.0
+    mf = [1.0, 1.0, 1.0, 1.1, 1.2, 1.0, 0.9, 0.9, 1.1, 1.1, 1.1, 1.0][m - 1]
+    return {
+        "peak_season_proximity": round(peak_prox, 4),
+        "in_peak_season": in_peak,
+        "in_supply_season": in_supply,
+        "in_offseason": in_offseason,
+        "early_drop_proximity": round(early_drop_prox, 4),
+        "momentum_14d": round(momentum_14d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
+def _sesame_features(base_date: date, idx: int, values: list[float]) -> dict:
+    """
+    참깨: 8-9월 수확 집중. 연간 1회 생산. 수입 의존도 높음.
+    수확 직후(9-10월) 가격 최저 → 소진기(5-7월) 가격 최고.
+    """
+    m = base_date.month
+    d = base_date.timetuple().tm_yday
+    # 수확기 (8-9월)
+    in_harvest = int(m in (8, 9))
+    harvest_prox = max(0.0, 1.0 - abs(d - 243) / 60.0)
+    # 재고 소진기 (5-7월)
+    in_depletion = int(m in (5, 6, 7))
+    depletion_progress = max(0.0, (d - 120) / 92.0) if 120 <= d <= 212 else 0.0
+    # 파종기 (4-5월) — 작황 예고
+    planting_period = int(m in (4, 5))
+    # 수입 가격 연동기 (1-4월, 국내 재고 부족 구간)
+    import_linkage = int(m in (1, 2, 3, 4))
+    lag_60 = values[max(0, idx - 60)]
+    momentum_60d = _pct(values[idx], lag_60) if idx >= 60 else 0.0
+    mf = [1.1, 1.1, 1.1, 1.1, 1.2, 1.2, 1.2, 1.0, 0.8, 0.9, 1.0, 1.1][m - 1]
+    return {
+        "in_harvest_period": in_harvest,
+        "harvest_proximity": round(harvest_prox, 4),
+        "stock_depletion_phase": in_depletion,
+        "depletion_progress": round(depletion_progress, 4),
+        "planting_period": planting_period,
+        "import_price_linkage": import_linkage,
+        "momentum_60d": round(momentum_60d, 6),
+        "month_seasonal_factor": round(mf, 3),
+    }
+
+
 # ── 품목별 디스패처 ────────────────────────────────────────────────────────────
 
 ITEM_FEATURE_FN = {
-    "cabbage":     _cabbage_features,
-    "garlic":      _garlic_features,
-    "green_onion": _green_onion_features,
-    "onion":       _onion_features,
-    "radish":      _radish_features,
+    "cabbage":      _cabbage_features,
+    "garlic":       _garlic_features,
+    "green_onion":  _green_onion_features,
+    "onion":        _onion_features,
+    "radish":       _radish_features,
+    # 신규 추가 (18개 품목)
+    "potato":       _potato_features,
+    "sweet_potato": _sweet_potato_features,
+    "tomato":       _tomato_features,
+    "pepper":       _pepper_features,
+    "fresh_pepper": _fresh_pepper_features,
+    "cucumber":     _cucumber_features,
+    "carrot":       _carrot_features,
+    "apple":        _apple_features,
+    "pear":         _pear_features,
+    "watermelon":   _watermelon_features,
+    "strawberry":   _strawberry_features,
+    "grape":        _grape_features,
+    "zucchini":     _zucchini_features,
+    "spinach":      _spinach_features,
+    "lettuce":      _lettuce_features,
+    "perilla":      _perilla_features,
+    "chamoe":       _chamoe_features,
+    "sesame":       _sesame_features,
 }
 
 # 품목별 피처 컬럼 목록 (CSV 헤더에 사용)
@@ -494,6 +1093,55 @@ ITEM_EXTRA_FIELDS = {
     "radish":      ["kimjang_proximity", "season_sin", "season_cos",
                     "in_summer_slack", "cold_sensitivity_period",
                     "supply_pressure_14d", "trend_30d", "month_seasonal_factor"],
+    "potato":      ["spring_harvest_prox", "fall_harvest_prox", "in_spring_harvest",
+                    "in_fall_harvest", "storage_depletion_phase", "storage_depletion_progress",
+                    "highland_premium_season", "momentum_30d", "month_seasonal_factor"],
+    "sweet_potato":["in_harvest_period", "peak_supply_period", "storage_depletion_phase",
+                    "depletion_progress", "gift_season_proximity",
+                    "momentum_30d", "month_seasonal_factor"],
+    "tomato":      ["season_peak_proximity", "summer_supply_stress",
+                    "winter_heating_cost", "price_acceleration_7d", "month_seasonal_factor"],
+    "pepper":      ["in_harvest_period", "peak_supply_period", "stock_depletion_phase",
+                    "depletion_progress", "import_substitution_risk",
+                    "momentum_60d", "month_seasonal_factor"],
+    "fresh_pepper":["in_peak_supply", "supply_season_proximity", "winter_cost_burden",
+                    "heat_disease_risk", "planting_period",
+                    "spike_7d", "month_seasonal_factor"],
+    "cucumber":    ["season_peak_proximity", "summer_oversupply",
+                    "winter_heating_cost", "extra_volatility_7d", "month_seasonal_factor"],
+    "carrot":      ["jeju_harvest_proximity", "in_jeju_harvest", "highland_harvest_period",
+                    "storage_depletion_phase", "depletion_progress",
+                    "peak_supply_period", "momentum_60d", "month_seasonal_factor"],
+    "apple":       ["chuseok_proximity", "gift_season_proximity", "in_harvest_period",
+                    "storage_depletion_phase", "depletion_progress",
+                    "late_frost_risk", "momentum_60d", "month_seasonal_factor"],
+    "pear":        ["chuseok_proximity", "pre_harvest_premium", "in_harvest_period",
+                    "storage_depletion_phase", "depletion_progress",
+                    "blossom_frost_risk", "momentum_60d", "month_seasonal_factor"],
+    "watermelon":  ["peak_demand_proximity", "early_supply_proximity",
+                    "in_peak_supply", "in_offseason",
+                    "summer_heat_demand", "momentum_14d", "month_seasonal_factor"],
+    "strawberry":  ["winter_peak_proximity", "gift_day_proximity",
+                    "in_peak_supply", "in_offseason", "planting_period",
+                    "supply_taper", "momentum_14d", "month_seasonal_factor"],
+    "grape":       ["chuseok_proximity", "in_harvest_period", "pre_harvest_premium",
+                    "import_dependency_period", "storage_depletion_phase",
+                    "momentum_60d", "month_seasonal_factor"],
+    "zucchini":    ["season_peak_proximity", "summer_supply_stress",
+                    "winter_cost_burden", "short_cycle_volatility", "month_seasonal_factor"],
+    "spinach":     ["seasonal_quality_peak", "summer_supply_shock_risk",
+                    "cold_supply_delay", "price_spike_7d", "month_seasonal_factor"],
+    "lettuce":     ["bbq_demand_season", "bbq_peak_proximity", "summer_supply_stress",
+                    "winter_cost_burden", "short_cycle_sin",
+                    "volatility_7d_extra", "spike_7d", "month_seasonal_factor"],
+    "perilla":     ["bbq_season_proximity", "summer_heat_stress",
+                    "winter_cost_burden", "price_spike_7d", "month_seasonal_factor"],
+    "chamoe":      ["peak_season_proximity", "in_peak_season", "in_supply_season",
+                    "in_offseason", "early_drop_proximity",
+                    "momentum_14d", "month_seasonal_factor"],
+    "sesame":      ["in_harvest_period", "harvest_proximity", "stock_depletion_phase",
+                    "depletion_progress", "planting_period",
+                    "import_price_linkage", "momentum_60d", "month_seasonal_factor"],
 }
 
 
