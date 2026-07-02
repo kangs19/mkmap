@@ -1784,7 +1784,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
                 continue
             acc = r.get("calibrated_dir_acc") or r.get("test_dir_acc") or 0.0
             n_test = r.get("n_test", 0)
-            if cascade or acc < 0.52 or n_test < 20 or acc > prev_acc:
+            if cascade or acc < 0.52 or n_test < 15 or acc > prev_acc + 0.05:
                 cascade = True
                 results_per_item[key]["reliable"] = False
                 try:
