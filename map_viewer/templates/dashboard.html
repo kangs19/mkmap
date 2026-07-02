@@ -4,690 +4,889 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MK-MAP — 농산물 가격 AI 예측 플랫폼</title>
-  <meta name="description" content="배추·무·양파·대파·마늘 도매가격을 AI로 1주~3개월 예측합니다. 주산지 위험 신호·생산 통계·시세 차트를 무료로 제공합니다.">
-  <meta name="keywords" content="농산물가격예측,배추가격,무가격,양파가격,대파가격,마늘가격,농산물시세,AI예측,가락시장,도매가격">
+  <meta name="description" content="23개 농산물 도매가격을 AI로 1주~3개월 예측합니다. 주산지 위험 신호·생산 통계·시세 차트를 무료로 제공합니다.">
+  <meta name="keywords" content="농산물가격예측,배추가격,무가격,양파가격,사과가격,토마토가격,농산물시세,AI예측,가락시장,도매가격">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://mk-map.com/">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mk-map.com/">
   <meta property="og:title" content="MK-MAP — 농산물 가격 AI 예측">
-  <meta property="og:description" content="배추·무·양파·대파·마늘 도매가격을 LightGBM AI로 최대 3개월 예측. 주산지 위험 신호와 생산 통계를 함께 제공합니다.">
+  <meta property="og:description" content="23개 농산물 도매가격을 LightGBM AI로 1주~3개월 예측. 주산지 위험 신호와 생산 통계를 함께 제공합니다.">
   <meta property="og:image" content="https://mk-map.com/static/og_image.png">
   <meta property="og:locale" content="ko_KR">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="MK-MAP — 농산물 가격 AI 예측">
-  <meta name="twitter:description" content="배추·무·양파·대파·마늘 도매가격 AI 예측 플랫폼. 1주~3개월 방향 예측 제공.">
+  <meta name="twitter:description" content="23개 농산물 도매가격 AI 예측 플랫폼. 1주~3개월 방향 예측 제공.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Malgun Gothic', sans-serif; background: #f0f4f8; color: #333; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Noto Sans KR','Malgun Gothic',sans-serif; background:#f0f4f8; color:#222; }
 
-    /* ── 헤더 ────────────── */
-    .header {
-      background: #1a3a5c;
-      color: white;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
+    /* ── 네비 ── */
+    .nav {
+      background:#0f2744;
+      padding:0 28px;
+      display:flex;
+      align-items:center;
+      gap:20px;
+      height:56px;
+      position:sticky;
+      top:0;
+      z-index:100;
+      box-shadow:0 2px 8px rgba(0,0,0,0.25);
     }
-    .header h1 { font-size: 18px; }
-    .header-sub { font-size: 12px; opacity: 0.7; margin-left: 4px; }
-
-    /* ── 품목 탭 ─────────── */
-    .item-tabs {
-      background: #1e4475;
-      padding: 0 24px;
-      display: flex;
-      gap: 0;
-      overflow-x: auto;
+    .nav-logo {
+      font-size:17px;
+      font-weight:700;
+      color:white;
+      text-decoration:none;
+      letter-spacing:-0.3px;
+      white-space:nowrap;
     }
-    .item-tab {
-      padding: 10px 20px;
-      border: none;
-      background: transparent;
-      color: rgba(255,255,255,0.6);
-      cursor: pointer;
-      font-size: 14px;
-      border-bottom: 3px solid transparent;
-      white-space: nowrap;
-      transition: all 0.2s;
+    .nav-logo span { color:#f39c12; }
+    .nav-links { display:flex; gap:4px; margin-left:auto; }
+    .nav-link {
+      padding:6px 14px;
+      border-radius:6px;
+      color:rgba(255,255,255,0.7);
+      text-decoration:none;
+      font-size:13px;
+      font-weight:500;
+      transition:all 0.15s;
     }
-    .item-tab.active {
-      color: white;
-      border-bottom-color: #f39c12;
-      background: rgba(255,255,255,0.05);
-    }
-    .item-tab:hover { color: white; background: rgba(255,255,255,0.08); }
-
-    /* ── 메인 레이아웃 ─────── */
-    .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
-    .grid { display: grid; gap: 16px; }
-    .grid-3 { grid-template-columns: repeat(3, 1fr); }
-    .grid-2 { grid-template-columns: 2fr 1fr; }
-    @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 700px)  { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
-
-    /* ── 카드 ────────────── */
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 18px 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    }
-    .card-title {
-      font-size: 12px;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-    .card-value {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1a3a5c;
-      line-height: 1.2;
-    }
-    .card-sub { font-size: 12px; color: #999; margin-top: 4px; }
-
-    /* ── 방향 배지 ─────────── */
-    .direction-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 22px;
-      font-weight: 700;
-      padding: 4px 0;
-    }
-    .dir-up   { color: #e74c3c; }
-    .dir-down { color: #2980b9; }
-    .dir-neutral { color: #888; }
-
-    .prob-bar {
-      height: 6px;
-      background: #eee;
-      border-radius: 3px;
-      margin-top: 10px;
-    }
-    .prob-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 0.5s ease;
+    .nav-link:hover { background:rgba(255,255,255,0.1); color:white; }
+    .nav-link.active { background:rgba(243,156,18,0.2); color:#f39c12; }
+    .nav-badge {
+      display:inline-block;
+      background:#f39c12;
+      color:#0f2744;
+      border-radius:10px;
+      padding:1px 7px;
+      font-size:11px;
+      font-weight:700;
+      margin-left:4px;
     }
 
-    /* ── 위험 레벨 ─────────── */
-    .risk-pill {
-      display: inline-block;
-      padding: 3px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
+    /* ── 서브헤더 ── */
+    .subheader {
+      background:#172f52;
+      padding:10px 28px;
+      display:flex;
+      align-items:center;
+      gap:24px;
+      flex-wrap:wrap;
     }
-    .risk-normal  { background: #d4edda; color: #155724; }
-    .risk-caution { background: #fff3cd; color: #856404; }
-    .risk-warning { background: #fde8d8; color: #c0392b; }
-    .risk-high    { background: #f8d7da; color: #721c24; }
+    .subheader-stat {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:rgba(255,255,255,0.6);
+    }
+    .subheader-stat b { color:rgba(255,255,255,0.9); }
+    .live-dot {
+      width:7px; height:7px;
+      background:#2ecc71;
+      border-radius:50%;
+      animation:pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-    /* ── 요인 목록 ─────────── */
-    .factor-list { list-style: none; margin-top: 4px; }
-    .factor-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 0;
-      border-bottom: 1px solid #f5f5f5;
-      font-size: 13px;
-    }
-    .factor-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 3px; height: 5px; }
-    .factor-bar { height: 100%; border-radius: 3px; background: #2e74b5; }
-    .factor-up   .factor-bar { background: #e74c3c; }
-    .factor-down .factor-bar { background: #2980b9; }
-    .factor-name { width: 140px; color: #555; font-size: 12px; }
-    .factor-pct  { width: 36px; text-align: right; font-size: 11px; color: #999; }
+    /* ── 메인 컨테이너 ── */
+    .main { max-width:1440px; margin:0 auto; padding:20px 24px; }
 
-    /* ── 차트 ────────────── */
-    .chart-wrap { position: relative; height: 220px; }
-
-    /* ── 전체 현황 표 ─────── */
-    .overview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .overview-table th {
-      text-align: left;
-      padding: 8px 10px;
-      background: #f8f9fa;
-      font-size: 11px;
-      color: #888;
-      border-bottom: 1px solid #e0e0e0;
+    /* ── 카테고리 필터 ── */
+    .cat-bar {
+      display:flex;
+      gap:8px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+      align-items:center;
     }
-    .overview-table td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; }
-    .overview-table tr:last-child td { border-bottom: none; }
-    .overview-table tr:hover td { background: #f8f9ff; }
-
-    .conf-badge {
-      display: inline-block;
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 8px;
-      background: #e8f4fd;
-      color: #2e74b5;
+    .cat-btn {
+      padding:7px 18px;
+      border-radius:24px;
+      border:1.5px solid #d5dce8;
+      background:white;
+      color:#555;
+      font-size:13px;
+      font-weight:500;
+      cursor:pointer;
+      transition:all 0.15s;
+      font-family:inherit;
+      white-space:nowrap;
     }
-
-    /* ── 지도 iframe ─────── */
-    .map-frame {
-      width: 100%;
-      height: 420px;
-      border: none;
-      border-radius: 8px;
+    .cat-btn:hover { border-color:#2e74b5; color:#2e74b5; }
+    .cat-btn.active {
+      background:#0f2744;
+      color:white;
+      border-color:#0f2744;
     }
-
-    /* ── 로딩 ────────────── */
-    .loading { color: #aaa; font-size: 13px; padding: 20px; text-align: center; }
-
-    /* ── 예측기간 탭 ─────────── */
-    .horizon-tabs {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
+    .cat-btn .cnt {
+      display:inline-block;
+      background:rgba(255,255,255,0.25);
+      border-radius:8px;
+      padding:0 6px;
+      font-size:11px;
+      margin-left:4px;
     }
-    .horizon-tab {
-      padding: 5px 14px;
-      border-radius: 20px;
-      border: 1.5px solid #d0d8e8;
-      background: white;
-      color: #555;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.15s;
-    }
-    .horizon-tab.active {
-      background: #1a3a5c;
-      color: white;
-      border-color: #1a3a5c;
-    }
-    .horizon-tab:hover:not(.active) { border-color: #2e74b5; color: #2e74b5; }
-
-    /* ── 멀티 horizon 예측 카드 ─── */
-    .horizon-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    @media (max-width: 1100px) { .horizon-grid { grid-template-columns: repeat(4, 1fr); } }
-    @media (max-width: 700px)  { .horizon-grid { grid-template-columns: repeat(2, 1fr); } }
-    .horizon-card {
-      background: white;
-      border-radius: 10px;
-      padding: 14px 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border-top: 3px solid #e0e0e0;
-    }
-    .horizon-card.dir-up      { border-top-color: #e74c3c; }
-    .horizon-card.dir-down    { border-top-color: #2980b9; }
-    .horizon-card.horizon-unavail { background: #f9f9f9; border-top-color: #ddd; opacity: 0.7; }
-    .horizon-label { font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .horizon-dir { font-size: 20px; font-weight: 700; }
-    .horizon-prob { font-size: 12px; color: #777; margin-top: 3px; }
-    .horizon-conf { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #e8f4fd; color: #2e74b5; margin-top: 6px; display: inline-block; }
-
-    /* ── 모바일 반응형 ────── */
-    @media (max-width: 768px) {
-      .header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
-      .header h1 { font-size: 15px; }
-      .header-sub { font-size: 11px; }
-      .main { padding: 12px 10px; }
-      .card { padding: 12px 14px; }
-      .card-value { font-size: 22px; }
-      .item-tabs { padding: 0 10px; }
-      .item-tab { padding: 8px 12px; font-size: 13px; }
-      .horizon-tab { padding: 4px 10px; font-size: 12px; }
-      .horizon-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-      .horizon-card { padding: 10px 10px; }
-      .horizon-dir { font-size: 16px; }
-      .chart-wrap { height: 180px; }
-      .map-frame { height: 280px; }
-      .prod-stat { gap: 8px; }
-      .factor-name { width: 100px; font-size: 11px; }
-      .overview-table { font-size: 11px; }
-      .overview-table th, .overview-table td { padding: 6px 6px; }
-      .perf-table { font-size: 11px; }
-      .perf-table th, .perf-table td { padding: 6px 6px; }
-      .forecast-bar { flex-wrap: wrap; gap: 6px; }
-    }
-    @media (max-width: 480px) {
-      .horizon-grid { grid-template-columns: repeat(2, 1fr); }
-      .grid-2 { grid-template-columns: 1fr; }
+    .cat-btn:not(.active) .cnt {
+      background:#f0f4f8;
+      color:#999;
     }
 
-    /* ── 예측 오버레이 배지 ── */
+    /* ── 품목 카드 그리드 ── */
+    .item-grid {
+      display:grid;
+      grid-template-columns:repeat(6, 1fr);
+      gap:10px;
+      margin-bottom:20px;
+    }
+    @media (max-width:1200px) { .item-grid { grid-template-columns:repeat(5,1fr); } }
+    @media (max-width:960px)  { .item-grid { grid-template-columns:repeat(4,1fr); } }
+    @media (max-width:700px)  { .item-grid { grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:480px)  { .item-grid { grid-template-columns:repeat(2,1fr); } }
+
+    .item-card {
+      background:white;
+      border-radius:12px;
+      padding:14px 12px;
+      cursor:pointer;
+      border:2px solid transparent;
+      transition:all 0.15s;
+      box-shadow:0 1px 3px rgba(0,0,0,0.06);
+      position:relative;
+    }
+    .item-card:hover { border-color:#2e74b5; box-shadow:0 4px 12px rgba(46,116,181,0.15); transform:translateY(-1px); }
+    .item-card.selected { border-color:#0f2744; box-shadow:0 4px 16px rgba(15,39,68,0.2); }
+    .item-card.unavail { opacity:0.6; }
+    .item-icon { font-size:24px; margin-bottom:6px; display:block; }
+    .item-name { font-size:13px; font-weight:600; color:#222; margin-bottom:4px; }
+    .item-price {
+      font-size:15px;
+      font-weight:700;
+      color:#0f2744;
+      margin-bottom:6px;
+      line-height:1.2;
+    }
+    .item-price-sub { font-size:10px; color:#aaa; font-weight:400; }
+    .item-dir {
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      font-size:12px;
+      font-weight:600;
+      padding:2px 8px;
+      border-radius:10px;
+      margin-bottom:5px;
+    }
+    .dir-up   { background:#fde8e8; color:#c0392b; }
+    .dir-down { background:#e8f0fd; color:#1a60a0; }
+    .dir-neutral { background:#f0f0f0; color:#777; }
+    .item-risk-dot {
+      position:absolute;
+      top:10px; right:10px;
+      width:8px; height:8px;
+      border-radius:50%;
+    }
+    .dot-normal  { background:#2ecc71; }
+    .dot-caution { background:#f39c12; }
+    .dot-warning { background:#e67e22; }
+    .dot-high    { background:#e74c3c; }
+    .item-loading { color:#ccc; font-size:12px; }
+    .no-data-badge {
+      font-size:10px;
+      color:#bbb;
+      background:#f5f5f5;
+      border-radius:8px;
+      padding:2px 7px;
+    }
+
+    /* ── 상세 패널 ── */
+    .detail-panel {
+      background:white;
+      border-radius:14px;
+      padding:0;
+      margin-bottom:20px;
+      box-shadow:0 2px 12px rgba(0,0,0,0.08);
+      overflow:hidden;
+      display:none;
+    }
+    .detail-panel.open { display:block; }
+    .detail-header {
+      background:#0f2744;
+      color:white;
+      padding:14px 24px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .detail-icon { font-size:28px; }
+    .detail-title { font-size:18px; font-weight:700; }
+    .detail-price { font-size:22px; font-weight:700; color:#f39c12; margin-left:auto; }
+    .detail-price-sub { font-size:11px; color:rgba(255,255,255,0.5); }
+    .detail-body { padding:20px 24px; }
+    .detail-close {
+      margin-left:8px;
+      background:rgba(255,255,255,0.1);
+      border:none;
+      color:rgba(255,255,255,0.7);
+      border-radius:6px;
+      padding:4px 12px;
+      cursor:pointer;
+      font-size:13px;
+      font-family:inherit;
+    }
+    .detail-close:hover { background:rgba(255,255,255,0.2); color:white; }
+
+    /* ── 예측 배지 바 ── */
     .forecast-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      padding: 8px 12px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border: 1px solid #e8edf5;
-      font-size: 12px;
-      color: #555;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:16px;
+      padding:12px 14px;
+      background:#f8fafc;
+      border-radius:10px;
+      border:1px solid #e8edf5;
     }
-    .forecast-bar-label { color: #999; font-size: 11px; white-space: nowrap; }
-    .forecast-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
+    .fbar-label { font-size:11px; color:#999; white-space:nowrap; align-self:center; }
+    .fp {
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      padding:4px 12px;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:600;
+      white-space:nowrap;
     }
-    .fp-up      { background: #fde8e8; color: #c0392b; }
-    .fp-down    { background: #e8f0fd; color: #2471a3; }
-    .fp-neutral { background: #f0f0f0; color: #888; }
-    .fp-na      { background: #f5f5f5; color: #bbb; }
+    .fp-up      { background:#fde8e8; color:#c0392b; }
+    .fp-down    { background:#e8f0fd; color:#1a60a0; }
+    .fp-neutral { background:#f0f0f0; color:#777; }
+    .fp-na      { background:#f5f5f5; color:#bbb; }
 
-    /* ── 면책고지 ─────────── */
-    .disclaimer {
-      font-size: 11px;
-      color: #bbb;
-      padding: 12px 0 4px;
-      border-top: 1px solid #e8e8e8;
-      margin-top: 20px;
-      line-height: 1.7;
+    /* ── 상세 그리드 ── */
+    .detail-grid { display:grid; gap:16px; grid-template-columns:2fr 1fr; }
+    @media (max-width:900px) { .detail-grid { grid-template-columns:1fr; } }
+
+    .chart-wrap { position:relative; height:200px; }
+    .section-label {
+      font-size:11px;
+      font-weight:600;
+      color:#888;
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+      margin-bottom:10px;
     }
-    /* 생산 통계 카드 */
-    .prod-stat { display:flex; gap:16px; flex-wrap:wrap; margin-top:6px; }
-    .prod-item { flex:1; min-width:80px; text-align:center; background:#f0f4fa; border-radius:6px; padding:8px; }
-    .prod-item .prod-val { font-size:16px; font-weight:700; color:#1a3a5c; }
-    .prod-item .prod-lbl { font-size:11px; color:#888; margin-top:2px; }
-    /* 모델 성능 섹션 */
-    .perf-section { margin-top: 24px; }
-    .perf-section .section-title {
-      font-size: 15px; font-weight: 600; color: #1a3a5c;
-      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+
+    /* ── 요인 목록 ── */
+    .factor-list { list-style:none; }
+    .factor-item {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:5px 0;
+      border-bottom:1px solid #f5f5f5;
+      font-size:12px;
     }
-    .perf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .factor-name { width:130px; color:#555; font-size:11px; }
+    .factor-bar-wrap { flex:1; background:#f0f0f0; border-radius:3px; height:4px; }
+    .factor-bar { height:100%; border-radius:3px; background:#2e74b5; }
+    .factor-up   .factor-bar { background:#e74c3c; }
+    .factor-down .factor-bar { background:#2980b9; }
+    .factor-pct  { width:34px; text-align:right; font-size:10px; color:#bbb; }
+
+    /* ── 생산 통계 ── */
+    .prod-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    .prod-item {
+      flex:1;
+      min-width:70px;
+      text-align:center;
+      background:#f4f7fc;
+      border-radius:8px;
+      padding:10px 8px;
+    }
+    .prod-val { font-size:15px; font-weight:700; color:#0f2744; }
+    .prod-lbl { font-size:10px; color:#888; margin-top:2px; }
+
+    /* ── 전체 현황 표 ── */
+    .section-card {
+      background:white;
+      border-radius:12px;
+      padding:20px 22px;
+      box-shadow:0 1px 4px rgba(0,0,0,0.06);
+      margin-bottom:16px;
+    }
+    .section-title {
+      font-size:14px;
+      font-weight:700;
+      color:#0f2744;
+      margin-bottom:14px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .overview-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+    }
+    .overview-table th {
+      text-align:left;
+      padding:7px 10px;
+      background:#f6f8fc;
+      font-size:11px;
+      color:#888;
+      border-bottom:1px solid #e8ecf2;
+      white-space:nowrap;
+    }
+    .overview-table td { padding:8px 10px; border-bottom:1px solid #f2f4f8; }
+    .overview-table tr:last-child td { border-bottom:none; }
+    .overview-table tr:hover td { background:#f8f9ff; cursor:pointer; }
+    .overview-table .th-center { text-align:center; }
+    .overview-table .td-center { text-align:center; }
+
+    .dir-badge {
+      display:inline-block;
+      font-size:11px;
+      font-weight:600;
+      padding:1px 7px;
+      border-radius:8px;
+    }
+
+    .risk-pill {
+      display:inline-block;
+      font-size:10px;
+      font-weight:600;
+      padding:2px 8px;
+      border-radius:10px;
+    }
+    .risk-normal  { background:#d4edda; color:#155724; }
+    .risk-caution { background:#fff3cd; color:#856404; }
+    .risk-warning { background:#fde8d8; color:#c0392b; }
+    .risk-high    { background:#f8d7da; color:#721c24; }
+
+    /* ── 모델 성능 ── */
+    .perf-table { width:100%; border-collapse:collapse; font-size:12px; }
     .perf-table th {
-      background: #f0f4fa; color: #555; font-weight: 600;
-      padding: 8px 10px; text-align: center; border-bottom: 2px solid #dde3ed;
+      background:#f0f4fa;
+      color:#555;
+      font-weight:600;
+      padding:7px 10px;
+      text-align:center;
+      border-bottom:2px solid #dde3ed;
     }
-    .perf-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #f0f0f0; }
-    .perf-table tr:hover td { background: #f8f9ff; cursor: pointer; }
-    .perf-table .item-name { text-align: left; font-weight: 600; color: #1a3a5c; }
-    .acc-high  { color: #27ae60; font-weight: 700; }
-    .acc-mid   { color: #e67e22; font-weight: 600; }
-    .acc-low   { color: #e74c3c; }
-    .backtest-wrap { margin-top: 16px; }
-    .backtest-legend { display: flex; gap: 16px; font-size: 12px; color: #666; margin-bottom: 6px; }
-    .leg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+    .perf-table td { padding:7px 10px; text-align:center; border-bottom:1px solid #f0f0f0; }
+    .perf-table tr:hover td { background:#f8f9ff; cursor:pointer; }
+    .perf-table .item-col { text-align:left; font-weight:600; color:#0f2744; }
+    .acc-high  { color:#27ae60; font-weight:700; }
+    .acc-mid   { color:#e67e22; font-weight:600; }
+    .acc-low   { color:#e74c3c; }
+    .backtest-legend { display:flex; gap:14px; font-size:11px; color:#777; margin-bottom:6px; }
+    .leg-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
+
+    /* ── 미디어 쿼리 ── */
+    @media (max-width:768px) {
+      .nav { padding:0 14px; height:50px; }
+      .nav-logo { font-size:15px; }
+      .nav-link span { display:none; }
+      .subheader { padding:8px 14px; gap:14px; }
+      .main { padding:14px 12px; }
+      .cat-btn { padding:6px 12px; font-size:12px; }
+      .item-icon { font-size:20px; }
+      .item-name { font-size:12px; }
+      .item-price { font-size:13px; }
+      .detail-header { padding:12px 16px; }
+      .detail-body { padding:14px 16px; }
+      .detail-title { font-size:15px; }
+      .detail-price { font-size:18px; }
+    }
+
+    /* ── 기타 ── */
+    .loading-text { color:#bbb; font-size:13px; padding:20px; text-align:center; }
+    .disclaimer {
+      font-size:11px;
+      color:#bbb;
+      padding:14px 0 6px;
+      border-top:1px solid #e8e8e8;
+      margin-top:20px;
+      line-height:1.8;
+    }
+    .btn-sm {
+      font-size:11px;
+      padding:4px 10px;
+      border:1px solid #2e74b5;
+      border-radius:5px;
+      background:white;
+      color:#2e74b5;
+      cursor:pointer;
+      font-family:inherit;
+    }
+    .btn-sm:hover { background:#2e74b5; color:white; }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>🌾 MK-MAP 농산물 가격 AI 예측</h1>
-  <span class="header-sub">배추·무·양파·대파·마늘 도매가격 · AI 기반 최대 3개월 예측</span>
-</div>
+<!-- ── 네비게이션 ── -->
+<nav class="nav">
+  <a class="nav-logo" href="/">🌾 <span>MK</span>-MAP</a>
+  <div class="nav-links">
+    <a class="nav-link active" href="/">홈</a>
+    <a class="nav-link" href="/performance">성능 분석</a>
+    <a class="nav-link" id="admin-nav-link" href="#" style="display:none;" onclick="showAdmin()">관리</a>
+  </div>
+</nav>
 
-<div class="item-tabs" id="item-tabs">
-  <div class="loading" style="padding:10px">품목 로딩 중...</div>
+<!-- ── 서브헤더 ── -->
+<div class="subheader" id="subheader">
+  <div class="subheader-stat"><div class="live-dot"></div><b id="sh-items">—</b> 개 품목 실시간 추적</div>
+  <div class="subheader-stat">AI 예측 가능: <b id="sh-preds">—</b></div>
+  <div class="subheader-stat">기준일: <b id="sh-date">—</b></div>
+  <div class="subheader-stat" style="margin-left:auto;font-size:11px;">가락시장 도매가 기준</div>
 </div>
 
 <div class="main">
-  <!-- 예측 기간 탭 -->
-  <div class="horizon-tabs" id="horizon-tabs">
-    <button class="horizon-tab active" data-horizon="7"   onclick="selectHorizon(7)">1주</button>
-    <button class="horizon-tab"        data-horizon="14"  onclick="selectHorizon(14)">2주</button>
-    <button class="horizon-tab"        data-horizon="21"  onclick="selectHorizon(21)">3주</button>
-    <button class="horizon-tab"        data-horizon="28"  onclick="selectHorizon(28)">4주</button>
-    <button class="horizon-tab"        data-horizon="60"  onclick="selectHorizon(60)">2개월</button>
-    <button class="horizon-tab"        data-horizon="90"  onclick="selectHorizon(90)">3개월</button>
+
+  <!-- ── 카테고리 필터 ── -->
+  <div class="cat-bar" id="cat-bar">
+    <button class="cat-btn active" data-cat="all" onclick="filterCat('all')">전체 <span class="cnt" id="cnt-all">—</span></button>
+    <button class="cat-btn" data-cat="채소류" onclick="filterCat('채소류')">채소류 <span class="cnt" id="cnt-채소류">—</span></button>
+    <button class="cat-btn" data-cat="과일류" onclick="filterCat('과일류')">과일류 <span class="cnt" id="cnt-과일류">—</span></button>
+    <button class="cat-btn" data-cat="특용작물" onclick="filterCat('특용작물')">특용작물 <span class="cnt" id="cnt-특용작물">—</span></button>
   </div>
 
-  <!-- 멀티 horizon 예측 카드 (6개) -->
-  <div class="horizon-grid" id="horizon-grid">
-    <div class="horizon-card" id="hcard-7" ><div class="horizon-label">1주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-14"><div class="horizon-label">2주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-21"><div class="horizon-label">3주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-28"><div class="horizon-label">4주 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-60"><div class="horizon-label">2개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
-    <div class="horizon-card" id="hcard-90"><div class="horizon-label">3개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+  <!-- ── 품목 카드 그리드 ── -->
+  <div class="item-grid" id="item-grid">
+    <div class="loading-text">품목 로딩 중...</div>
   </div>
 
-  <!-- 상단 요약 카드 (선택된 horizon 기준) -->
-  <div class="grid grid-3" style="margin-bottom:16px;">
-    <div class="card">
-      <div class="card-title" id="kpi-direction-title">1주 가격 방향 예측</div>
-      <div id="kpi-direction" class="direction-badge dir-neutral">— 로딩 중</div>
-      <div class="prob-bar"><div class="prob-fill" id="kpi-prob-bar" style="width:50%; background:#ccc;"></div></div>
-      <div class="card-sub" id="kpi-prob-text">데이터 없음</div>
-    </div>
-    <div class="card">
-      <div class="card-title">급등 확률 (1주 내 +15%)</div>
-      <div id="kpi-surge" class="card-value">—</div>
-      <div class="card-sub" id="kpi-volatility">변동성: —</div>
-    </div>
-    <div class="card">
-      <div class="card-title">최고 위험 지역</div>
-      <div id="kpi-hotspot" class="card-value" style="font-size:20px;">—</div>
-      <div class="card-sub" id="kpi-risk-level">위험도: —</div>
-    </div>
-  </div>
-
-  <!-- 중단: 차트 + 예측 요인 -->
-  <div class="grid grid-2" style="margin-bottom:16px;">
-    <div class="card">
-      <div class="card-title" id="chart-title">가격 히스토리 (최근 90일)</div>
-      <div class="chart-wrap">
-        <canvas id="price-chart"></canvas>
+  <!-- ── 상세 패널 ── -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-header">
+      <span class="detail-icon" id="dp-icon">🌾</span>
+      <div>
+        <div class="detail-title" id="dp-title">—</div>
+        <div class="detail-price-sub" id="dp-unit">—</div>
       </div>
-      <div class="forecast-bar" id="forecast-bar" style="display:none;">
-        <span class="forecast-bar-label">AI 예측</span>
-        <span id="fbar-7"  class="forecast-pill fp-na">1주 —</span>
-        <span id="fbar-14" class="forecast-pill fp-na">2주 —</span>
-        <span id="fbar-21" class="forecast-pill fp-na">3주 —</span>
-        <span id="fbar-28" class="forecast-pill fp-na">4주 —</span>
-        <span id="fbar-60" class="forecast-pill fp-na">2개월 —</span>
-        <span id="fbar-90" class="forecast-pill fp-na">3개월 —</span>
+      <div class="detail-price" id="dp-price">—</div>
+      <button class="detail-close" onclick="closeDetail()">✕ 닫기</button>
+    </div>
+    <div class="detail-body">
+      <!-- 예측 배지 바 -->
+      <div class="forecast-bar" id="dp-fbar">
+        <span class="fbar-label">AI 예측</span>
+        <span class="fp fp-na" id="dp-f7">1주 —</span>
+        <span class="fp fp-na" id="dp-f14">2주 —</span>
+        <span class="fp fp-na" id="dp-f21">3주 —</span>
+        <span class="fp fp-na" id="dp-f28">4주 —</span>
+        <span class="fp fp-na" id="dp-f60">2개월 —</span>
+        <span class="fp fp-na" id="dp-f90">3개월 —</span>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-title">가격 변동 주요 요인 (LightGBM Feature Importance)</div>
-      <ul class="factor-list" id="factor-list">
-        <li class="loading">로딩 중...</li>
-      </ul>
-      <div style="margin-top:12px; font-size:11px; color:#bbb;">※ 모델 AUC: <span id="model-auc">—</span></div>
-    </div>
-  </div>
-
-  <!-- 생산 통계 + 데이터 커버리지 -->
-  <div class="grid grid-2" style="margin-bottom:16px;">
-    <div class="card">
-      <div class="card-title">KOSIS 생산 통계 <span id="prod-year" style="font-size:11px;color:#999;"></span></div>
-      <div class="prod-stat" id="prod-stat">
-        <div class="prod-item"><div class="prod-val" id="prod-area">—</div><div class="prod-lbl">재배면적 (ha)</div></div>
-        <div class="prod-item"><div class="prod-val" id="prod-ton">—</div><div class="prod-lbl">생산량 (톤)</div></div>
-        <div class="prod-item"><div class="prod-val" id="prod-yield">—</div><div class="prod-lbl">10a당 수량 (kg)</div></div>
+      <!-- 차트 + 요인 -->
+      <div class="detail-grid">
+        <div>
+          <div class="section-label" id="dp-chart-title">가격 추이 (최근 90일)</div>
+          <div class="chart-wrap"><canvas id="dp-chart"></canvas></div>
+        </div>
+        <div>
+          <div class="section-label">가격 변동 요인 (LightGBM)</div>
+          <ul class="factor-list" id="dp-factors"><li style="color:#ccc;font-size:12px;">로딩 중...</li></ul>
+          <div style="margin-top:8px;font-size:10px;color:#bbb;">AUC: <span id="dp-auc">—</span></div>
+        </div>
       </div>
-      <div style="font-size:11px;color:#bbb;margin-top:8px;">※ 통계청 농작물생산조사(KOSIS) 기준</div>
-    </div>
-    <div class="card">
-      <div class="card-title">데이터 현황</div>
-      <div id="data-coverage" style="font-size:13px;color:#555;line-height:2;">
-        <span style="color:#aaa;">품목을 선택하면 표시됩니다.</span>
+      <!-- 생산 통계 + 데이터 현황 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+        <div>
+          <div class="section-label">KOSIS 생산 통계 <span id="dp-prod-year" style="font-weight:400;color:#bbb;"></span></div>
+          <div class="prod-row">
+            <div class="prod-item"><div class="prod-val" id="dp-area">—</div><div class="prod-lbl">재배면적 (ha)</div></div>
+            <div class="prod-item"><div class="prod-val" id="dp-ton">—</div><div class="prod-lbl">생산량 (톤)</div></div>
+            <div class="prod-item"><div class="prod-val" id="dp-yield">—</div><div class="prod-lbl">10a 수량 (kg)</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">데이터 현황</div>
+          <div id="dp-coverage" style="font-size:12px;color:#555;line-height:2.1;">
+            <span style="color:#ccc;">로딩 중...</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- 하단: 지도 + 전체 현황 -->
-  <div class="grid grid-2" style="margin-bottom:16px;">
-    <div class="card" style="padding:0; overflow:hidden;">
-      <iframe id="map-frame" class="map-frame" src="about:blank"></iframe>
+  <!-- ── 전체 현황 표 ── -->
+  <div class="section-card">
+    <div class="section-title">
+      📊 전체 품목 AI 예측 현황
+      <span style="font-size:12px;color:#999;font-weight:400;margin-left:4px;">클릭 시 상세 보기</span>
     </div>
-    <div class="card">
-      <div class="card-title">전체 품목 현황</div>
+    <div style="overflow-x:auto;">
       <table class="overview-table">
         <thead>
-          <tr>
+          <tr id="overview-head">
             <th>품목</th>
-            <th>방향</th>
-            <th>상승확률</th>
-            <th>위험도</th>
-            <th>신뢰</th>
+            <th class="th-center">현재가</th>
+            <th class="th-center">1주</th>
+            <th class="th-center">2주</th>
+            <th class="th-center">3주</th>
+            <th class="th-center">4주</th>
+            <th class="th-center">2개월</th>
+            <th class="th-center">3개월</th>
+            <th class="th-center">위험도</th>
           </tr>
         </thead>
         <tbody id="overview-body">
-          <tr><td colspan="5" class="loading">로딩 중...</td></tr>
+          <tr><td colspan="9" class="loading-text">로딩 중...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- 모델 성능 섹션 -->
-  <div class="card perf-section">
+  <!-- ── 모델 성능 ── -->
+  <div class="section-card">
     <div class="section-title">
-      모델 백테스트 성능
-      <button onclick="loadModelMetrics()" style="font-size:12px;padding:4px 10px;border:1px solid #2e74b5;border-radius:4px;background:white;color:#2e74b5;cursor:pointer;">새로고침</button>
+      🎯 모델 백테스트 성능
+      <button class="btn-sm" onclick="loadModelMetrics()">새로고침</button>
+      <span style="font-size:11px;color:#bbb;font-weight:400;margin-left:4px;">(관리자 키 필요)</span>
     </div>
-    <div id="perf-table-wrap"><span style="color:#aaa;font-size:13px;">품목 탭을 선택하거나 새로고침을 누르세요.</span></div>
-    <div class="backtest-wrap" id="backtest-wrap" style="display:none;">
-      <div class="section-title" id="backtest-title" style="font-size:13px;margin-top:16px;"></div>
+    <div id="perf-table-wrap">
+      <span style="color:#bbb;font-size:12px;">새로고침을 눌러 성능 데이터를 불러오세요.</span>
+    </div>
+    <div id="backtest-wrap" style="display:none;margin-top:16px;">
+      <div class="section-label" id="backtest-title"></div>
       <div class="backtest-legend">
         <span><span class="leg-dot" style="background:#27ae60;"></span>예측 적중</span>
         <span><span class="leg-dot" style="background:#e74c3c;"></span>예측 오류</span>
-        <span style="color:#999;">● 상승 예측 &nbsp; ○ 하락 예측</span>
       </div>
-      <canvas id="backtest-chart" height="120"></canvas>
+      <canvas id="backtest-chart" height="100"></canvas>
     </div>
   </div>
 
   <div class="disclaimer">
     ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(1주·2주·3주·4주·2개월·3개월)을 기반으로 한 참고 정보입니다.
     실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
+    데이터 취합 중인 품목은 예측 결과가 표시되지 않을 수 있습니다.
   </div>
 </div>
 
 <script>
-const API = "";  // same origin
+const API = "";
 
-const DIR_MAP   = { up: "↑ 상승", down: "↓ 하락", neutral: "→ 보합" };
-const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
-const RISK_LABEL = { normal: "정상", caution: "주의", warning: "경고", high: "위험" };
-const VOL_LABEL  = { low: "안정", medium: "보통", high: "높음" };
-const CONF_LABEL = { high: "높음", medium: "중간", low: "낮음" };
-const HORIZON_LABEL = { 7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월" };
-const HORIZONS_ALL = [7, 14, 21, 28, 60, 90];
+const ITEM_META = {
+  cabbage:      { name:"배추",    icon:"🥬", cat:"채소류",   unit:"10kg"  },
+  radish:       { name:"무",      icon:"🌿", cat:"채소류",   unit:"20kg"  },
+  onion:        { name:"양파",    icon:"🧅", cat:"채소류",   unit:"20kg"  },
+  green_onion:  { name:"대파",    icon:"🌱", cat:"채소류",   unit:"1kg"   },
+  garlic:       { name:"마늘",    icon:"🧄", cat:"채소류",   unit:"10kg"  },
+  potato:       { name:"감자",    icon:"🥔", cat:"채소류",   unit:"20kg"  },
+  sweet_potato: { name:"고구마",  icon:"🍠", cat:"채소류",   unit:"20kg"  },
+  pepper:       { name:"건고추",  icon:"🌶️", cat:"채소류",   unit:"30kg"  },
+  tomato:       { name:"토마토",  icon:"🍅", cat:"채소류",   unit:"10kg"  },
+  cucumber:     { name:"오이",    icon:"🥒", cat:"채소류",   unit:"100개" },
+  zucchini:     { name:"애호박",  icon:"🫑", cat:"채소류",   unit:"20kg"  },
+  carrot:       { name:"당근",    icon:"🥕", cat:"채소류",   unit:"20kg"  },
+  spinach:      { name:"시금치",  icon:"🌿", cat:"채소류",   unit:"4kg"   },
+  lettuce:      { name:"상추",    icon:"🥬", cat:"채소류",   unit:"4kg"   },
+  perilla:      { name:"깻잎",    icon:"🍃", cat:"채소류",   unit:"100장" },
+  watermelon:   { name:"수박",    icon:"🍉", cat:"채소류",   unit:"1개"   },
+  chamoe:       { name:"참외",    icon:"🍈", cat:"채소류",   unit:"10개"  },
+  fresh_pepper: { name:"붉은고추",icon:"🌶️", cat:"채소류",   unit:"10kg"  },
+  sesame:       { name:"참깨",    icon:"🌾", cat:"특용작물", unit:"30kg"  },
+  apple:        { name:"사과",    icon:"🍎", cat:"과일류",   unit:"10kg"  },
+  pear:         { name:"배",      icon:"🍐", cat:"과일류",   unit:"15kg"  },
+  grape:        { name:"포도",    icon:"🍇", cat:"과일류",   unit:"5kg"   },
+  strawberry:   { name:"딸기",    icon:"🍓", cat:"과일류",   unit:"1kg"   },
+};
 
-let items = [];
+const DIR_MAP   = { up:"↑ 상승", down:"↓ 하락", neutral:"→ 보합" };
+const DIR_CLS   = { up:"dir-up", down:"dir-down", neutral:"dir-neutral" };
+const RISK_LABEL= { normal:"정상", caution:"주의", warning:"경고", high:"위험" };
+const CONF_LABEL= { high:"높음", medium:"중간", low:"낮음" };
+const H_LABEL   = { 7:"1주", 14:"2주", 21:"3주", 28:"4주", 60:"2개월", 90:"3개월" };
+const HORIZONS  = [7, 14, 21, 28, 60, 90];
+
+let allItems = [];
+let forecastCache = {};   // code → horizons
+let priceCache = {};      // code → latest price
+let riskCache = {};       // code → risk_level
+let currentCat = "all";
 let currentItem = null;
-let currentHorizon = 7;
-let priceChart = null;
-let allHorizonsCache = {};   // item_code → horizons 응답 캐시
+let detailChart = null;
+let backtestChart = null;
 
-// ── horizon 탭 선택 ──────────────────────────────────────
-function selectHorizon(h) {
-  currentHorizon = h;
-  document.querySelectorAll(".horizon-tab").forEach(t =>
-    t.classList.toggle("active", parseInt(t.dataset.horizon) === h)
-  );
-  const label = HORIZON_LABEL[h] || `${h}일`;
-  document.getElementById("kpi-direction-title").textContent = `${label} 가격 방향 예측`;
-  // 캐시된 데이터로 KPI 즉시 업데이트
-  if (currentItem && allHorizonsCache[currentItem]) {
-    const hz = allHorizonsCache[currentItem][String(h)];
-    if (hz && hz.available !== false) renderKPIsFromHorizon(hz, currentItem);
-    else if (hz && hz.available === false) {
-      document.getElementById("kpi-direction").className = "direction-badge dir-neutral";
-      document.getElementById("kpi-direction").textContent = "데이터 취합중";
-      document.getElementById("kpi-prob-text").textContent = "해당 기간은 데이터를 취합하고 있습니다.";
-      document.getElementById("kpi-prob-bar").style.cssText = "width:0%;background:#ccc";
-      document.getElementById("kpi-surge").textContent = "—";
-    }
-  }
-}
-
-// ── 초기화 ─────────────────────────────────────────────────
+// ── 초기화 ──────────────────────────────────────────────
 async function init() {
-  const r = await fetch(`${API}/api/v1/items`);
-  items = await r.json();
-  renderItemTabs();
-  loadOverview();
-  selectItem(items[0].item_code);
-}
+  try {
+    const r = await fetch(`${API}/api/v1/items`);
+    allItems = await r.json();
+  } catch(e) {
+    document.getElementById("item-grid").innerHTML =
+      '<div class="loading-text">API 연결 실패. 서버를 확인해주세요.</div>';
+    return;
+  }
 
-function renderItemTabs() {
-  const tabs = document.getElementById("item-tabs");
-  tabs.innerHTML = items.map(it => `
-    <button class="item-tab" data-code="${it.item_code}" onclick="selectItem('${it.item_code}')">
-      ${it.item_name}
-    </button>
-  `).join("");
-}
+  // 카테고리 카운트
+  const cats = {};
+  allItems.forEach(it => {
+    const c = it.category || ITEM_META[it.item_code]?.cat || "기타";
+    cats[c] = (cats[c]||0) + 1;
+  });
+  document.getElementById("cnt-all").textContent = allItems.length;
+  Object.entries(cats).forEach(([c, n]) => {
+    const el = document.getElementById(`cnt-${c}`);
+    if (el) el.textContent = n;
+  });
+  document.getElementById("sh-items").textContent = allItems.length;
 
-async function selectItem(item_code) {
-  currentItem = item_code;
-  document.querySelectorAll(".item-tab").forEach(t =>
-    t.classList.toggle("active", t.dataset.code === item_code)
-  );
+  // 카드 스켈레톤 렌더
+  renderGrid("all");
 
-  // 지도 iframe 교체
-  document.getElementById("map-frame").src = `/maps/items/${item_code}`;
-
-  // 병렬 로드: 전체 horizon + 가격 히스토리
-  const [allHz, history] = await Promise.all([
-    fetch(`${API}/api/v1/items/${item_code}/forecasts`).then(r => r.json()).catch(() => null),
-    fetch(`${API}/api/v1/items/${item_code}/price-history?days=90`).then(r => r.json()).catch(() => null),
+  // 병렬 로드: 예측 + 위험 신호
+  await Promise.all([
+    loadAllForecasts(),
+    loadRiskSignals(),
   ]);
 
-  if (allHz && allHz.horizons) {
-    allHorizonsCache[item_code] = allHz.horizons;
-    renderHorizonCards(allHz.horizons);
-    const hz = allHz.horizons[String(currentHorizon)];
-    if (hz) renderKPIsFromHorizon(hz, item_code);
-    renderForecastBar(allHz.horizons);
-    const fc14 = await fetch(`${API}/api/v1/items/${item_code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null);
-    renderFactors(fc14);
-  }
-  renderChart(history);
-  loadProductionStats(item_code);
-  loadDataCoverage(item_code);
+  // 카드 업데이트
+  renderGrid(currentCat);
+
+  // 첫 번째 품목 선택
+  if (allItems.length > 0) selectItem(allItems[0].item_code, false);
+
+  // 전체 현황 표 로드
+  loadOverview();
 }
 
-// ── horizon 카드 4개 렌더 ────────────────────────────────
-function renderHorizonCards(horizons) {
-  HORIZONS_ALL.forEach(h => {
-    const el = document.getElementById(`hcard-${h}`);
-    if (!el) return;
-    const hz = horizons[String(h)];
-    const label = HORIZON_LABEL[h];
-    if (!hz || hz.available === false) {
-      el.className = "horizon-card horizon-unavail";
-      el.innerHTML = `<div class="horizon-label">${label} 예측</div><div class="horizon-dir" style="color:#bbb;font-size:12px;">데이터 취합중</div><div class="horizon-prob" style="color:#ccc;font-size:11px;">준비 중</div>`;
-      return;
-    }
-    const dir = hz.direction;
-    const prob = hz.up_probability != null ? hz.up_probability : (hz.bottom_probability != null ? 1 - hz.bottom_probability : null);
-    const probPct = prob != null ? `${(prob * 100).toFixed(0)}%` : "—";
-    el.className = `horizon-card ${DIR_CLASS[dir] || ""}`;
-    el.innerHTML = `
-      <div class="horizon-label">${label} 예측</div>
-      <div class="horizon-dir ${DIR_CLASS[dir] || "dir-neutral"}">${DIR_MAP[dir] || "—"}</div>
-      <div class="horizon-prob">상승확률 ${probPct}</div>
-      <span class="horizon-conf">${CONF_LABEL[hz.confidence] || hz.confidence || "—"}</span>`;
+// ── 전체 예측 로드 ──────────────────────────────────────
+async function loadAllForecasts() {
+  const codes = allItems.map(i => i.item_code);
+  const results = await Promise.all(
+    codes.map(code =>
+      fetch(`${API}/api/v1/items/${code}/forecasts`).then(r=>r.json()).catch(()=>null)
+    )
+  );
+
+  let predCount = 0;
+  let latestDate = "—";
+
+  results.forEach((r, i) => {
+    const code = codes[i];
+    if (!r || !r.horizons) return;
+    forecastCache[code] = r.horizons;
+    if (r.base_date && r.base_date > latestDate) latestDate = r.base_date;
+    const avail = Object.values(r.horizons).filter(h => h.available !== false).length;
+    if (avail > 0) predCount++;
+    // 현재가 (base_price)
+    if (r.base_price) priceCache[code] = r.base_price;
   });
+
+  document.getElementById("sh-preds").textContent = `${predCount}개 품목`;
+  document.getElementById("sh-date").textContent = latestDate;
 }
 
-// ── KPI 카드 (선택된 horizon 기준) ──────────────────────
-function renderKPIsFromHorizon(hz, item_code) {
-  if (!hz) { document.getElementById("kpi-direction").textContent = "데이터 없음"; return; }
-  const dir = hz.direction;
-  const upProb = hz.up_probability != null ? hz.up_probability : (hz.bottom_probability != null ? 1 - hz.bottom_probability : 0);
-  const surgeProb = Math.max(0, upProb - 0.6);
-
-  const dirEl = document.getElementById("kpi-direction");
-  dirEl.className = `direction-badge ${DIR_CLASS[dir] || "dir-neutral"}`;
-  dirEl.textContent = DIR_MAP[dir] || dir || "—";
-
-  const barColor = dir === "up" ? "#e74c3c" : (dir === "down" ? "#2980b9" : "#aaa");
-  document.getElementById("kpi-prob-bar").style.cssText = `width:${upProb*100}%; background:${barColor}`;
-  document.getElementById("kpi-prob-text").textContent =
-    `상승 확률 ${(upProb*100).toFixed(0)}% | 신뢰도: ${CONF_LABEL[hz.confidence] || hz.confidence || "—"}`;
-
-  document.getElementById("kpi-surge").textContent = `${(surgeProb * 100).toFixed(0)}%`;
-  document.getElementById("kpi-volatility").textContent = `변동성 위험: —`;
-  loadHotspot();
-}
-
-async function loadHotspot() {
+// ── 위험 신호 로드 ──────────────────────────────────────
+async function loadRiskSignals() {
   try {
-    const r = await fetch(`${API}/api/v1/items/${currentItem}/signals`);
+    const r = await fetch(`${API}/api/v1/signals/today`);
     const d = await r.json();
-    const sigs = (d.signals || []).sort((a, b) => b.risk_score - a.risk_score);
-    if (sigs.length > 0) {
-      const top = sigs[0];
-      document.getElementById("kpi-hotspot").textContent = top.region_name;
-      const rl = top.risk_level;
-      document.getElementById("kpi-risk-level").innerHTML =
-        `<span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span> 점수 ${top.risk_score.toFixed(0)}점`;
-    }
+    (d.items || []).forEach(s => {
+      riskCache[s.item_code] = s.risk_level || "normal";
+    });
   } catch(e) {}
 }
 
-// ── 예측 배지 오버레이 ────────────────────────────────────
+// ── 카테고리 필터 ──────────────────────────────────────
+function filterCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll(".cat-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.cat === cat)
+  );
+  renderGrid(cat);
+}
+
+// ── 품목 카드 그리드 렌더 ──────────────────────────────
+function renderGrid(cat) {
+  const grid = document.getElementById("item-grid");
+  const filtered = cat === "all"
+    ? allItems
+    : allItems.filter(it => {
+        const c = it.category || ITEM_META[it.item_code]?.cat || "";
+        return c === cat;
+      });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="loading-text">해당 카테고리 품목이 없습니다.</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(it => {
+    const code = it.item_code;
+    const meta = ITEM_META[code] || {};
+    const name = meta.name || it.item_name || code;
+    const icon = meta.icon || "🌾";
+    const unit = meta.unit || it.wholesale_unit || "";
+
+    // 예측 데이터
+    const hz = forecastCache[code];
+    const h7 = hz ? hz["7"] : null;
+    const risk = riskCache[code] || "normal";
+    const price = priceCache[code];
+
+    // 가격 표시
+    const priceStr = price
+      ? `<div class="item-price">${price.toLocaleString()}<span class="item-price-sub"> 원/${unit}</span></div>`
+      : `<div class="item-price" style="color:#bbb;font-size:12px;">가격 집계중</div>`;
+
+    // 방향 배지
+    let dirBadge = '';
+    if (h7 && h7.available !== false) {
+      const dir = h7.direction;
+      const prob = h7.up_probability != null ? h7.up_probability : 0.5;
+      const probPct = `${(prob*100).toFixed(0)}%`;
+      const arr = dir==="up"?"↑":dir==="down"?"↓":"→";
+      dirBadge = `<div class="item-dir dir-${dir||'neutral'}">${arr} ${probPct}</div>`;
+    } else if (h7 && h7.available === false) {
+      dirBadge = `<span class="no-data-badge">취합중</span>`;
+    } else {
+      dirBadge = `<span class="no-data-badge">미학습</span>`;
+    }
+
+    const selected = currentItem === code ? " selected" : "";
+    const dotCls = `dot-${risk}`;
+
+    return `
+      <div class="item-card${selected}" data-code="${code}" onclick="selectItem('${code}')">
+        <div class="item-risk-dot ${dotCls}" title="${RISK_LABEL[risk]}"></div>
+        <span class="item-icon">${icon}</span>
+        <div class="item-name">${name}</div>
+        ${priceStr}
+        ${dirBadge}
+      </div>`;
+  }).join("");
+}
+
+// ── 품목 선택 ──────────────────────────────────────────
+async function selectItem(code, scroll = true) {
+  currentItem = code;
+  // 카드 선택 표시
+  document.querySelectorAll(".item-card").forEach(c =>
+    c.classList.toggle("selected", c.dataset.code === code)
+  );
+
+  const meta = ITEM_META[code] || {};
+  const name = meta.name || code;
+  const icon = meta.icon || "🌾";
+  const unit = meta.unit || "";
+
+  // 상세 패널 열기
+  const panel = document.getElementById("detail-panel");
+  panel.classList.add("open");
+
+  // 헤더 업데이트
+  document.getElementById("dp-icon").textContent = icon;
+  document.getElementById("dp-title").textContent = name;
+  document.getElementById("dp-unit").textContent = `가락시장 도매가 기준 (${unit})`;
+
+  const price = priceCache[code];
+  document.getElementById("dp-price").textContent =
+    price ? `${price.toLocaleString()}원` : "—";
+
+  // 예측 배지 바
+  const hz = forecastCache[code] || {};
+  renderForecastBar(hz);
+
+  // 스크롤
+  if (scroll) {
+    setTimeout(() => panel.scrollIntoView({ behavior:"smooth", block:"nearest" }), 50);
+  }
+
+  // 병렬: 차트 + 요인 + 생산통계 + 커버리지
+  const [history, fc7] = await Promise.all([
+    fetch(`${API}/api/v1/items/${code}/price-history?days=90`).then(r=>r.json()).catch(()=>null),
+    fetch(`${API}/api/v1/items/${code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null),
+  ]);
+
+  document.getElementById("dp-chart-title").textContent =
+    `${name} 가격 추이 (최근 90일) · ${unit} 기준`;
+  renderChart(history);
+  renderFactors(fc7);
+  loadProductionStats(code);
+  loadDataCoverage(code);
+}
+
+function closeDetail() {
+  document.getElementById("detail-panel").classList.remove("open");
+  currentItem = null;
+  document.querySelectorAll(".item-card").forEach(c => c.classList.remove("selected"));
+}
+
+// ── 예측 배지 바 ────────────────────────────────────────
 function renderForecastBar(horizons) {
-  const bar = document.getElementById("forecast-bar");
-  bar.style.display = "flex";
-  const DIR_ARROW = { up: "↑", down: "↓", neutral: "→" };
-  HORIZONS_ALL.forEach(h => {
-    const el = document.getElementById(`fbar-${h}`);
+  const ARR = { up:"↑", down:"↓", neutral:"→" };
+  HORIZONS.forEach(h => {
+    const el = document.getElementById(`dp-f${h}`);
     if (!el) return;
-    const label = HORIZON_LABEL[h];
+    const label = H_LABEL[h];
     const hz = horizons[String(h)];
     if (!hz || hz.available === false) {
-      el.className = "forecast-pill fp-na";
-      el.textContent = `${label} 취합중`;
+      el.className = "fp fp-na";
+      el.textContent = `${label} —`;
       return;
     }
     const dir = hz.direction;
     const prob = hz.up_probability != null ? hz.up_probability : 0.5;
-    const arrow = DIR_ARROW[dir] || "—";
-    const pct = `${(prob * 100).toFixed(0)}%`;
-    const cls = dir === "up" ? "fp-up" : dir === "down" ? "fp-down" : "fp-neutral";
-    el.className = `forecast-pill ${cls}`;
-    el.textContent = `${label} ${arrow} ${pct}`;
+    el.className = `fp fp-${dir==="up"?"up":dir==="down"?"down":"neutral"}`;
+    el.textContent = `${label} ${ARR[dir]||"—"} ${(prob*100).toFixed(0)}%`;
   });
 }
 
-// ── 가격 차트 ─────────────────────────────────────────────
+// ── 가격 차트 ────────────────────────────────────────────
 function renderChart(history) {
+  const ctx = document.getElementById("dp-chart").getContext("2d");
+  if (detailChart) { detailChart.destroy(); detailChart = null; }
   if (!history || !history.data || history.data.length === 0) return;
 
-  const labels = history.data.map(d => d.date.slice(5));  // MM-DD
+  const labels = history.data.map(d => d.date.slice(5));
   const prices = history.data.map(d => d.price);
   const avgYear = history.data.map(d => d.avg_year);
 
-  document.getElementById("chart-title").textContent =
-    `${history.item_name} 가격 히스토리 · 최근 90일 (${history.unit} 기준 도매가)`;
-
-  if (priceChart) { priceChart.destroy(); priceChart = null; }
-
-  const ctx = document.getElementById("price-chart").getContext("2d");
-  priceChart = new Chart(ctx, {
-    type: "line",
+  detailChart = new Chart(ctx, {
+    type:"line",
     data: {
       labels,
       datasets: [
         {
-          label: "실제 가격",
-          data: prices,
-          borderColor: "#2e74b5",
-          backgroundColor: "rgba(46,116,181,0.08)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true,
+          label:"실제 가격",
+          data:prices,
+          borderColor:"#2e74b5",
+          backgroundColor:"rgba(46,116,181,0.07)",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.3,
+          fill:true,
         },
         {
-          label: "평년 가격",
-          data: avgYear,
-          borderColor: "#f39c12",
-          borderWidth: 1.5,
-          borderDash: [5, 3],
-          pointRadius: 0,
-          tension: 0.3,
-          fill: false,
+          label:"평년 가격",
+          data:avgYear,
+          borderColor:"#f39c12",
+          borderWidth:1.5,
+          borderDash:[5,3],
+          pointRadius:0,
+          tension:0.3,
+          fill:false,
         }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:"index", intersect:false },
       plugins: {
-        legend: { position: "top", labels: { font: { size: 11 }, boxWidth: 14 } },
+        legend:{ position:"top", labels:{ font:{ size:11 }, boxWidth:12 } },
         tooltip: {
           callbacks: {
             label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`
@@ -695,274 +894,240 @@ function renderChart(history) {
         }
       },
       scales: {
-        x: {
-          ticks: { font: { size: 10 }, maxTicksLimit: 12 },
-          grid: { display: false }
-        },
-        y: {
-          ticks: {
-            font: { size: 10 },
-            callback: v => v?.toLocaleString() + "원"
-          },
-          grid: { color: "#f0f0f0" }
+        x:{ ticks:{ font:{size:10}, maxTicksLimit:12 }, grid:{ display:false } },
+        y:{
+          ticks:{ font:{size:10}, callback:v=>v?.toLocaleString()+"원" },
+          grid:{ color:"#f4f6f9" }
         }
       }
     }
   });
 }
 
-// ── 요인 목록 ─────────────────────────────────────────────
+// ── 요인 목록 ────────────────────────────────────────────
 function renderFactors(fc) {
-  const list = document.getElementById("factor-list");
+  const list = document.getElementById("dp-factors");
+  const aucEl = document.getElementById("dp-auc");
   if (!fc || !fc.top_factors || fc.top_factors.length === 0) {
-    list.innerHTML = '<li class="loading">데이터 없음</li>';
+    list.innerHTML = '<li style="color:#ccc;font-size:12px;">요인 데이터 없음</li>';
+    if (aucEl) aucEl.textContent = "—";
     return;
   }
+  if (aucEl && fc.auc) aucEl.textContent = fc.auc.toFixed(3);
 
-  const maxContrib = Math.max(...fc.top_factors.map(f => f.contribution));
-  list.innerHTML = fc.top_factors.map(f => {
-    const pct = ((f.contribution / maxContrib) * 100).toFixed(0);
+  const max = Math.max(...fc.top_factors.map(f => f.contribution));
+  list.innerHTML = fc.top_factors.slice(0, 8).map(f => {
+    const pct = ((f.contribution / max) * 100).toFixed(0);
     const cls = f.direction === "up" ? "factor-up" : "factor-down";
-    const arrow = f.direction === "up" ? "↑" : "↓";
-    return `
-      <li class="factor-item ${cls}">
-        <span class="factor-name">${f.factor}</span>
-        <div class="factor-bar-wrap">
-          <div class="factor-bar" style="width:${pct}%"></div>
-        </div>
-        <span class="factor-pct">${(f.contribution * 100).toFixed(1)}%</span>
-        <span style="font-size:12px;">${arrow}</span>
-      </li>`;
+    const arr = f.direction === "up" ? "↑" : "↓";
+    return `<li class="factor-item ${cls}">
+      <span class="factor-name">${f.factor}</span>
+      <div class="factor-bar-wrap"><div class="factor-bar" style="width:${pct}%"></div></div>
+      <span class="factor-pct">${(f.contribution*100).toFixed(1)}%</span>
+      <span style="font-size:11px;">${arr}</span>
+    </li>`;
   }).join("");
+}
+
+// ── 생산 통계 ────────────────────────────────────────────
+async function loadProductionStats(code) {
+  try {
+    const r = await fetch(`${API}/api/v1/map/production?item_code=${code}`);
+    const d = await r.json();
+    const p = (d.production || [])[0];
+    document.getElementById("dp-prod-year").textContent = p ? `(${p.year}년)` : "";
+    document.getElementById("dp-area").textContent  = p?.area_ha ? p.area_ha.toLocaleString() : "—";
+    document.getElementById("dp-ton").textContent   = p?.production_ton ? Math.round(p.production_ton).toLocaleString() : "—";
+    const yld = (p?.production_ton && p?.area_ha) ? Math.round(p.production_ton / p.area_ha * 10) : null;
+    document.getElementById("dp-yield").textContent = yld ? yld.toLocaleString() : "—";
+  } catch(e) {}
+}
+
+// ── 데이터 커버리지 ──────────────────────────────────────
+async function loadDataCoverage(code) {
+  const el = document.getElementById("dp-coverage");
+  try {
+    const [hist, fc] = await Promise.all([
+      fetch(`${API}/api/v1/items/${code}/price-history?days=400`).then(r=>r.json()).catch(()=>null),
+      fetch(`${API}/api/v1/items/${code}/forecasts`).then(r=>r.json()).catch(()=>null),
+    ]);
+    const days = hist?.data?.length || 0;
+    const minD = hist?.data?.length ? hist.data[0].date : "—";
+    const maxD = hist?.data?.length ? hist.data[hist.data.length-1].date : "—";
+    const avail= fc?.horizons ? Object.values(fc.horizons).filter(h=>h.available!==false).length : 0;
+    const total= fc?.horizons ? Object.keys(fc.horizons).length : 0;
+    el.innerHTML = `
+      <div>📈 가격 데이터: <b>${days}</b>일치 (${minD} ~ ${maxD})</div>
+      <div>🔮 예측 신뢰: <b>${avail}/${total}</b> 기간 가능</div>
+      <div>🌾 생산 통계: KOSIS 연간 보유</div>`;
+  } catch(e) { el.textContent = "오류"; }
 }
 
 // ── 전체 현황 표 ─────────────────────────────────────────
 async function loadOverview() {
   const tbody = document.getElementById("overview-body");
 
-  // 각 품목의 전체 horizon 데이터를 병렬 로드
-  const codes = items.map(i => i.item_code);
-  const results = await Promise.all(
-    codes.map(code =>
-      fetch(`${API}/api/v1/items/${code}/forecasts`).then(r => r.json()).catch(() => null)
-    )
+  // price history로 현재가 취합
+  const pricePromises = allItems.map(it =>
+    fetch(`${API}/api/v1/items/${it.item_code}/price-history?days=3`).then(r=>r.json()).catch(()=>null)
   );
+  const histResults = await Promise.all(pricePromises);
+  histResults.forEach((h, i) => {
+    const code = allItems[i].item_code;
+    if (h?.data?.length) {
+      const last = h.data[h.data.length-1];
+      if (last.price && !priceCache[code]) priceCache[code] = last.price;
+    }
+  });
 
-  if (!results.some(r => r && r.horizons)) {
-    tbody.innerHTML = '<tr><td colspan="6" class="loading">예측 데이터 없음</td></tr>';
-    return;
-  }
+  // 카드 가격 업데이트
+  renderGrid(currentCat);
 
-  // 테이블 헤더 업데이트
-  document.querySelector(".overview-table thead tr").innerHTML =
-    `<th>품목</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
-
-  const nameMap = {
-    cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘",
-    potato:"감자", sweet_potato:"고구마", pepper:"건고추",
-    tomato:"토마토", cucumber:"오이", zucchini:"애호박", carrot:"당근",
-    spinach:"시금치", lettuce:"상추", perilla:"깻잎",
-    watermelon:"수박", chamoe:"참외", fresh_pepper:"붉은고추",
-    sesame:"참깨", apple:"사과", pear:"배", grape:"포도", strawberry:"딸기",
-  };
-
-  // 위험도는 signals API에서
-  const sigR = await fetch(`${API}/api/v1/signals/today`).then(r=>r.json()).catch(()=>({items:[]}));
-  const riskMap = {};
-  (sigR.items||[]).forEach(s => { riskMap[s.item_code] = s.risk_level || "normal"; });
-
-  tbody.innerHTML = results.map((r, i) => {
-    const code = codes[i];
-    const name = nameMap[code] || code;
-    const hz = r && r.horizons ? r.horizons : {};
+  const rows = allItems.map(it => {
+    const code = it.item_code;
+    const meta = ITEM_META[code] || {};
+    const name = meta.name || it.item_name;
+    const icon = meta.icon || "🌾";
+    const hz = forecastCache[code] || {};
+    const risk = riskCache[code] || "normal";
+    const price = priceCache[code];
+    const unit = meta.unit || it.wholesale_unit || "";
 
     function cell(h) {
       const d = hz[String(h)];
-      if (!d) return `<td style="color:#bbb">—</td>`;
-      if (d.available === false) return `<td style="color:#bbb;font-size:11px;">취합중</td>`;
+      if (!d) return `<td class="td-center" style="color:#ccc">—</td>`;
+      if (d.available === false) return `<td class="td-center" style="color:#bbb;font-size:10px;">취합중</td>`;
       const dir = d.direction;
       const prob = d.up_probability != null ? d.up_probability : (d.bottom_probability != null ? 1-d.bottom_probability : null);
       const pct = prob != null ? `${(prob*100).toFixed(0)}%` : "";
-      return `<td><span class="${DIR_CLASS[dir]||'dir-neutral'}">${DIR_MAP[dir]||"—"}</span> <small style="color:#999">${pct}</small></td>`;
+      const arr = dir==="up"?"↑":dir==="down"?"↓":"→";
+      const bg = dir==="up"?"#fde8e8":dir==="down"?"#e8f0fd":"#f0f0f0";
+      const col = dir==="up"?"#c0392b":dir==="down"?"#1a60a0":"#777";
+      return `<td class="td-center"><span class="dir-badge" style="background:${bg};color:${col}">${arr} ${pct}</span></td>`;
     }
 
-    const rl = riskMap[code] || "normal";
-    return `
-      <tr onclick="selectItem('${code}')" style="cursor:pointer;">
-        <td><strong>${name}</strong></td>
-        ${cell(7)}${cell(14)}${cell(21)}${cell(28)}${cell(60)}${cell(90)}
-        <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
-      </tr>`;
-  }).join("");
+    const priceStr = price ? `${price.toLocaleString()}<span style="font-size:10px;color:#aaa"> 원</span>` : "—";
+
+    return `<tr onclick="selectItem('${code}')">
+      <td><span style="margin-right:5px">${icon}</span><b>${name}</b></td>
+      <td class="td-center" style="font-weight:600">${priceStr}</td>
+      ${cell(7)}${cell(14)}${cell(21)}${cell(28)}${cell(60)}${cell(90)}
+      <td class="td-center"><span class="risk-pill risk-${risk}">${RISK_LABEL[risk]}</span></td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join("") || '<tr><td colspan="9" class="loading-text">데이터 없음</td></tr>';
 }
 
-// ── 생산 통계 + 데이터 커버리지 ─────────────────────────
-async function loadProductionStats(item_code) {
-  try {
-    const r = await fetch(`${API}/api/v1/map/production?item_code=${item_code}`);
-    const d = await r.json();
-    const p = (d.production || [])[0];
-    if (!p) { document.getElementById("prod-area").textContent = "—"; return; }
-    document.getElementById("prod-year").textContent = `(${p.year}년 기준)`;
-    document.getElementById("prod-area").textContent  = p.area_ha ? p.area_ha.toLocaleString() : "—";
-    document.getElementById("prod-ton").textContent   = p.production_ton ? Math.round(p.production_ton).toLocaleString() : "—";
-    const yieldVal = (p.production_ton && p.area_ha) ? Math.round(p.production_ton / p.area_ha * 10) : null;
-    document.getElementById("prod-yield").textContent = yieldVal ? yieldVal.toLocaleString() : "—";
-  } catch(e) { document.getElementById("prod-area").textContent = "오류"; }
-}
-
-async function loadDataCoverage(item_code) {
-  const el = document.getElementById("data-coverage");
-  try {
-    const [hist, fc] = await Promise.all([
-      fetch(`${API}/api/v1/items/${item_code}/price-history?days=400`).then(r=>r.json()).catch(()=>null),
-      fetch(`${API}/api/v1/items/${item_code}/forecasts`).then(r=>r.json()).catch(()=>null),
-    ]);
-    const priceDays = hist && hist.data ? hist.data.length : 0;
-    const priceMin  = hist && hist.data && hist.data.length ? hist.data[0].date : "—";
-    const priceMax  = hist && hist.data && hist.data.length ? hist.data[hist.data.length-1].date : "—";
-    const fcDate    = fc ? fc.base_date : "—";
-    const available = fc && fc.horizons ? Object.values(fc.horizons).filter(h=>h.available!==false).length : 0;
-    const total     = fc && fc.horizons ? Object.keys(fc.horizons).length : 0;
-
-    el.innerHTML = `
-      <div>📈 <b>가격 데이터</b>: ${priceDays}일치 (${priceMin} ~ ${priceMax})</div>
-      <div>🔮 <b>예측 기간</b>: ${available}/${total}개 신뢰 가능 (기준일: ${fcDate})</div>
-      <div>🌾 <b>생산 통계</b>: KOSIS 연간 데이터 보유</div>
-      <div style="color:#bbb;font-size:11px;margin-top:4px;">※ 날씨·거래량은 데이터 취합 중</div>`;
-  } catch(e) { el.innerHTML = "오류"; }
-}
-
-// ── 모델 성능 / 백테스트 ────────────────────────────────
-let backtestChart = null;
-
+// ── 모델 성능 ────────────────────────────────────────────
 async function loadModelMetrics() {
   const wrap = document.getElementById("perf-table-wrap");
-  wrap.innerHTML = '<span style="color:#aaa;font-size:13px;">로딩 중...</span>';
+  wrap.innerHTML = '<span style="color:#bbb;font-size:13px;">로딩 중...</span>';
   try {
-    const r = await fetch(`${API}/admin/model/metrics`, { headers: {"X-Admin-Key": window._adminKey || ""} });
-    if (!r.ok) { wrap.innerHTML = '<span style="color:#e74c3c;">관리자 키 필요 (콘솔에서 window._adminKey 설정)</span>'; return; }
+    const r = await fetch(`${API}/admin/model/metrics`,
+      { headers:{"X-Admin-Key": window._adminKey || ""} });
+    if (!r.ok) {
+      wrap.innerHTML = '<span style="color:#e74c3c;font-size:12px;">관리자 키 필요 — 콘솔에서 <code>window._adminKey = "..."</code> 입력 후 재시도</span>';
+      return;
+    }
     const data = await r.json();
     renderPerfTable(data);
   } catch(e) {
-    wrap.innerHTML = `<span style="color:#e74c3c;">오류: ${e.message}</span>`;
+    wrap.innerHTML = `<span style="color:#e74c3c;font-size:12px;">오류: ${e.message}</span>`;
   }
 }
 
 function renderPerfTable(data) {
   const wrap = document.getElementById("perf-table-wrap");
-  const ITEM_ORDER = [
-    "cabbage","radish","onion","green_onion","garlic",
-    "potato","sweet_potato","pepper",
-    "tomato","cucumber","zucchini","carrot","spinach",
-    "lettuce","perilla","watermelon","chamoe","fresh_pepper",
-    "sesame","apple","pear","grape","strawberry",
-  ];
-  const hCols = HORIZONS_ALL;
-
-  let html = `<table class="perf-table"><thead><tr>
-    <th>품목</th>${hCols.map(h=>`<th>${HORIZON_LABEL[h]}</th>`).join("")}
+  const ORDER = Object.keys(ITEM_META);
+  let html = `<div style="overflow-x:auto"><table class="perf-table"><thead><tr>
+    <th class="item-col">품목</th>${HORIZONS.map(h=>`<th>${H_LABEL[h]}</th>`).join("")}
   </tr></thead><tbody>`;
-
-  for (const code of ITEM_ORDER) {
-    const item = data[code];
-    if (!item) continue;
-    html += `<tr onclick="loadBacktest('${code}', currentHorizon)" title="클릭 시 백테스트 차트">`;
-    html += `<td class="item-name">${item.item_name}</td>`;
-    for (const h of hCols) {
+  for (const code of ORDER) {
+    const item = data[code]; if (!item) continue;
+    const meta = ITEM_META[code] || {};
+    html += `<tr onclick="loadBacktest('${code}', 7)" title="클릭 시 백테스트">`;
+    html += `<td class="item-col">${meta.icon||""} ${item.item_name}</td>`;
+    for (const h of HORIZONS) {
       const m = item.horizons[String(h)];
-      if (!m) { html += `<td style="color:#ccc">—</td>`; continue; }
-      if (m.reliable === false) { html += `<td style="color:#bbb;font-size:11px;">취합중</td>`; continue; }
+      if (!m) { html += `<td style="color:#ddd">—</td>`; continue; }
+      if (m.reliable === false) { html += `<td style="color:#bbb;font-size:10px;">취합중</td>`; continue; }
       const acc = m.calibrated_dir_acc ?? m.test_dir_acc;
       const pct = acc != null ? `${(acc*100).toFixed(1)}%` : "—";
-      const cls = acc == null ? "" : acc >= 0.60 ? "acc-high" : acc >= 0.52 ? "acc-mid" : "acc-low";
-      const n = m.n_test ? `<br><small style="color:#aaa;font-weight:normal;">n=${m.n_test}</small>` : "";
+      const cls = acc==null?"":acc>=0.60?"acc-high":acc>=0.52?"acc-mid":"acc-low";
+      const n = m.n_test ? `<br><span style="color:#bbb;font-weight:400;font-size:10px">n=${m.n_test}</span>` : "";
       html += `<td class="${cls}">${pct}${n}</td>`;
     }
     html += `</tr>`;
   }
-  html += `</tbody></table>`;
-  html += `<p style="font-size:11px;color:#aaa;margin-top:6px;">※ 테스트셋(최근 20%) 방향 예측 정확도. 행 클릭 시 백테스트 차트 표시.</p>`;
+  html += `</tbody></table></div>`;
+  html += `<p style="font-size:11px;color:#bbb;margin-top:8px;">※ 테스트셋(최근 20%) 방향 예측 정확도. 행 클릭 시 백테스트 차트.</p>`;
   wrap.innerHTML = html;
 }
 
-async function loadBacktest(item_code, horizon) {
+async function loadBacktest(code, horizon) {
   const wrap = document.getElementById("backtest-wrap");
   const title = document.getElementById("backtest-title");
-  const ITEM_NAMES = {
-    cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘",
-    potato:"감자", sweet_potato:"고구마", pepper:"건고추",
-    tomato:"토마토", cucumber:"오이", zucchini:"애호박", carrot:"당근",
-    spinach:"시금치", lettuce:"상추", perilla:"깻잎",
-    watermelon:"수박", chamoe:"참외", fresh_pepper:"붉은고추",
-    sesame:"참깨", apple:"사과", pear:"배", grape:"포도", strawberry:"딸기",
-  };
-  title.textContent = `${ITEM_NAMES[item_code]||item_code} — ${HORIZON_LABEL[horizon]||horizon+"일"} 백테스트 (테스트셋)`;
+  const meta = ITEM_META[code] || {};
+  title.textContent = `${meta.name||code} — ${H_LABEL[horizon]||horizon+"일"} 백테스트`;
   wrap.style.display = "block";
-
   try {
-    const r = await fetch(`${API}/admin/model/backtest/${item_code}?horizon=${horizon}`,
-      { headers: {"X-Admin-Key": window._adminKey || ""} });
-    if (!r.ok) { title.textContent += " — 오류(관리자 키 필요)"; return; }
+    const r = await fetch(`${API}/admin/model/backtest/${code}?horizon=${horizon}`,
+      { headers:{"X-Admin-Key": window._adminKey || ""} });
+    if (!r.ok) { title.textContent += " — 오류"; return; }
     const d = await r.json();
-    renderBacktestChart(d);
-  } catch(e) {
-    title.textContent += ` — 오류: ${e.message}`;
-  }
-}
-
-function renderBacktestChart(d) {
-  const ctx = document.getElementById("backtest-chart").getContext("2d");
-  if (backtestChart) backtestChart.destroy();
-
-  const labels = d.dates.map(dt => dt.slice(5)); // MM-DD
-  const prices = d.prices;
-  const pointColors = d.correct.map((ok, i) => ok ? "#27ae60" : "#e74c3c");
-  const pointStyles = d.predicted.map(p => p === 1 ? "circle" : "rectRot");
-  const pointRadius = 5;
-
-  backtestChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "실제 가격",
-          data: prices,
-          borderColor: "#2e74b5",
-          borderWidth: 1.5,
-          pointRadius: pointRadius,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          pointStyle: pointStyles,
-          tension: 0.2,
-          fill: false,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const i = ctx.dataIndex;
-              const pred = d.predicted[i] === 1 ? "↑상승" : "↓하락";
-              const act  = d.actual[i]    === 1 ? "↑상승" : "↓하락";
-              const ok   = d.correct[i] ? "✓ 적중" : "✗ 오류";
-              return [`가격: ${ctx.parsed.y.toLocaleString()}원`, `예측: ${pred}`, `실제: ${act}`, ok];
-            }
-          }
-        }
+    const ctx = document.getElementById("backtest-chart").getContext("2d");
+    if (backtestChart) backtestChart.destroy();
+    backtestChart = new Chart(ctx, {
+      type:"line",
+      data: {
+        labels: d.dates.map(dt=>dt.slice(5)),
+        datasets:[{
+          label:"실제가격",
+          data:d.prices,
+          borderColor:"#2e74b5",
+          borderWidth:1.5,
+          pointRadius:5,
+          pointBackgroundColor:d.correct.map(ok=>ok?"#27ae60":"#e74c3c"),
+          pointBorderColor:d.correct.map(ok=>ok?"#27ae60":"#e74c3c"),
+          pointStyle:d.predicted.map(p=>p===1?"circle":"rectRot"),
+          tension:0.2,
+          fill:false,
+        }]
       },
-      scales: {
-        x: { ticks: { maxTicksLimit: 12, font: { size: 11 } } },
-        y: { ticks: { font: { size: 11 } } }
+      options: {
+        responsive:true,
+        plugins: {
+          legend:{display:false},
+          tooltip:{callbacks:{label:(ctx)=>{
+            const i=ctx.dataIndex;
+            return [`가격:${ctx.parsed.y.toLocaleString()}원`,
+              `예측:${d.predicted[i]===1?"↑상승":"↓하락"}`,
+              `실제:${d.actual[i]===1?"↑상승":"↓하락"}`,
+              d.correct[i]?"✓ 적중":"✗ 오류"];
+          }}}
+        },
+        scales:{
+          x:{ticks:{maxTicksLimit:12,font:{size:11}}},
+          y:{ticks:{font:{size:11}}}
+        }
       }
-    }
-  });
+    });
+  } catch(e) {}
 }
+
+// ── Admin 표시 ──────────────────────────────────────────
+function showAdmin() {
+  const key = prompt("관리자 키를 입력하세요:");
+  if (key) {
+    window._adminKey = key;
+    document.getElementById("admin-nav-link").style.display = "";
+    loadModelMetrics();
+  }
+  return false;
+}
+// admin key 있으면 nav 표시
+if (window._adminKey) document.getElementById("admin-nav-link").style.display = "";
 
 init();
 </script>
