@@ -1238,6 +1238,7 @@ def _build_price_features_from_db(
     item_weather: "dict | None" = None,
     horizon: int = 14,
     volume_map: "dict | None" = None,
+    production_map: "dict | None" = None,
 ) -> "pd.DataFrame":
     """DailyPrice rows → per-item feature DataFrame (lag + rolling + weather features)."""
     import pandas as pd
@@ -1320,6 +1321,29 @@ def _build_price_features_from_db(
             feat["humidity_7d_avg"] = 0.0
             feat["temp_30d_avg"] = 0.0
             feat["rain_30d_sum"] = 0.0
+
+        # KOSIS production feature (연간 재배면적·생산량 — 연도별 join)
+        if production_map and item_code in production_map:
+            pmap = production_map[item_code]
+            area_vals, prod_vals = [], []
+            for d in g.index:
+                year = d.year
+                # 해당 연도 없으면 직전 연도 사용
+                py = pmap.get(year) or pmap.get(year - 1) or {}
+                area_vals.append(py.get("area_ha") or 0.0)
+                prod_vals.append(py.get("production_ton") or 0.0)
+            feat["prod_area_ha"] = area_vals
+            feat["prod_ton"] = prod_vals
+            # 전년 대비 변화율 (연도 바뀔 때 의미)
+            area_s = pd.Series(area_vals, index=g.index)
+            prod_s = pd.Series(prod_vals, index=g.index)
+            feat["prod_area_yoy"] = area_s.pct_change(periods=365).fillna(0.0).values
+            feat["prod_ton_yoy"]  = prod_s.pct_change(periods=365).fillna(0.0).values
+        else:
+            feat["prod_area_ha"]  = 0.0
+            feat["prod_ton"]      = 0.0
+            feat["prod_area_yoy"] = 0.0
+            feat["prod_ton_yoy"]  = 0.0
 
         # Volume feature from daily_market (AT settlement)
         if volume_map and item_code in volume_map:
@@ -1514,14 +1538,14 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     if not price_rows:
         return {"error": "no price data in DB"}
 
-    # Load weather data: region_code → date → {avg_temp, precipitation, humidity}
-    # CROP_REGION_MAP의 region_code 목록
+    # Load weather data: 로컬 KMA agri 데이터 (kma_{item_code} region_code)
+    # 실제 주산지 기상 관측소 데이터 — import/weather로 사전 업로드 필요
     ITEM_WEATHER_REGIONS = {
-        "cabbage":     ["KR-42", "KR-43"],
-        "radish":      ["KR-42", "KR-48"],
-        "onion":       ["KR-46", "KR-48"],
-        "green_onion": ["KR-46", "KR-41"],
-        "garlic":      ["KR-47", "KR-46"],
+        "cabbage":     ["kma_cabbage"],
+        "radish":      ["kma_radish"],
+        "onion":       ["kma_onion"],
+        "green_onion": ["kma_green_onion"],
+        "garlic":      ["kma_garlic"],
     }
     all_region_codes = list({r for rs in ITEM_WEATHER_REGIONS.values() for r in rs})
     weather_result = await db.execute(
@@ -1562,6 +1586,19 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
             for d, v in daily.items()
         }
 
+    # Load KOSIS production data: {item_code: {year: {area_ha, production_ton}}}
+    from app.models.production import CropProduction
+    prod_result = await db.execute(
+        select(CropProduction.item_code, CropProduction.year,
+               CropProduction.area_ha, CropProduction.production_ton)
+        .order_by(CropProduction.item_code, CropProduction.year)
+    )
+    production_map: dict = {}
+    for r in prod_result.all():
+        production_map.setdefault(r.item_code, {})[r.year] = {
+            "area_ha": r.area_ha, "production_ton": r.production_ton
+        }
+
     # Load market volume data: {item_code: {date: volume_kg}}
     market_result = await db.execute(
         select(DailyMarket.item_code, DailyMarket.date, DailyMarket.volume_kg)
@@ -1596,7 +1633,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     # 각 horizon별로 target만 다름 → horizon별로 별도 df 빌드
     for horizon in HORIZONS:
         df = await asyncio.get_running_loop().run_in_executor(
-            None, functools.partial(_build_price_features_from_db, price_rows, item_weather, horizon, volume_map)
+            None, functools.partial(_build_price_features_from_db, price_rows, item_weather, horizon, volume_map, production_map)
         )
         if df.empty:
             results_per_item[f"horizon_{horizon}"] = {"error": "feature table empty"}
@@ -2065,4 +2102,109 @@ async def get_model_backtest(
     if "error" in data:
         raise HTTPException(status_code=404, detail=data["error"])
     return data
+
+
+# ── 날씨 / 생산량 직접 import ──────────────────────────────────────────────
+
+class WeatherRow(BaseModel):
+    region_code: str       # e.g. "kma_cabbage"
+    region_name: str = ""
+    date: str              # YYYY-MM-DD
+    avg_temp: Optional[float] = None
+    precipitation: Optional[float] = None
+    humidity: Optional[float] = None
+    wind_speed: Optional[float] = None
+    sunshine_hours: Optional[float] = None
+    source: str = "kma_agri"
+
+
+@router.post("/import/weather")
+async def import_weather(
+    rows: list[WeatherRow],
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """로컬 KMA 날씨 데이터를 Railway DB에 직접 import. 최대 10000 rows."""
+    from app.models.weather import DailyWeather
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    import datetime as _dt
+
+    if not rows:
+        return {"saved": 0}
+    if len(rows) > 10000:
+        raise HTTPException(status_code=400, detail="최대 10000 rows")
+
+    records = []
+    for r in rows:
+        try:
+            d = _dt.date.fromisoformat(r.date)
+        except ValueError:
+            continue
+        records.append({
+            "region_code": r.region_code,
+            "region_name": r.region_name,
+            "date": d,
+            "avg_temp": r.avg_temp,
+            "precipitation": r.precipitation,
+            "humidity": r.humidity,
+            "wind_speed": r.wind_speed,
+            "sunshine_hours": r.sunshine_hours,
+            "source": r.source,
+        })
+    if not records:
+        return {"saved": 0}
+
+    stmt = pg_insert(DailyWeather).values(records).on_conflict_do_update(
+        index_elements=["region_code", "date", "source"],
+        set_={
+            "avg_temp": pg_insert(DailyWeather).excluded.avg_temp,
+            "precipitation": pg_insert(DailyWeather).excluded.precipitation,
+            "humidity": pg_insert(DailyWeather).excluded.humidity,
+            "wind_speed": pg_insert(DailyWeather).excluded.wind_speed,
+            "sunshine_hours": pg_insert(DailyWeather).excluded.sunshine_hours,
+        }
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"saved": len(records), "status": "ok"}
+
+
+class ProductionRow(BaseModel):
+    item_code: str
+    year: int
+    area_ha: Optional[float] = None
+    production_ton: Optional[float] = None
+    yield_per_ha: Optional[float] = None
+    source: str = "kosis"
+
+
+@router.post("/import/production")
+async def import_production(
+    rows: list[ProductionRow],
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """KOSIS 연간 재배면적·생산량을 Railway DB에 직접 import."""
+    from app.models.production import CropProduction
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    if not rows:
+        return {"saved": 0}
+
+    records = [
+        {"item_code": r.item_code, "year": r.year, "area_ha": r.area_ha,
+         "production_ton": r.production_ton, "yield_per_ha": r.yield_per_ha, "source": r.source}
+        for r in rows
+    ]
+    stmt = pg_insert(CropProduction).values(records).on_conflict_do_update(
+        index_elements=["item_code", "year"],
+        set_={
+            "area_ha": pg_insert(CropProduction).excluded.area_ha,
+            "production_ton": pg_insert(CropProduction).excluded.production_ton,
+            "yield_per_ha": pg_insert(CropProduction).excluded.yield_per_ha,
+        }
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"saved": len(records), "status": "ok"}
 
