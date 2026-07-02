@@ -1237,6 +1237,7 @@ def _build_price_features_from_db(
     price_rows: list,
     item_weather: "dict | None" = None,
     horizon: int = 14,
+    volume_map: "dict | None" = None,
 ) -> "pd.DataFrame":
     """DailyPrice rows → per-item feature DataFrame (lag + rolling + weather features)."""
     import pandas as pd
@@ -1319,6 +1320,22 @@ def _build_price_features_from_db(
             feat["humidity_7d_avg"] = 0.0
             feat["temp_30d_avg"] = 0.0
             feat["rain_30d_sum"] = 0.0
+
+        # Volume feature from daily_market (AT settlement)
+        if volume_map and item_code in volume_map:
+            vmap = volume_map[item_code]
+            vols = [float(vmap.get(d, 0.0)) for d in g.index]
+            feat["volume_lag1"] = pd.Series(vols, index=g.index).shift(1).fillna(0.0).values
+            feat["volume_ma7"] = (
+                pd.Series(vols, index=g.index).shift(1).rolling(7, min_periods=1).mean().fillna(0.0).values
+            )
+            feat["volume_ma30"] = (
+                pd.Series(vols, index=g.index).shift(1).rolling(30, min_periods=1).mean().fillna(0.0).values
+            )
+        else:
+            feat["volume_lag1"] = 0.0
+            feat["volume_ma7"] = 0.0
+            feat["volume_ma30"] = 0.0
 
         feat["base_date"] = feat.index
         pieces.append(feat.reset_index(drop=True))
@@ -1482,6 +1499,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     import time
     from app.models.price import DailyPrice
     from app.models.weather import DailyWeather
+    from app.models.market import DailyMarket
 
     started = time.monotonic()
     results_per_item = {}
@@ -1544,6 +1562,16 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
             for d, v in daily.items()
         }
 
+    # Load market volume data: {item_code: {date: volume_kg}}
+    market_result = await db.execute(
+        select(DailyMarket.item_code, DailyMarket.date, DailyMarket.volume_kg)
+        .where(DailyMarket.volume_kg > 0)
+        .order_by(DailyMarket.item_code, DailyMarket.date)
+    )
+    volume_map: dict = {}
+    for r in market_result.all():
+        volume_map.setdefault(r.item_code, {})[r.date] = float(r.volume_kg)
+
     # Build features (runs in thread to avoid blocking event loop)
     import asyncio
     import functools
@@ -1568,7 +1596,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     # 각 horizon별로 target만 다름 → horizon별로 별도 df 빌드
     for horizon in HORIZONS:
         df = await asyncio.get_running_loop().run_in_executor(
-            None, functools.partial(_build_price_features_from_db, price_rows, item_weather, horizon)
+            None, functools.partial(_build_price_features_from_db, price_rows, item_weather, horizon, volume_map)
         )
         if df.empty:
             results_per_item[f"horizon_{horizon}"] = {"error": "feature table empty"}
