@@ -506,6 +506,48 @@
       #dp-market-trend { grid-template-columns:1fr !important; }
     }
 
+    /* ── AI 브리핑 카드 ── */
+    .ai-brief {
+      background:linear-gradient(135deg,#0f2744 0%,#1e4a80 100%);
+      border-radius:14px;
+      padding:16px 22px;
+      margin-bottom:18px;
+      display:none;
+      align-items:center;
+      gap:18px;
+      color:white;
+      box-shadow:0 6px 24px rgba(15,39,68,0.28);
+      cursor:pointer;
+      transition:transform 0.15s,box-shadow 0.15s;
+      border:1.5px solid rgba(255,255,255,0.08);
+    }
+    .ai-brief:hover { transform:translateY(-2px); box-shadow:0 10px 32px rgba(15,39,68,0.35); }
+    .ai-brief-robot { font-size:36px; flex-shrink:0; }
+    .ai-brief-body { flex:1; min-width:0; }
+    .ai-brief-eyebrow { font-size:10px; color:rgba(255,255,255,0.45); letter-spacing:0.5px; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+    .ai-brief-main { font-size:15px; font-weight:700; line-height:1.4; margin-bottom:4px; }
+    .ai-brief-sub { font-size:12px; color:rgba(255,255,255,0.6); }
+    .ai-brief-prob-box {
+      text-align:center;
+      background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:14px;
+      padding:14px 22px;
+      flex-shrink:0;
+      min-width:100px;
+    }
+    .ai-brief-pct { font-size:30px; font-weight:800; line-height:1; }
+    .ai-brief-pct-lbl { font-size:10px; color:rgba(255,255,255,0.5); margin-top:4px; }
+
+    /* ── 리스크 게이지 ── */
+    .risk-gauge-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .risk-gauge-block { text-align:center; }
+    .risk-gauge-lbl { font-size:10px; color:#888; margin-top:4px; }
+    .risk-metric-col { flex:1; display:flex; flex-direction:column; gap:8px; min-width:140px; }
+    .risk-metric-item { background:white; border-radius:8px; padding:10px 14px; border:1px solid #f0e8c0; display:flex; align-items:center; justify-content:space-between; }
+    .risk-metric-label { font-size:11px; color:#888; }
+    .risk-metric-val { font-size:13px; font-weight:700; }
+
     /* ── 기타 ── */
     .loading-text { color:#bbb; font-size:13px; padding:20px; text-align:center; }
     .disclaimer {
@@ -549,6 +591,23 @@
 </div>
 
 <div class="main">
+
+  <!-- ── AI 브리핑 카드 ── -->
+  <div class="ai-brief" id="ai-brief" onclick="onAIBriefClick()">
+    <div class="ai-brief-robot">🤖</div>
+    <div class="ai-brief-body">
+      <div class="ai-brief-eyebrow">
+        <span style="width:6px;height:6px;background:#2ecc71;border-radius:50%;display:inline-block;animation:pulse 2s infinite"></span>
+        AI가 방금 분석했습니다
+      </div>
+      <div class="ai-brief-main" id="ai-brief-main">데이터 로딩 중...</div>
+      <div class="ai-brief-sub" id="ai-brief-sub">전체 품목 중 가장 주목해야 할 신호</div>
+    </div>
+    <div class="ai-brief-prob-box">
+      <div class="ai-brief-pct" id="ai-brief-pct">—</div>
+      <div class="ai-brief-pct-lbl" id="ai-brief-dir">확률</div>
+    </div>
+  </div>
 
   <!-- ── 카테고리 필터 ── -->
   <div class="cat-bar" id="cat-bar">
@@ -857,7 +916,48 @@ async function loadRiskSignals() {
     (d.items || []).forEach(s => {
       riskCache[s.item_code] = s.risk_level || "normal";
     });
+    populateAIBrief(d.items || []);
   } catch(e) {}
+}
+
+// ── AI 브리핑 카드 ──────────────────────────────────────
+let aiBriefCode = null;
+function populateAIBrief(items) {
+  if (!items.length) return;
+  // 가장 주목할 신호: 위험도 우선, 같으면 확률 편차 큰 것
+  const RISK_W = {high:4,warning:3,caution:2,normal:1};
+  const scored = items.map(s=>{
+    const prob = s.up_probability_14d ?? 0.5;
+    return {...s, _s: (RISK_W[s.risk_level]||1)*2 + Math.abs(prob-0.5)};
+  }).sort((a,b)=>b._s-a._s);
+
+  const top = scored[0];
+  const meta = ITEM_META[top.item_code] || {};
+  const name = meta.name || top.item_code;
+  const icon = meta.icon || "🌾";
+  const dir  = top.direction_14d;
+  const prob = top.up_probability_14d ?? 0.5;
+  const probPct = Math.round(prob * 100);
+  const dirKo = dir==="up"?"상승":dir==="down"?"하락":"보합";
+  const riskKo = {normal:"정상",caution:"주의",warning:"경고",high:"위험"}[top.risk_level]||"정상";
+  const riskColor = {normal:"#2ecc71",caution:"#f6c90e",warning:"#e67e22",high:"#e74c3c"}[top.risk_level]||"#2ecc71";
+  const pctColor  = dir==="up"?"#ff6b6b":dir==="down"?"#74b9ff":"#dfe6e9";
+
+  aiBriefCode = top.item_code;
+  document.getElementById("ai-brief-main").innerHTML =
+    `${icon} <b>${name}</b> 향후 14일 &nbsp;<span style="color:${riskColor};font-weight:800">${dirKo} 예상</span>` +
+    `&nbsp;<span style="font-size:11px;opacity:.55;font-weight:400;"> 위험도: ${riskKo}</span>`;
+  document.getElementById("ai-brief-sub").textContent =
+    `${items.length}개 품목 분석 완료 · ` +
+    (dir==="up"?"공급 감소 또는 수요 증가 압력 감지":dir==="down"?"출하량 증가 또는 수요 둔화 신호 감지":"뚜렷한 방향성 없음");
+  const pctEl = document.getElementById("ai-brief-pct");
+  pctEl.textContent = `${probPct}%`;
+  pctEl.style.color = pctColor;
+  document.getElementById("ai-brief-dir").textContent = dir==="up"?"상승 확률":dir==="down"?"하락 확률":"보합";
+  document.getElementById("ai-brief").style.display = "flex";
+}
+function onAIBriefClick() {
+  if (aiBriefCode) selectItem(aiBriefCode);
 }
 
 // ── 카테고리 필터 ──────────────────────────────────────
@@ -1019,9 +1119,13 @@ function renderChart(history) {
   if (detailChart) { detailChart.destroy(); detailChart = null; }
   if (!history || !history.data || history.data.length === 0) return;
 
-  const labels = history.data.map(d => d.date.slice(5));
-  const prices = history.data.map(d => d.price);
+  const labels  = history.data.map(d => d.date.slice(5));
+  const prices  = history.data.map(d => d.price);
   const avgYear = history.data.map(d => d.avg_year);
+
+  // 신뢰구간 밴드 (평년가 ±15%)
+  const upper = avgYear.map(v => v ? Math.round(v * 1.15) : null);
+  const lower = avgYear.map(v => v ? Math.round(v * 0.85) : null);
 
   detailChart = new Chart(ctx, {
     type:"line",
@@ -1029,11 +1133,31 @@ function renderChart(history) {
       labels,
       datasets: [
         {
+          label:"평년 예상 범위",
+          data:upper,
+          borderColor:"transparent",
+          backgroundColor:"rgba(243,156,18,0.10)",
+          borderWidth:0,
+          pointRadius:0,
+          tension:0.3,
+          fill:"+1",
+        },
+        {
+          label:"_lower",
+          data:lower,
+          borderColor:"transparent",
+          backgroundColor:"transparent",
+          borderWidth:0,
+          pointRadius:0,
+          tension:0.3,
+          fill:false,
+        },
+        {
           label:"실제 가격",
           data:prices,
           borderColor:"#2e74b5",
           backgroundColor:"rgba(46,116,181,0.07)",
-          borderWidth:2,
+          borderWidth:2.5,
           pointRadius:0,
           tension:0.3,
           fill:true,
@@ -1055,10 +1179,20 @@ function renderChart(history) {
       maintainAspectRatio:false,
       interaction:{ mode:"index", intersect:false },
       plugins: {
-        legend:{ position:"top", labels:{ font:{ size:11 }, boxWidth:12 } },
+        legend:{
+          position:"top",
+          labels:{
+            font:{ size:11 },
+            boxWidth:12,
+            filter: item => item.text !== "_lower"
+          }
+        },
         tooltip: {
           callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`
+            label: ctx => {
+              if(ctx.dataset.label==="_lower") return null;
+              return `${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`;
+            }
           }
         }
       },
@@ -1220,6 +1354,23 @@ function renderMarketTrend(history, code) {
   setTrend("tr-yoy", yoy);
 }
 
+// ── 리스크 SVG 게이지 ────────────────────────────────────
+function riskGaugeSVG(level) {
+  const pct   = {normal:18, caution:42, warning:68, high:88}[level] || 18;
+  const color = {normal:"#27ae60", caution:"#f39c12", warning:"#e67e22", high:"#e74c3c"}[level] || "#27ae60";
+  const label = {normal:"정상", caution:"주의", warning:"경고", high:"위험"}[level] || "정상";
+  const r = 30, cx = 38, cy = 38, circ = 2*Math.PI*r;
+  const dash = circ * pct / 100;
+  return `<svg width="76" height="76" viewBox="0 0 76 76">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f0f0f0" stroke-width="8"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+      stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+      stroke-dashoffset="${(circ*0.25).toFixed(1)}"
+      stroke-linecap="round" style="transition:stroke-dasharray .6s ease"/>
+    <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" font-family="sans-serif">${label}</text>
+  </svg>`;
+}
+
 // ── 리스크 분석 ──────────────────────────────────────────
 async function renderRiskDetail(code) {
   const el = document.getElementById("dp-risk-detail");
@@ -1232,36 +1383,43 @@ async function renderRiskDetail(code) {
       return;
     }
     const RISK_COLOR = { normal:"#27ae60", caution:"#e67e22", warning:"#e74c3c", high:"#8e1010" };
-    const RISK_BG    = { normal:"#d4edda", caution:"#fff3cd", warning:"#fde8d8", high:"#f8d7da" };
     const VOL_LABEL  = { low:"낮음", medium:"보통", high:"높음" };
-    const CONF_LABEL2= { high:"높음", medium:"중간", low:"낮음" };
+    const VOL_COLOR  = { low:"#27ae60", medium:"#e67e22", high:"#e74c3c" };
+    const CONF_LABEL = { high:"높음 ●●●", medium:"중간 ●●○", low:"낮음 ●○○" };
+    const CONF_COLOR = { high:"#27ae60", medium:"#e67e22", low:"#e74c3c" };
     const risk = sig.risk_level || "normal";
     const vol  = sig.volatility_risk || "medium";
     const conf = sig.confidence || "medium";
     const dir  = sig.direction_14d;
     const prob = sig.up_probability_14d;
+    const probPct = prob != null ? (prob*100).toFixed(0)+"%" : "—";
+    const dirArrow = dir==="up"?"↑ 상승":dir==="down"?"↓ 하락":"→ 보합";
+    const dirColor = dir==="up"?"#c0392b":dir==="down"?"#1a60a0":"#777";
 
     el.innerHTML = `
-      <div class="risk-grid">
-        <div class="risk-item">
-          <div class="risk-item-label">종합 위험도</div>
-          <div class="risk-item-val" style="color:${RISK_COLOR[risk]||"#555"}">${{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[risk]||risk}</div>
+      <div class="risk-gauge-row">
+        <div class="risk-gauge-block">
+          ${riskGaugeSVG(risk)}
+          <div class="risk-gauge-lbl">종합 위험도</div>
         </div>
-        <div class="risk-item">
-          <div class="risk-item-label">가격 변동성</div>
-          <div class="risk-item-val">${VOL_LABEL[vol]||vol}</div>
-        </div>
-        <div class="risk-item">
-          <div class="risk-item-label">AI 예측 신뢰도</div>
-          <div class="risk-item-val">${CONF_LABEL2[conf]||conf}</div>
+        <div class="risk-metric-col">
+          <div class="risk-metric-item">
+            <span class="risk-metric-label">가격 변동성</span>
+            <span class="risk-metric-val" style="color:${VOL_COLOR[vol]||"#555"}">${VOL_LABEL[vol]||vol}</span>
+          </div>
+          <div class="risk-metric-item">
+            <span class="risk-metric-label">AI 예측 신뢰도</span>
+            <span class="risk-metric-val" style="color:${CONF_COLOR[conf]||"#555"}">${CONF_LABEL[conf]||conf}</span>
+          </div>
+          <div class="risk-metric-item">
+            <span class="risk-metric-label">2주 방향 신호</span>
+            <span class="risk-metric-val" style="color:${dirColor}">${dirArrow} ${probPct}</span>
+          </div>
         </div>
       </div>
-      ${dir ? `
-      <div style="margin-top:10px;font-size:12px;color:#555;line-height:1.7;">
-        <b>2주 방향 신호:</b> ${dir==="up"?"↑ 상승":"↓ 하락"} (확률 ${prob!=null?(prob*100).toFixed(0)+"%" : "—"})<br>
-        <b>변동성 분석:</b> 최근 가격이 ${vol==="high"?"높은 변동성":"보통 수준의 변동성"}을 보이고 있습니다.
-        ${risk !== "normal" ? `<br><b>⚠️ 주의사항:</b> 주산지 수급 또는 기상 변화로 가격 변동 위험이 감지됩니다.` : ""}
-      </div>` : ""}`;
+      ${risk!=="normal"?`<div style="font-size:12px;color:#c0392b;background:#fff0f0;border-radius:8px;padding:8px 12px;border-left:3px solid #e74c3c;">
+        ⚠️ 주산지 수급 또는 기상 변화로 가격 변동 위험이 감지됩니다.
+      </div>`:""}`;
   } catch(e) {
     el.innerHTML = '<span style="color:#bbb;font-size:12px;">신호 데이터 로딩 실패</span>';
   }
