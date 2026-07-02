@@ -169,6 +169,54 @@
     /* ── 로딩 ────────────── */
     .loading { color: #aaa; font-size: 13px; padding: 20px; text-align: center; }
 
+    /* ── 예측기간 탭 ─────────── */
+    .horizon-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .horizon-tab {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1.5px solid #d0d8e8;
+      background: white;
+      color: #555;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .horizon-tab.active {
+      background: #1a3a5c;
+      color: white;
+      border-color: #1a3a5c;
+    }
+    .horizon-tab:hover:not(.active) { border-color: #2e74b5; color: #2e74b5; }
+
+    /* ── 멀티 horizon 예측 카드 ─── */
+    .horizon-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) { .horizon-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .horizon-grid { grid-template-columns: 1fr 1fr; } }
+    .horizon-card {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-top: 3px solid #e0e0e0;
+    }
+    .horizon-card.dir-up   { border-top-color: #e74c3c; }
+    .horizon-card.dir-down { border-top-color: #2980b9; }
+    .horizon-label { font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .horizon-dir { font-size: 20px; font-weight: 700; }
+    .horizon-prob { font-size: 12px; color: #777; margin-top: 3px; }
+    .horizon-conf { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #e8f4fd; color: #2e74b5; margin-top: 6px; display: inline-block; }
+
     /* ── 면책고지 ─────────── */
     .disclaimer {
       font-size: 11px;
@@ -192,10 +240,26 @@
 </div>
 
 <div class="main">
-  <!-- 상단 요약 카드 -->
+  <!-- 예측 기간 탭 -->
+  <div class="horizon-tabs" id="horizon-tabs">
+    <button class="horizon-tab active" data-horizon="14"  onclick="selectHorizon(14)">14일</button>
+    <button class="horizon-tab"        data-horizon="30"  onclick="selectHorizon(30)">1개월</button>
+    <button class="horizon-tab"        data-horizon="60"  onclick="selectHorizon(60)">2개월</button>
+    <button class="horizon-tab"        data-horizon="90"  onclick="selectHorizon(90)">3개월</button>
+  </div>
+
+  <!-- 멀티 horizon 예측 카드 (4개) -->
+  <div class="horizon-grid" id="horizon-grid">
+    <div class="horizon-card" id="hcard-14"><div class="horizon-label">14일 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-30"><div class="horizon-label">1개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-60"><div class="horizon-label">2개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+    <div class="horizon-card" id="hcard-90"><div class="horizon-label">3개월 예측</div><div class="horizon-dir">—</div><div class="horizon-prob">—</div></div>
+  </div>
+
+  <!-- 상단 요약 카드 (선택된 horizon 기준) -->
   <div class="grid grid-3" style="margin-bottom:16px;">
     <div class="card">
-      <div class="card-title">14일 가격 방향 예측</div>
+      <div class="card-title" id="kpi-direction-title">14일 가격 방향 예측</div>
       <div id="kpi-direction" class="direction-badge dir-neutral">— 로딩 중</div>
       <div class="prob-bar"><div class="prob-fill" id="kpi-prob-bar" style="width:50%; background:#ccc;"></div></div>
       <div class="card-sub" id="kpi-prob-text">데이터 없음</div>
@@ -254,7 +318,7 @@
   </div>
 
   <div class="disclaimer">
-    ※ 본 서비스의 예측 결과는 Mock 데이터 기반 시뮬레이션입니다. 실제 KAMIS 연동 전까지는 참고용으로만 활용하세요.
+    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(14일·1개월·2개월·3개월)을 기반으로 한 참고 정보입니다.
     실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
   </div>
 </div>
@@ -262,15 +326,33 @@
 <script>
 const API = "";  // same origin
 
-const DIR_MAP = { up: "↑ 상승", down: "↓ 하락", neutral: "→ 보합" };
+const DIR_MAP   = { up: "↑ 상승", down: "↓ 하락", neutral: "→ 보합" };
 const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
 const RISK_LABEL = { normal: "정상", caution: "주의", warning: "경고", high: "위험" };
-const VOL_LABEL = { low: "안정", medium: "보통", high: "높음" };
+const VOL_LABEL  = { low: "안정", medium: "보통", high: "높음" };
 const CONF_LABEL = { high: "높음", medium: "중간", low: "낮음" };
+const HORIZON_LABEL = { 14: "14일", 30: "1개월", 60: "2개월", 90: "3개월" };
 
 let items = [];
 let currentItem = null;
+let currentHorizon = 14;
 let priceChart = null;
+let allHorizonsCache = {};   // item_code → horizons 응답 캐시
+
+// ── horizon 탭 선택 ──────────────────────────────────────
+function selectHorizon(h) {
+  currentHorizon = h;
+  document.querySelectorAll(".horizon-tab").forEach(t =>
+    t.classList.toggle("active", parseInt(t.dataset.horizon) === h)
+  );
+  const label = HORIZON_LABEL[h] || `${h}일`;
+  document.getElementById("kpi-direction-title").textContent = `${label} 가격 방향 예측`;
+  // 캐시된 데이터로 KPI 즉시 업데이트
+  if (currentItem && allHorizonsCache[currentItem]) {
+    const hz = allHorizonsCache[currentItem][String(h)];
+    if (hz) renderKPIsFromHorizon(hz, currentItem);
+  }
+}
 
 // ── 초기화 ─────────────────────────────────────────────────
 async function init() {
@@ -299,44 +381,66 @@ async function selectItem(item_code) {
   // 지도 iframe 교체
   document.getElementById("map-frame").src = `/maps/items/${item_code}`;
 
-  // 병렬 로드
-  const [forecast, history] = await Promise.all([
-    fetch(`${API}/api/v1/items/${item_code}/forecast`).then(r => r.json()).catch(() => null),
+  // 병렬 로드: 전체 horizon + 가격 히스토리
+  const [allHz, history] = await Promise.all([
+    fetch(`${API}/api/v1/items/${item_code}/forecasts`).then(r => r.json()).catch(() => null),
     fetch(`${API}/api/v1/items/${item_code}/price-history?days=90`).then(r => r.json()).catch(() => null),
   ]);
 
-  renderKPIs(forecast);
+  if (allHz && allHz.horizons) {
+    allHorizonsCache[item_code] = allHz.horizons;
+    renderHorizonCards(allHz.horizons);
+    const hz = allHz.horizons[String(currentHorizon)];
+    if (hz) renderKPIsFromHorizon(hz, item_code);
+    // factors는 14일 기준 forecast에서 가져옴
+    const fc14 = await fetch(`${API}/api/v1/items/${item_code}/forecast?horizon=14`).then(r=>r.json()).catch(()=>null);
+    renderFactors(fc14);
+  }
   renderChart(history);
-  renderFactors(forecast);
 }
 
-// ── KPI 카드 ───────────────────────────────────────────────
-function renderKPIs(fc) {
-  if (!fc || !fc.forecast) {
-    document.getElementById("kpi-direction").textContent = "데이터 없음";
-    return;
-  }
-  const f = fc.forecast;
-  const dir = f.direction_14d;
-  const upProb = f.up_probability_14d || 0;
-  const surgeProb = f.surge_probability_14d || 0;
+// ── horizon 카드 4개 렌더 ────────────────────────────────
+function renderHorizonCards(horizons) {
+  [14, 30, 60, 90].forEach(h => {
+    const el = document.getElementById(`hcard-${h}`);
+    if (!el) return;
+    const hz = horizons[String(h)];
+    const label = HORIZON_LABEL[h];
+    if (!hz) {
+      el.className = "horizon-card";
+      el.innerHTML = `<div class="horizon-label">${label} 예측</div><div class="horizon-dir" style="color:#bbb;">—</div><div class="horizon-prob">데이터 없음</div>`;
+      return;
+    }
+    const dir = hz.direction;
+    const prob = hz.up_probability != null ? hz.up_probability : (hz.bottom_probability != null ? 1 - hz.bottom_probability : null);
+    const probPct = prob != null ? `${(prob * 100).toFixed(0)}%` : "—";
+    el.className = `horizon-card ${DIR_CLASS[dir] || ""}`;
+    el.innerHTML = `
+      <div class="horizon-label">${label} 예측</div>
+      <div class="horizon-dir ${DIR_CLASS[dir] || "dir-neutral"}">${DIR_MAP[dir] || "—"}</div>
+      <div class="horizon-prob">상승확률 ${probPct}</div>
+      <span class="horizon-conf">${CONF_LABEL[hz.confidence] || hz.confidence || "—"}</span>`;
+  });
+}
+
+// ── KPI 카드 (선택된 horizon 기준) ──────────────────────
+function renderKPIsFromHorizon(hz, item_code) {
+  if (!hz) { document.getElementById("kpi-direction").textContent = "데이터 없음"; return; }
+  const dir = hz.direction;
+  const upProb = hz.up_probability != null ? hz.up_probability : (hz.bottom_probability != null ? 1 - hz.bottom_probability : 0);
+  const surgeProb = Math.max(0, upProb - 0.6);
 
   const dirEl = document.getElementById("kpi-direction");
   dirEl.className = `direction-badge ${DIR_CLASS[dir] || "dir-neutral"}`;
-  dirEl.textContent = DIR_MAP[dir] || dir;
+  dirEl.textContent = DIR_MAP[dir] || dir || "—";
 
-  const bar = document.getElementById("kpi-prob-bar");
   const barColor = dir === "up" ? "#e74c3c" : (dir === "down" ? "#2980b9" : "#aaa");
-  bar.style.width = `${upProb * 100}%`;
-  bar.style.background = barColor;
+  document.getElementById("kpi-prob-bar").style.cssText = `width:${upProb*100}%; background:${barColor}`;
   document.getElementById("kpi-prob-text").textContent =
-    `상승 확률 ${(upProb * 100).toFixed(0)}% | 신뢰도: ${CONF_LABEL[fc.confidence] || fc.confidence}`;
+    `상승 확률 ${(upProb*100).toFixed(0)}% | 신뢰도: ${CONF_LABEL[hz.confidence] || hz.confidence || "—"}`;
 
   document.getElementById("kpi-surge").textContent = `${(surgeProb * 100).toFixed(0)}%`;
-  document.getElementById("kpi-volatility").textContent =
-    `변동성 위험: ${VOL_LABEL[f.volatility_risk_30d] || f.volatility_risk_30d}`;
-
-  // 위험 지역은 신호 API에서
+  document.getElementById("kpi-volatility").textContent = `변동성 위험: —`;
   loadHotspot();
 }
 
@@ -452,33 +556,52 @@ function renderFactors(fc) {
 
 // ── 전체 현황 표 ─────────────────────────────────────────
 async function loadOverview() {
-  const r = await fetch(`${API}/api/v1/signals/today`);
-  const d = await r.json();
   const tbody = document.getElementById("overview-body");
 
-  if (!d.items || d.items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">데이터 없음</td></tr>';
+  // 각 품목의 전체 horizon 데이터를 병렬 로드
+  const codes = items.map(i => i.item_code);
+  const results = await Promise.all(
+    codes.map(code =>
+      fetch(`${API}/api/v1/items/${code}/forecasts`).then(r => r.json()).catch(() => null)
+    )
+  );
+
+  if (!results.some(r => r && r.horizons)) {
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">예측 데이터 없음</td></tr>';
     return;
   }
 
+  // 테이블 헤더 업데이트
+  document.querySelector(".overview-table thead tr").innerHTML =
+    `<th>품목</th><th>14일</th><th>1개월</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
+
   const nameMap = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
-  tbody.innerHTML = d.items.map(it => {
-    const dir = it.direction_14d;
-    const dirHtml = dir
-      ? `<span class="${DIR_CLASS[dir]}">${DIR_MAP[dir]}</span>`
-      : "—";
-    const upProb = it.up_probability_14d != null
-      ? `${(it.up_probability_14d * 100).toFixed(0)}%` : "—";
-    const rl = it.risk_level || "normal";
-    const conf = it.confidence || "—";
-    const name = nameMap[it.item_code] || it.item_code;
+
+  // 위험도는 signals API에서
+  const sigR = await fetch(`${API}/api/v1/signals/today`).then(r=>r.json()).catch(()=>({items:[]}));
+  const riskMap = {};
+  (sigR.items||[]).forEach(s => { riskMap[s.item_code] = s.risk_level || "normal"; });
+
+  tbody.innerHTML = results.map((r, i) => {
+    const code = codes[i];
+    const name = nameMap[code] || code;
+    const hz = r && r.horizons ? r.horizons : {};
+
+    function cell(h) {
+      const d = hz[String(h)];
+      if (!d) return `<td style="color:#bbb">—</td>`;
+      const dir = d.direction;
+      const prob = d.up_probability != null ? d.up_probability : (d.bottom_probability != null ? 1-d.bottom_probability : null);
+      const pct = prob != null ? `${(prob*100).toFixed(0)}%` : "";
+      return `<td><span class="${DIR_CLASS[dir]||'dir-neutral'}">${DIR_MAP[dir]||"—"}</span> <small style="color:#999">${pct}</small></td>`;
+    }
+
+    const rl = riskMap[code] || "normal";
     return `
-      <tr onclick="selectItem('${it.item_code}')" style="cursor:pointer;">
+      <tr onclick="selectItem('${code}')" style="cursor:pointer;">
         <td><strong>${name}</strong></td>
-        <td>${dirHtml}</td>
-        <td>${upProb}</td>
+        ${cell(14)}${cell(30)}${cell(60)}${cell(90)}
         <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
-        <td><span class="conf-badge">${CONF_LABEL[conf] || conf}</span></td>
       </tr>`;
   }).join("");
 }
