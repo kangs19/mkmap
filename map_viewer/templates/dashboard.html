@@ -3,7 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>농산물 가격 위험 신호 엔진</title>
+  <title>MK-MAP — 농산물 가격 AI 예측 플랫폼</title>
+  <meta name="description" content="배추·무·양파·대파·마늘 도매가격을 AI로 1주~3개월 예측합니다. 주산지 위험 신호·생산 통계·시세 차트를 무료로 제공합니다.">
+  <meta name="keywords" content="농산물가격예측,배추가격,무가격,양파가격,대파가격,마늘가격,농산물시세,AI예측,가락시장,도매가격">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://mk-map.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mk-map.com/">
+  <meta property="og:title" content="MK-MAP — 농산물 가격 AI 예측">
+  <meta property="og:description" content="배추·무·양파·대파·마늘 도매가격을 LightGBM AI로 최대 3개월 예측. 주산지 위험 신호와 생산 통계를 함께 제공합니다.">
+  <meta property="og:image" content="https://mk-map.com/static/og_image.png">
+  <meta property="og:locale" content="ko_KR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MK-MAP — 농산물 가격 AI 예측">
+  <meta name="twitter:description" content="배추·무·양파·대파·마늘 도매가격 AI 예측 플랫폼. 1주~3개월 방향 예측 제공.">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -218,6 +231,64 @@
     .horizon-prob { font-size: 12px; color: #777; margin-top: 3px; }
     .horizon-conf { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #e8f4fd; color: #2e74b5; margin-top: 6px; display: inline-block; }
 
+    /* ── 모바일 반응형 ────── */
+    @media (max-width: 768px) {
+      .header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
+      .header h1 { font-size: 15px; }
+      .header-sub { font-size: 11px; }
+      .main { padding: 12px 10px; }
+      .card { padding: 12px 14px; }
+      .card-value { font-size: 22px; }
+      .item-tabs { padding: 0 10px; }
+      .item-tab { padding: 8px 12px; font-size: 13px; }
+      .horizon-tab { padding: 4px 10px; font-size: 12px; }
+      .horizon-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .horizon-card { padding: 10px 10px; }
+      .horizon-dir { font-size: 16px; }
+      .chart-wrap { height: 180px; }
+      .map-frame { height: 280px; }
+      .prod-stat { gap: 8px; }
+      .factor-name { width: 100px; font-size: 11px; }
+      .overview-table { font-size: 11px; }
+      .overview-table th, .overview-table td { padding: 6px 6px; }
+      .perf-table { font-size: 11px; }
+      .perf-table th, .perf-table td { padding: 6px 6px; }
+      .forecast-bar { flex-wrap: wrap; gap: 6px; }
+    }
+    @media (max-width: 480px) {
+      .horizon-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── 예측 오버레이 배지 ── */
+    .forecast-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e8edf5;
+      font-size: 12px;
+      color: #555;
+    }
+    .forecast-bar-label { color: #999; font-size: 11px; white-space: nowrap; }
+    .forecast-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .fp-up      { background: #fde8e8; color: #c0392b; }
+    .fp-down    { background: #e8f0fd; color: #2471a3; }
+    .fp-neutral { background: #f0f0f0; color: #888; }
+    .fp-na      { background: #f5f5f5; color: #bbb; }
+
     /* ── 면책고지 ─────────── */
     .disclaimer {
       font-size: 11px;
@@ -257,8 +328,8 @@
 <body>
 
 <div class="header">
-  <h1>🌾 농산물 가격 위험 신호 엔진</h1>
-  <span class="header-sub">Agricultural Price Risk Signal Engine · Mock Data</span>
+  <h1>🌾 MK-MAP 농산물 가격 AI 예측</h1>
+  <span class="header-sub">배추·무·양파·대파·마늘 도매가격 · AI 기반 최대 3개월 예측</span>
 </div>
 
 <div class="item-tabs" id="item-tabs">
@@ -312,6 +383,15 @@
       <div class="card-title" id="chart-title">가격 히스토리 (최근 90일)</div>
       <div class="chart-wrap">
         <canvas id="price-chart"></canvas>
+      </div>
+      <div class="forecast-bar" id="forecast-bar" style="display:none;">
+        <span class="forecast-bar-label">AI 예측</span>
+        <span id="fbar-7"  class="forecast-pill fp-na">1주 —</span>
+        <span id="fbar-14" class="forecast-pill fp-na">2주 —</span>
+        <span id="fbar-21" class="forecast-pill fp-na">3주 —</span>
+        <span id="fbar-28" class="forecast-pill fp-na">4주 —</span>
+        <span id="fbar-60" class="forecast-pill fp-na">2개월 —</span>
+        <span id="fbar-90" class="forecast-pill fp-na">3개월 —</span>
       </div>
     </div>
     <div class="card">
@@ -467,6 +547,7 @@ async function selectItem(item_code) {
     renderHorizonCards(allHz.horizons);
     const hz = allHz.horizons[String(currentHorizon)];
     if (hz) renderKPIsFromHorizon(hz, item_code);
+    renderForecastBar(allHz.horizons);
     const fc14 = await fetch(`${API}/api/v1/items/${item_code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null);
     renderFactors(fc14);
   }
@@ -533,6 +614,31 @@ async function loadHotspot() {
         `<span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span> 점수 ${top.risk_score.toFixed(0)}점`;
     }
   } catch(e) {}
+}
+
+// ── 예측 배지 오버레이 ────────────────────────────────────
+function renderForecastBar(horizons) {
+  const bar = document.getElementById("forecast-bar");
+  bar.style.display = "flex";
+  const DIR_ARROW = { up: "↑", down: "↓", neutral: "→" };
+  HORIZONS_ALL.forEach(h => {
+    const el = document.getElementById(`fbar-${h}`);
+    if (!el) return;
+    const label = HORIZON_LABEL[h];
+    const hz = horizons[String(h)];
+    if (!hz || hz.available === false) {
+      el.className = "forecast-pill fp-na";
+      el.textContent = `${label} 취합중`;
+      return;
+    }
+    const dir = hz.direction;
+    const prob = hz.up_probability != null ? hz.up_probability : 0.5;
+    const arrow = DIR_ARROW[dir] || "—";
+    const pct = `${(prob * 100).toFixed(0)}%`;
+    const cls = dir === "up" ? "fp-up" : dir === "down" ? "fp-down" : "fp-neutral";
+    el.className = `forecast-pill ${cls}`;
+    el.textContent = `${label} ${arrow} ${pct}`;
+  });
 }
 
 // ── 가격 차트 ─────────────────────────────────────────────

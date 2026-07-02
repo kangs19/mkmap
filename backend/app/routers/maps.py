@@ -19,6 +19,7 @@ DASHBOARD_PATH = TEMPLATES / "dashboard.html"
 WIDGET_PATH    = TEMPLATES / "widget.html"
 ADMIN_PATH     = TEMPLATES / "admin.html"
 FORECAST_EXPLANATION_PATH = TEMPLATES / "forecast_explanation.html"
+PERFORMANCE_PATH = TEMPLATES / "performance.html"
 
 ITEM_NAMES = {
     "cabbage": "배추",
@@ -54,6 +55,13 @@ async def get_item_map(request: Request, item_code: str):
 @router.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
     html = DASHBOARD_PATH.read_text(encoding="utf-8")
+    return HTMLResponse(content=html)
+
+
+@router.get("/performance", response_class=HTMLResponse)
+async def get_performance_page(request: Request):
+    """공개 모델 성능 페이지 — admin key 불필요"""
+    html = PERFORMANCE_PATH.read_text(encoding="utf-8")
     return HTMLResponse(content=html)
 
 

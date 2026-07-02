@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MK-MAP 모델 성능 · AI 예측 정확도</title>
+  <meta name="description" content="MK-MAP 농산물 가격 AI 예측 모델의 정확도와 신뢰 현황을 확인하세요.">
+  <link rel="canonical" href="https://mk-map.com/performance">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Malgun Gothic', sans-serif; background: #f0f4f8; color: #333; }
+    .header { background: #1a3a5c; color: white; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 18px; }
+    .header a { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
+    .header a:hover { color: white; }
+    .main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .intro { background: white; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .intro h2 { font-size: 16px; color: #1a3a5c; margin-bottom: 8px; }
+    .intro p { font-size: 13px; color: #666; line-height: 1.8; }
+    .section-title { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 12px; }
+
+    /* ── 품목 가로 카드 ── */
+    .item-row { background: white; border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .item-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .item-name { font-size: 15px; font-weight: 700; color: #1a3a5c; min-width: 50px; }
+    .item-sub { font-size: 12px; color: #999; }
+
+    /* ── horizon 배지 그리드 ── */
+    .horizon-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    @media (max-width: 700px) { .horizon-row { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 400px) { .horizon-row { grid-template-columns: repeat(2, 1fr); } }
+    .hz-cell { border-radius: 8px; padding: 10px 8px; text-align: center; border: 1px solid #e8e8e8; }
+    .hz-cell.ok       { background: #f0faf4; border-color: #b2dfca; }
+    .hz-cell.na       { background: #f9f9f9; border-color: #e0e0e0; opacity: 0.6; }
+    .hz-label { font-size: 11px; color: #888; margin-bottom: 5px; }
+    .hz-dir   { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+    .hz-prob  { font-size: 11px; color: #777; }
+    .hz-status { font-size: 10px; color: #bbb; }
+    .dir-up   { color: #e74c3c; }
+    .dir-down { color: #2471a3; }
+    .dir-neutral { color: #888; }
+    .available-badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 8px; background: #d4edda; color: #155724; margin-top: 3px; }
+    .unavail-badge   { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 8px; background: #f0f0f0; color: #999; margin-top: 3px; }
+
+    /* ── 통계 요약 ── */
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card { background: white; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    .stat-val { font-size: 28px; font-weight: 700; color: #1a3a5c; line-height: 1.2; }
+    .stat-lbl { font-size: 12px; color: #888; margin-top: 4px; }
+
+    .loading { color: #aaa; font-size: 13px; text-align: center; padding: 30px; }
+    .updated { font-size: 11px; color: #bbb; margin-top: 16px; text-align: right; }
+    .disclaimer { font-size: 11px; color: #bbb; padding: 12px 0; border-top: 1px solid #e8e8e8; margin-top: 16px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 MK-MAP 모델 성능</h1>
+  <a href="/dashboard">← 대시보드로 돌아가기</a>
+</div>
+
+<div class="main">
+  <div class="intro">
+    <h2>AI 예측 신뢰 현황</h2>
+    <p>
+      MK-MAP은 KAMIS 도매가격 데이터, KMA 기상 데이터, KOSIS 생산 통계를 LightGBM 앙상블 모델로 학습하여
+      <strong>1주·2주·3주·4주·2개월·3개월</strong> 가격 방향을 예측합니다.<br>
+      예측 신뢰도가 낮은 기간은 '데이터 취합중'으로 표시되어 제공하지 않습니다.
+      모델은 매일 07:30 (KST) 자동 재학습됩니다.
+    </p>
+  </div>
+
+  <!-- 요약 통계 -->
+  <div class="summary-grid" id="summary-grid">
+    <div class="stat-card"><div class="stat-val" id="stat-items">—</div><div class="stat-lbl">예측 품목 수</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-avail">—</div><div class="stat-lbl">신뢰 가능 예측 (전체)</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-date">—</div><div class="stat-lbl">마지막 갱신</div></div>
+  </div>
+
+  <!-- 품목별 horizon 현황 -->
+  <div class="section-title">품목별 예측 기간 신뢰 현황</div>
+  <div id="items-wrap">
+    <div class="loading">로딩 중...</div>
+  </div>
+
+  <div class="updated" id="updated-at"></div>
+  <div class="disclaimer">
+    ※ 본 예측은 KAMIS 공공데이터 기반 AI 모델 참고 정보입니다. 실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
+  </div>
+</div>
+
+<script>
+const API = "";
+const ITEM_NAMES = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘" };
+const HORIZON_LABEL = { 7:"1주", 14:"2주", 21:"3주", 28:"4주", 60:"2개월", 90:"3개월" };
+const HORIZONS = [7, 14, 21, 28, 60, 90];
+const DIR_MAP = { up: "↑", down: "↓", neutral: "→" };
+const DIR_CLASS = { up: "dir-up", down: "dir-down", neutral: "dir-neutral" };
+
+async function init() {
+  const r = await fetch(`${API}/api/v1/items`).then(r=>r.json()).catch(()=>[]);
+  if (!r.length) { document.getElementById("items-wrap").innerHTML = '<div class="loading">데이터 없음</div>'; return; }
+
+  const results = await Promise.all(
+    r.map(it => fetch(`${API}/api/v1/items/${it.item_code}/forecasts`).then(r=>r.json()).catch(()=>null))
+  );
+
+  let totalAvail = 0, totalAll = 0, baseDate = "";
+
+  const wrap = document.getElementById("items-wrap");
+  wrap.innerHTML = "";
+
+  r.forEach((item, i) => {
+    const data = results[i];
+    if (!data) return;
+    if (data.base_date) baseDate = data.base_date;
+    const hz = data.horizons || {};
+
+    const availCount = Object.values(hz).filter(h => h.available !== false).length;
+    totalAvail += availCount;
+    totalAll += HORIZONS.length;
+
+    const cells = HORIZONS.map(h => {
+      const d = hz[String(h)];
+      const label = HORIZON_LABEL[h];
+      if (!d || d.available === false) {
+        return `<div class="hz-cell na">
+          <div class="hz-label">${label}</div>
+          <div class="hz-dir" style="color:#ccc;font-size:12px;">취합중</div>
+          <div class="hz-status unavail-badge">준비중</div>
+        </div>`;
+      }
+      const dir = d.direction;
+      const prob = d.up_probability != null ? d.up_probability : 0.5;
+      return `<div class="hz-cell ok">
+        <div class="hz-label">${label}</div>
+        <div class="hz-dir ${DIR_CLASS[dir]||''}">${DIR_MAP[dir]||"—"}</div>
+        <div class="hz-prob">상승 ${(prob*100).toFixed(0)}%</div>
+        <span class="available-badge">신뢰</span>
+      </div>`;
+    }).join("");
+
+    wrap.innerHTML += `
+      <div class="item-row">
+        <div class="item-header">
+          <div class="item-name">${item.item_name}</div>
+          <div class="item-sub">신뢰 기간: ${availCount}/${HORIZONS.length}개</div>
+        </div>
+        <div class="horizon-row">${cells}</div>
+      </div>`;
+  });
+
+  document.getElementById("stat-items").textContent = r.length;
+  document.getElementById("stat-avail").textContent = `${totalAvail}/${totalAll}`;
+  document.getElementById("stat-date").textContent = baseDate || "—";
+  document.getElementById("updated-at").textContent = `마지막 확인: ${new Date().toLocaleString("ko-KR")}`;
+}
+
+init();
+</script>
+</body>
+</html>
