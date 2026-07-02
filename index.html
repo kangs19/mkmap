@@ -513,10 +513,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
           </div>
         </div>
 
-        <!-- 관련 뉴스 -->
+        <!-- 기간별 가격 동향 분석 -->
         <div class="fm-news-section">
-          <div class="fm-sec-title">관련 동향</div>
-          <div id="rp-news"></div>
+          <div class="fm-sec-title" style="display:flex;align-items:center;gap:8px">
+            기간별 가격 동향 분석
+            <span id="rp-trend-phase" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f5e9;color:#1a8a1a;display:none"></span>
+          </div>
+          <div id="rp-trend-reasons" style="margin-top:6px"></div>
         </div>
       </div>
     </div>
@@ -1178,6 +1181,80 @@ function togglePriceViewMode(){
   redrawMap();
 }
 
+// ── 기간별 가격 동향 분석 (관련 동향 섹션) ────────────────────────────────
+const _trendCache={};
+async function fetchAndRenderTrend(itemCode, days){
+  const el=document.getElementById("rp-trend-reasons");
+  const badge=document.getElementById("rp-trend-phase");
+  if(!el) return;
+
+  el.innerHTML=`<div style="font-size:10px;color:var(--muted);padding:8px 0">분석 중...</div>`;
+  badge.style.display="none";
+
+  const cacheKey=`${itemCode}_${days}`;
+  let data=_trendCache[cacheKey];
+  if(!data){
+    try{
+      const r=await fetch(`/api/v1/forecasts/explanation/${itemCode}?horizon=${days}`);
+      if(!r.ok) throw new Error(r.status);
+      data=await r.json();
+      _trendCache[cacheKey]=data;
+    }catch(e){
+      el.innerHTML=`<div style="font-size:10px;color:var(--muted);padding:4px 0">분석 데이터를 불러오지 못했습니다.</div>`;
+      return;
+    }
+  }
+
+  // 기간 뱃지
+  const phaseLabel=data.horizon_phase_label||"단기";
+  const phaseCol=data.horizon_phase==="short"?"#1a8a1a":data.horizon_phase==="medium"?"#a07010":"#6a1e9a";
+  const phaseBg=data.horizon_phase==="short"?"#e8f5e9":data.horizon_phase==="medium"?"#fefce2":"#f5e8ff";
+  badge.textContent=`${phaseLabel} 분석`;
+  badge.style.cssText=`font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:${phaseBg};color:${phaseCol}`;
+  badge.style.display="inline-block";
+
+  const reasons=data.reasons||[];
+  const notes=data.notes||[];
+  const headline=data.headline||"";
+  const prob=data.up_probability_14d;
+  const probStr=prob!=null?`<span style="font-weight:800;color:${prob>0.55?"#c02828":prob<0.45?"#1a8a1a":"#6a1e9a"}">${Math.round(prob*100)}% 상승 확률</span>`:"";
+
+  const dirColors={up:"#c02828",down:"#1a8a1a",neutral:"#6a1e9a"};
+  const dirBg={up:"#fff0f0",down:"#f0fff0",neutral:"#f5f0ff"};
+
+  let html="";
+  if(headline){
+    html+=`<div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;padding:5px 8px;background:var(--bg);border-radius:6px;border-left:3px solid ${phaseCol}">${headline}${prob!=null?" · "+probStr:""}</div>`;
+  }
+
+  if(reasons.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:5px">`;
+    html+=reasons.map(r=>{
+      const col=dirColors[r.direction]||"#6a1e9a";
+      const bg=dirBg[r.direction]||"#f5f0ff";
+      const icon=r.direction==="up"?"↑":r.direction==="down"?"↓":"→";
+      return`<div style="background:${bg};border:1px solid ${col}22;border-radius:7px;padding:6px 9px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:11px;font-weight:800;color:${col}">${icon}</span>
+          <span style="font-size:10px;font-weight:700;color:var(--text)">${r.label||""}</span>
+          ${r.direction_label?`<span style="font-size:9px;font-weight:700;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
+        </div>
+        <div style="font-size:9px;color:var(--muted);line-height:1.4">${r.description||""}</div>
+      </div>`;
+    }).join("");
+    html+=`</div>`;
+  }
+
+  if(notes.length){
+    html+=`<div style="margin-top:6px;padding:5px 8px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">`;
+    html+=`<div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px">참고 포인트</div>`;
+    html+=notes.map(n=>`<div style="font-size:9px;color:var(--muted);padding:2px 0;border-bottom:1px solid var(--border)">• ${n}</div>`).join("");
+    html+=`</div>`;
+  }
+
+  el.innerHTML=html||`<div style="font-size:10px;color:var(--muted)">분석 정보 없음</div>`;
+}
+
 // ── 가격 차트 ─────────────────────────────────────────────────────────────
 async function renderPriceChart(item_code){
   const canvas=document.getElementById("price-chart");
@@ -1426,14 +1503,8 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-import-sub").className="fm-mkt-sub neu";
   document.getElementById("rp-import-sub").textContent="수입산 비중";
 
-  // 관련 뉴스
-  const news=NEWS_BY_ITEM[curItem]||[];
-  const now=new Date();
-  document.getElementById("rp-news").innerHTML=news.slice(0,3).map((n,i)=>{
-    const d2=new Date(now);d2.setDate(d2.getDate()-(i+1));
-    const dateStr=`${d2.getFullYear().toString().slice(2)}.${String(d2.getMonth()+1).padStart(2,'0')}.${String(d2.getDate()).padStart(2,'0')}`;
-    return`<div class="fm-news-item"><div class="fm-news-dot"></div><div class="fm-news-body"><div class="fm-news-title">${n}</div><div class="fm-news-date">${dateStr}</div></div></div>`;
-  }).join("");
+  // 기간별 가격 동향 분석
+  fetchAndRenderTrend(curItem, curPeriod);
 
   // 차트 렌더
   renderPriceChart(curItem);
