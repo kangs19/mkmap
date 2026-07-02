@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 from contextlib import asynccontextmanager
 from pathlib import Path
 import time, logging
@@ -249,3 +249,36 @@ async def forecast_explanation():
 async def root():
     p = Path(__file__).parent.parent.parent / "index.html"
     return FileResponse(str(p), media_type="text/html")
+
+
+_SITEMAP_ITEMS = [
+    "cabbage","radish","onion","green_onion","garlic","potato","sweet_potato","pepper",
+    "tomato","cucumber","zucchini","carrot","spinach","lettuce","perilla",
+    "watermelon","chamoe","fresh_pepper","sesame","apple","pear","grape","strawberry",
+]
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    base = "https://mk-map.com"
+    today = kst_today().isoformat()
+    urls = [
+        f"<url><loc>{base}/</loc><lastmod>{today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>",
+        f"<url><loc>{base}/performance</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>",
+        f"<url><loc>{base}/forecast-explanation</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>",
+    ]
+    for code in _SITEMAP_ITEMS:
+        urls.append(
+            f"<url><loc>{base}/?item={code}</loc><lastmod>{today}</lastmod>"
+            f"<changefreq>daily</changefreq><priority>0.8</priority></url>"
+        )
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += "\n".join(urls)
+    xml += "\n</urlset>"
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots():
+    content = "User-agent: *\nAllow: /\nSitemap: https://mk-map.com/sitemap.xml\n"
+    return Response(content=content, media_type="text/plain")
