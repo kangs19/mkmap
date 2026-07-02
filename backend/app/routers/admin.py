@@ -1396,6 +1396,7 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
             "lambda_l1": 0.1,
             "lambda_l2": 0.1,
             "verbose": -1,
+            "num_threads": 1,
         }
         callbacks = [lgb.early_stopping(20, verbose=False), lgb.log_evaluation(-1)]
         lgbm_model = lgb.train(
@@ -1452,12 +1453,6 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
     mae_val = float(np.mean(np.abs(pred_val_ens - y_val)))
     overfit = mae_test / mae_val if mae_val > 0 else None
 
-    # Serialize models as base64 pickle for storage
-    ridge_b64 = base64.b64encode(pickle.dumps({"scaler": scaler, "ridge": ridge})).decode()
-    lgbm_b64 = None
-    if lgbm_model:
-        lgbm_b64 = base64.b64encode(pickle.dumps(lgbm_model)).decode()
-
     return {
         "item_code": item_code,
         "n_train": len(train),
@@ -1471,10 +1466,11 @@ def _train_lgbm_for_item(df_item: "pd.DataFrame", item_code: str) -> dict:
         "calibrated_dir_acc": round(calibrated_dir_test_acc, 4) if calibrated_dir_test_acc else None,
         "overfit_ratio": round(overfit, 3) if overfit else None,
         "lgbm_best_iter": lgbm_model.best_iteration if lgbm_model else None,
-        "model": {
-            "ridge": ridge_b64,
-            "lgbm": lgbm_b64,
-            "calibrator": calibrator_b64,
+        "_objects": {
+            "scaler": scaler,
+            "ridge": ridge,
+            "lgbm": lgbm_model,
+            "calibrator": calibrator,
             "threshold": best_thr,
         },
     }
@@ -1556,7 +1552,7 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     except ImportError:
         return {"error": "pandas not available on Railway"}
 
-    df = await asyncio.get_event_loop().run_in_executor(
+    df = await asyncio.get_running_loop().run_in_executor(
         None, functools.partial(_build_price_features_from_db, price_rows, item_weather)
     )
     if df.empty:
@@ -1569,17 +1565,23 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     item_codes = df["item_code"].unique().tolist()
     for item_code in item_codes:
         df_item = df[df["item_code"] == item_code].copy()
-        item_result = await asyncio.get_event_loop().run_in_executor(
+        item_result = await asyncio.get_running_loop().run_in_executor(
             None, functools.partial(_train_lgbm_for_item, df_item, item_code)
         )
-        results_per_item[item_code] = {k: v for k, v in item_result.items() if k != "model"}
+        # Separate in-memory model objects before storing metrics
+        _objects = item_result.pop("_objects", {})
+        results_per_item[item_code] = {k: v for k, v in item_result.items()}
 
         if "error" in item_result:
             continue
 
-        # Save model file
-        model_path = model_dir / f"lgbm_ensemble_{item_code}.json"
-        model_path.write_text(
+        # Save model objects to .pkl file (no base64 JSON embed)
+        import pickle as _pickle
+        pkl_path = model_dir / f"lgbm_ensemble_{item_code}.pkl"
+        pkl_path.write_bytes(_pickle.dumps(_objects))
+        # Save metrics as JSON
+        metrics_path = model_dir / f"lgbm_ensemble_{item_code}.json"
+        metrics_path.write_text(
             _json.dumps(item_result, default=str, ensure_ascii=False), encoding="utf-8"
         )
 
@@ -1587,15 +1589,14 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
         try:
             from app.models.forecast import Forecast
             from sqlalchemy.dialects.postgresql import insert as pg_insert
-            import pickle, base64, numpy as np
+            import numpy as np
 
-            # Load model objects from result
-            model_data = item_result["model"]
-            ridge_obj = pickle.loads(base64.b64decode(model_data["ridge"]))
-            scaler, ridge = ridge_obj["scaler"], ridge_obj["ridge"]
-            lgbm_model = pickle.loads(base64.b64decode(model_data["lgbm"])) if model_data.get("lgbm") else None
-            calibrator = pickle.loads(base64.b64decode(model_data["calibrator"])) if model_data.get("calibrator") else None
-            threshold = float(model_data.get("threshold", 0.0))
+            # Use model objects already in memory
+            scaler = _objects.get("scaler")
+            ridge = _objects.get("ridge")
+            lgbm_model = _objects.get("lgbm")
+            calibrator = _objects.get("calibrator")
+            threshold = float(_objects.get("threshold", 0.0))
 
             # Get latest feature row for prediction
             df_item_sorted = df_item.sort_values("base_date")
@@ -1734,6 +1735,13 @@ async def train_lightgbm(
 async def lgbm_training_status(_=Depends(check_admin)):
     """LightGBM 학습 진행 상태 및 최근 결과 조회."""
     return _lgbm_train_status
+
+
+@router.post("/train/lightgbm/reset")
+async def lgbm_training_reset(_=Depends(check_admin)):
+    """Stuck된 LightGBM 학습 상태를 강제 리셋 (running=False)."""
+    _lgbm_train_status.update({"running": False, "last_status": "reset", "last_error": "manual reset"})
+    return {"status": "reset", "message": "running flag cleared. You may now trigger a new training."}
 
 
 @router.post("/init-data")
