@@ -434,6 +434,23 @@
     .fp:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
     .fp.fp-selected { outline:2.5px solid #0f2744; outline-offset:2px; }
 
+    /* ── 지도 커스텀 툴팁 ── */
+    #map-tooltip {
+      position:fixed;
+      display:none;
+      background:white;
+      border:1px solid #dde8f4;
+      border-radius:10px;
+      padding:10px 14px;
+      font-size:12px;
+      line-height:1.75;
+      pointer-events:none;
+      box-shadow:0 6px 24px rgba(15,39,68,0.13), 0 1px 4px rgba(0,0,0,0.06);
+      z-index:9999;
+      min-width:160px;
+      max-width:240px;
+    }
+
     /* ── 지도 ── */
     .map-card {
       background:white;
@@ -723,6 +740,9 @@
       </div>
     </div>
   </div>
+
+  <!-- ── 지도 커스텀 툴팁 (pointer-events:none, 지도 밖 fixed) ── -->
+  <div id="map-tooltip"></div>
 
   <!-- ── 주산지 지도 ── -->
   <div class="map-card">
@@ -1580,6 +1600,52 @@ function shipmentColor(yoy) {
   return "#bde0fb";                    // 증가 → 연한색
 }
 
+// ── 커스텀 맵 툴팁 ────────────────────────────────────────
+let _ttTimer = null;
+let _ttVisible = false;
+
+function _ttShow(html, e) {
+  clearTimeout(_ttTimer);
+  _ttTimer = setTimeout(() => {
+    const tt = document.getElementById("map-tooltip");
+    if (!tt) return;
+    tt.innerHTML = html;
+    tt.style.display = "block";
+    _ttVisible = true;
+    _ttPosition(e);
+  }, 150);
+}
+
+function _ttHide() {
+  clearTimeout(_ttTimer);
+  const tt = document.getElementById("map-tooltip");
+  if (tt) tt.style.display = "none";
+  _ttVisible = false;
+}
+
+function _ttPosition(e) {
+  if (!_ttVisible) return;
+  const tt = document.getElementById("map-tooltip");
+  const mc = document.getElementById("map-container");
+  if (!tt || !mc) return;
+  const mcR = mc.getBoundingClientRect();
+  const ttW = tt.offsetWidth  || 200;
+  const ttH = tt.offsetHeight || 120;
+  const cx  = e.originalEvent.clientX;
+  const cy  = e.originalEvent.clientY;
+  const OFF = 16;
+
+  let x = cx + OFF;
+  let y = cy + OFF;
+  if (x + ttW > mcR.right  - 6) x = cx - ttW - OFF;
+  if (x        < mcR.left  + 6) x = mcR.left + 6;
+  if (y + ttH  > mcR.bottom - 6) y = cy - ttH - OFF;
+  if (y        < mcR.top   + 6) y = mcR.top + 6;
+
+  tt.style.left = x + "px";
+  tt.style.top  = y + "px";
+}
+
 async function initMap() {
   if (leafletMap) return;
   const el = document.getElementById("map-container");
@@ -1641,15 +1707,16 @@ function drawProvinces_() {
       const pname  = feat.properties.name || "";
       layer.on({
         mouseover: e => {
-          e.target.setStyle({weight:2.5, fillOpacity:0.92});
+          e.target.setStyle({weight:3, color:"#1a3d66", fillOpacity:0.95});
           const totTon = codes.reduce((s,c)=>s+(cityData[c]?.production_ton||0),0);
           const totW   = codes.reduce((s,c)=>s+(weights[c]||0),0);
           const tip = codes.length
             ? `<b>${pname}</b><br>주요 산지 <b>${codes.length}</b>개 시·군<br>전국 생산 비중 <b>${(totW*100).toFixed(0)}%</b><br>연간 생산량 <b>${Math.round(totTon/1000).toLocaleString()}천 톤</b>`
             : `<b>${pname}</b><br><span style="color:#aaa">상업적 생산 없음</span>`;
-          layer.bindTooltip(tip, {sticky:true}).openTooltip();
+          _ttShow(tip, e);
         },
-        mouseout: e => { if(provLayer) provLayer.resetStyle(e.target); layer.closeTooltip(); },
+        mousemove: e => _ttPosition(e),
+        mouseout: e => { if(provLayer) provLayer.resetStyle(e.target); _ttHide(); },
         click: () => {
           if (!codes.length) return;
           mapViewLevel = "city"; mapCurrentProv = {feat, sido, pname};
@@ -1693,14 +1760,15 @@ function drawCities_(prefix, pname) {
       const w    = weights[c] || 0;
       layer.on({
         mouseover: e => {
-          e.target.setStyle({weight:2, fillOpacity:0.95});
+          e.target.setStyle({weight:2.5, color:"#1a3d66", fillOpacity:0.97});
           const hasData = !!cityData[c];
           const tip = hasData
             ? `<b>${name}</b><br>생산 비중: <b>${(w*100).toFixed(1)}%</b><br>연간 생산량: <b>${(d.production_ton||0).toLocaleString()}톤</b><br>재배면적: <b>${(d.area_ha||0).toLocaleString()}ha</b><br>출하 증감(yoy): <b>${d.shipment_yoy>0?"+":""}${(d.shipment_yoy||0).toFixed(1)}%</b>`
             : `<b>${name}</b><br><span style="color:#aaa">상업적 생산 없음</span>`;
-          layer.bindTooltip(tip, {sticky:true}).openTooltip();
+          _ttShow(tip, e);
         },
-        mouseout: e => { if(cityLayer_) cityLayer_.resetStyle(e.target); layer.closeTooltip(); }
+        mousemove: e => _ttPosition(e),
+        mouseout: e => { if(cityLayer_) cityLayer_.resetStyle(e.target); _ttHide(); }
       });
     }
   }).addTo(leafletMap);
