@@ -336,6 +336,16 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
       </div>
     </div>
 
+    <!-- 가격 보기 모드 -->
+    <div class="fm-sb-section">
+      <div class="fm-sb-label">시세 표시</div>
+      <button id="price-view-toggle" onclick="togglePriceViewMode()"
+        style="width:100%;padding:7px 10px;border-radius:7px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:700;color:var(--text);cursor:pointer;transition:all .15s;text-align:left;">
+        🏪 도매가
+      </button>
+      <div id="regional-price-status" style="font-size:10px;color:var(--dimmed);margin-top:5px;line-height:1.5"></div>
+    </div>
+
     <!-- 가격 범례 -->
     <div class="fm-sb-section">
       <div class="fm-sb-label">가격 범례 (예상 변동률)</div>
@@ -560,6 +570,8 @@ let map_,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",namePr
 let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
+let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
+let priceViewMode="wholesale"; // "wholesale" | "retail"
 
 function setDataStatusPill(state,text){
   const pill=document.getElementById("data-status-pill");
@@ -583,7 +595,7 @@ window.onload=async()=>{
   buildTimeline();
 
   // 실데이터 fetch
-  await Promise.allSettled([fetchLiveData(),fetchSignalsByItem("cabbage"),fetchReport()]);
+  await Promise.allSettled([fetchLiveData(),fetchSignalsByItem("cabbage"),fetchReport(),fetchRegionalPrices("cabbage")]);
 
   // UI 렌더
   renderItemMenu();
@@ -697,9 +709,10 @@ function selectItem(k){
   // 오른쪽 패널 리셋
   document.getElementById("right-hint").style.display="flex";
   document.getElementById("right-detail").style.display="none";
-  if(!LIVE_SIGNALS[k]){
-    fetchSignalsByItem(k).then(()=>redrawMap());
-  } else { redrawMap(); }
+  const tasks=[];
+  if(!LIVE_SIGNALS[k]) tasks.push(fetchSignalsByItem(k));
+  if(!LIVE_REGIONAL_PRICES[k]) tasks.push(fetchRegionalPrices(k));
+  if(tasks.length) Promise.all(tasks).then(()=>redrawMap()); else redrawMap();
 }
 
 // ── 상단 네비게이션 뷰 전환 ──────────────────────────────────────────────
@@ -928,6 +941,31 @@ async function fetchReport(){
     (d.items||[]).forEach(it=>{LIVE_REPORT[it.item_code]=it;});
   }catch(e){}
 }
+async function fetchRegionalPrices(item_code){
+  try{
+    const res=await fetch(`/api/v1/map/regional-prices?item_code=${item_code}`);
+    if(!res.ok) return;
+    const d=await res.json();
+    if(d.sido_avg&&Object.keys(d.sido_avg).length>0){
+      LIVE_REGIONAL_PRICES[item_code]=d;
+      updateRegionalStatus(item_code);
+    }
+  }catch(e){console.warn("지역 시세 로드 실패:",e.message);}
+}
+function updateRegionalStatus(item_code){
+  const el=document.getElementById("regional-price-status");
+  if(!el) return;
+  const rp=LIVE_REGIONAL_PRICES[item_code];
+  if(!rp){el.textContent="지역 시세: 수집 중...";return;}
+  const n=Object.keys(rp.sido_avg||{}).length;
+  el.textContent=`${rp.base_date||""} 기준 ${n}개 지역 실시세`;
+}
+function togglePriceViewMode(){
+  priceViewMode=priceViewMode==="wholesale"?"retail":"wholesale";
+  const btn=document.getElementById("price-view-toggle");
+  btn.textContent=priceViewMode==="wholesale"?"🏪 도매가":"🛒 소매가";
+  redrawMap();
+}
 
 // ── 가격 차트 ─────────────────────────────────────────────────────────────
 async function renderPriceChart(item_code){
@@ -936,30 +974,98 @@ async function renderPriceChart(item_code){
     const res=await fetch(`/api/v1/map/prices?item_code=${item_code}`);
     const d=res.ok?await res.json():{prices:[]};
     let rows=(d.prices||[]).filter(p=>p.price);
-    // mock fallback
+    const useRegional=LIVE_REGIONAL_PRICES[item_code];
+
+    // fallback mock
     if(!rows.length){
-      const base=CITY_DATA[item_code]?Object.values(CITY_DATA[item_code])[0]?.avg_price||5000:5000;
-      rows=Array.from({length:30},(_,i)=>{
-        const dt=new Date();dt.setDate(dt.getDate()-29+i);
-        return{date:`${dt.getMonth()+1}-${dt.getDate()}`,price:base*(0.92+Math.random()*.16)};
+      const base=useRegional?.national_avg_wholesale||(CITY_DATA[item_code]?Object.values(CITY_DATA[item_code])[0]?.avg_price||5000:5000);
+      rows=Array.from({length:45},(_,i)=>{
+        const dt=new Date();dt.setDate(dt.getDate()-44+i);
+        return{date:`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`,price:Math.round(base*(0.92+Math.random()*.16))};
       });
     }
-    const labels=rows.map(r=>r.date?.slice?.(5)||r.date);
-    const prices=rows.map(r=>r.price);
-    // 예측선 (마지막 7일 연장)
-    const forecastPrices=prices.map((_,i)=>i<prices.length-7?null:prices[prices.length-7]*(1+(curPeriod===7?.03:curPeriod===30?.12:.22)*(i-(prices.length-8))/(prices.length-1)));
+
+    // 과거 데이터
+    const histLabels=rows.map(r=>(r.date||"").slice(5)); // "MM-DD"
+    const histPrices=rows.map(r=>Math.round(r.price));
+    const lastPrice=histPrices[histPrices.length-1]||5000;
+    const todayIdx=histLabels.length-1;
+
+    // 예측 구간 — curPeriod 일 뒤 목표
+    const it=ITEMS[item_code]||{};
+    const upProb=LIVE_ITEMS[item_code]?.up_prob??0.5;
+    const dirFactor=upProb>0.5?(upProb-0.5)*2:-(0.5-upProb)*2; // -1~+1
+    const maxChgPct=Math.abs(dirFactor)*18; // 최대 ±18%
+
+    // 미래 날짜 라벨
+    const fcLabels=[];const fcMean=[];const fcUpper=[];const fcLower=[];
+    for(let i=1;i<=curPeriod;i++){
+      const dt=new Date();dt.setDate(dt.getDate()+i);
+      fcLabels.push(`${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
+      const pct=(dirFactor*maxChgPct*(i/curPeriod));
+      const mean=Math.round(lastPrice*(1+pct/100));
+      const band=Math.round(lastPrice*(maxChgPct*0.5/100)*(i/curPeriod));
+      fcMean.push(mean);
+      fcUpper.push(mean+band);
+      fcLower.push(Math.max(0,mean-band));
+    }
+
+    const allLabels=[...histLabels,...fcLabels];
+    const todayLine=allLabels.length-fcLabels.length-1; // index of today
+
+    // 오늘 수직선 plugin
+    const todayPlugin={
+      id:'todayLine',
+      afterDraw(chart){
+        const{ctx,chartArea:{top,bottom},scales:{x}}=chart;
+        if(!x) return;
+        const xPos=x.getPixelForValue(todayIdx);
+        if(!xPos) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(xPos,top);ctx.lineTo(xPos,bottom);
+        ctx.strokeStyle='rgba(180,120,0,.6)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+        ctx.stroke();
+        ctx.fillStyle='rgba(180,120,0,.85)';ctx.font='bold 9px Noto Sans KR,sans-serif';
+        ctx.fillText('오늘',xPos+3,top+10);
+        ctx.restore();
+      }
+    };
+
+    // 히스토리 패딩 (null로 미래 길이만큼)
+    const histPad=Array(fcLabels.length).fill(null);
+    const fcPad=Array(histLabels.length).fill(null);
+
     if(priceChartInst){priceChartInst.destroy();}
     priceChartInst=new Chart(canvas,{
       type:"line",
-      data:{labels,datasets:[
-        {label:"실제 가격",data:prices,borderColor:"#3ab878",backgroundColor:"rgba(58,184,120,.06)",borderWidth:1.5,pointRadius:0,tension:.3,fill:true},
-        {label:"예측 가격",data:forecastPrices,borderColor:"#e05050",borderWidth:1.5,borderDash:[4,3],pointRadius:0,tension:.3},
+      plugins:[todayPlugin],
+      data:{labels:allLabels,datasets:[
+        // 신뢰 상한 (fill to lower)
+        {label:"예측 상한",data:[...fcPad,...fcUpper],borderColor:"rgba(220,100,60,.0)",backgroundColor:"rgba(220,100,60,.12)",borderWidth:0,pointRadius:0,tension:.4,fill:"+1"},
+        // 신뢰 하한
+        {label:"_lower",data:[...fcPad,...fcLower],borderColor:"rgba(220,100,60,.0)",backgroundColor:"rgba(220,100,60,.0)",borderWidth:0,pointRadius:0,tension:.4,fill:false},
+        // 예측 중간선
+        {label:"예측 추이",data:[...fcPad,...fcMean],borderColor:"#e05050",borderWidth:1.5,borderDash:[5,3],pointRadius:0,tension:.4,fill:false},
+        // 실제 가격
+        {label:"실제 가격",data:[...histPrices,...histPad],borderColor:"#3ab878",backgroundColor:"rgba(58,184,120,.06)",borderWidth:1.5,pointRadius:0,tension:.3,fill:true},
       ]},
       options:{
         responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`}}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            callbacks:{
+              label:ctx=>{
+                if(ctx.dataset.label==='_lower') return null;
+                return`${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()}원`;
+              }
+            },
+            filter:item=>item.dataset.label!=='_lower'
+          }
+        },
         scales:{
-          x:{ticks:{color:"#9aaa8a",font:{size:8},maxTicksLimit:6},grid:{color:"rgba(100,120,60,.07)"}},
+          x:{ticks:{color:"#9aaa8a",font:{size:8},maxTicksLimit:8},grid:{color:"rgba(100,120,60,.07)"}},
           y:{ticks:{color:"#9aaa8a",font:{size:8},callback:v=>v>=10000?Math.round(v/1000)+"천":v.toLocaleString()},grid:{color:"rgba(100,120,60,.07)"}},
         }
       }
@@ -1123,7 +1229,16 @@ function prodColor(areaHa){
   if(areaHa>=200)  return"rgba(130,210,130,.55)";
   return"rgba(200,235,200,.45)";
 }
-function modeColor(ents){
+function regionalPriceColor(sido){
+  // sido: "KR-11" 형식 → SIDO_SHORT로 한글명 변환
+  const sidoName=SIDO_SHORT[sido];
+  const rp=LIVE_REGIONAL_PRICES[curItem];
+  if(!rp||!sidoName||!rp.sido_avg) return null;
+  const sd=rp.sido_avg[sidoName];
+  if(!sd) return null;
+  return priceColor(sd.vs_national_pct||0);
+}
+function modeColor(ents, sido){
   if(!ents.length) return"rgba(80,80,60,.18)";
   if(curMode==="production"){
     const tot=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
@@ -1133,7 +1248,8 @@ function modeColor(ents){
     const avg=ents.reduce((s,[,d])=>s+(d.risk_score||20),0)/ents.length;
     return riskColor(avg);
   }
-  // price / default
+  // price — 실 지역 시세 우선
+  if(sido){const rc=regionalPriceColor(sido);if(rc)return rc;}
   const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
   return priceColor(avg);
 }
@@ -1154,8 +1270,10 @@ function drawProvinces(){
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
-      if(!ents.length)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"3"};
-      return{fillColor:modeColor(ents),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      // 실 지역 시세 있으면 데이터 없어도 색상 표시
+      const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
+      if(!ents.length&&!rpColor)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"3"};
+      return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -1167,10 +1285,10 @@ function drawProvinces(){
       const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
       const mockD=ents.length?{avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10,shipment_ton:tot,production_weight:pw,risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',risk_score:Math.round(Math.abs(avgChg)*3+30)}:null;
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:"#1a3d66",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
-        click:()=>{hideMapTooltip();ents.length&&zoomProv(f,sido,pname);}
+        click:()=>{hideMapTooltip();(ents.length||getRegionalSidoData(sido))&&zoomProv(f,sido,pname);}
       });
     }
   }).addTo(map_);
@@ -1185,7 +1303,7 @@ function drawProvinces(){
       const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
       const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
       const mockD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD),className:'',iconSize:[0,0],iconAnchor:[40,20]})});
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD,sido),className:'',iconSize:[0,0],iconAnchor:[40,20]})});
       pin.addTo(provPinLayer).on("click",()=>zoomProv(f,sido,f.properties.name||sido));
     }catch(e){}
   });
@@ -1308,26 +1426,68 @@ function _positionTooltip(e){
 }
 
 // ── 인터랙션 헬퍼 ─────────────────────────────────────────────────────────
-function makePinHtml(name,d){
+function getRegionalSidoData(sidoKR){
+  // sidoKR: "KR-11" 형식
+  const rp=LIVE_REGIONAL_PRICES[curItem];
+  if(!rp) return null;
+  const name=SIDO_SHORT[sidoKR];
+  return rp.sido_avg?.[name]||null;
+}
+function makePinHtml(name,d,sidoKR){
+  const rp=sidoKR?getRegionalSidoData(sidoKR):null;
+  if(rp){
+    const w=rp.wholesale,rt=rp.retail,pct=rp.vs_national_pct||0;
+    const sign=pct>0?'+':'',cls=pct>10?'up':pct<-10?'down':'flat';
+    return`<div class="region-pin"><div class="rp-name">${name}</div>
+      <div class="rp-chg ${cls}">${sign}${pct.toFixed(1)}%</div>
+      <div class="rp-price">🏪${w.toLocaleString()} / 🛒${rt.toLocaleString()}</div></div>`;
+  }
   if(!d)return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">-</div></div>`;
   const chg=d.price_vs_avg,sign=chg>0?'+':'',cls=chg>10?'up':chg<-10?'down':'flat';
   return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-chg ${cls}">${sign}${chg}%</div><div class="rp-price">${(d.avg_price||0).toLocaleString()}원</div></div>`;
 }
 
-function makeHoverCard(name,d){
+function makeHoverCard(name,d,sidoKR){
   const it=ITEMS[curItem]||{emoji:'🌿',name:'작물'};
-  if(!d)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
-  const chg=d.price_vs_avg||0,sign=chg>0?'+':'';
+  const rp=sidoKR?getRegionalSidoData(sidoKR):null;
+  const rna=LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale;
+  if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
+  const chg=(rp?.vs_national_pct)||(d?.price_vs_avg)||0,sign=chg>0?'+':'';
   const chgCls=chg>10?'up':chg<-10?'down':'flat';
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
-  const risk=riskMap[d.risk_level]||{l:'정상',c:'normal'};
-  const rs=d.risk_score||0;
-  const predicted=Math.round((d.avg_price||0)*(1+chg/100));
-  const ship=d.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(1)+'천 톤':d.shipment_ton+'톤';
-  const area=d.area_ha?d.area_ha.toLocaleString()+' ha':'—';
-  const yoy=d.shipment_yoy||0;
-  const pw=d.production_pct?d.production_pct+'%':(d.production_weight?(d.production_weight*100).toFixed(0)+'%':'—');
-  const rank=d.rank?d.rank+'위':'—';
+  const risk=riskMap[d?.risk_level]||{l:'정상',c:'normal'};
+  const rs=d?.risk_score||0;
+  const curPrice=rp?rp.wholesale:(d?.avg_price||0);
+  const predicted=Math.round(curPrice*(1+chg/100));
+  const ship=d?.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(1)+'천 톤':(d?.shipment_ton||0)+'톤';
+  const area=d?.area_ha?d.area_ha.toLocaleString()+' ha':'—';
+  const yoy=d?.shipment_yoy||0;
+  const pw=d?.production_pct?d.production_pct+'%':(d?.production_weight?(d.production_weight*100).toFixed(0)+'%':'—');
+  const rank=d?.rank?d.rank+'위':'—';
+  // 도매/소매 가격 표시 블록
+  const priceBlock=rp?`
+    <div style="background:#f0f7ff;border:1.5px solid #b8d4f0;border-radius:9px;padding:9px 11px;margin-bottom:9px">
+      <div style="font-size:9px;color:#5a7a9a;font-weight:700;margin-bottom:6px">📊 ${LIVE_REGIONAL_PRICES[curItem]?.base_date||'최근'} 실시장 시세</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:white;border-radius:7px;padding:6px 8px;border:1px solid #d0e4f0">
+          <div style="font-size:8px;color:#5a7a9a;font-weight:700;margin-bottom:2px">🏪 도매가</div>
+          <div style="font-size:15px;font-weight:900;color:#1a2410">${rp.wholesale.toLocaleString()}원</div>
+          <div style="font-size:9px;color:${chg>0?'#c02828':'#1a8a1a'};font-weight:700">${sign}${chg.toFixed(1)}% vs 전국평균</div>
+        </div>
+        <div style="background:white;border-radius:7px;padding:6px 8px;border:1px solid #d0e4f0">
+          <div style="font-size:8px;color:#5a7a9a;font-weight:700;margin-bottom:2px">🛒 소매가</div>
+          <div style="font-size:15px;font-weight:900;color:#1a2410">${rp.retail.toLocaleString()}원</div>
+          ${rna?`<div style="font-size:9px;color:#9aaa8a">전국평균 ${rna.toLocaleString()}원</div>`:''}
+        </div>
+      </div>
+    </div>`:`<div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
+      <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted.toLocaleString()}원</span>
+        <span style="font-size:12px;font-weight:700" class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span>
+      </div>
+      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/kg</div>
+    </div>`;
 
   // 주요 리스크 바
   const rItems=[
@@ -1370,14 +1530,7 @@ function makeHoverCard(name,d){
       <span class="rhc-badge ${risk.c}">${risk.l}</span>
     </div>
 
-    <div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
-      <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
-      <div style="display:flex;align-items:baseline;gap:8px">
-        <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted.toLocaleString()}원</span>
-        <span style="font-size:12px;font-weight:700" class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span>
-      </div>
-      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${(d.avg_price||0).toLocaleString()}원/kg</div>
-    </div>
+    ${priceBlock}
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:9px">
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">

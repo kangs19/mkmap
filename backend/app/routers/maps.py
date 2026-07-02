@@ -10,6 +10,7 @@ from app.models.signal import RegionSignal
 from app.models.price import DailyPrice
 from app.models.production import CropProduction
 from app.timezone import kst_today
+from app.models.regional_price import RegionalMarketPrice
 
 router = APIRouter(tags=["maps"])
 
@@ -251,6 +252,85 @@ async def get_map_production(
             }
             for r in rows
         ],
+    }
+
+
+@router.get("/api/v1/map/regional-prices")
+async def get_regional_prices(
+    item_code: str = "cabbage",
+    db: AsyncSession = Depends(get_db),
+):
+    """지역별 최신 도매가·소매가 — 지도 choropleth 용"""
+    from sqlalchemy import func as sqlfunc
+
+    # 각 (item_code, market_code) 조합의 최신 날짜
+    subq = (
+        select(
+            RegionalMarketPrice.item_code,
+            RegionalMarketPrice.market_code,
+            sqlfunc.max(RegionalMarketPrice.date).label("max_date"),
+        )
+        .where(RegionalMarketPrice.item_code == item_code)
+        .group_by(RegionalMarketPrice.item_code, RegionalMarketPrice.market_code)
+        .subquery()
+    )
+    result = await db.execute(
+        select(RegionalMarketPrice).join(
+            subq,
+            (RegionalMarketPrice.item_code   == subq.c.item_code)
+            & (RegionalMarketPrice.market_code == subq.c.market_code)
+            & (RegionalMarketPrice.date        == subq.c.max_date)
+        )
+    )
+    rows = result.scalars().all()
+
+    if not rows:
+        return {"item_code": item_code, "base_date": None, "markets": [], "sido_avg": {}}
+
+    # 시도별 평균 (복수 시장이 같은 시도 커버하는 경우)
+    from collections import defaultdict
+    sido_ws: dict[str, list] = defaultdict(list)
+    sido_rt: dict[str, list] = defaultdict(list)
+    market_list = []
+    for r in rows:
+        market_list.append({
+            "market_code":      r.market_code,
+            "market_name":      r.market_name,
+            "sido":             r.sido,
+            "date":             str(r.date),
+            "wholesale_price":  r.wholesale_price,
+            "retail_price":     r.retail_price,
+        })
+        if r.wholesale_price:
+            sido_ws[r.sido].append(r.wholesale_price)
+        if r.retail_price:
+            sido_rt[r.sido].append(r.retail_price)
+
+    sido_avg = {
+        sido: {
+            "wholesale": round(sum(ws) / len(ws)),
+            "retail":    round(sum(sido_rt.get(sido, ws)) / len(sido_rt.get(sido, ws))),
+        }
+        for sido, ws in sido_ws.items()
+    }
+
+    # 전국 평균 (기준값)
+    all_ws = [v for vals in sido_ws.values() for v in vals]
+    national_avg_ws = round(sum(all_ws) / len(all_ws)) if all_ws else None
+
+    # vs_national_pct 추가
+    if national_avg_ws:
+        for s in sido_avg.values():
+            s["vs_national_pct"] = round((s["wholesale"] - national_avg_ws) / national_avg_ws * 100, 1)
+
+    base_date = max(r.date for r in rows)
+
+    return {
+        "item_code":      item_code,
+        "base_date":      str(base_date),
+        "national_avg_wholesale": national_avg_ws,
+        "markets":        market_list,
+        "sido_avg":       sido_avg,
     }
 
 

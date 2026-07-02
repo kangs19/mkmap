@@ -7,6 +7,7 @@ from app.models.forecast import Forecast
 from app.models.api import ApiKey, ApiUsage
 from app.models.production import CropProduction
 from app.models.meta import ItemMeta
+from app.models.regional_price import RegionalMarketPrice
 
 __all__ = [
     "Item", "ItemRegion", "ItemEvent",
@@ -14,4 +15,5 @@ __all__ = [
     "RegionSignal", "Forecast",
     "ApiKey", "ApiUsage",
     "CropProduction", "ItemMeta",
+    "RegionalMarketPrice",
 ]
