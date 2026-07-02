@@ -1548,7 +1548,10 @@ function prodColor(areaHa){
 }
 function getRetailNatAvg(item_code){
   const rdata=LIVE_REGIONAL_PRICES[item_code];
-  if(!rdata?.sido_avg) return null;
+  if(!rdata) return null;
+  // API에서 직접 계산한 national_avg_retail 우선 사용
+  if(rdata.national_avg_retail) return rdata.national_avg_retail;
+  if(!rdata.sido_avg) return null;
   const vals=Object.values(rdata.sido_avg).map(s=>s.retail).filter(Boolean);
   return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
 }
