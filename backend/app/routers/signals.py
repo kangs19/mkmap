@@ -398,10 +398,10 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
     today = kst_today()
     start_30d = today - timedelta(days=30)
 
-    # 전체 품목 예측
+    # 전체 품목 예측 — horizon_days=14 행만 (direction_14d 필드가 있는 행)
     fc_res = await db.execute(
         select(Forecast)
-        .where(Forecast.base_date == today)
+        .where(Forecast.base_date == today, Forecast.horizon_days == 14)
         .order_by(desc(Forecast.up_probability_14d))
     )
     forecasts = fc_res.scalars().all()
