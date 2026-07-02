@@ -391,6 +391,49 @@
     .backtest-legend { display:flex; gap:14px; font-size:11px; color:#777; margin-bottom:6px; }
     .leg-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
 
+    /* ── 트렌드 카드 ── */
+    .trend-card {
+      background:white;
+      border-radius:10px;
+      padding:12px 10px;
+      text-align:center;
+      box-shadow:0 1px 3px rgba(0,0,0,0.05);
+      border:1px solid #eef2f8;
+    }
+    .trend-val {
+      font-size:18px;
+      font-weight:700;
+      color:#222;
+    }
+    .trend-lbl {
+      font-size:10px;
+      color:#aaa;
+      margin-top:4px;
+    }
+    .trend-up   { color:#c0392b; }
+    .trend-down { color:#1a60a0; }
+    .trend-flat { color:#888; }
+
+    /* ── 리스크 분석 ── */
+    .risk-grid {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+    .risk-item {
+      background:white;
+      border-radius:8px;
+      padding:10px 12px;
+      border:1px solid #f0e8c0;
+    }
+    .risk-item-label { font-size:10px; color:#888; margin-bottom:4px; }
+    .risk-item-val { font-size:13px; font-weight:700; }
+
+    /* ── 예측 배지 클릭 스타일 ── */
+    .fp { cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
+    .fp:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+    .fp.fp-selected { outline:2.5px solid #0f2744; outline-offset:2px; }
+
     /* ── 지도 ── */
     .map-card {
       background:white;
@@ -525,13 +568,41 @@
       <!-- 예측 배지 바 -->
       <div class="forecast-bar" id="dp-fbar">
         <span class="fbar-label">AI 예측</span>
-        <span class="fp fp-na" id="dp-f7">1주 —</span>
-        <span class="fp fp-na" id="dp-f14">2주 —</span>
-        <span class="fp fp-na" id="dp-f21">3주 —</span>
-        <span class="fp fp-na" id="dp-f28">4주 —</span>
-        <span class="fp fp-na" id="dp-f60">2개월 —</span>
-        <span class="fp fp-na" id="dp-f90">3개월 —</span>
+        <span class="fp fp-na" id="dp-f7"  onclick="selectHorizon(7)"  title="클릭하면 상세 보기">1주 —</span>
+        <span class="fp fp-na" id="dp-f14" onclick="selectHorizon(14)" title="클릭하면 상세 보기">2주 —</span>
+        <span class="fp fp-na" id="dp-f21" onclick="selectHorizon(21)" title="클릭하면 상세 보기">3주 —</span>
+        <span class="fp fp-na" id="dp-f28" onclick="selectHorizon(28)" title="클릭하면 상세 보기">4주 —</span>
+        <span class="fp fp-na" id="dp-f60" onclick="selectHorizon(60)" title="클릭하면 상세 보기">2개월 —</span>
+        <span class="fp fp-na" id="dp-f90" onclick="selectHorizon(90)" title="클릭하면 상세 보기">3개월 —</span>
       </div>
+
+      <!-- 기간별 예측 상세 (클릭 시 나타남) -->
+      <div id="dp-horizon-detail" style="display:none;background:#f8faff;border:1.5px solid #dde8f8;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:13px;font-weight:700;color:#0f2744;" id="hdtl-period">—</div>
+          <div id="hdtl-dir-badge" style="font-size:15px;font-weight:700;padding:3px 14px;border-radius:20px;">—</div>
+          <div style="font-size:12px;color:#666;" id="hdtl-prob">—</div>
+          <div style="margin-left:auto;font-size:11px;color:#aaa;" id="hdtl-model">—</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;">
+          <div style="text-align:center;background:white;border-radius:8px;padding:10px 6px;">
+            <div style="font-size:18px;font-weight:700;color:#2e74b5;" id="hdtl-price-est">—</div>
+            <div style="font-size:10px;color:#999;margin-top:3px;">예상 가격대</div>
+          </div>
+          <div style="text-align:center;background:white;border-radius:8px;padding:10px 6px;">
+            <div style="font-size:18px;font-weight:700;" id="hdtl-change">—</div>
+            <div style="font-size:10px;color:#999;margin-top:3px;">예상 변동폭</div>
+          </div>
+          <div style="text-align:center;background:white;border-radius:8px;padding:10px 6px;">
+            <div style="font-size:18px;font-weight:700;color:#555;" id="hdtl-conf">—</div>
+            <div style="font-size:10px;color:#999;margin-top:3px;">예측 신뢰도</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.6;" id="hdtl-explain">
+          LightGBM 앙상블 모델이 최근 가격 추이, 기상 데이터, 재배 면적 등 34개 피처를 기반으로 산출한 방향 예측입니다.
+        </div>
+      </div>
+
       <!-- 차트 + 요인 -->
       <div class="detail-grid">
         <div>
@@ -539,23 +610,43 @@
           <div class="chart-wrap"><canvas id="dp-chart"></canvas></div>
         </div>
         <div>
-          <div class="section-label">가격 변동 요인 (LightGBM)</div>
+          <div class="section-label">주요 가격 영향 요인</div>
           <ul class="factor-list" id="dp-factors"><li style="color:#ccc;font-size:12px;">로딩 중...</li></ul>
-          <div style="margin-top:8px;font-size:10px;color:#bbb;">AUC: <span id="dp-auc">—</span></div>
+          <div style="margin-top:8px;font-size:10px;color:#bbb;">모델 AUC: <span id="dp-auc">—</span></div>
         </div>
       </div>
+
+      <!-- 시장동향 -->
+      <div style="margin-top:16px;">
+        <div class="section-label">📈 시장동향</div>
+        <div id="dp-market-trend" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;">
+          <div class="trend-card"><div class="trend-val" id="tr-7d">—</div><div class="trend-lbl">7일 변화</div></div>
+          <div class="trend-card"><div class="trend-val" id="tr-30d">—</div><div class="trend-lbl">30일 변화</div></div>
+          <div class="trend-card"><div class="trend-val" id="tr-60d">—</div><div class="trend-lbl">60일 변화</div></div>
+          <div class="trend-card"><div class="trend-val" id="tr-yoy">—</div><div class="trend-lbl">전년 동기 대비</div></div>
+        </div>
+      </div>
+
+      <!-- 리스크 분석 -->
+      <div style="margin-top:16px;">
+        <div class="section-label">⚠️ 리스크 분석</div>
+        <div id="dp-risk-detail" style="margin-top:8px;background:#fffdf5;border:1px solid #f5e6a3;border-radius:10px;padding:14px;">
+          <span style="color:#ccc;font-size:12px;">로딩 중...</span>
+        </div>
+      </div>
+
       <!-- 생산 통계 + 데이터 현황 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
         <div>
-          <div class="section-label">KOSIS 생산 통계 <span id="dp-prod-year" style="font-weight:400;color:#bbb;"></span></div>
+          <div class="section-label">🌾 재배면적 · 생산량 <span id="dp-prod-year" style="font-weight:400;color:#bbb;"></span></div>
           <div class="prod-row">
             <div class="prod-item"><div class="prod-val" id="dp-area">—</div><div class="prod-lbl">재배면적 (ha)</div></div>
-            <div class="prod-item"><div class="prod-val" id="dp-ton">—</div><div class="prod-lbl">생산량 (톤)</div></div>
+            <div class="prod-item"><div class="prod-val" id="dp-ton">—</div><div class="prod-lbl">생산량 (천 톤)</div></div>
             <div class="prod-item"><div class="prod-val" id="dp-yield">—</div><div class="prod-lbl">10a 수량 (kg)</div></div>
           </div>
         </div>
         <div>
-          <div class="section-label">데이터 현황</div>
+          <div class="section-label">📋 데이터 현황</div>
           <div id="dp-coverage" style="font-size:12px;color:#555;line-height:2.1;">
             <span style="color:#ccc;">로딩 중...</span>
           </div>
@@ -577,12 +668,16 @@
     </div>
     <div id="map-container"></div>
     <div class="map-legend" id="map-legend">
-      <div class="map-leg-item"><div class="map-leg-dot" style="background:#f0e0ff"></div>취급 없음</div>
-      <div class="map-leg-item"><div class="map-leg-dot" style="background:#bde0fb"></div>소량</div>
-      <div class="map-leg-item"><div class="map-leg-dot" style="background:#5db5e8"></div>중간</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#f0e0ff"></div>상업 생산 없음</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#bde0fb"></div>소규모 산지</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#5db5e8"></div>중간 산지</div>
       <div class="map-leg-item"><div class="map-leg-dot" style="background:#1a6bab"></div>주요 산지</div>
       <div class="map-leg-item"><div class="map-leg-dot" style="background:#0b2e5c"></div>최대 산지</div>
-      <span style="margin-left:auto;font-size:10px;color:#bbb;">클릭하면 시·군구 보기</span>
+      <span style="margin-left:auto;font-size:10px;color:#bbb;">출처: KOSIS 농작물생산조사 · 클릭하면 시·군구 보기</span>
+    </div>
+    <div style="padding:6px 20px 10px;font-size:11px;color:#aaa;">
+      ※ 지도는 <b>생산량 비중</b>(KOSIS 2022 기준)으로 색칠됩니다. 가격은 지역별 차이 없이 <b>가락시장 전국 도매가</b> 기준입니다.
+      표시되지 않는 지역은 소규모 자가소비 생산이 있을 수 있으나 상업적 출하 비중이 미미한 곳입니다.
     </div>
   </div>
 
@@ -872,7 +967,7 @@ async function selectItem(code, scroll = true) {
     setTimeout(() => panel.scrollIntoView({ behavior:"smooth", block:"nearest" }), 50);
   }
 
-  // 병렬: 차트 + 요인 + 생산통계 + 커버리지
+  // 병렬: 차트 + 요인 + 생산통계 + 커버리지 + 히스토리(시장동향용)
   const [history, fc7] = await Promise.all([
     fetch(`${API}/api/v1/items/${code}/price-history?days=90`).then(r=>r.json()).catch(()=>null),
     fetch(`${API}/api/v1/items/${code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null),
@@ -882,9 +977,16 @@ async function selectItem(code, scroll = true) {
     `${name} 가격 추이 (최근 90일) · ${unit} 기준`;
   renderChart(history);
   renderFactors(fc7);
+  renderMarketTrend(history, code);
+  renderRiskDetail(code);
   loadProductionStats(code);
   loadDataCoverage(code);
   loadMap(code);
+
+  // 기본 7일 horizon 선택
+  const hz = forecastCache[code] || {};
+  const firstAvail = [7,14,21,28,60,90].find(h => hz[String(h)]?.available !== false);
+  if (firstAvail) selectHorizon(firstAvail, false);
 }
 
 function closeDetail() {
@@ -998,16 +1100,179 @@ function renderFactors(fc) {
   }).join("");
 }
 
+// ── 기간 선택 ────────────────────────────────────────────
+function selectHorizon(h, scroll = true) {
+  const hz = forecastCache[currentItem] || {};
+  const hd = hz[String(h)];
+  const CONF = { high:"높음 ●●●", medium:"중간 ●●○", low:"낮음 ●○○", insufficient_data:"데이터 부족" };
+  const H_STR = { 7:"1주일(7일)", 14:"2주(14일)", 21:"3주(21일)", 28:"4주(28일)", 60:"2개월(60일)", 90:"3개월(90일)" };
+
+  // 선택 표시
+  HORIZONS.forEach(hh => {
+    const el = document.getElementById(`dp-f${hh}`);
+    if (el) el.classList.toggle("fp-selected", hh === h);
+  });
+
+  const det = document.getElementById("dp-horizon-detail");
+  if (!hd || hd.available === false) {
+    det.style.display = "none";
+    return;
+  }
+
+  det.style.display = "block";
+  document.getElementById("hdtl-period").textContent = `${H_STR[h] || h+"일"} 후 가격 방향 예측`;
+
+  const dir = hd.direction;
+  const prob = hd.up_probability ?? 0.5;
+  const probPct = `${(prob * 100).toFixed(0)}%`;
+  const badge = document.getElementById("hdtl-dir-badge");
+  if (dir === "up") {
+    badge.textContent = "↑ 상승 예상";
+    badge.style.background = "#fde8e8"; badge.style.color = "#c0392b";
+  } else if (dir === "down") {
+    badge.textContent = "↓ 하락 예상";
+    badge.style.background = "#e8f0fd"; badge.style.color = "#1a60a0";
+  } else {
+    badge.textContent = "→ 보합 예상";
+    badge.style.background = "#f0f0f0"; badge.style.color = "#777";
+  }
+
+  const upPct = (prob * 100).toFixed(0);
+  const downPct = (100 - prob * 100).toFixed(0);
+  document.getElementById("hdtl-prob").textContent =
+    `상승 ${upPct}% · 하락 ${downPct}%`;
+  document.getElementById("hdtl-model").textContent =
+    `모델: ${hd.model_version || "lgbm_v2"}`;
+
+  // 예상 가격대 계산 (현재가 기준)
+  const curPrice = priceCache[currentItem];
+  const estEl = document.getElementById("hdtl-price-est");
+  const chgEl = document.getElementById("hdtl-change");
+  const meta = ITEM_META[currentItem] || {};
+  if (curPrice && dir) {
+    const factor = dir === "up" ? prob : (1 - prob);
+    const maxChg = Math.min(factor * 0.35, 0.35); // 최대 ±35%
+    const lo = Math.round(curPrice * (1 - maxChg * 0.5));
+    const hi = Math.round(curPrice * (1 + maxChg));
+    estEl.textContent = `${lo.toLocaleString()}~${hi.toLocaleString()}원`;
+    const pct = dir === "up" ? `+${(maxChg * 100).toFixed(0)}%` : `-${(maxChg * 100 * 0.5).toFixed(0)}%`;
+    chgEl.textContent = pct;
+    chgEl.className = dir === "up" ? "trend-up" : "trend-down";
+  } else {
+    estEl.textContent = "—";
+    chgEl.textContent = "—";
+  }
+
+  document.getElementById("hdtl-conf").textContent = CONF[hd.confidence] || hd.confidence || "—";
+  document.getElementById("hdtl-explain").textContent =
+    `LightGBM 앙상블 모델이 최근 가격 추이, 기상 데이터, 재배면적 등 34개 피처로 산출했습니다. ` +
+    `${H_STR[h] || h+"일"} 후 ${dir==="up"?"상승":"하락"} 가능성이 ${probPct}입니다. ` +
+    `단, 기상 이변·수급 충격 등 돌발 변수는 반영되지 않습니다.`;
+}
+
+// ── 시장동향 ─────────────────────────────────────────────
+function renderMarketTrend(history, code) {
+  const data = history?.data;
+  if (!data || data.length < 2) {
+    ["tr-7d","tr-30d","tr-60d","tr-yoy"].forEach(id => {
+      document.getElementById(id).textContent = "—";
+      document.getElementById(id).className = "trend-val";
+    });
+    return;
+  }
+  const last = data[data.length - 1];
+  const latestPrice = last.price;
+  const latestDate  = last.date;
+
+  function pricePct(daysAgo) {
+    const target = new Date(latestDate);
+    target.setDate(target.getDate() - daysAgo);
+    const tStr = target.toISOString().slice(0, 10);
+    // closest data point at or before tStr
+    const pt = [...data].reverse().find(d => d.date <= tStr);
+    if (!pt || !pt.price) return null;
+    return (latestPrice - pt.price) / pt.price * 100;
+  }
+
+  function setTrend(id, pct) {
+    const el = document.getElementById(id);
+    if (pct === null) { el.textContent = "—"; el.className = "trend-val trend-flat"; return; }
+    const sign = pct > 0 ? "+" : "";
+    el.textContent = `${sign}${pct.toFixed(1)}%`;
+    el.className = `trend-val ${pct > 1 ? "trend-up" : pct < -1 ? "trend-down" : "trend-flat"}`;
+  }
+
+  setTrend("tr-7d",  pricePct(7));
+  setTrend("tr-30d", pricePct(30));
+  setTrend("tr-60d", pricePct(60));
+
+  // 전년 동기 대비 (avg_year 필드 활용)
+  const yoy = last.avg_year && latestPrice
+    ? (latestPrice - last.avg_year) / last.avg_year * 100
+    : null;
+  setTrend("tr-yoy", yoy);
+}
+
+// ── 리스크 분석 ──────────────────────────────────────────
+async function renderRiskDetail(code) {
+  const el = document.getElementById("dp-risk-detail");
+  try {
+    const r = await fetch(`${API}/api/v1/signals/today`);
+    const d = await r.json();
+    const sig = (d.items || []).find(s => s.item_code === code);
+    if (!sig) {
+      el.innerHTML = '<span style="color:#bbb;font-size:12px;">위험 신호 데이터 없음</span>';
+      return;
+    }
+    const RISK_COLOR = { normal:"#27ae60", caution:"#e67e22", warning:"#e74c3c", high:"#8e1010" };
+    const RISK_BG    = { normal:"#d4edda", caution:"#fff3cd", warning:"#fde8d8", high:"#f8d7da" };
+    const VOL_LABEL  = { low:"낮음", medium:"보통", high:"높음" };
+    const CONF_LABEL2= { high:"높음", medium:"중간", low:"낮음" };
+    const risk = sig.risk_level || "normal";
+    const vol  = sig.volatility_risk || "medium";
+    const conf = sig.confidence || "medium";
+    const dir  = sig.direction_14d;
+    const prob = sig.up_probability_14d;
+
+    el.innerHTML = `
+      <div class="risk-grid">
+        <div class="risk-item">
+          <div class="risk-item-label">종합 위험도</div>
+          <div class="risk-item-val" style="color:${RISK_COLOR[risk]||"#555"}">${{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[risk]||risk}</div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-item-label">가격 변동성</div>
+          <div class="risk-item-val">${VOL_LABEL[vol]||vol}</div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-item-label">AI 예측 신뢰도</div>
+          <div class="risk-item-val">${CONF_LABEL2[conf]||conf}</div>
+        </div>
+      </div>
+      ${dir ? `
+      <div style="margin-top:10px;font-size:12px;color:#555;line-height:1.7;">
+        <b>2주 방향 신호:</b> ${dir==="up"?"↑ 상승":"↓ 하락"} (확률 ${prob!=null?(prob*100).toFixed(0)+"%" : "—"})<br>
+        <b>변동성 분석:</b> 최근 가격이 ${vol==="high"?"높은 변동성":"보통 수준의 변동성"}을 보이고 있습니다.
+        ${risk !== "normal" ? `<br><b>⚠️ 주의사항:</b> 주산지 수급 또는 기상 변화로 가격 변동 위험이 감지됩니다.` : ""}
+      </div>` : ""}`;
+  } catch(e) {
+    el.innerHTML = '<span style="color:#bbb;font-size:12px;">신호 데이터 로딩 실패</span>';
+  }
+}
+
 // ── 생산 통계 ────────────────────────────────────────────
 async function loadProductionStats(code) {
   try {
     const r = await fetch(`${API}/api/v1/map/production?item_code=${code}`);
     const d = await r.json();
     const p = (d.production || [])[0];
-    document.getElementById("dp-prod-year").textContent = p ? `(${p.year}년)` : "";
-    document.getElementById("dp-area").textContent  = p?.area_ha ? p.area_ha.toLocaleString() : "—";
-    document.getElementById("dp-ton").textContent   = p?.production_ton ? Math.round(p.production_ton).toLocaleString() : "—";
-    const yld = (p?.production_ton && p?.area_ha) ? Math.round(p.production_ton / p.area_ha * 10) : null;
+    document.getElementById("dp-prod-year").textContent = p ? `(${p.year}년 기준)` : "";
+    document.getElementById("dp-area").textContent  = p?.area_ha
+      ? Math.round(p.area_ha).toLocaleString() : "—";
+    document.getElementById("dp-ton").textContent   = p?.production_ton
+      ? Math.round(p.production_ton / 1000).toLocaleString() : "—";
+    const yld = (p?.production_ton && p?.area_ha)
+      ? Math.round(p.production_ton / p.area_ha * 10) : null;
     document.getElementById("dp-yield").textContent = yld ? yld.toLocaleString() : "—";
   } catch(e) {}
 }
@@ -1202,26 +1467,42 @@ let leafletMap = null, provLayer = null, cityLayer_ = null;
 let provGeo = null, cityGeo = null, cityDataAll = null, mapItemCode = null;
 let mapMode = "production";
 let mapViewLevel = "province", mapCurrentProv = null;
+let provWeightCache = {};  // item_code → {city_code: weight}
 
-function productionColor(v) {
-  if (v <= 0)    return "#f0e0ff";
-  if (v < 0.05)  return "#bde0fb";
-  if (v < 0.15)  return "#5db5e8";
-  if (v < 0.35)  return "#1a6bab";
+// production_ton → 상대 비중(0~1) 계산
+function calcWeights(itemCode) {
+  if (provWeightCache[itemCode]) return provWeightCache[itemCode];
+  const data = (cityDataAll || {})[itemCode] || {};
+  const total = Object.values(data).reduce((s, d) => s + (d.production_ton || 0), 0);
+  const w = {};
+  for (const [c, d] of Object.entries(data)) {
+    w[c] = total > 0 ? (d.production_ton || 0) / total : 0;
+  }
+  provWeightCache[itemCode] = w;
+  return w;
+}
+
+function productionColor(w) {
+  if (w <= 0)     return "#f0e0ff";
+  if (w < 0.02)   return "#bde0fb";
+  if (w < 0.08)   return "#5db5e8";
+  if (w < 0.20)   return "#1a6bab";
   return "#0b2e5c";
 }
-function riskColor(v) {
-  if (!v || v < 20) return "#d4edda";
-  if (v < 40)  return "#fff3cd";
-  if (v < 60)  return "#fde8d8";
-  return "#f8d7da";
+function riskColor(yoy) {
+  // shipment_yoy: 양수=출하 증가(공급 증가→가격하락), 음수=감소(공급부족→가격상승)
+  if (yoy === undefined || yoy === null) return "#f0f0f0";
+  if (yoy > 15)   return "#d4edda";   // 출하 급증 → 정상
+  if (yoy > 0)    return "#fff3cd";   // 소폭 증가
+  if (yoy > -10)  return "#fde8d8";   // 감소 → 경고
+  return "#f8d7da";                    // 급감 → 위험
 }
-function shipmentColor(v) {
-  if (!v || v <= 0) return "#f0e0ff";
-  if (v < 1000)  return "#bde0fb";
-  if (v < 5000)  return "#5db5e8";
-  if (v < 20000) return "#1a6bab";
-  return "#0b2e5c";
+function shipmentColor(yoy) {
+  if (yoy === undefined || yoy === null) return "#f0e0ff";
+  if (yoy < -10)  return "#0b2e5c";   // 급감 → 진한색
+  if (yoy < 0)    return "#1a6bab";
+  if (yoy < 10)   return "#5db5e8";
+  return "#bde0fb";                    // 증가 → 연한색
 }
 
 async function initMap() {
@@ -1257,41 +1538,48 @@ function drawProvinces_() {
   if (provLayer) { leafletMap.removeLayer(provLayer); provLayer = null; }
   if (!provGeo || !cityDataAll || !mapItemCode) return;
   const cityData = cityDataAll[mapItemCode] || {};
+  const weights  = calcWeights(mapItemCode);
 
   provLayer = L.geoJSON(provGeo, {
     style: feat => {
-      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || feat.properties.CTP_KOR_NM || "";
+      const sido   = PROV_NAME_TO_SIDO[feat.properties.name] || feat.properties.CTP_KOR_NM || "";
       const prefix = SIDO_TO_PREFIX[sido] || "";
-      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
-      if (!entries.length) return {fillColor:"#f0e0ff", weight:1.5, color:"#bbb", fillOpacity:0.55};
-      let color = "#5db5e8";
-      if (mapMode === "production") color = productionColor(entries.reduce((s,[,d])=>s+(d.production_weight||0),0));
-      else if (mapMode === "risk")  color = riskColor(Math.max(...entries.map(([,d])=>d.risk_score||0)));
-      else if (mapMode === "shipment") color = shipmentColor(entries.reduce((s,[,d])=>s+(d.shipment_ton||0),0));
+      const codes  = Object.keys(cityData).filter(c => c.startsWith(prefix));
+      if (!codes.length) return {fillColor:"#f0e0ff", weight:1.5, color:"#bbb", fillOpacity:0.45};
+      let color;
+      if (mapMode === "production") {
+        const totW = codes.reduce((s, c) => s + (weights[c] || 0), 0);
+        color = productionColor(totW);
+      } else if (mapMode === "risk") {
+        const avgYoy = codes.reduce((s,c)=>s+(cityData[c]?.shipment_yoy||0),0) / codes.length;
+        color = riskColor(avgYoy);
+      } else {
+        const avgYoy = codes.reduce((s,c)=>s+(cityData[c]?.shipment_yoy||0),0) / codes.length;
+        color = shipmentColor(avgYoy);
+      }
       return {fillColor:color, weight:1.5, color:"#555", fillOpacity:0.75};
     },
     onEachFeature: (feat, layer) => {
-      const sido = PROV_NAME_TO_SIDO[feat.properties.name] || "";
+      const sido   = PROV_NAME_TO_SIDO[feat.properties.name] || "";
       const prefix = SIDO_TO_PREFIX[sido] || "";
-      const entries = Object.entries(cityData).filter(([c]) => c.startsWith(prefix));
-      const pname = feat.properties.name || "";
+      const codes  = Object.keys(cityData).filter(c => c.startsWith(prefix));
+      const pname  = feat.properties.name || "";
       layer.on({
         mouseover: e => {
           e.target.setStyle({weight:2.5, fillOpacity:0.92});
-          const tot = entries.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
-          const pw  = entries.reduce((s,[,d])=>s+(d.production_weight||0),0);
-          layer.bindTooltip(
-            `<b>${pname}</b><br>주요 산지 ${entries.length}개 시·군<br>생산 비중 ${(pw*100).toFixed(0)}%<br>연간 출하 ${(tot/1000).toFixed(0)}천 톤`,
-            {sticky:true}
-          ).openTooltip();
+          const totTon = codes.reduce((s,c)=>s+(cityData[c]?.production_ton||0),0);
+          const totW   = codes.reduce((s,c)=>s+(weights[c]||0),0);
+          const tip = codes.length
+            ? `<b>${pname}</b><br>주요 산지 <b>${codes.length}</b>개 시·군<br>전국 생산 비중 <b>${(totW*100).toFixed(0)}%</b><br>연간 생산량 <b>${Math.round(totTon/1000).toLocaleString()}천 톤</b>`
+            : `<b>${pname}</b><br><span style="color:#aaa">상업적 생산 없음</span>`;
+          layer.bindTooltip(tip, {sticky:true}).openTooltip();
         },
         mouseout: e => { if(provLayer) provLayer.resetStyle(e.target); layer.closeTooltip(); },
         click: () => {
-          if (!entries.length) return;
+          if (!codes.length) return;
           mapViewLevel = "city"; mapCurrentProv = {feat, sido, pname};
           drawCities_(prefix, pname);
-          const bounds = layer.getBounds();
-          leafletMap.fitBounds(bounds, {padding:[20,20]});
+          leafletMap.fitBounds(layer.getBounds(), {padding:[20,20]});
         }
       });
     }
@@ -1302,6 +1590,7 @@ function drawCities_(prefix, pname) {
   if (cityLayer_) { leafletMap.removeLayer(cityLayer_); cityLayer_ = null; }
   if (!cityGeo || !cityDataAll || !mapItemCode) return;
   const cityData = cityDataAll[mapItemCode] || {};
+  const weights  = calcWeights(mapItemCode);
 
   const filtered = {
     type:"FeatureCollection",
@@ -1314,48 +1603,49 @@ function drawCities_(prefix, pname) {
   cityLayer_ = L.geoJSON(filtered, {
     style: feat => {
       const c = String(feat.properties.code || feat.properties.SIG_CD || "");
-      const d = cityData[c] || {};
-      let color = "#f0e0ff";
-      if (mapMode==="production") color = productionColor(d.production_weight||0);
-      else if (mapMode==="risk")  color = riskColor(d.risk_score||0);
-      else if (mapMode==="shipment") color = shipmentColor(d.shipment_ton||0);
-      return {fillColor:color, weight:1, color:"#777", fillOpacity:0.8};
+      const d = cityData[c];
+      if (!d) return {fillColor:"#f0e0ff", weight:1, color:"#ccc", fillOpacity:0.4};
+      let color;
+      if (mapMode==="production")  color = productionColor(weights[c] || 0);
+      else if (mapMode==="risk")   color = riskColor(d.shipment_yoy);
+      else                         color = shipmentColor(d.shipment_yoy);
+      return {fillColor:color, weight:1, color:"#777", fillOpacity:0.85};
     },
     onEachFeature: (feat, layer) => {
-      const c = String(feat.properties.code || feat.properties.SIG_CD || "");
-      const d = cityData[c] || {};
+      const c    = String(feat.properties.code || feat.properties.SIG_CD || "");
+      const d    = cityData[c] || {};
       const name = feat.properties.name || feat.properties.SIG_KOR_NM || c;
+      const w    = weights[c] || 0;
       layer.on({
         mouseover: e => {
           e.target.setStyle({weight:2, fillOpacity:0.95});
-          layer.bindTooltip(
-            `<b>${name}</b><br>생산 비중: ${((d.production_weight||0)*100).toFixed(1)}%<br>출하량: ${((d.shipment_ton||0)/1000).toFixed(0)}천 톤`,
-            {sticky:true}
-          ).openTooltip();
+          const hasData = !!cityData[c];
+          const tip = hasData
+            ? `<b>${name}</b><br>생산 비중: <b>${(w*100).toFixed(1)}%</b><br>연간 생산량: <b>${(d.production_ton||0).toLocaleString()}톤</b><br>재배면적: <b>${(d.area_ha||0).toLocaleString()}ha</b><br>출하 증감(yoy): <b>${d.shipment_yoy>0?"+":""}${(d.shipment_yoy||0).toFixed(1)}%</b>`
+            : `<b>${name}</b><br><span style="color:#aaa">상업적 생산 없음</span>`;
+          layer.bindTooltip(tip, {sticky:true}).openTooltip();
         },
         mouseout: e => { if(cityLayer_) cityLayer_.resetStyle(e.target); layer.closeTooltip(); }
       });
     }
   }).addTo(leafletMap);
 
-  // 도로 돌아가기 버튼
-  if (!document.getElementById("map-back-btn")) {
-    const btn = L.control({position:"topleft"});
-    btn.onAdd = () => {
-      const d = L.DomUtil.create("button","");
-      d.id = "map-back-btn";
-      d.textContent = "← 전국 보기";
-      d.style.cssText = "padding:5px 12px;background:white;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.1)";
-      L.DomEvent.on(d,"click",() => {
-        mapViewLevel="province";
-        drawProvinces_();
-        leafletMap.setView([36.2,127.8],7);
-        d.remove();
-      });
-      return d;
-    };
-    btn.addTo(leafletMap);
-  }
+  // 돌아가기 버튼
+  const existBtn = document.getElementById("map-back-btn");
+  if (existBtn) existBtn.remove();
+  const btn = L.control({position:"topleft"});
+  btn.onAdd = () => {
+    const el = L.DomUtil.create("button","");
+    el.id = "map-back-btn";
+    el.textContent = "← 전국 보기";
+    el.style.cssText = "padding:5px 12px;background:white;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.1)";
+    L.DomEvent.on(el,"click",() => {
+      mapViewLevel="province"; drawProvinces_();
+      leafletMap.setView([36.2,127.8],7); el.remove();
+    });
+    return el;
+  };
+  btn.addTo(leafletMap);
 }
 
 function setMapMode(mode) {
