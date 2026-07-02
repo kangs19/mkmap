@@ -262,9 +262,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <nav class="fm-nav">
     <button class="fm-nav-item active" onclick="switchNavView('map',this)">실시간 지도</button>
     <a href="/forecast-explanation" class="fm-nav-item" style="text-decoration:none">가격 예측 설명</a>
-    <button class="fm-nav-item" onclick="switchNavView('production',this)">재배 면적</button>
-    <button class="fm-nav-item" onclick="switchNavView('risk',this)">리스크 분석</button>
-    <button class="fm-nav-item" onclick="switchNavView('price',this)">시장 동향</button>
+    <a href="/dashboard" class="fm-nav-item" style="text-decoration:none">대시보드</a>
   </nav>
   <div class="fm-header-right">
     <div class="fm-date-box" id="hdr-date">
@@ -327,11 +325,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
     <!-- 기간 선택 -->
     <div class="fm-sb-section">
-      <div class="fm-sb-label">기간 선택</div>
-      <div class="fm-period-group">
-        <button class="fm-period-btn" onclick="setPeriod(7,this)">7일</button>
-        <button class="fm-period-btn active" onclick="setPeriod(30,this)">30일</button>
-        <button class="fm-period-btn" onclick="setPeriod(90,this)">90일</button>
+      <div class="fm-sb-label">예측 기간</div>
+      <div class="fm-period-group" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
+        <button class="fm-period-btn" onclick="setPeriod(7,this)">1주</button>
+        <button class="fm-period-btn" onclick="setPeriod(14,this)">2주</button>
+        <button class="fm-period-btn" onclick="setPeriod(21,this)">3주</button>
+        <button class="fm-period-btn active" onclick="setPeriod(28,this)">4주</button>
+        <button class="fm-period-btn" onclick="setPeriod(60,this)">2개월</button>
+        <button class="fm-period-btn" onclick="setPeriod(90,this)">3개월</button>
       </div>
     </div>
 
@@ -403,19 +404,34 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
             <span style="display:flex;align-items:center;gap:4px;margin-left:8px"><span style="display:inline-block;width:16px;height:2px;background:#e05050;border-radius:1px;opacity:.7"></span>예측</span>
           </div>
           <!-- 기간별 예측 -->
-          <div class="fm-forecast-row">
+          <div class="fm-forecast-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
             <div class="fm-fc-cell">
-              <div class="fm-fc-lbl">7일 후</div>
+              <div class="fm-fc-lbl">1주 후</div>
               <div class="fm-fc-val" id="rp-p7">—</div>
               <div class="fm-fc-chg" id="rp-p7c"></div>
             </div>
             <div class="fm-fc-cell">
-              <div class="fm-fc-lbl">30일 후</div>
-              <div class="fm-fc-val" id="rp-p30">—</div>
-              <div class="fm-fc-chg" id="rp-p30c"></div>
+              <div class="fm-fc-lbl">2주 후</div>
+              <div class="fm-fc-val" id="rp-p14">—</div>
+              <div class="fm-fc-chg" id="rp-p14c"></div>
             </div>
             <div class="fm-fc-cell">
-              <div class="fm-fc-lbl">90일 후</div>
+              <div class="fm-fc-lbl">3주 후</div>
+              <div class="fm-fc-val" id="rp-p21">—</div>
+              <div class="fm-fc-chg" id="rp-p21c"></div>
+            </div>
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">4주 후</div>
+              <div class="fm-fc-val" id="rp-p28">—</div>
+              <div class="fm-fc-chg" id="rp-p28c"></div>
+            </div>
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">2개월 후</div>
+              <div class="fm-fc-val" id="rp-p60">—</div>
+              <div class="fm-fc-chg" id="rp-p60c"></div>
+            </div>
+            <div class="fm-fc-cell">
+              <div class="fm-fc-lbl">3개월 후</div>
               <div class="fm-fc-val" id="rp-p90">—</div>
               <div class="fm-fc-chg" id="rp-p90c"></div>
             </div>
@@ -539,7 +555,7 @@ const NEWS_BY_ITEM={
 };
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
-let curItem="cabbage",curMode="production",viewLevel="province",curProv=null,curPeriod=30;
+let curItem="cabbage",curMode="production",viewLevel="province",curProv=null,curPeriod=28;
 let map_,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
@@ -822,12 +838,12 @@ function removeMarketLayer(){
   if(marketMarkerLayer&&map_){map_.removeLayer(marketMarkerLayer);}
   marketMarkerLayer=null;
 }
+const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 function setPeriod(p,el){
   curPeriod=p;
   document.querySelectorAll(".fm-period-btn").forEach(b=>b.classList.remove("active"));
   el.classList.add("active");
-  // 오른쪽 패널 기간 뱃지 업데이트
-  document.getElementById("rp-horizon-badge").textContent=`${p}일 후`;
+  document.getElementById("rp-horizon-badge").textContent=`${PERIOD_LABEL[p]||p+"일"} 후`;
 }
 
 // ── 타임라인 ──────────────────────────────────────────────────────────────
@@ -993,14 +1009,14 @@ function showRegionDetail(name,code,d){
   }else{chgEl.textContent="";chgEl.className="fm-price-chg neu";}
   document.getElementById("rp-conf-lbl").textContent="AI 신뢰도: "+(75+Math.floor(Math.random()*12))+"%";
 
-  // 기간별 예측
+  // 기간별 예측 (1주/2주/3주/4주/2개월/3개월)
   const setPfc=(id,cid,days)=>{
     if(!pv){
       document.getElementById(id).textContent="—";
       const cel=document.getElementById(cid);cel.textContent="";cel.className="fm-fc-chg";
       return;
     }
-    const p=Math.round(pv*(1+chgPct/100*(days/30)));
+    const p=Math.round(pv*(1+chgPct/100*(days/28)));
     const c=((p-pv)/pv*100).toFixed(1);
     document.getElementById(id).textContent=p.toLocaleString()+"원";
     const cel=document.getElementById(cid);
@@ -1008,7 +1024,10 @@ function showRegionDetail(name,code,d){
     cel.className="fm-fc-chg "+(c>0?"up":"down");
   };
   setPfc("rp-p7","rp-p7c",7);
-  setPfc("rp-p30","rp-p30c",30);
+  setPfc("rp-p14","rp-p14c",14);
+  setPfc("rp-p21","rp-p21c",21);
+  setPfc("rp-p28","rp-p28c",28);
+  setPfc("rp-p60","rp-p60c",60);
   setPfc("rp-p90","rp-p90c",90);
 
   // ── 재배 현황
@@ -1151,7 +1170,7 @@ function drawProvinces(){
         mouseover:e=>{e.target.setStyle({weight:3,color:"#f4b942",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
-        click:()=>ents.length&&zoomProv(f,sido,pname)
+        click:()=>{hideMapTooltip();ents.length&&zoomProv(f,sido,pname);}
       });
     }
   }).addTo(map_);
