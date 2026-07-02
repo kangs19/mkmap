@@ -103,13 +103,16 @@ async def get_all_horizons(
 
     horizons = {}
     for fc in fc_rows:
+        insufficient = fc.confidence == "insufficient_data"
         direction = fc.direction or fc.direction_14d
         up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
         horizons[str(fc.horizon_days)] = {
             "horizon_days": fc.horizon_days,
-            "direction": direction,
-            "up_probability": up_prob,
-            "bottom_probability": fc.bottom_probability,
+            "available": not insufficient,
+            "data_status": "insufficient_data" if insufficient else "ok",
+            "direction": None if insufficient else direction,
+            "up_probability": None if insufficient else up_prob,
+            "bottom_probability": None if insufficient else fc.bottom_probability,
             "confidence": fc.confidence,
             "model_version": fc.model_version,
         }

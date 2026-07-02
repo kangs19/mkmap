@@ -210,8 +210,9 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       border-top: 3px solid #e0e0e0;
     }
-    .horizon-card.dir-up   { border-top-color: #e74c3c; }
-    .horizon-card.dir-down { border-top-color: #2980b9; }
+    .horizon-card.dir-up      { border-top-color: #e74c3c; }
+    .horizon-card.dir-down    { border-top-color: #2980b9; }
+    .horizon-card.horizon-unavail { background: #f9f9f9; border-top-color: #ddd; opacity: 0.7; }
     .horizon-label { font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
     .horizon-dir { font-size: 20px; font-weight: 700; }
     .horizon-prob { font-size: 12px; color: #777; margin-top: 3px; }
@@ -393,7 +394,14 @@ function selectHorizon(h) {
   // 캐시된 데이터로 KPI 즉시 업데이트
   if (currentItem && allHorizonsCache[currentItem]) {
     const hz = allHorizonsCache[currentItem][String(h)];
-    if (hz) renderKPIsFromHorizon(hz, currentItem);
+    if (hz && hz.available !== false) renderKPIsFromHorizon(hz, currentItem);
+    else if (hz && hz.available === false) {
+      document.getElementById("kpi-direction").className = "direction-badge dir-neutral";
+      document.getElementById("kpi-direction").textContent = "데이터 취합중";
+      document.getElementById("kpi-prob-text").textContent = "해당 기간은 데이터를 취합하고 있습니다.";
+      document.getElementById("kpi-prob-bar").style.cssText = "width:0%;background:#ccc";
+      document.getElementById("kpi-surge").textContent = "—";
+    }
   }
 }
 
@@ -448,9 +456,9 @@ function renderHorizonCards(horizons) {
     if (!el) return;
     const hz = horizons[String(h)];
     const label = HORIZON_LABEL[h];
-    if (!hz) {
-      el.className = "horizon-card";
-      el.innerHTML = `<div class="horizon-label">${label} 예측</div><div class="horizon-dir" style="color:#bbb;">—</div><div class="horizon-prob">데이터 없음</div>`;
+    if (!hz || hz.available === false) {
+      el.className = "horizon-card horizon-unavail";
+      el.innerHTML = `<div class="horizon-label">${label} 예측</div><div class="horizon-dir" style="color:#bbb;font-size:12px;">데이터 취합중</div><div class="horizon-prob" style="color:#ccc;font-size:11px;">준비 중</div>`;
       return;
     }
     const dir = hz.direction;
@@ -632,6 +640,7 @@ async function loadOverview() {
     function cell(h) {
       const d = hz[String(h)];
       if (!d) return `<td style="color:#bbb">—</td>`;
+      if (d.available === false) return `<td style="color:#bbb;font-size:11px;">취합중</td>`;
       const dir = d.direction;
       const prob = d.up_probability != null ? d.up_probability : (d.bottom_probability != null ? 1-d.bottom_probability : null);
       const pct = prob != null ? `${(prob*100).toFixed(0)}%` : "";
@@ -681,6 +690,7 @@ function renderPerfTable(data) {
     for (const h of hCols) {
       const m = item.horizons[String(h)];
       if (!m) { html += `<td style="color:#ccc">—</td>`; continue; }
+      if (m.reliable === false) { html += `<td style="color:#bbb;font-size:11px;">취합중</td>`; continue; }
       const acc = m.calibrated_dir_acc ?? m.test_dir_acc;
       const pct = acc != null ? `${(acc*100).toFixed(1)}%` : "—";
       const cls = acc == null ? "" : acc >= 0.60 ? "acc-high" : acc >= 0.52 ? "acc-mid" : "acc-low";

@@ -1695,6 +1695,55 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
                 results_per_item[key]["forecast_error"] = str(e)[:200]
                 await db.rollback()
 
+    # ── Reliability cascade check ────────────────────────────────────────────
+    # 짧은 horizon이 긴 horizon보다 항상 정확해야 함 (단조감소).
+    # 위반하거나 52% 미만이면 cascade로 insufficient_data 처리.
+    from sqlalchemy import update as sa_update
+    all_item_codes_set = {k.split("_h")[0] for k in results_per_item if "_h" in k}
+    for item_code in all_item_codes_set:
+        prev_acc = 1.0
+        cascade = False
+        for h in HORIZONS:
+            key = f"{item_code}_h{h}"
+            r = results_per_item.get(key, {})
+            if "error" in r:
+                cascade = True
+                continue
+            acc = r.get("calibrated_dir_acc") or r.get("test_dir_acc") or 0.0
+            n_test = r.get("n_test", 0)
+            if cascade or acc < 0.52 or n_test < 40 or acc > prev_acc:
+                cascade = True
+                results_per_item[key]["reliable"] = False
+                try:
+                    await db.execute(
+                        sa_update(Forecast)
+                        .where(
+                            Forecast.item_code == item_code,
+                            Forecast.base_date == today,
+                            Forecast.horizon_days == h,
+                        )
+                        .values(confidence="insufficient_data")
+                    )
+                except Exception:
+                    pass
+            else:
+                results_per_item[key]["reliable"] = True
+                prev_acc = acc
+            # persist reliable flag to metrics JSON
+            import json as _json2
+            _mf = model_dir / f"lgbm_ensemble_{item_code}_h{h}.json"
+            if _mf.exists():
+                try:
+                    _md = _json2.loads(_mf.read_text(encoding="utf-8"))
+                    _md["reliable"] = results_per_item[key].get("reliable", True)
+                    _mf.write_text(_json2.dumps(_md, default=str, ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
     elapsed = round(time.monotonic() - started, 1)
     return {
         "elapsed_seconds": elapsed,
@@ -1912,6 +1961,7 @@ async def get_model_metrics(_=Depends(check_admin)):
                 m = _json.loads(f.read_text(encoding="utf-8"))
                 result[item_code]["horizons"][str(h)] = {
                     "label": HORIZON_LABELS[h],
+                    "reliable": m.get("reliable", True),
                     "n_train": m.get("n_train"),
                     "n_test": m.get("n_test"),
                     "test_dir_acc": m.get("test_dir_acc"),
