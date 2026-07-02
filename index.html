@@ -602,6 +602,29 @@ window.onload=async()=>{
     }
   }
 
+  // city_agri_data.json 로드해서 CITY_DATA에 23개 품목 채우기
+  fetch("/static/city_agri_data.json").then(r=>r.json()).then(raw=>{
+    for(const [itemCode, cities] of Object.entries(raw)){
+      if(!CITY_DATA[itemCode]) CITY_DATA[itemCode]={};
+      for(const [cityCode, d] of Object.entries(cities)){
+        // price_index: 100 기준, 105 → +5%, 95 → -5%
+        const pva = (d.price_index||100) - 100;
+        const rs = Math.min(100, Math.abs(pva)*2 + (Math.abs(d.shipment_yoy||0))*1.5);
+        CITY_DATA[itemCode][cityCode]={
+          name: d.name, sido: d.sido,
+          avg_price: 0,
+          price_vs_avg: pva,
+          production_weight: d.production_ton||0,
+          shipment_ton: d.production_ton||0,
+          area_ha: d.area_ha||0,
+          shipment_yoy: d.shipment_yoy||0,
+          risk_score: Math.round(rs),
+          risk_level: rs>=65?"high":rs>=45?"warning":rs>=25?"caution":"normal",
+        };
+      }
+    }
+  }).catch(e=>console.warn("city_agri_data 로드 실패:",e.message));
+
   Promise.all([
     fetchGeo("skorea_provinces.json"),
     fetchGeo("skorea_municipalities_simple.json"),
@@ -950,17 +973,44 @@ function redrawMap(){
   else if(curProv)drawCities(curProv.sido);
 }
 function priceColor(pct){
-  if(pct>=20)return"rgba(210,20,20,.78)";   /* 빨강 — 급등 */
-  if(pct>=10)return"rgba(215,90,0,.75)";    /* 주황 — 상승 */
-  if(pct>=-10)return"rgba(130,50,210,.72)"; /* 보라 — 보합 */
-  if(pct>=-20)return"rgba(0,100,210,.72)";  /* 파랑 — 하락 */
-  return"rgba(0,40,160,.78)";               /* 짙은 파랑 — 급락 */
+  if(pct>=20)return"rgba(210,20,20,.78)";
+  if(pct>=10)return"rgba(215,90,0,.75)";
+  if(pct>=-10)return"rgba(130,50,210,.72)";
+  if(pct>=-20)return"rgba(0,100,210,.72)";
+  return"rgba(0,40,160,.78)";
 }
 function riskColor(s){
   if(s>=70)return"rgba(200,30,30,.6)";
   if(s>=50)return"rgba(220,100,0,.55)";
   if(s>=30)return"rgba(180,140,0,.5)";
   return"rgba(100,60,200,.45)";
+}
+function prodColor(areaHa){
+  if(areaHa>=20000)return"rgba(10,90,10,.80)";
+  if(areaHa>=5000) return"rgba(30,140,30,.72)";
+  if(areaHa>=1000) return"rgba(70,180,70,.65)";
+  if(areaHa>=200)  return"rgba(130,210,130,.55)";
+  return"rgba(200,235,200,.45)";
+}
+function modeColor(ents){
+  if(!ents.length) return"rgba(80,80,60,.18)";
+  if(curMode==="production"){
+    const tot=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
+    return prodColor(tot);
+  }
+  if(curMode==="risk"){
+    const avg=ents.reduce((s,[,d])=>s+(d.risk_score||20),0)/ents.length;
+    return riskColor(avg);
+  }
+  // price / default
+  const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
+  return priceColor(avg);
+}
+function modeCityColor(d){
+  if(!d) return"rgba(80,80,60,.18)";
+  if(curMode==="production") return prodColor(d.area_ha||0);
+  if(curMode==="risk")       return riskColor(d.risk_score||20);
+  return priceColor(d.price_vs_avg||0);
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
@@ -974,8 +1024,7 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
       if(!ents.length)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"3"};
-      const avgPct=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
-      return{fillColor:priceColor(avgPct),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      return{fillColor:modeColor(ents),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -1067,7 +1116,7 @@ function drawCities(sido){
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=cd[code];
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
-      return{fillColor:priceColor(d.price_vs_avg),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
