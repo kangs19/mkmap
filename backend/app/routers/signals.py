@@ -126,14 +126,34 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
     for code in sorted(all_codes):
         f = forecasts.get(code)
         risk = item_max_risk.get(code, {})
+
+        # Derive risk from Forecast when RegionSignal is absent
+        risk_score = risk.get("risk_score")
+        risk_level = risk.get("risk_level")
+        if risk_score is None and f is not None:
+            vr = f.volatility_risk_30d or "medium"
+            up_p = f.up_probability_14d or 0.5
+            # score 0-100: volatility weight + probability extremity
+            vol_w = {"high": 50, "medium": 25, "low": 10}.get(vr, 20)
+            extremity = abs(up_p - 0.5) * 2  # 0–1
+            risk_score = round(vol_w + extremity * 50, 1)
+            if risk_score >= 65:
+                risk_level = "high"
+            elif risk_score >= 45:
+                risk_level = "warning"
+            elif risk_score >= 25:
+                risk_level = "caution"
+            else:
+                risk_level = "normal"
+
         items_out.append({
             "item_code": code,
             "direction_14d": f.direction_14d if f else None,
             "up_probability_14d": f.up_probability_14d if f else None,
             "volatility_risk": f.volatility_risk_30d if f else None,
             "confidence": f.confidence if f else None,
-            "risk_score": risk.get("risk_score"),
-            "risk_level": risk.get("risk_level"),
+            "risk_score": risk_score,
+            "risk_level": risk_level,
             "hotspot_region": risk.get("hotspot_region"),
         })
 
