@@ -28,7 +28,7 @@ KOSIS_BASE = "https://kosis.kr/openapi/Param/statisticsParamData.do"
 # KOSIS 통계표 ID — 농작물 생산조사
 # 품목별 재배면적 및 생산량 (연간)
 STAT_TABLE = {
-    # orgId: 통계청(101), tblId: 농작물생산조사
+    # orgId: 통계청(101), tblId: 농작물생산조사 (실제 tblId는 env KOSIS_PRODUCTION_TBL_ID로 오버라이드됨)
     "cabbage":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "배추"},
     "radish":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "무"},
     "onion":        {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "양파"},
@@ -37,6 +37,22 @@ STAT_TABLE = {
     "potato":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "감자"},
     "sweet_potato": {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "고구마"},
     "pepper":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "고추"},
+    # 2차 추가 품목
+    "tomato":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "토마토"},
+    "cucumber":     {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "오이"},
+    "zucchini":     {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "호박"},
+    "carrot":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "당근"},
+    "spinach":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "시금치"},
+    "lettuce":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "상추"},
+    "perilla":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "들깻잎"},
+    "watermelon":   {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "수박"},
+    "chamoe":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "참외"},
+    "fresh_pepper": {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "풋고추"},
+    "sesame":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "참깨"},
+    "apple":        {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "사과"},
+    "pear":         {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "배"},
+    "grape":        {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "포도"},
+    "strawberry":   {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "딸기"},
 }
 
 # 전국 + 주요 시도 코드

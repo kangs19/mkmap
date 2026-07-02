@@ -726,19 +726,34 @@ async def admin_status(
     if item_count == 0:
         try:
             ITEMS = [
-                {"item_code": "cabbage",      "item_name": "배추",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
-                {"item_code": "radish",       "item_name": "무",     "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-                {"item_code": "onion",        "item_name": "양파",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-                {"item_code": "green_onion",  "item_name": "대파",   "category": "채소류", "wholesale_unit": "1kg",  "is_active": True},
-                {"item_code": "garlic",       "item_name": "마늘",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
-                {"item_code": "potato",       "item_name": "감자",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-                {"item_code": "sweet_potato", "item_name": "고구마", "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-                {"item_code": "pepper",       "item_name": "건고추", "category": "채소류", "wholesale_unit": "30kg", "is_active": True},
+                {"item_code": "cabbage",      "item_name": "배추",    "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "radish",       "item_name": "무",      "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "onion",        "item_name": "양파",    "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "green_onion",  "item_name": "대파",    "category": "채소류",   "wholesale_unit": "1kg",   "is_active": True},
+                {"item_code": "garlic",       "item_name": "마늘",    "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "potato",       "item_name": "감자",    "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "sweet_potato", "item_name": "고구마",  "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "pepper",       "item_name": "건고추",  "category": "채소류",   "wholesale_unit": "30kg",  "is_active": True},
+                {"item_code": "tomato",       "item_name": "토마토",  "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "cucumber",     "item_name": "오이",    "category": "채소류",   "wholesale_unit": "100개", "is_active": True},
+                {"item_code": "zucchini",     "item_name": "애호박",  "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "carrot",       "item_name": "당근",    "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+                {"item_code": "spinach",      "item_name": "시금치",  "category": "채소류",   "wholesale_unit": "4kg",   "is_active": True},
+                {"item_code": "lettuce",      "item_name": "상추",    "category": "채소류",   "wholesale_unit": "4kg",   "is_active": True},
+                {"item_code": "perilla",      "item_name": "깻잎",    "category": "채소류",   "wholesale_unit": "100장", "is_active": True},
+                {"item_code": "watermelon",   "item_name": "수박",    "category": "채소류",   "wholesale_unit": "1개",   "is_active": True},
+                {"item_code": "chamoe",       "item_name": "참외",    "category": "채소류",   "wholesale_unit": "10개",  "is_active": True},
+                {"item_code": "fresh_pepper", "item_name": "붉은고추","category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "sesame",       "item_name": "참깨",    "category": "특용작물", "wholesale_unit": "30kg",  "is_active": True},
+                {"item_code": "apple",        "item_name": "사과",    "category": "과일류",   "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "pear",         "item_name": "배",      "category": "과일류",   "wholesale_unit": "15kg",  "is_active": True},
+                {"item_code": "grape",        "item_name": "포도",    "category": "과일류",   "wholesale_unit": "5kg",   "is_active": True},
+                {"item_code": "strawberry",   "item_name": "딸기",    "category": "과일류",   "wholesale_unit": "1kg",   "is_active": True},
             ]
             for item_data in ITEMS:
                 db.add(Item(**item_data))
             await db.commit()
-            item_count = 8
+            item_count = 23
             seed_result = "auto-seeded"
         except Exception as e:
             seed_result = f"seed-error: {e}"
@@ -1552,6 +1567,21 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
         "potato":       ["kma_potato"],
         "sweet_potato": ["kma_sweet_potato"],
         "pepper":       ["kma_pepper"],
+        "tomato":       ["kma_tomato"],
+        "cucumber":     ["kma_cucumber"],
+        "zucchini":     ["kma_zucchini"],
+        "carrot":       ["kma_carrot"],
+        "spinach":      ["kma_spinach"],
+        "lettuce":      ["kma_lettuce"],
+        "perilla":      ["kma_perilla"],
+        "watermelon":   ["kma_watermelon"],
+        "chamoe":       ["kma_chamoe"],
+        "fresh_pepper": ["kma_fresh_pepper"],
+        "sesame":       ["kma_sesame"],
+        "apple":        ["kma_apple"],
+        "pear":         ["kma_pear"],
+        "grape":        ["kma_grape"],
+        "strawberry":   ["kma_strawberry"],
     }
     all_region_codes = list({r for rs in ITEM_WEATHER_REGIONS.values() for r in rs})
     weather_result = await db.execute(
@@ -1941,32 +1971,104 @@ async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     from app.models.item import Item, ItemRegion
 
     ITEMS = [
-        {"item_code": "cabbage",      "item_name": "배추",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
-        {"item_code": "radish",       "item_name": "무",     "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "onion",        "item_name": "양파",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "green_onion",  "item_name": "대파",   "category": "채소류", "wholesale_unit": "1kg",  "is_active": True},
-        {"item_code": "garlic",       "item_name": "마늘",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
-        {"item_code": "potato",       "item_name": "감자",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "sweet_potato", "item_name": "고구마", "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "pepper",       "item_name": "건고추", "category": "채소류", "wholesale_unit": "30kg", "is_active": True},
+        # 기존 5종
+        {"item_code": "cabbage",      "item_name": "배추",   "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+        {"item_code": "radish",       "item_name": "무",     "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "onion",        "item_name": "양파",   "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "green_onion",  "item_name": "대파",   "category": "채소류",   "wholesale_unit": "1kg",   "is_active": True},
+        {"item_code": "garlic",       "item_name": "마늘",   "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+        # 1차 추가 3종
+        {"item_code": "potato",       "item_name": "감자",   "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "sweet_potato", "item_name": "고구마", "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "pepper",       "item_name": "건고추", "category": "채소류",   "wholesale_unit": "30kg",  "is_active": True},
+        # 2차 추가 — 채소과채류
+        {"item_code": "tomato",       "item_name": "토마토", "category": "채소류",   "wholesale_unit": "10kg",  "is_active": True},
+        {"item_code": "cucumber",     "item_name": "오이",   "category": "채소류",   "wholesale_unit": "100개", "is_active": True},
+        {"item_code": "zucchini",     "item_name": "애호박", "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "carrot",       "item_name": "당근",   "category": "채소류",   "wholesale_unit": "20kg",  "is_active": True},
+        {"item_code": "spinach",      "item_name": "시금치", "category": "채소류",   "wholesale_unit": "4kg",   "is_active": True},
+        {"item_code": "lettuce",      "item_name": "상추",   "category": "채소류",   "wholesale_unit": "4kg",   "is_active": True},
+        {"item_code": "perilla",      "item_name": "깻잎",   "category": "채소류",   "wholesale_unit": "100장", "is_active": True},
+        {"item_code": "watermelon",   "item_name": "수박",   "category": "채소류",   "wholesale_unit": "1개",   "is_active": True},
+        {"item_code": "chamoe",       "item_name": "참외",   "category": "채소류",   "wholesale_unit": "10개",  "is_active": True},
+        {"item_code": "fresh_pepper", "item_name": "붉은고추","category": "채소류",  "wholesale_unit": "10kg",  "is_active": True},
+        # 2차 추가 — 특용/과일
+        {"item_code": "sesame",       "item_name": "참깨",   "category": "특용작물", "wholesale_unit": "30kg",  "is_active": True},
+        {"item_code": "apple",        "item_name": "사과",   "category": "과일류",   "wholesale_unit": "10kg",  "is_active": True},
+        {"item_code": "pear",         "item_name": "배",     "category": "과일류",   "wholesale_unit": "15kg",  "is_active": True},
+        {"item_code": "grape",        "item_name": "포도",   "category": "과일류",   "wholesale_unit": "5kg",   "is_active": True},
+        {"item_code": "strawberry",   "item_name": "딸기",   "category": "과일류",   "wholesale_unit": "1kg",   "is_active": True},
     ]
     REGIONS = [
-        ("cabbage",      "KR-46", "전남", "해남",   True),
+        # 배추
+        ("cabbage",      "KR-46", "전남", "해남",    True),
         ("cabbage",      "KR-42", "강원", "고랭지",  False),
-        ("radish",       "KR-46", "전남", "무안",   True),
+        # 무
+        ("radish",       "KR-46", "전남", "무안",    True),
         ("radish",       "KR-42", "강원", "고랭지",  False),
-        ("onion",        "KR-46", "전남", "무안",   True),
-        ("onion",        "KR-48", "경남", "창원",   False),
-        ("green_onion",  "KR-46", "전남", "진도",   True),
-        ("green_onion",  "KR-41", "경기", "수원",   False),
-        ("garlic",       "KR-47", "경북", "의성",   True),
-        ("garlic",       "KR-46", "전남", "해남",   False),
-        ("potato",       "KR-42", "강원", "정선",   True),
-        ("potato",       "KR-47", "경북", "안동",   False),
-        ("sweet_potato", "KR-44", "충남", "해남",   True),
-        ("sweet_potato", "KR-46", "전남", "나주",   False),
-        ("pepper",       "KR-47", "경북", "안동",   True),
-        ("pepper",       "KR-48", "경남", "밀양",   False),
+        # 양파
+        ("onion",        "KR-46", "전남", "무안",    True),
+        ("onion",        "KR-48", "경남", "창원",    False),
+        # 대파
+        ("green_onion",  "KR-46", "전남", "진도",    True),
+        ("green_onion",  "KR-41", "경기", "수원",    False),
+        # 마늘
+        ("garlic",       "KR-47", "경북", "의성",    True),
+        ("garlic",       "KR-46", "전남", "해남",    False),
+        # 감자
+        ("potato",       "KR-42", "강원", "정선",    True),
+        ("potato",       "KR-47", "경북", "안동",    False),
+        # 고구마
+        ("sweet_potato", "KR-44", "충남", "당진",    True),
+        ("sweet_potato", "KR-46", "전남", "나주",    False),
+        # 건고추
+        ("pepper",       "KR-47", "경북", "안동",    True),
+        ("pepper",       "KR-48", "경남", "밀양",    False),
+        # 토마토
+        ("tomato",       "KR-47", "경북", "성주",    True),
+        ("tomato",       "KR-48", "경남", "진주",    False),
+        # 오이
+        ("cucumber",     "KR-47", "경북", "상주",    True),
+        ("cucumber",     "KR-48", "경남", "함안",    False),
+        # 애호박
+        ("zucchini",     "KR-47", "경북", "성주",    True),
+        ("zucchini",     "KR-48", "경남", "밀양",    False),
+        # 당근
+        ("carrot",       "KR-46", "전남", "무안",    True),
+        ("carrot",       "KR-47", "경북", "제주(경북)",False),
+        # 시금치
+        ("spinach",      "KR-48", "경남", "남해",    True),
+        ("spinach",      "KR-46", "전남", "신안",    False),
+        # 상추
+        ("lettuce",      "KR-41", "경기", "이천",    True),
+        ("lettuce",      "KR-47", "경북", "상주",    False),
+        # 깻잎
+        ("perilla",      "KR-47", "경북", "성주",    True),
+        ("perilla",      "KR-48", "경남", "밀양",    False),
+        # 수박
+        ("watermelon",   "KR-44", "충남", "논산",    True),
+        ("watermelon",   "KR-47", "경북", "고령",    False),
+        # 참외
+        ("chamoe",       "KR-47", "경북", "성주",    True),
+        ("chamoe",       "KR-48", "경남", "함안",    False),
+        # 붉은고추
+        ("fresh_pepper", "KR-47", "경북", "안동",    True),
+        ("fresh_pepper", "KR-48", "경남", "밀양",    False),
+        # 참깨
+        ("sesame",       "KR-47", "경북", "의성",    True),
+        ("sesame",       "KR-44", "충남", "예산",    False),
+        # 사과
+        ("apple",        "KR-47", "경북", "청송",    True),
+        ("apple",        "KR-42", "강원", "정선",    False),
+        # 배
+        ("pear",         "KR-46", "전남", "나주",    True),
+        ("pear",         "KR-47", "경북", "상주",    False),
+        # 포도
+        ("grape",        "KR-47", "경북", "김천",    True),
+        ("grape",        "KR-46", "전남", "영암",    False),
+        # 딸기
+        ("strawberry",   "KR-44", "충남", "논산",    True),
+        ("strawberry",   "KR-48", "경남", "진주",    False),
     ]
     try:
         added_items = 0
@@ -1998,9 +2100,21 @@ async def get_model_metrics(_=Depends(check_admin)):
 
     model_dir = REPO_ROOT / "data" / "model"
     HORIZONS = [7, 14, 21, 28, 60, 90]
-    ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic", "potato", "sweet_potato", "pepper"]
-    ITEM_NAMES = {"cabbage": "배추", "radish": "무", "onion": "양파", "green_onion": "대파", "garlic": "마늘",
-                  "potato": "감자", "sweet_potato": "고구마", "pepper": "건고추"}
+    ITEMS = [
+        "cabbage", "radish", "onion", "green_onion", "garlic",
+        "potato", "sweet_potato", "pepper",
+        "tomato", "cucumber", "zucchini", "carrot", "spinach",
+        "lettuce", "perilla", "watermelon", "chamoe", "fresh_pepper",
+        "sesame", "apple", "pear", "grape", "strawberry",
+    ]
+    ITEM_NAMES = {
+        "cabbage": "배추", "radish": "무", "onion": "양파", "green_onion": "대파", "garlic": "마늘",
+        "potato": "감자", "sweet_potato": "고구마", "pepper": "건고추",
+        "tomato": "토마토", "cucumber": "오이", "zucchini": "애호박", "carrot": "당근",
+        "spinach": "시금치", "lettuce": "상추", "perilla": "깻잎",
+        "watermelon": "수박", "chamoe": "참외", "fresh_pepper": "붉은고추",
+        "sesame": "참깨", "apple": "사과", "pear": "배", "grape": "포도", "strawberry": "딸기",
+    }
     HORIZON_LABELS = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월"}
 
     result = {}

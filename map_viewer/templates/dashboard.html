@@ -757,7 +757,14 @@ async function loadOverview() {
   document.querySelector(".overview-table thead tr").innerHTML =
     `<th>품목</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>2개월</th><th>3개월</th><th>위험도</th>`;
 
-  const nameMap = { cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘", potato:"감자", sweet_potato:"고구마", pepper:"건고추" };
+  const nameMap = {
+    cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘",
+    potato:"감자", sweet_potato:"고구마", pepper:"건고추",
+    tomato:"토마토", cucumber:"오이", zucchini:"애호박", carrot:"당근",
+    spinach:"시금치", lettuce:"상추", perilla:"깻잎",
+    watermelon:"수박", chamoe:"참외", fresh_pepper:"붉은고추",
+    sesame:"참깨", apple:"사과", pear:"배", grape:"포도", strawberry:"딸기",
+  };
 
   // 위험도는 signals API에서
   const sigR = await fetch(`${API}/api/v1/signals/today`).then(r=>r.json()).catch(()=>({items:[]}));
@@ -844,7 +851,13 @@ async function loadModelMetrics() {
 
 function renderPerfTable(data) {
   const wrap = document.getElementById("perf-table-wrap");
-  const ITEM_ORDER = ["cabbage","radish","onion","green_onion","garlic","potato","sweet_potato","pepper"];
+  const ITEM_ORDER = [
+    "cabbage","radish","onion","green_onion","garlic",
+    "potato","sweet_potato","pepper",
+    "tomato","cucumber","zucchini","carrot","spinach",
+    "lettuce","perilla","watermelon","chamoe","fresh_pepper",
+    "sesame","apple","pear","grape","strawberry",
+  ];
   const hCols = HORIZONS_ALL;
 
   let html = `<table class="perf-table"><thead><tr>
@@ -876,7 +889,14 @@ function renderPerfTable(data) {
 async function loadBacktest(item_code, horizon) {
   const wrap = document.getElementById("backtest-wrap");
   const title = document.getElementById("backtest-title");
-  const ITEM_NAMES = {cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘", potato:"감자", sweet_potato:"고구마", pepper:"건고추"};
+  const ITEM_NAMES = {
+    cabbage:"배추", radish:"무", onion:"양파", green_onion:"대파", garlic:"마늘",
+    potato:"감자", sweet_potato:"고구마", pepper:"건고추",
+    tomato:"토마토", cucumber:"오이", zucchini:"애호박", carrot:"당근",
+    spinach:"시금치", lettuce:"상추", perilla:"깻잎",
+    watermelon:"수박", chamoe:"참외", fresh_pepper:"붉은고추",
+    sesame:"참깨", apple:"사과", pear:"배", grape:"포도", strawberry:"딸기",
+  };
   title.textContent = `${ITEM_NAMES[item_code]||item_code} — ${HORIZON_LABEL[horizon]||horizon+"일"} 백테스트 (테스트셋)`;
   wrap.style.display = "block";
 

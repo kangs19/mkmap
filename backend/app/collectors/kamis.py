@@ -15,14 +15,32 @@ KAMIS_BASE = "https://www.kamis.or.kr/service/price/xml.do"
 
 # 품목별 KAMIS 코드 — productno 는 도매(cls=02) 기준 실측값
 ITEM_CODE_MAP = {
-    "cabbage":     {"productno": "28",   "name": "배추",   "unit": "10kg",  "category": "200"},
-    "radish":      {"productno": "64",   "name": "무",     "unit": "20kg",  "category": "200"},
-    "onion":       {"productno": "117",  "name": "양파",   "unit": "20kg",  "category": "200"},
-    "green_onion": {"productno": "122",  "name": "대파",   "unit": "1kg",   "category": "200"},
-    "garlic":      {"productno": "1003", "name": "마늘",   "unit": "10kg",  "category": "200"},
-    "potato":      {"productno": "24",   "name": "감자",   "unit": "20kg",  "category": "200"},
-    "sweet_potato":{"productno": "20",   "name": "고구마", "unit": "20kg",  "category": "200"},
-    "pepper":      {"productno": "81",   "name": "건고추", "unit": "30kg",  "category": "200"},
+    # 기존 5종
+    "cabbage":      {"productno": "28",   "name": "배추",    "unit": "10kg",  "category": "200"},
+    "radish":       {"productno": "64",   "name": "무",      "unit": "20kg",  "category": "200"},
+    "onion":        {"productno": "117",  "name": "양파",    "unit": "20kg",  "category": "200"},
+    "green_onion":  {"productno": "122",  "name": "대파",    "unit": "1kg",   "category": "200"},
+    "garlic":       {"productno": "1003", "name": "마늘",    "unit": "10kg",  "category": "200"},
+    # 1차 추가
+    "potato":       {"productno": "24",   "name": "감자",    "unit": "20kg",  "category": "100"},
+    "sweet_potato": {"productno": "20",   "name": "고구마",  "unit": "20kg",  "category": "100"},
+    "pepper":       {"productno": "81",   "name": "건고추",  "unit": "30kg",  "category": "200"},
+    # 2차 추가 — productno 검증완료 (2026-07-01 dailySalesList 기준)
+    "tomato":       {"productno": "60",   "name": "토마토",  "unit": "10kg",  "category": "200"},
+    "cucumber":     {"productno": "52",   "name": "오이",    "unit": "100개", "category": "200"},
+    "zucchini":     {"productno": "56",   "name": "애호박",  "unit": "20kg",  "category": "200"},
+    "carrot":       {"productno": "74",   "name": "당근",    "unit": "20kg",  "category": "200"},
+    "spinach":      {"productno": "38",   "name": "시금치",  "unit": "4kg",   "category": "200"},
+    "lettuce":      {"productno": "42",   "name": "상추",    "unit": "4kg",   "category": "200"},
+    "perilla":      {"productno": "133",  "name": "깻잎",    "unit": "100장", "category": "200"},
+    "watermelon":   {"productno": "46",   "name": "수박",    "unit": "1개",   "category": "200"},
+    "chamoe":       {"productno": "48",   "name": "참외",    "unit": "10개",  "category": "200"},
+    "fresh_pepper": {"productno": "96",   "name": "붉은고추","unit": "10kg",  "category": "200"},
+    "sesame":       {"productno": "143",  "name": "참깨",    "unit": "30kg",  "category": "300"},
+    "apple":        {"productno": "198",  "name": "사과",    "unit": "10kg",  "category": "400"},
+    "pear":         {"productno": "204",  "name": "배",      "unit": "15kg",  "category": "400"},
+    "grape":        {"productno": "None", "name": "포도",    "unit": "5kg",   "category": "400"},  # 비수기 미확인
+    "strawberry":   {"productno": "None", "name": "딸기",    "unit": "1kg",   "category": "400"},  # 비수기 미확인
 }
 
 ACTION_DAILY  = "dailySalesList"
@@ -138,6 +156,7 @@ async def fetch_price_range(
 # periodProductList 메타데이터 — config/external_mappings/kamis_price_mapping.csv 기준
 # itemcode/kindcode 검증: 봄 품종(01)이 30일 기준 가장 많은 데이터 보유
 _PERIOD_PRODUCT_META = {
+    # 기존 8종
     "cabbage":      {"p_itemcategorycode": "200", "p_itemcode": "211", "p_kindcode": "01", "p_productrankcode": "04"},
     "radish":       {"p_itemcategorycode": "200", "p_itemcode": "231", "p_kindcode": "01", "p_productrankcode": "04"},
     "onion":        {"p_itemcategorycode": "200", "p_itemcode": "245", "p_kindcode": "00", "p_productrankcode": "04"},
@@ -146,6 +165,22 @@ _PERIOD_PRODUCT_META = {
     "potato":       {"p_itemcategorycode": "200", "p_itemcode": "232", "p_kindcode": "01", "p_productrankcode": "04"},
     "sweet_potato": {"p_itemcategorycode": "200", "p_itemcode": "214", "p_kindcode": "01", "p_productrankcode": "04"},
     "pepper":       {"p_itemcategorycode": "200", "p_itemcode": "257", "p_kindcode": "00", "p_productrankcode": "04"},
+    # 2차 추가 — 가격 시계열 상관관계 검증 완료 (avg_err < 10%)
+    "tomato":       {"p_itemcategorycode": "200", "p_itemcode": "215", "p_kindcode": "00", "p_productrankcode": "04"},
+    "cucumber":     {"p_itemcategorycode": "200", "p_itemcode": "213", "p_kindcode": "00", "p_productrankcode": "04"},
+    "zucchini":     {"p_itemcategorycode": "200", "p_itemcode": "224", "p_kindcode": "01", "p_productrankcode": "04"},
+    "carrot":       {"p_itemcategorycode": "200", "p_itemcode": "242", "p_kindcode": "02", "p_productrankcode": "04"},
+    "spinach":      {"p_itemcategorycode": "200", "p_itemcode": "256", "p_kindcode": "00", "p_productrankcode": "04"},
+    "lettuce":      {"p_itemcategorycode": "200", "p_itemcode": "255", "p_kindcode": "00", "p_productrankcode": "04"},
+    "perilla":      {"p_itemcategorycode": "200", "p_itemcode": "253", "p_kindcode": "00", "p_productrankcode": "04"},
+    "watermelon":   {"p_itemcategorycode": "200", "p_itemcode": "221", "p_kindcode": "00", "p_productrankcode": "04"},
+    "chamoe":       {"p_itemcategorycode": "200", "p_itemcode": "223", "p_kindcode": "02", "p_productrankcode": "04"},
+    "fresh_pepper": {"p_itemcategorycode": "200", "p_itemcode": "247", "p_kindcode": "00", "p_productrankcode": "04"},
+    "sesame":       {"p_itemcategorycode": "300", "p_itemcode": "312", "p_kindcode": "01", "p_productrankcode": "04"},
+    "apple":        {"p_itemcategorycode": "400", "p_itemcode": "412", "p_kindcode": "01", "p_productrankcode": "04"},
+    "pear":         {"p_itemcategorycode": "400", "p_itemcode": "413", "p_kindcode": "01", "p_productrankcode": "04"},
+    "grape":        {"p_itemcategorycode": "400", "p_itemcode": "414", "p_kindcode": "01", "p_productrankcode": "04"},
+    "strawberry":   {"p_itemcategorycode": "400", "p_itemcode": "415", "p_kindcode": "02", "p_productrankcode": "04"},
 }
 
 # periodProductList 가격 단위 보정 계수 (ITEM_CODE_MAP 단위 기준으로 맞춤)
