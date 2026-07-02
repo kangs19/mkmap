@@ -131,7 +131,10 @@ def _build_summary(fc: Forecast, item_name: str, horizon: int = 14) -> str:
     up_prob = fc.up_probability if fc.up_probability is not None else fc.up_probability_14d
     prob = int((up_prob or 0) * 100)
     label = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월"}.get(horizon, f"{horizon}일")
-    return f"{item_name}은(는) {label} 내 {direction} 가능성이 {prob}%입니다."
+    last = item_name[-1] if item_name else ""
+    code = ord(last) - 0xAC00
+    eun_neun = "은" if (0 <= code < 11172 and code % 28 != 0) else "는"
+    return f"{item_name}{eun_neun} {label} 내 {direction} 가능성이 {prob}%입니다."
 
 
 def _model_scope(fc: Forecast) -> str:

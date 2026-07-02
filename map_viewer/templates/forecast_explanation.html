@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FARM MAP 가격 예측 설명</title>
+  <title>MK-MAP 가격 예측 설명</title>
   <style>
     :root {
       --bg: #f6f7f4;
@@ -460,10 +460,10 @@
   <div class="shell" id="forecast-explanation-root">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">FM</div>
+        <div class="brand-mark">MK</div>
         <div>
-          <h1>FARM MAP 가격 예측</h1>
-          <p>품목별 예측 설명 리포트</p>
+          <h1>MK-MAP 가격 예측 분석</h1>
+          <p>품목별 예측 상세</p>
         </div>
       </div>
       <div class="date-pill" id="base-date">기준일 확인 중</div>
@@ -543,11 +543,29 @@
   <script>
     const API_BASE = "{{ api_base }}";
     const ITEMS = [
-      { code: "cabbage", name: "배추" },
-      { code: "radish", name: "무" },
-      { code: "onion", name: "양파" },
-      { code: "green_onion", name: "대파" },
-      { code: "garlic", name: "마늘" }
+      { code: "cabbage",      name: "배추"   },
+      { code: "radish",       name: "무"     },
+      { code: "onion",        name: "양파"   },
+      { code: "green_onion",  name: "대파"   },
+      { code: "garlic",       name: "마늘"   },
+      { code: "potato",       name: "감자"   },
+      { code: "sweet_potato", name: "고구마" },
+      { code: "pepper",       name: "건고추" },
+      { code: "fresh_pepper", name: "풋고추" },
+      { code: "tomato",       name: "토마토" },
+      { code: "cucumber",     name: "오이"   },
+      { code: "zucchini",     name: "애호박" },
+      { code: "carrot",       name: "당근"   },
+      { code: "spinach",      name: "시금치" },
+      { code: "lettuce",      name: "상추"   },
+      { code: "perilla",      name: "깻잎"   },
+      { code: "watermelon",   name: "수박"   },
+      { code: "chamoe",       name: "참외"   },
+      { code: "sesame",       name: "참깨"   },
+      { code: "apple",        name: "사과"   },
+      { code: "pear",         name: "배"     },
+      { code: "grape",        name: "포도"   },
+      { code: "strawberry",   name: "딸기"   },
     ];
 
     const state = {

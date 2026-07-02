@@ -482,7 +482,6 @@
     @media (max-width:768px) {
       .nav { padding:0 14px; height:50px; }
       .nav-logo { font-size:15px; }
-      .nav-link span { display:none; }
       .subheader { padding:8px 14px; gap:14px; }
       .main { padding:14px 12px; }
       .cat-btn { padding:6px 12px; font-size:12px; }
@@ -493,6 +492,18 @@
       .detail-body { padding:14px 16px; }
       .detail-title { font-size:15px; }
       .detail-price { font-size:18px; }
+      /* 시장동향 4열 → 2열 */
+      #dp-market-trend { grid-template-columns:repeat(2,1fr) !important; }
+      /* 리스크 그리드 3열 → 2열 */
+      .risk-grid { grid-template-columns:repeat(2,1fr) !important; }
+      /* 생산통계 + 데이터현황 세로 */
+      #dp-prod-coverage-grid { grid-template-columns:1fr !important; }
+    }
+    @media (max-width:480px) {
+      /* 리스크 그리드 2열 → 1열 */
+      .risk-grid { grid-template-columns:1fr !important; }
+      /* 시장동향 2열 → 1열 */
+      #dp-market-trend { grid-template-columns:1fr !important; }
     }
 
     /* ── 기타 ── */
@@ -525,15 +536,14 @@
   <a class="nav-logo" href="/">🌾 <span>MK</span>-MAP</a>
   <div class="nav-links">
     <a class="nav-link active" href="/">홈</a>
-    <a class="nav-link" href="/performance">성능 분석</a>
-    <a class="nav-link" id="admin-nav-link" href="#" style="display:none;" onclick="showAdmin()">관리</a>
+    <a class="nav-link" href="/performance">예측 신뢰</a>
   </div>
 </nav>
 
 <!-- ── 서브헤더 ── -->
 <div class="subheader" id="subheader">
-  <div class="subheader-stat"><div class="live-dot"></div><b id="sh-items">—</b> 개 품목 실시간 추적</div>
-  <div class="subheader-stat">AI 예측 가능: <b id="sh-preds">—</b></div>
+  <div class="subheader-stat"><div class="live-dot"></div><b id="sh-items">—</b>개 품목 추적 중</div>
+  <div class="subheader-stat">예측 가능: <b id="sh-preds">—</b></div>
   <div class="subheader-stat">기준일: <b id="sh-date">—</b></div>
   <div class="subheader-stat" style="margin-left:auto;font-size:11px;">가락시장 도매가 기준</div>
 </div>
@@ -567,7 +577,7 @@
     <div class="detail-body">
       <!-- 예측 배지 바 -->
       <div class="forecast-bar" id="dp-fbar">
-        <span class="fbar-label">AI 예측</span>
+        <span class="fbar-label">기간별 예측</span>
         <span class="fp fp-na" id="dp-f7"  onclick="selectHorizon(7)"  title="클릭하면 상세 보기">1주 —</span>
         <span class="fp fp-na" id="dp-f14" onclick="selectHorizon(14)" title="클릭하면 상세 보기">2주 —</span>
         <span class="fp fp-na" id="dp-f21" onclick="selectHorizon(21)" title="클릭하면 상세 보기">3주 —</span>
@@ -599,7 +609,7 @@
           </div>
         </div>
         <div style="font-size:11px;color:#999;margin-top:10px;line-height:1.6;" id="hdtl-explain">
-          LightGBM 앙상블 모델이 최근 가격 추이, 기상 데이터, 재배 면적 등 34개 피처를 기반으로 산출한 방향 예측입니다.
+          기간을 선택하면 해당 시점의 예측 방향과 신뢰도를 확인할 수 있습니다.
         </div>
       </div>
 
@@ -636,7 +646,7 @@
       </div>
 
       <!-- 생산 통계 + 데이터 현황 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+      <div id="dp-prod-coverage-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
         <div>
           <div class="section-label">🌾 재배면적 · 생산량 <span id="dp-prod-year" style="font-weight:400;color:#bbb;"></span></div>
           <div class="prod-row">
@@ -684,7 +694,7 @@
   <!-- ── 전체 현황 표 ── -->
   <div class="section-card">
     <div class="section-title">
-      📊 전체 품목 AI 예측 현황
+      📊 전체 품목 예측 현황
       <span style="font-size:12px;color:#999;font-weight:400;margin-left:4px;">클릭 시 상세 보기</span>
     </div>
     <div style="overflow-x:auto;">
@@ -709,30 +719,18 @@
     </div>
   </div>
 
-  <!-- ── 모델 성능 ── -->
-  <div class="section-card">
-    <div class="section-title">
-      🎯 모델 백테스트 성능
-      <button class="btn-sm" onclick="loadModelMetrics()">새로고침</button>
-      <span style="font-size:11px;color:#bbb;font-weight:400;margin-left:4px;">(관리자 키 필요)</span>
+  <!-- ── 예측 신뢰 현황 링크 ── -->
+  <div class="section-card" style="display:flex;align-items:center;gap:16px;padding:16px 22px;">
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#0f2744;margin-bottom:4px;">🎯 예측 신뢰 현황</div>
+      <div style="font-size:12px;color:#888;">품목별·기간별 예측 가능 여부와 모델 갱신 현황을 확인할 수 있습니다.</div>
     </div>
-    <div id="perf-table-wrap">
-      <span style="color:#bbb;font-size:12px;">새로고침을 눌러 성능 데이터를 불러오세요.</span>
-    </div>
-    <div id="backtest-wrap" style="display:none;margin-top:16px;">
-      <div class="section-label" id="backtest-title"></div>
-      <div class="backtest-legend">
-        <span><span class="leg-dot" style="background:#27ae60;"></span>예측 적중</span>
-        <span><span class="leg-dot" style="background:#e74c3c;"></span>예측 오류</span>
-      </div>
-      <canvas id="backtest-chart" height="100"></canvas>
-    </div>
+    <a href="/performance" style="padding:8px 18px;background:#0f2744;color:white;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;">신뢰 현황 보기 →</a>
   </div>
 
   <div class="disclaimer">
-    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터와 LightGBM 앙상블 모델(1주·2주·3주·4주·2개월·3개월)을 기반으로 한 참고 정보입니다.
+    ※ 본 서비스의 예측 결과는 KAMIS 공공데이터를 기반으로 한 참고 정보입니다.
     실제 가격은 시장 상황에 따라 달라질 수 있으며, 의사결정의 최종 책임은 사용자에게 있습니다.
-    데이터 취합 중인 품목은 예측 결과가 표시되지 않을 수 있습니다.
   </div>
 </div>
 
@@ -970,7 +968,7 @@ async function selectItem(code, scroll = true) {
   // 병렬: 차트 + 요인 + 생산통계 + 커버리지 + 히스토리(시장동향용)
   const [history, fc7] = await Promise.all([
     fetch(`${API}/api/v1/items/${code}/price-history?days=90`).then(r=>r.json()).catch(()=>null),
-    fetch(`${API}/api/v1/items/${code}/forecast?horizon=7`).then(r=>r.json()).catch(()=>null),
+    fetch(`${API}/api/v1/items/${code}/forecast`).then(r=>r.json()).catch(()=>null),
   ]);
 
   document.getElementById("dp-chart-title").textContent =
@@ -983,9 +981,9 @@ async function selectItem(code, scroll = true) {
   loadDataCoverage(code);
   loadMap(code);
 
-  // 기본 7일 horizon 선택
-  const hz = forecastCache[code] || {};
-  const firstAvail = [7,14,21,28,60,90].find(h => hz[String(h)]?.available !== false);
+  // 기본 horizon 선택 (사용 가능한 가장 짧은 기간)
+  const hzSel = forecastCache[code] || {};
+  const firstAvail = [7,14,21,28,60,90].find(h => hzSel[String(h)]?.available !== false);
   if (firstAvail) selectHorizon(firstAvail, false);
 }
 
@@ -1164,10 +1162,20 @@ function selectHorizon(h, scroll = true) {
   }
 
   document.getElementById("hdtl-conf").textContent = CONF[hd.confidence] || hd.confidence || "—";
+
+  // 품목·기간·방향에 맞춘 자연스러운 설명문
+  const meta = ITEM_META[currentItem] || {};
+  const iname = meta.name || currentItem;
+  const hLabel = H_STR[h] || `${h}일`;
+  const dirKo = dir === "up" ? "상승" : dir === "down" ? "하락" : "보합";
+  const confKo = { high:"높습니다", medium:"보통입니다", low:"낮으므로 참고 수준으로 활용하세요" }[hd.confidence] || "보통입니다";
+  const seasonHint = h >= 60
+    ? ` 장기 예측일수록 기상·수급 변화에 따른 오차가 커질 수 있습니다.`
+    : h <= 7
+    ? ` 단기 예측은 최근 가격 흐름과 거래량 추이에 큰 영향을 받습니다.`
+    : ``;
   document.getElementById("hdtl-explain").textContent =
-    `LightGBM 앙상블 모델이 최근 가격 추이, 기상 데이터, 재배면적 등 34개 피처로 산출했습니다. ` +
-    `${H_STR[h] || h+"일"} 후 ${dir==="up"?"상승":"하락"} 가능성이 ${probPct}입니다. ` +
-    `단, 기상 이변·수급 충격 등 돌발 변수는 반영되지 않습니다.`;
+    `${iname} ${hLabel} 예측입니다. ${dirKo} 가능성이 ${probPct}로, 예측 신뢰도는 ${confKo}.${seasonHint}`;
 }
 
 // ── 시장동향 ─────────────────────────────────────────────
@@ -1353,102 +1361,12 @@ async function loadOverview() {
   tbody.innerHTML = rows.join("") || '<tr><td colspan="9" class="loading-text">데이터 없음</td></tr>';
 }
 
-// ── 모델 성능 ────────────────────────────────────────────
-async function loadModelMetrics() {
-  const wrap = document.getElementById("perf-table-wrap");
-  wrap.innerHTML = '<span style="color:#bbb;font-size:13px;">로딩 중...</span>';
-  try {
-    const r = await fetch(`${API}/admin/model/metrics`,
-      { headers:{"X-Admin-Key": window._adminKey || ""} });
-    if (!r.ok) {
-      wrap.innerHTML = '<span style="color:#e74c3c;font-size:12px;">관리자 키 필요 — 콘솔에서 <code>window._adminKey = "..."</code> 입력 후 재시도</span>';
-      return;
-    }
-    const data = await r.json();
-    renderPerfTable(data);
-  } catch(e) {
-    wrap.innerHTML = `<span style="color:#e74c3c;font-size:12px;">오류: ${e.message}</span>`;
-  }
-}
+// ── (모델 성능은 /performance 페이지에서 제공) ──────────────
+// placeholder — backtestChart 참조 오류 방지
+async function loadBacktest() {}
+function renderPerfTable() {}
+async function loadModelMetrics() {}
 
-function renderPerfTable(data) {
-  const wrap = document.getElementById("perf-table-wrap");
-  const ORDER = Object.keys(ITEM_META);
-  let html = `<div style="overflow-x:auto"><table class="perf-table"><thead><tr>
-    <th class="item-col">품목</th>${HORIZONS.map(h=>`<th>${H_LABEL[h]}</th>`).join("")}
-  </tr></thead><tbody>`;
-  for (const code of ORDER) {
-    const item = data[code]; if (!item) continue;
-    const meta = ITEM_META[code] || {};
-    html += `<tr onclick="loadBacktest('${code}', 7)" title="클릭 시 백테스트">`;
-    html += `<td class="item-col">${meta.icon||""} ${item.item_name}</td>`;
-    for (const h of HORIZONS) {
-      const m = item.horizons[String(h)];
-      if (!m) { html += `<td style="color:#ddd">—</td>`; continue; }
-      if (m.reliable === false) { html += `<td style="color:#bbb;font-size:10px;">취합중</td>`; continue; }
-      const acc = m.calibrated_dir_acc ?? m.test_dir_acc;
-      const pct = acc != null ? `${(acc*100).toFixed(1)}%` : "—";
-      const cls = acc==null?"":acc>=0.60?"acc-high":acc>=0.52?"acc-mid":"acc-low";
-      const n = m.n_test ? `<br><span style="color:#bbb;font-weight:400;font-size:10px">n=${m.n_test}</span>` : "";
-      html += `<td class="${cls}">${pct}${n}</td>`;
-    }
-    html += `</tr>`;
-  }
-  html += `</tbody></table></div>`;
-  html += `<p style="font-size:11px;color:#bbb;margin-top:8px;">※ 테스트셋(최근 20%) 방향 예측 정확도. 행 클릭 시 백테스트 차트.</p>`;
-  wrap.innerHTML = html;
-}
-
-async function loadBacktest(code, horizon) {
-  const wrap = document.getElementById("backtest-wrap");
-  const title = document.getElementById("backtest-title");
-  const meta = ITEM_META[code] || {};
-  title.textContent = `${meta.name||code} — ${H_LABEL[horizon]||horizon+"일"} 백테스트`;
-  wrap.style.display = "block";
-  try {
-    const r = await fetch(`${API}/admin/model/backtest/${code}?horizon=${horizon}`,
-      { headers:{"X-Admin-Key": window._adminKey || ""} });
-    if (!r.ok) { title.textContent += " — 오류"; return; }
-    const d = await r.json();
-    const ctx = document.getElementById("backtest-chart").getContext("2d");
-    if (backtestChart) backtestChart.destroy();
-    backtestChart = new Chart(ctx, {
-      type:"line",
-      data: {
-        labels: d.dates.map(dt=>dt.slice(5)),
-        datasets:[{
-          label:"실제가격",
-          data:d.prices,
-          borderColor:"#2e74b5",
-          borderWidth:1.5,
-          pointRadius:5,
-          pointBackgroundColor:d.correct.map(ok=>ok?"#27ae60":"#e74c3c"),
-          pointBorderColor:d.correct.map(ok=>ok?"#27ae60":"#e74c3c"),
-          pointStyle:d.predicted.map(p=>p===1?"circle":"rectRot"),
-          tension:0.2,
-          fill:false,
-        }]
-      },
-      options: {
-        responsive:true,
-        plugins: {
-          legend:{display:false},
-          tooltip:{callbacks:{label:(ctx)=>{
-            const i=ctx.dataIndex;
-            return [`가격:${ctx.parsed.y.toLocaleString()}원`,
-              `예측:${d.predicted[i]===1?"↑상승":"↓하락"}`,
-              `실제:${d.actual[i]===1?"↑상승":"↓하락"}`,
-              d.correct[i]?"✓ 적중":"✗ 오류"];
-          }}}
-        },
-        scales:{
-          x:{ticks:{maxTicksLimit:12,font:{size:11}}},
-          y:{ticks:{font:{size:11}}}
-        }
-      }
-    });
-  } catch(e) {}
-}
 
 // ── 지도 ─────────────────────────────────────────────────
 const PROV_NAME_TO_SIDO = {
@@ -1653,6 +1571,7 @@ function setMapMode(mode) {
   document.querySelectorAll(".map-mode-btn").forEach(b =>
     b.classList.toggle("active", b.dataset.mode === mode)
   );
+  updateMapLegend(mode);
   if (mapViewLevel === "province") drawProvinces_();
   else if (mapCurrentProv) {
     const prefix = SIDO_TO_PREFIX[mapCurrentProv.sido] || "";
@@ -1660,19 +1579,34 @@ function setMapMode(mode) {
   }
 }
 
-// ── Admin 표시 ──────────────────────────────────────────
-function showAdmin() {
-  const key = prompt("관리자 키를 입력하세요:");
-  if (key) {
-    window._adminKey = key;
-    document.getElementById("admin-nav-link").style.display = "";
-    loadModelMetrics();
-  }
-  return false;
+function updateMapLegend(mode) {
+  const leg = document.getElementById("map-legend");
+  if (!leg) return;
+  const legends = {
+    production: `
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#f0e0ff"></div>생산 없음</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#bde0fb"></div>소규모</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#5db5e8"></div>중간</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#1a6bab"></div>주요 산지</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#0b2e5c"></div>최대 산지</div>
+      <span style="margin-left:auto;font-size:10px;color:#bbb;">KOSIS 2022 기준 · 클릭 시 시·군구 보기</span>`,
+    risk: `
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#d4edda"></div>출하 급증</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#fff3cd"></div>소폭 증가</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#fde8d8"></div>출하 감소</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#f8d7da"></div>급감 (위험)</div>
+      <span style="margin-left:auto;font-size:10px;color:#bbb;">전년 대비 출하량 기준</span>`,
+    shipment: `
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#bde0fb"></div>출하 증가</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#5db5e8"></div>보합</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#1a6bab"></div>출하 감소</div>
+      <div class="map-leg-item"><div class="map-leg-dot" style="background:#0b2e5c"></div>급감</div>
+      <span style="margin-left:auto;font-size:10px;color:#bbb;">전년 대비 출하 증감률</span>`,
+  };
+  leg.innerHTML = legends[mode] || legends.production;
 }
-// admin key 있으면 nav 표시
-if (window._adminKey) document.getElementById("admin-nav-link").style.display = "";
 
+updateMapLegend("production");
 init();
 </script>
 </body>

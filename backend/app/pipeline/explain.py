@@ -54,7 +54,25 @@ FEATURE_LABELS = {
 ITEM_NAMES = {
     "cabbage": "배추", "radish": "무", "onion": "양파",
     "green_onion": "대파", "garlic": "마늘",
+    "potato": "감자", "sweet_potato": "고구마",
+    "pepper": "고추", "fresh_pepper": "풋고추",
+    "tomato": "토마토", "cucumber": "오이",
+    "zucchini": "애호박", "carrot": "당근",
+    "spinach": "시금치", "lettuce": "상추",
+    "perilla": "깻잎", "watermelon": "수박",
+    "chamoe": "참외", "sesame": "참깨",
+    "apple": "사과", "pear": "배",
+    "grape": "포도", "strawberry": "딸기",
 }
+
+
+def _josa(name: str, josa_pair: tuple[str, str]) -> str:
+    """받침 여부에 따라 조사 선택. josa_pair = (받침있을때, 받침없을때)"""
+    last = name[-1] if name else ""
+    code = ord(last) - 0xAC00
+    if 0 <= code < 11172:
+        return josa_pair[0] if (code % 28) != 0 else josa_pair[1]
+    return josa_pair[1]
 
 
 def factor_to_korean(factor: dict) -> str:
@@ -81,13 +99,15 @@ def build_summary_text(
 ) -> str:
     """예측 결과 + top_factors → 한국어 자연어 요약 1~3문장"""
     item_name = ITEM_NAMES.get(item_code, item_code)
+    up_probability = up_probability or 0.5
     prob_pct = round(up_probability * 100)
 
     # 방향 문장
+    eun_neun = _josa(item_name, ("은", "는"))
     dir_map = {
-        "up":      f"{item_name} 가격은 향후 14일 내 **상승**할 가능성이 {prob_pct}%입니다.",
-        "down":    f"{item_name} 가격은 향후 14일 내 **하락**할 가능성이 {100-prob_pct}%입니다.",
-        "neutral": f"{item_name} 가격은 향후 14일 내 **보합** 흐름이 예상됩니다.",
+        "up":      f"{item_name}{eun_neun} 향후 14일 내 상승 가능성이 {prob_pct}%입니다.",
+        "down":    f"{item_name}{eun_neun} 향후 14일 내 하락 가능성이 {100-prob_pct}%입니다.",
+        "neutral": f"{item_name}{eun_neun} 향후 14일 내 보합 흐름이 예상됩니다.",
     }
     first = dir_map.get(direction_14d, dir_map["neutral"])
 
