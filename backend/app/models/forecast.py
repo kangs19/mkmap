@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, Date, DateTime, JSON, func, Index
+from sqlalchemy import String, Float, Date, DateTime, JSON, func, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date, datetime
 from app.database import Base
@@ -22,5 +22,6 @@ class Forecast(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     __table_args__ = (
+        UniqueConstraint("item_code", "base_date", name="uq_forecasts_item_date"),
         Index("ix_forecasts_item_date", "item_code", "base_date"),
     )
