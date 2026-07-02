@@ -1725,9 +1725,48 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
                 up_prob = max(0.05, min(0.95, up_prob))
 
                 today = kst_today()
+
+                # LightGBM feature importance (gain 기반 상위 8개)
+                _FEAT_KO = {
+                    "price_ma7":"7일 이동평균", "price_ma14":"14일 이동평균",
+                    "price_ma28":"28일 이동평균", "ret_1d":"전일 변화율",
+                    "ret_7d":"7일 수익률", "ret_14d":"14일 수익률",
+                    "volatility_7d":"단기 변동성", "volatility_14d":"중기 변동성",
+                    "price_vs_avg_year":"평년 대비 가격", "price_vs_prev_year":"전년 대비 가격",
+                    "ma7_vs_ma28":"단·장기 이격도", "sin_month":"계절성(sin)",
+                    "cos_month":"계절성(cos)", "w_avg_temp":"평균기온",
+                    "w_precipitation":"강수량", "w_temp_dev":"기온 편차",
+                    "w_temp_ma7":"7일 기온 평균", "w_precip_ma7":"7일 강수 평균",
+                    "w_heat_alert_7d":"폭염 경보", "w_cold_alert_7d":"한파 경보",
+                    "w_heavy_rain_7d":"집중호우", "kosis_area_dev":"재배면적 편차",
+                    "kosis_prod_dev":"생산량 편차", "kosis_supply_risk":"공급 위험도",
+                    "mkt_volume_kg":"거래량", "mkt_volume_ma7":"7일 거래량 평균",
+                    "mkt_volume_ma28":"28일 거래량 평균", "mkt_volume_vs_avg":"거래량 대비 평균",
+                    "mkt_volume_trend":"거래량 추세", "days_to_kimjang":"김장철 잔여일",
+                    "is_kimjang_season":"김장 시즌", "kimjang_proximity":"김장철 근접도",
+                    "days_to_chuseok":"추석 잔여일", "chuseok_proximity":"추석 근접도",
+                    "days_to_seol":"설날 잔여일", "seol_proximity":"설날 근접도",
+                    "is_school_demand":"개학 수요", "is_summer_break":"여름방학",
+                }
                 top_factors = [
                     {"factor": "lgbm_ensemble", "contribution": round(abs(pred_ens), 6), "direction": direction},
                 ]
+                if lgbm_model is not None:
+                    try:
+                        fi = lgbm_model.feature_importance(importance_type="gain")
+                        fn = lgbm_model.feature_name()
+                        pairs = sorted(zip(fn, fi), key=lambda x: -x[1])
+                        total_imp = sum(imp for _, imp in pairs) + 1e-8
+                        top_factors = [
+                            {
+                                "factor": _FEAT_KO.get(name, name),
+                                "contribution": round(float(imp) / total_imp, 4),
+                                "direction": direction,
+                            }
+                            for name, imp in pairs[:8] if imp > 0
+                        ] or top_factors
+                    except Exception:
+                        pass
                 stmt = pg_insert(Forecast).values([{
                     "item_code": item_code,
                     "base_date": today,

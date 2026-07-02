@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func, extract
 from app.database import get_db
 from app.models.item import Item, ItemRegion
 from app.models.price import DailyPrice
@@ -118,6 +118,33 @@ async def get_price_history(
     )
     rows = result.scalars().all()
 
+    # 평년가격 동적 계산: 같은 월-일의 과거 가격 평균
+    hist_q = await db.execute(
+        select(
+            extract("month", DailyPrice.date).label("m"),
+            extract("day",   DailyPrice.date).label("d"),
+            func.avg(DailyPrice.wholesale_price).label("avg_p"),
+        ).where(
+            and_(
+                DailyPrice.item_code == item_code,
+                DailyPrice.date < start_date,  # 요청 기간 이전 데이터만 사용
+            )
+        ).group_by("m", "d")
+    )
+    avg_map = {(int(r.m), int(r.d)): r.avg_p for r in hist_q.all()}
+
+    # 전년동기: 1년 전 같은 기간
+    py_result = await db.execute(
+        select(DailyPrice).where(
+            and_(
+                DailyPrice.item_code == item_code,
+                DailyPrice.date >= start_date - timedelta(days=365),
+                DailyPrice.date <= end_date   - timedelta(days=365),
+            )
+        ).order_by(DailyPrice.date)
+    )
+    py_rows = {r.date: r.wholesale_price for r in py_result.scalars().all()}
+
     return {
         "item_code": item_code,
         "item_name": item.item_name,
@@ -127,8 +154,16 @@ async def get_price_history(
             {
                 "date": str(r.date),
                 "price": r.wholesale_price,
-                "avg_year": r.avg_year_price,
-                "prev_year": r.prev_year_price,
+                "avg_year": (
+                    r.avg_year_price
+                    if r.avg_year_price is not None
+                    else avg_map.get((r.date.month, r.date.day))
+                ),
+                "prev_year": (
+                    r.prev_year_price
+                    if r.prev_year_price is not None
+                    else py_rows.get(r.date - timedelta(days=365))
+                ),
             }
             for r in rows
         ]
