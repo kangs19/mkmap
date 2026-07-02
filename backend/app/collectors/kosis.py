@@ -29,11 +29,14 @@ KOSIS_BASE = "https://kosis.kr/openapi/Param/statisticsParamData.do"
 # 품목별 재배면적 및 생산량 (연간)
 STAT_TABLE = {
     # orgId: 통계청(101), tblId: 농작물생산조사
-    "cabbage":     {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "배추"},
-    "radish":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "무"},
-    "onion":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "양파"},
-    "green_onion": {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "파"},
-    "garlic":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "마늘"},
+    "cabbage":      {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "배추"},
+    "radish":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "무"},
+    "onion":        {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "양파"},
+    "green_onion":  {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "파"},
+    "garlic":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "마늘"},
+    "potato":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "감자"},
+    "sweet_potato": {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "고구마"},
+    "pepper":       {"orgId": "101", "tblId": "DT_1ET0289", "item_name": "고추"},
 }
 
 # 전국 + 주요 시도 코드

@@ -726,16 +726,19 @@ async def admin_status(
     if item_count == 0:
         try:
             ITEMS = [
-                {"item_code": "cabbage",     "item_name": "배추", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
-                {"item_code": "radish",      "item_name": "무",   "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
-                {"item_code": "onion",       "item_name": "양파", "category": "채소류", "wholesale_unit": "20kg",  "is_active": True},
-                {"item_code": "green_onion", "item_name": "대파", "category": "채소류", "wholesale_unit": "1kg",   "is_active": True},
-                {"item_code": "garlic",      "item_name": "마늘", "category": "채소류", "wholesale_unit": "10kg",  "is_active": True},
+                {"item_code": "cabbage",      "item_name": "배추",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
+                {"item_code": "radish",       "item_name": "무",     "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+                {"item_code": "onion",        "item_name": "양파",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+                {"item_code": "green_onion",  "item_name": "대파",   "category": "채소류", "wholesale_unit": "1kg",  "is_active": True},
+                {"item_code": "garlic",       "item_name": "마늘",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
+                {"item_code": "potato",       "item_name": "감자",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+                {"item_code": "sweet_potato", "item_name": "고구마", "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+                {"item_code": "pepper",       "item_name": "건고추", "category": "채소류", "wholesale_unit": "30kg", "is_active": True},
             ]
             for item_data in ITEMS:
                 db.add(Item(**item_data))
             await db.commit()
-            item_count = 5
+            item_count = 8
             seed_result = "auto-seeded"
         except Exception as e:
             seed_result = f"seed-error: {e}"
@@ -1541,11 +1544,14 @@ async def _run_lgbm_training(db: "AsyncSession") -> dict:
     # Load weather data: 로컬 KMA agri 데이터 (kma_{item_code} region_code)
     # 실제 주산지 기상 관측소 데이터 — import/weather로 사전 업로드 필요
     ITEM_WEATHER_REGIONS = {
-        "cabbage":     ["kma_cabbage"],
-        "radish":      ["kma_radish"],
-        "onion":       ["kma_onion"],
-        "green_onion": ["kma_green_onion"],
-        "garlic":      ["kma_garlic"],
+        "cabbage":      ["kma_cabbage"],
+        "radish":       ["kma_radish"],
+        "onion":        ["kma_onion"],
+        "green_onion":  ["kma_green_onion"],
+        "garlic":       ["kma_garlic"],
+        "potato":       ["kma_potato"],
+        "sweet_potato": ["kma_sweet_potato"],
+        "pepper":       ["kma_pepper"],
     }
     all_region_codes = list({r for rs in ITEM_WEATHER_REGIONS.values() for r in rs})
     weather_result = await db.execute(
@@ -1935,37 +1941,46 @@ async def run_seed(db: AsyncSession = Depends(get_db), _=Depends(check_admin)):
     from app.models.item import Item, ItemRegion
 
     ITEMS = [
-        {"item_code": "cabbage",     "item_name": "배추", "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
-        {"item_code": "radish",      "item_name": "무",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "onion",       "item_name": "양파", "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
-        {"item_code": "green_onion", "item_name": "대파", "category": "채소류", "wholesale_unit": "1kg",  "is_active": True},
-        {"item_code": "garlic",      "item_name": "마늘", "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
+        {"item_code": "cabbage",      "item_name": "배추",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
+        {"item_code": "radish",       "item_name": "무",     "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+        {"item_code": "onion",        "item_name": "양파",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+        {"item_code": "green_onion",  "item_name": "대파",   "category": "채소류", "wholesale_unit": "1kg",  "is_active": True},
+        {"item_code": "garlic",       "item_name": "마늘",   "category": "채소류", "wholesale_unit": "10kg", "is_active": True},
+        {"item_code": "potato",       "item_name": "감자",   "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+        {"item_code": "sweet_potato", "item_name": "고구마", "category": "채소류", "wholesale_unit": "20kg", "is_active": True},
+        {"item_code": "pepper",       "item_name": "건고추", "category": "채소류", "wholesale_unit": "30kg", "is_active": True},
     ]
     REGIONS = [
-        ("cabbage",     "KR-46", "전남", "해남",  True),
-        ("cabbage",     "KR-42", "강원", "고랭지", False),
-        ("radish",      "KR-46", "전남", "무안",  True),
-        ("radish",      "KR-42", "강원", "고랭지", False),
-        ("onion",       "KR-46", "전남", "무안",  True),
-        ("onion",       "KR-48", "경남", "창원",  False),
-        ("green_onion", "KR-46", "전남", "진도",  True),
-        ("green_onion", "KR-41", "경기", "수원",  False),
-        ("garlic",      "KR-47", "경북", "의성",  True),
-        ("garlic",      "KR-46", "전남", "해남",  False),
+        ("cabbage",      "KR-46", "전남", "해남",   True),
+        ("cabbage",      "KR-42", "강원", "고랭지",  False),
+        ("radish",       "KR-46", "전남", "무안",   True),
+        ("radish",       "KR-42", "강원", "고랭지",  False),
+        ("onion",        "KR-46", "전남", "무안",   True),
+        ("onion",        "KR-48", "경남", "창원",   False),
+        ("green_onion",  "KR-46", "전남", "진도",   True),
+        ("green_onion",  "KR-41", "경기", "수원",   False),
+        ("garlic",       "KR-47", "경북", "의성",   True),
+        ("garlic",       "KR-46", "전남", "해남",   False),
+        ("potato",       "KR-42", "강원", "정선",   True),
+        ("potato",       "KR-47", "경북", "안동",   False),
+        ("sweet_potato", "KR-44", "충남", "해남",   True),
+        ("sweet_potato", "KR-46", "전남", "나주",   False),
+        ("pepper",       "KR-47", "경북", "안동",   True),
+        ("pepper",       "KR-48", "경남", "밀양",   False),
     ]
     try:
         added_items = 0
         for item_data in ITEMS:
-            existing = await db.execute(select(Item).where(Item.item_code == item_data["item_code"]))
-            if existing.scalar_one_or_none() is None:
+            existing = (await db.execute(select(Item).where(Item.item_code == item_data["item_code"]))).first()
+            if existing is None:
                 db.add(Item(**item_data))
                 added_items += 1
 
         for ic, rc, rn, sub, primary in REGIONS:
-            existing = await db.execute(
-                select(ItemRegion).where(ItemRegion.item_code == ic, ItemRegion.region_code == rc)
-            )
-            if existing.scalar_one_or_none() is None:
+            existing = (await db.execute(
+                select(ItemRegion).where(ItemRegion.item_code == ic, ItemRegion.region_code == rc).limit(1)
+            )).first()
+            if existing is None:
                 db.add(ItemRegion(item_code=ic, region_code=rc, region_name=rn, sub_region=sub, is_primary=primary))
 
         await db.commit()
@@ -1983,8 +1998,9 @@ async def get_model_metrics(_=Depends(check_admin)):
 
     model_dir = REPO_ROOT / "data" / "model"
     HORIZONS = [7, 14, 21, 28, 60, 90]
-    ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic"]
-    ITEM_NAMES = {"cabbage": "배추", "radish": "무", "onion": "양파", "green_onion": "대파", "garlic": "마늘"}
+    ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic", "potato", "sweet_potato", "pepper"]
+    ITEM_NAMES = {"cabbage": "배추", "radish": "무", "onion": "양파", "green_onion": "대파", "garlic": "마늘",
+                  "potato": "감자", "sweet_potato": "고구마", "pepper": "건고추"}
     HORIZON_LABELS = {7: "1주", 14: "2주", 21: "3주", 28: "4주", 60: "2개월", 90: "3개월"}
 
     result = {}

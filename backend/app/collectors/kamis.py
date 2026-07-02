@@ -15,11 +15,14 @@ KAMIS_BASE = "https://www.kamis.or.kr/service/price/xml.do"
 
 # 품목별 KAMIS 코드 — productno 는 도매(cls=02) 기준 실측값
 ITEM_CODE_MAP = {
-    "cabbage":     {"productno": "28",   "name": "배추",  "unit": "10kg",  "category": "200"},
-    "radish":      {"productno": "64",   "name": "무",    "unit": "20kg",  "category": "200"},
-    "onion":       {"productno": "117",  "name": "양파",  "unit": "20kg",  "category": "200"},
-    "green_onion": {"productno": "122",  "name": "대파",  "unit": "1kg",   "category": "200"},
-    "garlic":      {"productno": "1003", "name": "마늘",  "unit": "10kg",  "category": "200"},
+    "cabbage":     {"productno": "28",   "name": "배추",   "unit": "10kg",  "category": "200"},
+    "radish":      {"productno": "64",   "name": "무",     "unit": "20kg",  "category": "200"},
+    "onion":       {"productno": "117",  "name": "양파",   "unit": "20kg",  "category": "200"},
+    "green_onion": {"productno": "122",  "name": "대파",   "unit": "1kg",   "category": "200"},
+    "garlic":      {"productno": "1003", "name": "마늘",   "unit": "10kg",  "category": "200"},
+    "potato":      {"productno": "24",   "name": "감자",   "unit": "20kg",  "category": "200"},
+    "sweet_potato":{"productno": "20",   "name": "고구마", "unit": "20kg",  "category": "200"},
+    "pepper":      {"productno": "81",   "name": "건고추", "unit": "30kg",  "category": "200"},
 }
 
 ACTION_DAILY  = "dailySalesList"
@@ -135,11 +138,14 @@ async def fetch_price_range(
 # periodProductList 메타데이터 — config/external_mappings/kamis_price_mapping.csv 기준
 # itemcode/kindcode 검증: 봄 품종(01)이 30일 기준 가장 많은 데이터 보유
 _PERIOD_PRODUCT_META = {
-    "cabbage":     {"p_itemcategorycode": "200", "p_itemcode": "211", "p_kindcode": "01", "p_productrankcode": "04"},
-    "radish":      {"p_itemcategorycode": "200", "p_itemcode": "231", "p_kindcode": "01", "p_productrankcode": "04"},
-    "onion":       {"p_itemcategorycode": "200", "p_itemcode": "245", "p_kindcode": "00", "p_productrankcode": "04"},
-    "green_onion": {"p_itemcategorycode": "200", "p_itemcode": "246", "p_kindcode": "00", "p_productrankcode": "04"},
-    "garlic":      {"p_itemcategorycode": "200", "p_itemcode": "258", "p_kindcode": "03", "p_productrankcode": "04"},
+    "cabbage":      {"p_itemcategorycode": "200", "p_itemcode": "211", "p_kindcode": "01", "p_productrankcode": "04"},
+    "radish":       {"p_itemcategorycode": "200", "p_itemcode": "231", "p_kindcode": "01", "p_productrankcode": "04"},
+    "onion":        {"p_itemcategorycode": "200", "p_itemcode": "245", "p_kindcode": "00", "p_productrankcode": "04"},
+    "green_onion":  {"p_itemcategorycode": "200", "p_itemcode": "246", "p_kindcode": "00", "p_productrankcode": "04"},
+    "garlic":       {"p_itemcategorycode": "200", "p_itemcode": "258", "p_kindcode": "03", "p_productrankcode": "04"},
+    "potato":       {"p_itemcategorycode": "200", "p_itemcode": "232", "p_kindcode": "01", "p_productrankcode": "04"},
+    "sweet_potato": {"p_itemcategorycode": "200", "p_itemcode": "214", "p_kindcode": "01", "p_productrankcode": "04"},
+    "pepper":       {"p_itemcategorycode": "200", "p_itemcode": "257", "p_kindcode": "00", "p_productrankcode": "04"},
 }
 
 # periodProductList 가격 단위 보정 계수 (ITEM_CODE_MAP 단위 기준으로 맞춤)
