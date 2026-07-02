@@ -148,8 +148,8 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
 
         items_out.append({
             "item_code": code,
-            "direction_14d": f.direction_14d if f else None,
-            "up_probability_14d": f.up_probability_14d if f else None,
+            "direction_14d": (f.direction or f.direction_14d) if f else None,
+            "up_probability_14d": (f.up_probability or f.up_probability_14d) if f else None,
             "volatility_risk": f.volatility_risk_30d if f else None,
             "confidence": f.confidence if f else None,
             "risk_score": risk_score,

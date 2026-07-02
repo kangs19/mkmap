@@ -352,7 +352,7 @@ def _onion_features(base_date: date, idx: int, values: list[float]) -> dict:
     - storage_depletion_phase: 저장 소진기(9-12월) — 가격 상승 압력
     - import_season_risk: 수입 증가 시기(3-4월, 국내 재고 부족 기간)
     - price_acceleration_14d: 14일 가격 가속도 (저장 소진 감지)
-    - bimodal_cycle: 수확기(5-6월)와 저장기(10-11월) 2峰 사이클 sin/cos
+    - bimodal_cycle: 수확기(5-6월)와 저장기(10-11월) 2봉 사이클 sin/cos
     - ma_60d_gap: 60일 MA 대비 현재가 (장기 추세 편차)
     """
     m = base_date.month
@@ -380,7 +380,7 @@ def _onion_features(base_date: date, idx: int, values: list[float]) -> dict:
     else:
         price_acceleration = 0.0
 
-    # 2峰 사이클 (수확기=yday152 vs 저장기=yday305)
+    # 2봉 사이클 (수확기=yday152 vs 저장기=yday305)
     bimodal_phase = min(
         abs(day_of_year - 152),
         abs(day_of_year - 305),

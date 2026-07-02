@@ -14,10 +14,11 @@ FAST_CHECKS = [
     ("text encoding health", ["scripts/check_text_encoding_health.py"]),
     ("API service catalog smoke", ["scripts/smoke_api_services.py"]),
     ("price model smoke", ["scripts/smoke_price_model_pipeline.py"]),
-    ("forecast scope contract smoke", ["scripts/smoke_forecast_scope_contract.py"]),
 ]
 
 SLOW_CHECKS = [
+    # requires fastapi installed (Railway env) — run with --include-slow
+    ("forecast scope contract smoke", ["scripts/smoke_forecast_scope_contract.py"]),
     ("API contract smoke", ["scripts/smoke_api_contract.py"]),
     ("risk signal smoke", ["scripts/smoke_risk_signal.py"]),
 ]
@@ -45,6 +46,10 @@ PY_COMPILE_TARGETS = [
     "backend/app/routers/forecasts.py",
     "backend/app/routers/signals.py",
     "backend/app/scheduler.py",
+    "backend/app/collectors/sync.py",
+    "backend/app/collectors/kamis.py",
+    "backend/app/database.py",
+    "backend/app/routers/items.py",
 ]
 
 
