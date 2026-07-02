@@ -227,6 +227,11 @@
       margin-top: 20px;
       line-height: 1.7;
     }
+    /* 생산 통계 카드 */
+    .prod-stat { display:flex; gap:16px; flex-wrap:wrap; margin-top:6px; }
+    .prod-item { flex:1; min-width:80px; text-align:center; background:#f0f4fa; border-radius:6px; padding:8px; }
+    .prod-item .prod-val { font-size:16px; font-weight:700; color:#1a3a5c; }
+    .prod-item .prod-lbl { font-size:11px; color:#888; margin-top:2px; }
     /* 모델 성능 섹션 */
     .perf-section { margin-top: 24px; }
     .perf-section .section-title {
@@ -315,6 +320,25 @@
         <li class="loading">로딩 중...</li>
       </ul>
       <div style="margin-top:12px; font-size:11px; color:#bbb;">※ 모델 AUC: <span id="model-auc">—</span></div>
+    </div>
+  </div>
+
+  <!-- 생산 통계 + 데이터 커버리지 -->
+  <div class="grid grid-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">KOSIS 생산 통계 <span id="prod-year" style="font-size:11px;color:#999;"></span></div>
+      <div class="prod-stat" id="prod-stat">
+        <div class="prod-item"><div class="prod-val" id="prod-area">—</div><div class="prod-lbl">재배면적 (ha)</div></div>
+        <div class="prod-item"><div class="prod-val" id="prod-ton">—</div><div class="prod-lbl">생산량 (톤)</div></div>
+        <div class="prod-item"><div class="prod-val" id="prod-yield">—</div><div class="prod-lbl">10a당 수량 (kg)</div></div>
+      </div>
+      <div style="font-size:11px;color:#bbb;margin-top:8px;">※ 통계청 농작물생산조사(KOSIS) 기준</div>
+    </div>
+    <div class="card">
+      <div class="card-title">데이터 현황</div>
+      <div id="data-coverage" style="font-size:13px;color:#555;line-height:2;">
+        <span style="color:#aaa;">품목을 선택하면 표시됩니다.</span>
+      </div>
     </div>
   </div>
 
@@ -447,6 +471,8 @@ async function selectItem(item_code) {
     renderFactors(fc14);
   }
   renderChart(history);
+  loadProductionStats(item_code);
+  loadDataCoverage(item_code);
 }
 
 // ── horizon 카드 4개 렌더 ────────────────────────────────
@@ -655,6 +681,43 @@ async function loadOverview() {
         <td><span class="risk-pill risk-${rl}">${RISK_LABEL[rl]}</span></td>
       </tr>`;
   }).join("");
+}
+
+// ── 생산 통계 + 데이터 커버리지 ─────────────────────────
+async function loadProductionStats(item_code) {
+  try {
+    const r = await fetch(`${API}/api/v1/map/production?item_code=${item_code}`);
+    const d = await r.json();
+    const p = (d.production || [])[0];
+    if (!p) { document.getElementById("prod-area").textContent = "—"; return; }
+    document.getElementById("prod-year").textContent = `(${p.year}년 기준)`;
+    document.getElementById("prod-area").textContent  = p.area_ha ? p.area_ha.toLocaleString() : "—";
+    document.getElementById("prod-ton").textContent   = p.production_ton ? Math.round(p.production_ton).toLocaleString() : "—";
+    const yieldVal = (p.production_ton && p.area_ha) ? Math.round(p.production_ton / p.area_ha * 10) : null;
+    document.getElementById("prod-yield").textContent = yieldVal ? yieldVal.toLocaleString() : "—";
+  } catch(e) { document.getElementById("prod-area").textContent = "오류"; }
+}
+
+async function loadDataCoverage(item_code) {
+  const el = document.getElementById("data-coverage");
+  try {
+    const [hist, fc] = await Promise.all([
+      fetch(`${API}/api/v1/items/${item_code}/price-history?days=400`).then(r=>r.json()).catch(()=>null),
+      fetch(`${API}/api/v1/items/${item_code}/forecasts`).then(r=>r.json()).catch(()=>null),
+    ]);
+    const priceDays = hist && hist.data ? hist.data.length : 0;
+    const priceMin  = hist && hist.data && hist.data.length ? hist.data[0].date : "—";
+    const priceMax  = hist && hist.data && hist.data.length ? hist.data[hist.data.length-1].date : "—";
+    const fcDate    = fc ? fc.base_date : "—";
+    const available = fc && fc.horizons ? Object.values(fc.horizons).filter(h=>h.available!==false).length : 0;
+    const total     = fc && fc.horizons ? Object.keys(fc.horizons).length : 0;
+
+    el.innerHTML = `
+      <div>📈 <b>가격 데이터</b>: ${priceDays}일치 (${priceMin} ~ ${priceMax})</div>
+      <div>🔮 <b>예측 기간</b>: ${available}/${total}개 신뢰 가능 (기준일: ${fcDate})</div>
+      <div>🌾 <b>생산 통계</b>: KOSIS 연간 데이터 보유</div>
+      <div style="color:#bbb;font-size:11px;margin-top:4px;">※ 날씨·거래량은 데이터 취합 중</div>`;
+  } catch(e) { el.innerHTML = "오류"; }
 }
 
 // ── 모델 성능 / 백테스트 ────────────────────────────────
