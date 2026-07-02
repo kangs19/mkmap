@@ -1164,7 +1164,6 @@ function selectHorizon(h, scroll = true) {
   document.getElementById("hdtl-conf").textContent = CONF[hd.confidence] || hd.confidence || "—";
 
   // 품목·기간·방향에 맞춘 자연스러운 설명문
-  const meta = ITEM_META[currentItem] || {};
   const iname = meta.name || currentItem;
   const hLabel = H_STR[h] || `${h}일`;
   const dirKo = dir === "up" ? "상승" : dir === "down" ? "하락" : "보합";
