@@ -65,6 +65,32 @@ def _sido_of(market_name: str) -> str:
     return "기타"
 
 
+# 품목별 표준 품종만 채택 (얼갈이배추·총각무·깐마늘 등 다른 상품 혼입 방지)
+_VARIETY_EXCLUDE = {
+    "cabbage":     ["얼갈이", "쌈", "알배", "봄동"],
+    "radish":      ["총각", "열무", "알타리", "무순", "무청"],
+    "onion":       ["자주", "적색", "적양파"],
+    "garlic":      ["깐", "풋", "종"],
+    "green_onion": ["쪽파", "실파"],
+}
+_VARIETY_INCLUDE = {
+    "cabbage": "배추", "radish": "무", "onion": "양파",
+    "garlic": "마늘", "green_onion": "대파",
+}
+
+
+def _is_std_variety(item_code: str, sclsf: str) -> bool:
+    s = sclsf or ""
+    if "기타" in s:
+        return False
+    inc = _VARIETY_INCLUDE.get(item_code)
+    if inc and inc not in s:
+        return False
+    if any(x in s for x in _VARIETY_EXCLUDE.get(item_code, [])):
+        return False
+    return True
+
+
 def _fetch_page(api_key: str, date_str: str, filt: tuple, page: int, rows: int = 1000) -> dict:
     field, op, val = filt
     params = {
@@ -102,6 +128,9 @@ def _collect_crop_sync(api_key: str, date_str: str, item_code: str, filt: tuple,
             unit_nm = (it.get("unit_nm") or "").lower()
             if unit_nm != "kg":
                 continue
+            # 표준 품종만 (얼갈이배추·깐마늘 등 다른 상품 제외)
+            if not _is_std_variety(item_code, it.get("gds_sclsf_nm", "")):
+                continue
             try:
                 prc = float(it["scsbd_prc"])
                 uq = float(it.get("unit_qty") or 0)
@@ -110,8 +139,8 @@ def _collect_crop_sync(api_key: str, date_str: str, item_code: str, filt: tuple,
             if uq <= 0 or prc <= 0:
                 continue
             per_kg = prc / uq
-            # 비정상 이상치 컷 (kg당 100원 미만 / 100,000원 초과 제외)
-            if per_kg < 100 or per_kg > 100000:
+            # 비정상 이상치 컷 (kg당 100원 미만 / 50,000원 초과 제외)
+            if per_kg < 100 or per_kg > 50000:
                 continue
             mc = it.get("whsl_mrkt_cd")
             if not mc:
