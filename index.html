@@ -277,7 +277,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
       <span id="data-status-txt">로딩 중</span>
     </div>
     <button class="fm-bell" id="bell-btn" onclick="showToast('알림 기능은 준비 중입니다')" title="알림">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
-    <button class="fm-login-btn" onclick="showToast('로그인 기능은 준비 중입니다 (v2 예정)')">로그인</button>
+    <button class="fm-login-btn" id="hdr-auth-btn" onclick="openAuthModal()">로그인</button>
   </div>
 </header>
 
@@ -545,6 +545,38 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </aside>
 </div>
 
+<!-- 로그인 / 회원가입 모달 -->
+<div id="auth-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeAuthModal()">
+  <div style="background:white;border-radius:14px;padding:22px;width:320px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="font-size:16px;font-weight:800;margin-bottom:2px" id="auth-modal-title">로그인</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">MK-MAP 지역 커뮤니티에 참여하세요</div>
+    <input id="am-email" type="email" placeholder="이메일" autocomplete="username"
+      style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+    <input id="am-pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password"
+      style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:8px;font-size:13px"
+      onkeydown="if(event.key==='Enter'&&!amSignup)amDoLogin()">
+    <div id="am-signup-extra" style="display:none">
+      <input id="am-nick" placeholder="닉네임 (2~20자)" maxlength="20"
+        style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      <select id="am-role"
+        style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        <option value="general">일반회원</option>
+        <option value="farmer">농부 (인증은 추후 관리자 승인)</option>
+        <option value="trader">유통인</option>
+      </select>
+      <input id="am-region" placeholder="활동 지역 (선택, 예: 해남군)" maxlength="50"
+        style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+    </div>
+    <div id="am-msg" style="font-size:12px;color:#c02828;margin-bottom:8px;min-height:14px"></div>
+    <button id="am-primary" onclick="amPrimary()"
+      style="width:100%;padding:11px;border:none;border-radius:8px;background:#2e7d32;color:white;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">로그인</button>
+    <div style="text-align:center;font-size:12px;color:var(--muted)">
+      <span id="am-switch-label">계정이 없으신가요?</span>
+      <a href="#" onclick="amToggleMode();return false" style="color:#2e7d32;font-weight:700;margin-left:4px" id="am-switch-link">회원가입</a>
+    </div>
+  </div>
+</div>
+
 <!-- 우리지역 평가 모달 -->
 <div id="cm-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeFieldReport()">
   <div style="background:white;border-radius:14px;padding:20px;width:340px;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">
@@ -659,6 +691,9 @@ window.onload=async()=>{
 
   // 날씨 (mock)
   document.getElementById("hdr-weather").textContent="☀️ 맑음";
+
+  // 저장된 로그인 세션 반영 (헤더 버튼)
+  refreshAuthUI();
 
   // 타임라인 레이블
   buildTimeline();
@@ -1315,6 +1350,80 @@ async function loadCommunity(itemCode, regionName){
   fetchFieldSummary();
 }
 
+// 로그인 성공 시 공통 처리
+function applyAuthSuccess(d){
+  cmToken=d.token; cmUser=d.user; cmSignupMode=false;
+  localStorage.setItem("mk_token",cmToken);
+  localStorage.setItem("mk_user",JSON.stringify(cmUser));
+  refreshAuthUI();
+}
+
+// 헤더 버튼 + 커뮤니티 박스 동기화
+function refreshAuthUI(){
+  const btn=document.getElementById("hdr-auth-btn");
+  if(btn){
+    if(cmUser){
+      const badge=cmUser.role==="farmer"?"🌾":cmUser.role==="trader"?"🚚":"👤";
+      btn.textContent=`${badge} ${cmUser.nickname}`;
+      btn.onclick=()=>{ if(confirm("로그아웃 하시겠습니까?")) cmLogout(); };
+    }else{
+      btn.textContent="로그인";
+      btn.onclick=openAuthModal;
+    }
+  }
+  if(cmItem) loadCommunity(cmItem,cmRegion);
+}
+
+// ── 헤더 로그인/회원가입 모달 ──────────────────────────────
+let amSignup=false;
+function openAuthModal(){
+  amSignup=false;
+  document.getElementById("am-msg").textContent="";
+  document.getElementById("am-email").value="";
+  document.getElementById("am-pw").value="";
+  amRenderMode();
+  document.getElementById("auth-modal").style.display="flex";
+  setTimeout(()=>document.getElementById("am-email").focus(),50);
+}
+function closeAuthModal(){document.getElementById("auth-modal").style.display="none";}
+function amToggleMode(){amSignup=!amSignup;document.getElementById("am-msg").textContent="";amRenderMode();}
+function amRenderMode(){
+  document.getElementById("am-signup-extra").style.display=amSignup?"block":"none";
+  document.getElementById("am-modal-title").textContent=amSignup?"회원가입":"로그인";
+  document.getElementById("am-primary").textContent=amSignup?"가입하기":"로그인";
+  document.getElementById("am-switch-label").textContent=amSignup?"이미 계정이 있으신가요?":"계정이 없으신가요?";
+  document.getElementById("am-switch-link").textContent=amSignup?"로그인":"회원가입";
+}
+function amPrimary(){ amSignup?amDoRegister():amDoLogin(); }
+async function amDoLogin(){
+  const email=document.getElementById("am-email").value.trim();
+  const pw=document.getElementById("am-pw").value;
+  const msg=document.getElementById("am-msg");
+  if(!email||!pw){msg.textContent="이메일과 비밀번호를 입력해 주세요.";return;}
+  try{
+    const r=await fetch("/api/v1/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pw})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail?.message||"로그인에 실패했습니다.");
+    applyAuthSuccess(d); closeAuthModal();
+  }catch(e){msg.textContent=e.message;}
+}
+async function amDoRegister(){
+  const email=document.getElementById("am-email").value.trim();
+  const pw=document.getElementById("am-pw").value;
+  const nick=document.getElementById("am-nick").value.trim();
+  const role=document.getElementById("am-role").value;
+  const region=document.getElementById("am-region").value.trim()||null;
+  const msg=document.getElementById("am-msg");
+  if(!email||!pw||!nick){msg.textContent="이메일·비밀번호·닉네임을 모두 입력해 주세요.";return;}
+  if(pw.length<6){msg.textContent="비밀번호는 6자 이상이어야 합니다.";return;}
+  try{
+    const r=await fetch("/api/v1/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pw,nickname:nick,role,region})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail?.message||(Array.isArray(d.detail)?d.detail[0]?.msg:null)||"가입에 실패했습니다.");
+    applyAuthSuccess(d); closeAuthModal();
+  }catch(e){msg.textContent=e.message;}
+}
+
 function renderAuthBox(){
   const el=document.getElementById("cm-auth-box");
   const chip=document.getElementById("cm-user-chip");
@@ -1325,81 +1434,18 @@ function renderAuthBox(){
     return;
   }
   chip.innerHTML="";
-  el.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-    <div style="font-size:12px;font-weight:700;margin-bottom:6px">로그인하고 이야기를 나눠보세요</div>
-    <div id="cm-auth-form">
-      <input id="cm-email" type="email" placeholder="이메일" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-      <input id="cm-pw" type="password" placeholder="비밀번호" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-      <div id="cm-signup-extra" style="display:none">
-        <input id="cm-nick" placeholder="닉네임 (2~20자)" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-        <select id="cm-role" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-          <option value="general">일반회원</option>
-          <option value="farmer">농부 (인증은 추후 관리자 승인)</option>
-          <option value="trader">유통인</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button onclick="cmLogin()" id="cm-login-btn" style="flex:1;padding:8px;border:none;border-radius:6px;background:#2e7d32;color:white;font-weight:700;font-size:12px;cursor:pointer">로그인</button>
-        <button onclick="cmToggleSignup()" id="cm-signup-btn" style="flex:1;padding:8px;border:1px solid #2e7d32;border-radius:6px;background:white;color:#2e7d32;font-weight:700;font-size:12px;cursor:pointer">회원가입</button>
-      </div>
-      <div id="cm-auth-msg" style="font-size:11px;color:#c02828;margin-top:4px"></div>
-    </div>
+  el.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px">로그인하고 이야기를 나눠보세요</div>
+    <button onclick="openAuthModal()" style="width:100%;padding:10px;border:none;border-radius:6px;background:#2e7d32;color:white;font-weight:700;font-size:13px;cursor:pointer">로그인 / 회원가입</button>
   </div>`;
 }
 
 let cmSignupMode=false;
-function cmToggleSignup(){
-  const extra=document.getElementById("cm-signup-extra");
-  if(!cmSignupMode){
-    cmSignupMode=true;
-    extra.style.display="block";
-    document.getElementById("cm-login-btn").style.display="none";
-    document.getElementById("cm-signup-btn").textContent="가입하기";
-  }else{
-    cmRegister();
-  }
-}
-
-async function cmLogin(){
-  const email=document.getElementById("cm-email").value.trim();
-  const pw=document.getElementById("cm-pw").value;
-  const msg=document.getElementById("cm-auth-msg");
-  if(!email||!pw){msg.textContent="이메일과 비밀번호를 입력해 주세요.";return;}
-  try{
-    const r=await fetch("/api/v1/auth/login",{method:"POST",headers:cmHeaders(true),body:JSON.stringify({email,password:pw})});
-    const d=await r.json();
-    if(!r.ok) throw new Error(d.detail?.message||"로그인 실패");
-    cmToken=d.token; cmUser=d.user;
-    localStorage.setItem("mk_token",cmToken);
-    localStorage.setItem("mk_user",JSON.stringify(cmUser));
-    cmSignupMode=false;
-    loadCommunity(cmItem,cmRegion);
-  }catch(e){msg.textContent=e.message;}
-}
-
-async function cmRegister(){
-  const email=document.getElementById("cm-email").value.trim();
-  const pw=document.getElementById("cm-pw").value;
-  const nick=document.getElementById("cm-nick").value.trim();
-  const role=document.getElementById("cm-role").value;
-  const msg=document.getElementById("cm-auth-msg");
-  if(!email||!pw||!nick){msg.textContent="이메일·비밀번호·닉네임을 모두 입력해 주세요.";return;}
-  try{
-    const r=await fetch("/api/v1/auth/register",{method:"POST",headers:cmHeaders(true),body:JSON.stringify({email,password:pw,nickname:nick,role})});
-    const d=await r.json();
-    if(!r.ok) throw new Error(d.detail?.message||(d.detail?.[0]?.msg)||"가입 실패");
-    cmToken=d.token; cmUser=d.user;
-    localStorage.setItem("mk_token",cmToken);
-    localStorage.setItem("mk_user",JSON.stringify(cmUser));
-    cmSignupMode=false;
-    loadCommunity(cmItem,cmRegion);
-  }catch(e){msg.textContent=e.message;}
-}
 
 function cmLogout(){
   cmToken=null; cmUser=null; cmSignupMode=false;
   localStorage.removeItem("mk_token"); localStorage.removeItem("mk_user");
-  loadCommunity(cmItem,cmRegion);
+  refreshAuthUI();
 }
 
 function renderInputBox(){
