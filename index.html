@@ -2270,14 +2270,8 @@ function drawCities(sido){
 
   // 시군 hover 카드 공통 함수
   function showCityTooltip(name,d,e){
-    if(navLevel==="city"){
-      const rp=d?.sido?LIVE_REGIONAL_PRICES[curItem]?.sido_avg?.[d.sido]:null;
-      const price=rp?(priceViewMode==="retail"?rp.retail:rp.wholesale):d?.avg_price||0;
-      const priceStr=price?`<span style="color:#1a3d66;font-weight:800"> ${price.toLocaleString()}원</span>`:"";
-      showMapTooltip(`<div style="padding:5px 10px;font-size:12px;font-weight:700;color:#1a2410">${name}${priceStr}</div>`,e);
-    } else {
-      showMapTooltip(makeHoverCard(name,d),e);
-    }
+    // 확대(city) 이후에도 상세 팝업 카드를 계속 표시
+    showMapTooltip(makeHoverCard(name,d,d?.sido),e);
   }
 
   cityLayer=L.geoJSON(filtered,{

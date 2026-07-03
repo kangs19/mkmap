@@ -294,16 +294,10 @@ async def get_map_production(
 @router.get("/api/v1/map/regional-prices")
 async def get_regional_prices(
     item_code: str = "cabbage",
-    recollect: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
     """지역별 최신 도매가·소매가 — 지도 choropleth 용"""
     from sqlalchemy import func as sqlfunc
-
-    # 임시: 표준 품종 필터 반영해 재수집 (배포 후 1회 트리거용)
-    if recollect:
-        from app.collectors.regional import collect_regional_prices
-        return await collect_regional_prices(days=3)
 
     # 각 (item_code, market_code) 조합의 최신 날짜
     subq = (
