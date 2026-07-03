@@ -167,6 +167,16 @@ def _collect_crop_sync(api_key: str, date_str: str, item_code: str, filt: tuple,
             "wholesale_price": float(w),
             "retail_price": float(round(w * 1.35)),  # 경락엔 소매 없음 → 추정
         }
+
+    # 시장 간 이상치 제거 — 전체 시장 중앙값의 3.5배 벗어나는 시장 제외
+    # (예: 구리 마늘 40,000원 같은 명백한 데이터 오류)
+    if len(result) >= 4:
+        med_all = statistics.median([v["wholesale_price"] for v in result.values()])
+        if med_all > 0:
+            result = {
+                mc: v for mc, v in result.items()
+                if med_all / 3.5 <= v["wholesale_price"] <= med_all * 3.5
+            }
     return result
 
 
