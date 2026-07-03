@@ -90,7 +90,12 @@ def _user_out(u: User) -> dict:
         "email": u.email,
         "nickname": u.nickname,
         "role": u.role,
-        "role_label": {"general": "일반회원", "farmer": "인증 농부", "trader": "유통인", "admin": "관리자"}.get(u.role, u.role),
+        "role_label": {
+            "general": "일반회원",
+            "farmer": "인증 농부" if u.farmer_verified else "농부 (인증 대기)",
+            "trader": "유통인",
+            "admin": "관리자",
+        }.get(u.role, u.role),
         "farmer_verified": u.farmer_verified,
         "region": u.region,
         "trust_score": u.trust_score,
