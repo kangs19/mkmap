@@ -118,6 +118,14 @@ async def daily_pipeline():
     except Exception as exc:
         logger.warning("[scheduler] regional price collection failed: %s", exc)
 
+    # 전국 농업용수 저수율 가뭄 지표 (MAFRA 669)
+    try:
+        from app.collectors.mafra import collect_drought_index
+        dr = await collect_drought_index()
+        logger.info("[scheduler] drought index: %s", dr)
+    except Exception as exc:
+        logger.warning("[scheduler] drought index collection failed: %s", exc)
+
     try:
         from app.database import AsyncSessionLocal
         from app.routers.signals import get_today_report

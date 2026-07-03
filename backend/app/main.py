@@ -119,6 +119,18 @@ async def _auto_recover():
     except Exception as exc:
         logging.error("[auto_recover] regional price backfill failed: %s", exc)
 
+    # 가뭄 지표(저수율) 없으면 수집
+    try:
+        from app.models.drought import DroughtIndex
+        async with AsyncSessionLocal() as db:
+            dcount = (await db.execute(select(func.count()).select_from(DroughtIndex))).scalar()
+        if not dcount:
+            from app.collectors.mafra import collect_drought_index
+            dr = await collect_drought_index()
+            logging.info("[auto_recover] drought index backfilled: %s", dr)
+    except Exception as exc:
+        logging.error("[auto_recover] drought index backfill failed: %s", exc)
+
     async with AsyncSessionLocal() as db:
         today = kst_today()
         signal_count = (

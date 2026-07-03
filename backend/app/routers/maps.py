@@ -143,6 +143,42 @@ GET {base}/api/v1/report/today</pre>
     return HTMLResponse(content=guide)
 
 
+@router.get("/api/v1/drought")
+async def get_drought_index(db: AsyncSession = Depends(get_db)):
+    """전국 농업용수 저수율 가뭄 지표 (MAFRA 669). 최신 + 3개월 추이."""
+    from app.models.drought import DroughtIndex
+    rows = (await db.execute(
+        select(DroughtIndex).order_by(DroughtIndex.base_ym.desc()).limit(4)
+    )).scalars().all()
+    if not rows:
+        return {"available": False}
+    latest = rows[0]
+    trend = [
+        {"ym": r.base_ym, "reservoir_rate": r.reservoir_rate}
+        for r in reversed(rows)
+    ]
+    # 저수율 수준 라벨 (농업용수 기준 통상 50% 미만 주의, 40% 미만 경계)
+    r = latest.reservoir_rate or 0
+    if r >= 60:
+        level, label = "normal", "정상"
+    elif r >= 50:
+        level, label = "watch", "주의"
+    elif r >= 40:
+        level, label = "caution", "경계"
+    else:
+        level, label = "alert", "심각"
+    return {
+        "available": True,
+        "base_ym": latest.base_ym,
+        "reservoir_rate": latest.reservoir_rate,
+        "rainfall_avg": latest.rainfall_avg,
+        "region_count": latest.region_count,
+        "level": level, "level_label": label,
+        "trend": trend,
+        "note": "전국 농업용수 저수율 평균. 저수율이 낮으면 가뭄으로 공급 감소·가격 상승 위험이 있습니다.",
+    }
+
+
 @router.get("/api/v1/map/signals")
 async def get_map_signals(
     item_code: str = "cabbage",
