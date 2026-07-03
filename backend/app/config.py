@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     kosis_api_key: str = ""
     ecos_api_key: str = ""
     agromarket_api_key: str = ""   # 도매시장 통합홈페이지 실시간 경락 API (api.agromarket.kr)
+    mafra_api_key: str = ""         # MAFRA 오픈API 211.237 채널 (저수율/특보 등). 미설정 시 agromarket 키 재사용
 
     api_secret_key: str = "change-this-secret-key"
     jwt_secret_key: str = "change-this-jwt-secret"
