@@ -1074,9 +1074,19 @@ def _percent_label(value: float | None) -> str:
     return f"{round(value * 100)}%"
 
 
+def _josa_eunneun(word: str) -> str:
+    """한글 받침 유무에 따라 은/는 반환."""
+    if not word:
+        return "는"
+    code = ord(word[-1]) - 0xAC00
+    if 0 <= code < 11172 and code % 28 != 0:
+        return "은"
+    return "는"
+
+
 def _build_explanation_headline(fc: Forecast, item_name: str) -> str:
     return (
-        f"{item_name}은 향후 14일 기준 {_direction_label(fc.direction_14d)} 가능성이 "
+        f"{item_name}{_josa_eunneun(item_name)} 향후 14일 기준 {_direction_label(fc.direction_14d)} 가능성이 "
         f"{_percent_label(fc.up_probability_14d)}로 계산되었습니다."
     )
 

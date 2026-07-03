@@ -110,6 +110,14 @@ async def daily_pipeline():
     except Exception as exc:
         logger.warning("[scheduler] KAMIS/KMA sync failed: %s", exc)
 
+    # 지역별 도매/소매 가격 수집 (도매/소매 토글·지도 핀 가격용)
+    try:
+        from app.collectors.regional import collect_regional_prices
+        reg_r = await collect_regional_prices(days=3)
+        logger.info("[scheduler] regional prices collected: saved=%s", reg_r.get("rows_saved", "?"))
+    except Exception as exc:
+        logger.warning("[scheduler] regional price collection failed: %s", exc)
+
     try:
         from app.database import AsyncSessionLocal
         from app.routers.signals import get_today_report

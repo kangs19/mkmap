@@ -61,6 +61,7 @@ async def list_comments(
             CommunityComment.item_code == item_code,
             CommunityComment.region == region,
             CommunityComment.reports < _REPORT_HIDE_THRESHOLD,
+            CommunityComment.is_deleted == False,  # noqa: E712
         )
         .order_by(desc(CommunityComment.created_at))
         .limit(min(limit, 100))

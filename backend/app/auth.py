@@ -54,6 +54,9 @@ async def verify_api_key(request: Request) -> Optional[str]:
     path = request.url.path
     if path.startswith("/api/v1/items/") and path.endswith("/forecast/explanation"):
         return None
+    # 회원/커뮤니티는 자체 Bearer 토큰 인증 — API 키 게이트와 무관하게 항상 공개
+    if path.startswith("/api/v1/auth/") or path.startswith("/api/v1/community"):
+        return None
 
     # 공개 경로 통과
     if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
