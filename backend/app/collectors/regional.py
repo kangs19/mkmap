@@ -157,7 +157,10 @@ def _collect_crop_sync(api_key: str, date_str: str, item_code: str, filt: tuple,
         # 표본이 너무 적은 시장은 제외 (중앙값 왜곡 방지)
         if len(prices) < 3:
             continue
-        w = round(statistics.median(prices))
+        # 시장 내 단일 이상치(예: 고랭지 프리미엄 1건) 트림 후 중앙값
+        m = statistics.median(prices)
+        trimmed = [p for p in prices if m / 3 <= p <= m * 3] or prices
+        w = round(statistics.median(trimmed))
         result[mc] = {
             "market_name": market_name.get(mc, mc),
             "sido": _sido_of(market_name.get(mc, "")),
