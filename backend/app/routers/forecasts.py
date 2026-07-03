@@ -162,155 +162,155 @@ def _horizon_phase(days: int) -> str:
 # notes:   {phase: [str]}
 _CROP_STATIC: dict = {
     "cabbage": {
-        "headline": "배추 — 고랭지·평야 출하 교체기, 김장철 수요 예측",
+        "headline": "배추 — 날씨와 김장철이 가격을 좌우합니다",
         "reasons": {
             "short": [
-                {"label": "산지 기상 충격", "direction": "up", "direction_label": "↑ 단기 급등 리스크",
-                 "description": "폭염·집중호우·냉해 발생 시 생육 피해가 1~3주 내 출하량 감소로 이어져 가격이 빠르게 반응합니다."},
-                {"label": "현재 출하 수준", "direction": "neutral", "direction_label": "→ 출하 동향 주시",
-                 "description": "가락시장 일일 입하량과 평균 경락가를 기반으로 1~2주 수급 균형을 평가합니다. 입하 감소 시 즉시 상승 신호입니다."},
-                {"label": "도매시장 재고 회전", "direction": "neutral", "direction_label": "→ 단기 지표",
-                 "description": "산지-도매 간 반입 시차(2~5일)를 감안할 때, 산지 작황 변화는 1주일 내 시장가에 반영됩니다."},
+                {"label": "날씨 피해", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "폭염이나 큰비, 갑작스러운 추위가 오면 밭에 있는 배추가 무르거나 상해서 시장에 나오는 물량이 줄어듭니다. 물량이 줄면 배추값은 한두 주 안에 빠르게 오릅니다."},
+                {"label": "요즘 시장에 나오는 물량", "direction": "neutral", "direction_label": "→ 지켜보는 중",
+                 "description": "서울 가락시장에 매일 들어오는 배추 물량을 보고 있습니다. 들어오는 물량이 평소보다 적어지면 곧 값이 오른다는 신호이고, 많아지면 값이 내린다는 신호입니다."},
+                {"label": "산지에서 시장까지 걸리는 시간", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "밭에서 뽑은 배추가 도매시장에 도착하기까지 보통 2~5일 걸립니다. 그래서 산지에서 문제가 생기면 일주일 안에 시장 가격에 나타납니다."},
             ],
             "medium": [
-                {"label": "고랭지→평야 출하 교체", "direction": "up", "direction_label": "↑ 공급 절벽 위험",
-                 "description": "강원 고랭지 배추(7~9월)가 마감되는 9월 말~10월 초, 가을 평야지 배추 출하 전 공백기에 가격이 상승합니다."},
-                {"label": "김장 수요 선반영", "direction": "up", "direction_label": "↑ 수요 압박",
-                 "description": "소비자와 도매업체가 2개월 후 김장 성수기를 앞두고 선 매입을 늘리면서 시세가 선행 상승합니다."},
-                {"label": "전국 재배면적 통계", "direction": "neutral", "direction_label": "→ 공급 예측 변수",
-                 "description": "농촌진흥청 작황 조사(월별)에서 나타나는 전국 생산 예상량이 2개월 후 가격 방향을 결정합니다."},
+                {"label": "강원도 배추가 끝나는 시기", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "여름에는 강원도 높은 산지에서 배추가 나오는데, 9월 말이면 끝납니다. 그다음 가을배추가 나오기 전까지 잠깐 물량이 끊기는 시기가 있어서, 이때 배추값이 오르곤 합니다."},
+                {"label": "김장 준비 미리 사두기", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "김장철이 다가오면 장사하는 분들이 배추를 미리 사두기 시작합니다. 사려는 사람이 많아지니 김장철이 오기 전부터 값이 먼저 오릅니다."},
+                {"label": "올해 심은 배추 양", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "올해 전국에서 배추를 얼마나 심었는지 나라에서 매달 조사합니다. 많이 심었으면 두 달 뒤 값이 내려가기 쉽고, 적게 심었으면 오르기 쉽습니다."},
             ],
             "long": [
-                {"label": "김장철 수요 집중", "direction": "up", "direction_label": "↑ 연간 최대 수요기",
-                 "description": "10~11월 전국 가정의 김장 담그기가 집중되면서 배추 수요가 연간 최고점에 달합니다. 이 시기 공급이 부족하면 가격이 급등합니다."},
-                {"label": "겨울 공급 감소", "direction": "up", "direction_label": "↑ 계절적 가격 상승",
-                 "description": "12월 이후 노지 생산이 중단되고 시설·저장 물량으로만 공급이 유지되어 가격 강세가 지속됩니다."},
-                {"label": "전년 파종 면적 피드백", "direction": "neutral", "direction_label": "→ 장기 공급 조정",
-                 "description": "금년 가격이 높으면 내년 농가 파종 면적이 증가해 가격 하락 압력이 생기는 사이클이 반복됩니다."},
+                {"label": "김장철 (10~11월)", "direction": "up", "direction_label": "↑ 일 년 중 가장 많이 찾는 때",
+                 "description": "10~11월에는 온 나라가 김장을 담그느라 배추를 가장 많이 삽니다. 이때 물량이 조금이라도 부족하면 배추값이 크게 뜁니다."},
+                {"label": "겨울에는 물량이 줄어요", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "12월이 지나면 밭에서 나는 배추가 없어지고, 창고에 저장해 둔 것과 비닐하우스 것만 나옵니다. 물량이 귀해지니 겨울 내내 값이 높게 유지되는 편입니다."},
+                {"label": "올해 값이 내년 농사를 정해요", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "올해 배추값이 좋으면 내년에 농가들이 배추를 더 많이 심습니다. 그러면 내년에는 물량이 많아져서 값이 내려가는 일이 반복됩니다."},
             ],
         },
         "notes": {
-            "short": ["단기 예측은 기상 정보가 가장 중요합니다. 기상청 폭염·한파 특보를 함께 모니터링하세요."],
-            "medium": ["고랭지 출하 마감 시점(9월 말)과 가을배추 출하 시작(10월 초)의 시차가 가격 변동성을 결정합니다."],
-            "long": ["3개월 예측은 김장철 수요와 산지 재배 계획 기반으로 방향성을 제시합니다. 실제 가격은 기상·수출입에 따라 조정될 수 있습니다."],
+            "short": ["앞으로 1~3주 배추값은 날씨가 가장 중요합니다. 폭염·한파 소식이 들리면 값이 오를 수 있다고 보시면 됩니다."],
+            "medium": ["9월 말 강원도 배추가 끝나고 10월 초 가을배추가 나오기 전까지가 값이 가장 출렁이는 시기입니다."],
+            "long": ["3개월 전망은 김장철 수요를 바탕으로 한 큰 방향입니다. 실제 값은 그때그때 날씨에 따라 달라질 수 있습니다."],
         },
     },
     "radish": {
-        "headline": "무 — 봄·가을 2회 출하 집중, 여름 단경기 주의",
+        "headline": "무 — 여름철 물량이 귀할 때를 조심하세요",
         "reasons": {
             "short": [
-                {"label": "단경기 공급 부족", "direction": "up", "direction_label": "↑ 단기 상승 리스크",
-                 "description": "여름(7~8월) 봄무 출하 종료 후 가을무 출하 전까지 공급 공백이 생겨 1~2주 내 가격이 오릅니다."},
-                {"label": "기상 충격 반응", "direction": "up", "direction_label": "↑ 즉각 반응",
-                 "description": "폭염·침수로 인한 산지 피해는 일주일 내 가락시장 입하량 감소로 나타나 단기 급등 트리거가 됩니다."},
+                {"label": "여름에는 물량이 귀해요", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "봄에 심은 무는 7월이면 다 나오고, 가을무는 아직 나오기 전입니다. 그 사이 여름(7~8월)에는 시장에 무가 귀해져서 값이 오르기 쉽습니다."},
+                {"label": "날씨 피해", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "폭염이나 물난리로 무밭이 피해를 입으면, 일주일 안에 시장에 들어오는 물량이 줄어들어 값이 갑자기 오를 수 있습니다."},
             ],
             "medium": [
-                {"label": "가을무 출하 준비 상황", "direction": "down", "direction_label": "↓ 공급 회복 신호",
-                 "description": "전남 해남·제주 가을무(9~10월)의 파종·생육 상황에 따라 2개월 후 공급 회복 여부가 결정됩니다."},
-                {"label": "저장 유통 비중", "direction": "neutral", "direction_label": "→ 완충 역할",
-                 "description": "무는 저장성이 비교적 높아 여름 단경기 중에도 저장 물량이 가격 급등을 일부 완화합니다."},
+                {"label": "가을무 농사 상황", "direction": "down", "direction_label": "↓ 값이 내릴 수 있어요",
+                 "description": "전남 해남과 제주에서 가을무 농사가 잘 되고 있으면, 두 달 뒤부터 물량이 넉넉해져서 값이 안정됩니다. 농사가 잘 안 되면 반대입니다."},
+                {"label": "창고에 저장해 둔 물량", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "무는 창고에 꽤 오래 보관할 수 있는 채소입니다. 시장에 물량이 부족해도 저장해 둔 무가 나와서 값이 지나치게 뛰는 것을 어느 정도 막아줍니다."},
             ],
             "long": [
-                {"label": "김장무 수요", "direction": "up", "direction_label": "↑ 계절 수요 집중",
-                 "description": "11월 김장철 깍두기·총각김치 재료 수요로 무 가격이 연중 최고 수준에 오르는 계절 패턴이 있습니다."},
-                {"label": "재배 의향 면적", "direction": "neutral", "direction_label": "→ 장기 공급 결정",
-                 "description": "금년 봄·가을 가격 수준이 다음 시즌 농가 파종 면적을 결정해 장기 공급량을 좌우합니다."},
+                {"label": "김장철 (11월)", "direction": "up", "direction_label": "↑ 일 년 중 가장 많이 찾는 때",
+                 "description": "11월 김장철에는 깍두기·총각김치 담그느라 무를 가장 많이 삽니다. 해마다 이맘때 무값이 일 년 중 가장 높은 수준까지 오르곤 합니다."},
+                {"label": "올해 값이 내년 농사를 정해요", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "올해 무값이 좋으면 다음 철에 농가들이 무를 더 많이 심어서, 나중에 물량이 많아지고 값이 내려가는 일이 반복됩니다."},
             ],
         },
         "notes": {
-            "short": ["여름 단경기(7~8월)는 무 가격 최대 급등 시기입니다. 이 시기 기상 이상에 특히 주의하세요."],
-            "medium": ["가을무 생육 진행 상황을 산지 작황 조사로 확인하면 2개월 예측 정확도를 높일 수 있습니다."],
-            "long": ["3개월 전망은 김장 수요기와 일치할 가능성이 높아 계절 상승 편향이 반영됩니다."],
+            "short": ["여름(7~8월)은 무값이 일 년 중 가장 크게 뛸 수 있는 시기입니다. 이때 날씨 소식을 잘 보세요."],
+            "medium": ["가을무 농사가 잘 되고 있는지가 두 달 뒤 무값을 정하는 가장 큰 요인입니다."],
+            "long": ["3개월 뒤는 김장철과 겹칠 수 있어서 값이 오르는 쪽으로 보는 경우가 많습니다."],
         },
     },
     "onion": {
-        "headline": "양파 — 연산 저장 재고와 수입이 연중 가격을 지배",
+        "headline": "양파 — 창고에 얼마나 남았는지가 값을 정합니다",
         "reasons": {
             "short": [
-                {"label": "산지 출하 동향", "direction": "neutral", "direction_label": "→ 단기 수급 지표",
-                 "description": "전남·경남 주산지에서 일일 출하되는 물량과 가락시장 경락가를 통해 1~2주 수급 흐름을 파악합니다."},
-                {"label": "저장 이행 물량", "direction": "down", "direction_label": "↓ 가격 안정화",
-                 "description": "5~6월 수확 직후 저온저장으로 이행되는 물량이 많을수록 단기 시장 공급이 줄어들어 가격이 지지됩니다."},
+                {"label": "요즘 시장에 나오는 물량", "direction": "neutral", "direction_label": "→ 지켜보는 중",
+                 "description": "전남·경남 산지에서 매일 시장으로 나오는 양파 물량을 보고 있습니다. 물량이 줄면 값이 오르고, 늘면 값이 내립니다."},
+                {"label": "창고로 들어가는 물량", "direction": "down", "direction_label": "↓ 값을 받쳐줘요",
+                 "description": "5~6월에 수확한 양파는 상당 부분 저온창고에 보관됩니다. 창고로 들어가는 양이 많으면 당장 시장에 나오는 물량이 줄어서 값이 크게 떨어지지 않습니다."},
             ],
             "medium": [
-                {"label": "저장 재고 소진율", "direction": "up", "direction_label": "↑ 2개월 핵심 변수",
-                 "description": "7~8월 저장 재고 소진이 예상보다 빠르면 2개월 내 공급 부족으로 가격 급등 리스크가 높아집니다."},
-                {"label": "수입 동향", "direction": "down", "direction_label": "↓ 가격 억제",
-                 "description": "국내 가격 상승 시 정부·민간의 중국산 양파 수입 확대 결정이 2~4주 내 효과를 나타냅니다."},
+                {"label": "창고 물량이 줄어드는 속도", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "저장해 둔 양파가 예상보다 빨리 팔려나가면, 두 달 안에 물량이 부족해져서 값이 크게 오를 수 있습니다. 창고에 얼마나 남았는지가 가장 중요합니다."},
+                {"label": "중국산 양파 수입", "direction": "down", "direction_label": "↓ 값이 내릴 수 있어요",
+                 "description": "국내 양파값이 많이 오르면 정부와 업체들이 중국산 양파를 들여옵니다. 수입 결정이 나면 2~4주 안에 물량이 들어와 값이 내려갑니다."},
             ],
             "long": [
-                {"label": "연산 재고율", "direction": "neutral", "direction_label": "→ 장기 가격 결정자",
-                 "description": "수확 후 저장 물량이 다음 해 5월 신규 수확 전까지 공급을 책임집니다. 재고율이 전년 대비 낮으면 연중 강세입니다."},
-                {"label": "봄철 파종 면적", "direction": "down", "direction_label": "↓ 내년 공급 신호",
-                 "description": "금년 가격이 높으면 이듬해 봄 파종 면적이 증가하여 내년 가격 하락 압력이 생기는 사이클이 있습니다."},
-                {"label": "중국 작황·환율", "direction": "neutral", "direction_label": "→ 수입가 변수",
-                 "description": "중국산 양파 수입가격은 중국 현지 작황과 원/위안 환율에 따라 결정되어 국내 가격의 상한선 역할을 합니다."},
+                {"label": "일 년 치 저장 물량", "direction": "neutral", "direction_label": "→ 가장 중요한 기준",
+                 "description": "양파는 한 번 수확한 것을 저장해 두고 다음 해 5월까지 일 년 내내 꺼내 씁니다. 그래서 저장 물량이 작년보다 적으면 일 년 내내 값이 높게 갑니다."},
+                {"label": "올해 값이 내년 농사를 정해요", "direction": "down", "direction_label": "↓ 내년에 내릴 수 있어요",
+                 "description": "올해 양파값이 좋으면 내년 봄에 농가들이 양파를 더 많이 심습니다. 그러면 내년에는 물량이 많아져 값이 내려가기 쉽습니다."},
+                {"label": "중국 농사와 환율", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "중국에서 양파 농사가 잘 됐는지, 환율이 어떤지에 따라 수입 양파 가격이 정해집니다. 수입 양파가 싸면 국내 양파값도 그 이상 오르기 어렵습니다."},
             ],
         },
         "notes": {
-            "short": ["양파 단기 가격은 현재 저장 출하 속도와 가락시장 경락가를 실시간 모니터링하는 것이 핵심입니다."],
-            "medium": ["정부 비축 방출·수입 결정 타이밍이 2개월 가격을 크게 흔들 수 있습니다."],
-            "long": ["저장 재고율과 중국산 수입 물량이 3개월 가격 전망의 양대 축입니다."],
+            "short": ["앞으로 몇 주 양파값은 창고에서 시장으로 나오는 물량이 얼마나 되는지에 달려 있습니다."],
+            "medium": ["정부가 비축 물량을 풀거나 수입을 결정하면 두 달 안에 값이 크게 움직일 수 있습니다."],
+            "long": ["3개월 전망은 창고에 남은 물량과 중국산 수입, 이 두 가지가 가장 중요합니다."],
         },
     },
     "green_onion": {
-        "headline": "대파 — 기상 민감도 1위, 단기 예측 신뢰도 가장 높음",
+        "headline": "대파 — 날씨에 가장 예민한 채소입니다",
         "reasons": {
             "short": [
-                {"label": "기상 즉각 반응", "direction": "up", "direction_label": "↑ 1~2주 급등 위험",
-                 "description": "한파·폭설·폭염 발생 시 대파는 농산물 중 가장 빠르게 반응해 1~2주 내에 50~200% 가격 급등 사례가 많습니다."},
-                {"label": "시장 출하 집중도", "direction": "neutral", "direction_label": "→ 단기 수급 현황",
-                 "description": "전남 진도·경기 수원 등 주산지 당일 출하 물량이 단기 가격의 직접 결정 변수입니다."},
-                {"label": "대체품 부재", "direction": "up", "direction_label": "↑ 수요 경직",
-                 "description": "국내 조리문화상 대파의 대체 식재료가 없어 공급 감소 시 소비 감소 없이 가격이 직접 오릅니다."},
+                {"label": "날씨에 바로 반응해요", "direction": "up", "direction_label": "↑ 값이 크게 뛸 수 있어요",
+                 "description": "대파는 한파·폭설·폭염이 오면 채소 중에서 가장 빨리 값이 뜁니다. 심할 때는 한두 주 만에 값이 두세 배가 된 적도 있습니다."},
+                {"label": "요즘 시장에 나오는 물량", "direction": "neutral", "direction_label": "→ 지켜보는 중",
+                 "description": "전남 진도 같은 주요 산지에서 그날그날 나오는 물량이 바로 그날 대파값을 정합니다."},
+                {"label": "대신 쓸 재료가 없어요", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "우리 음식에는 대파를 빼놓을 수 없어서, 값이 올라도 사는 양이 크게 줄지 않습니다. 그래서 물량이 부족하면 값이 고스란히 오릅니다."},
             ],
             "medium": [
-                {"label": "여름 단경기", "direction": "up", "direction_label": "↑ 계절 상승 구간",
-                 "description": "7~8월 여름 고온으로 대파 생육이 둔화되고 출하량이 줄어드는 연간 단경기가 2개월 가격 상승 패턴을 만듭니다."},
-                {"label": "산지 파종 동향", "direction": "down", "direction_label": "↓ 공급 회복 신호",
-                 "description": "가격 상승 후 2개월 내 농가 추가 파종이 늘어나 공급 회복으로 가격이 안정화되는 흐름이 나타납니다."},
+                {"label": "여름에는 물량이 줄어요", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "7~8월 더위에는 대파가 잘 자라지 못해서 시장에 나오는 물량이 줄어듭니다. 해마다 여름이 대파값이 가장 높은 시기입니다."},
+                {"label": "값이 오르면 더 심어요", "direction": "down", "direction_label": "↓ 값이 안정될 수 있어요",
+                 "description": "대파값이 오르면 농가들이 대파를 더 심기 시작하고, 두 달쯤 지나면 물량이 늘어 값이 다시 안정되곤 합니다."},
             ],
             "long": [
-                {"label": "겨울 시설 생산 확대", "direction": "down", "direction_label": "↓ 공급 안정화",
-                 "description": "온실·터널 시설 대파 재배 확대로 겨울 공급 부족이 줄어들어 과거 대비 가격 변동폭이 낮아지는 추세입니다."},
-                {"label": "계절 수요 패턴", "direction": "neutral", "direction_label": "→ 연중 소비 균등",
-                 "description": "대파는 연중 소비량이 비교적 균등해 수요 측 계절성보다 공급 측 변동이 가격을 주로 결정합니다."},
+                {"label": "겨울 비닐하우스 재배가 늘었어요", "direction": "down", "direction_label": "↓ 예전보다 안정적",
+                 "description": "요즘은 비닐하우스에서 겨울 대파를 많이 길러서, 예전처럼 겨울에 물량이 뚝 끊기는 일이 줄었습니다. 값이 널뛰는 정도도 예전보다 덜합니다."},
+                {"label": "일 년 내내 꾸준히 먹어요", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "대파는 일 년 내내 비슷하게 소비됩니다. 그래서 값은 사는 사람보다 파는 물량, 즉 농사가 잘 됐는지에 따라 정해집니다."},
             ],
         },
         "notes": {
-            "short": ["대파는 단기 예측이 가장 정확한 작물입니다. 기상청 특보 발령을 최우선 지표로 활용하세요."],
-            "medium": ["여름(7~8월)은 대파 단경기로 연간 가장 높은 가격대가 형성되는 시기입니다."],
-            "long": ["3개월 전망 시 시설 재배 확대 추세를 감안하면 과거 대비 급등 리스크가 다소 줄었습니다."],
+            "short": ["대파는 날씨 예보만 잘 봐도 값을 짐작할 수 있습니다. 한파·폭염 소식이 들리면 값이 오를 수 있습니다."],
+            "medium": ["여름(7~8월)이 일 년 중 대파값이 가장 높은 시기입니다."],
+            "long": ["비닐하우스 재배가 늘어서 예전만큼 값이 크게 뛰는 일은 줄어드는 추세입니다."],
         },
     },
     "garlic": {
-        "headline": "마늘 — 연산 저장 재고와 중국 수입이 양대 가격 결정 변수",
+        "headline": "마늘 — 창고 물량과 중국산 수입이 값을 정합니다",
         "reasons": {
             "short": [
-                {"label": "산지 출하가", "direction": "neutral", "direction_label": "→ 현재 수급",
-                 "description": "경북 의성·전남 해남 등 주산지에서 실제 거래되는 밭떼기 가격이 단기 도매시장 가격을 선행합니다."},
-                {"label": "냉동마늘 방출", "direction": "down", "direction_label": "↓ 단기 공급 완충",
-                 "description": "정부 비축 냉동마늘의 시장 방출 결정이 발표 후 1~2주 내 가격을 즉각 하락시킵니다."},
+                {"label": "산지에서 거래되는 값", "direction": "neutral", "direction_label": "→ 지켜보는 중",
+                 "description": "경북 의성, 전남 해남 같은 산지에서 밭째로 거래되는 마늘값이 먼저 움직이고, 그 뒤를 따라 도매시장 값이 움직입니다."},
+                {"label": "정부가 보관 마늘을 풀 때", "direction": "down", "direction_label": "↓ 값이 내릴 수 있어요",
+                 "description": "마늘값이 너무 오르면 정부가 비축해 둔 마늘을 시장에 풉니다. 발표가 나면 한두 주 안에 값이 바로 내려갑니다."},
             ],
             "medium": [
-                {"label": "저장 재고 소진 속도", "direction": "up", "direction_label": "↑ 재고 감소 위험",
-                 "description": "6월 수확 후 저장 물량이 예상보다 빠르게 소진되면 2~3개월 내 공급 부족으로 가격이 오릅니다."},
-                {"label": "수입 마늘 통관", "direction": "down", "direction_label": "↓ 수입 억제 효과",
-                 "description": "중국산 마늘 수입 관세(360%)로 평상시 수입이 제한되지만 가격 급등 시 관세 인하나 TRQ 활용으로 수입이 늘 수 있습니다."},
+                {"label": "창고 물량이 줄어드는 속도", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+                 "description": "6월에 수확해 저장한 마늘이 예상보다 빨리 팔려나가면, 두세 달 안에 물량이 모자라서 값이 오릅니다."},
+                {"label": "중국산 마늘 수입", "direction": "down", "direction_label": "↓ 값이 내릴 수 있어요",
+                 "description": "평소에는 세금이 높아서 중국산 마늘이 많이 안 들어옵니다. 하지만 국내 값이 크게 뛰면 정부가 세금을 낮춰 수입을 늘릴 수 있고, 그러면 값이 내려갑니다."},
             ],
             "long": [
-                {"label": "당해 재고율 전망", "direction": "neutral", "direction_label": "→ 장기 핵심 지표",
-                 "description": "6월 수확 시즌 생산량과 저장 이행량이 다음 해 5월까지 연중 공급량을 결정합니다. 재고율 70% 미만이면 강세 신호입니다."},
-                {"label": "파종 면적 증감", "direction": "down", "direction_label": "↓ 내년 공급 조정",
-                 "description": "금년 가격이 높으면 다음 해 가을 파종 면적이 늘어나 이듬해 수확기 공급 과잉과 가격 하락이 예상됩니다."},
-                {"label": "중국 작황·수출 동향", "direction": "neutral", "direction_label": "→ 수입가 변수",
-                 "description": "중국 마늘 생산량과 수출 정책이 국내 수입 가능 가격과 물량을 결정하여 장기 국내가격에 영향을 줍니다."},
+                {"label": "일 년 치 저장 물량", "direction": "neutral", "direction_label": "→ 가장 중요한 기준",
+                 "description": "마늘은 6월에 수확한 것을 저장해 두고 다음 해 5월까지 일 년 내내 씁니다. 올해 수확이 적었거나 창고 물량이 빨리 줄면 일 년 내내 값이 높게 갑니다."},
+                {"label": "올해 값이 내년 농사를 정해요", "direction": "down", "direction_label": "↓ 내년에 내릴 수 있어요",
+                 "description": "올해 마늘값이 좋으면 가을에 농가들이 마늘을 더 많이 심어서, 내년 수확철에는 물량이 많아지고 값이 내려가기 쉽습니다."},
+                {"label": "중국 농사 상황", "direction": "neutral", "direction_label": "→ 참고",
+                 "description": "중국에서 마늘 농사가 잘 됐는지에 따라 수입 마늘값이 정해지고, 이것이 국내 마늘값이 오를 수 있는 한계선 역할을 합니다."},
             ],
         },
         "notes": {
-            "short": ["마늘은 단기 거래량보다 정부 정책(비축 방출·수입 결정)이 가격에 빠르게 영향을 줍니다."],
-            "medium": ["7~9월 저장 마늘 소진 속도가 연말 가격을 예측하는 핵심 지표입니다."],
-            "long": ["마늘은 1년 단위 수급 사이클로 장기 예측 활용도가 가장 높은 작물 중 하나입니다."],
+            "short": ["마늘값은 정부 발표(비축 물량 풀기, 수입 결정)가 나오면 바로 움직입니다. 뉴스를 함께 보세요."],
+            "medium": ["7~9월에 저장 마늘이 얼마나 빨리 줄어드는지가 연말 마늘값을 미리 알려주는 신호입니다."],
+            "long": ["마늘은 일 년 단위로 물량이 정해지는 작물이라, 긴 전망이 비교적 잘 맞는 편입니다."],
         },
     },
     "potato": {
@@ -323,10 +323,10 @@ _CROP_STATIC: dict = {
                  "description": "생육기 냉해·침수는 출하 지연과 규격 외 물량 증가로 단기 상품성 저하와 가격 왜곡을 유발합니다."},
             ],
             "medium": [
-                {"label": "여름·가을 단경기", "direction": "up", "direction_label": "↑ 계절 상승",
+                {"label": "여름·가을 물량이 귀한 시기", "direction": "up", "direction_label": "↑ 계절 상승",
                  "description": "봄감자 출하 종료(8월) 후 가을·겨울 저장 물량에 의존하는 시기, 저장 재고 수준에 따라 가격이 오릅니다."},
                 {"label": "저장 유통 안정성", "direction": "down", "direction_label": "↓ 공급 완충",
-                 "description": "CA 저장 시설 확충으로 2~3개월 전진 공급이 가능해 과거 대비 단경기 가격 급등폭이 감소 추세입니다."},
+                 "description": "저온창고 저장 시설 확충으로 2~3개월 전진 공급이 가능해 과거 대비 물량이 귀한 시기 가격 급등폭이 감소 추세입니다."},
             ],
             "long": [
                 {"label": "국내 소비 트렌드", "direction": "neutral", "direction_label": "→ 수요 안정",
@@ -457,8 +457,8 @@ _CROP_STATIC: dict = {
         "headline": "오이 — 여름 노지 대량 출하 vs 겨울 시설 단가 경쟁",
         "reasons": {
             "short": [
-                {"label": "일별 경락가 변동", "direction": "neutral", "direction_label": "→ 즉각 반응",
-                 "description": "오이는 저장성이 거의 없어 당일 경락가가 수급을 그대로 반영합니다. 출하 집중 시 단기 급락이 발생합니다."},
+                {"label": "일별 경매 가격 변동", "direction": "neutral", "direction_label": "→ 즉각 반응",
+                 "description": "오이는 저장성이 거의 없어 당일 경매 가격가 수급을 그대로 반영합니다. 출하 집중 시 단기 급락이 발생합니다."},
                 {"label": "폭염·냉해 반응", "direction": "up", "direction_label": "↑ 날씨 민감",
                  "description": "여름 고온 스트레스나 겨울 한파 시 생육 장해로 출하가 줄어 단기 가격이 오릅니다."},
             ],
@@ -476,7 +476,7 @@ _CROP_STATIC: dict = {
             ],
         },
         "notes": {
-            "short": ["오이는 단기 예측에서 일별 도매시장 경락가가 가장 정확한 선행 지표입니다."],
+            "short": ["오이는 단기 예측에서 일별 도매시장 경매 가격가 가장 정확한 선행 지표입니다."],
             "medium": ["여름 노지 출하 피크(7~8월)는 연간 최저가 구간이며 이후 시설 전환 시 가격이 오릅니다."],
             "long": ["에너지 비용과 스마트팜 생산성이 장기 가격 구조를 결정하는 핵심 변수입니다."],
         },
@@ -502,7 +502,7 @@ _CROP_STATIC: dict = {
             ],
         },
         "notes": {
-            "short": ["단기 예측에서 일별 입하량과 도매 경락가 데이터가 가장 신뢰성 있는 지표입니다."],
+            "short": ["단기 예측에서 일별 입하량과 도매 경매 가격 데이터가 가장 신뢰성 있는 지표입니다."],
             "medium": ["여름 공급 과잉 후 가을 반등이 연간 반복되는 계절 패턴입니다."],
             "long": ["외식 경기와 연동되어 장기 가격 전망 시 경기 지표도 참고해야 합니다."],
         },
@@ -548,7 +548,7 @@ _CROP_STATIC: dict = {
                 {"label": "계절 출하 패턴", "direction": "neutral", "direction_label": "→ 계절 구조",
                  "description": "봄(3~5월)과 겨울(11~1월)이 시금치 성수기이며 여름은 열에 약해 공급이 줄고 가격이 오르는 계절입니다."},
                 {"label": "여름 시설 재배", "direction": "down", "direction_label": "↓ 공급 보완",
-                 "description": "여름 단경기 대응을 위한 냉방 시설 재배가 늘어나 중기 가격 안정화에 기여하고 있습니다."},
+                 "description": "여름 물량이 귀한 시기 대응을 위한 냉방 시설 재배가 늘어나 중기 가격 안정화에 기여하고 있습니다."},
             ],
             "long": [
                 {"label": "건강식 수요 증가", "direction": "up", "direction_label": "↑ 장기 수요",
@@ -557,7 +557,7 @@ _CROP_STATIC: dict = {
         },
         "notes": {
             "short": ["시금치는 단기 예측이 가장 중요한 작물 중 하나입니다. 당일 경매 결과가 모든 것입니다."],
-            "medium": ["여름 단경기(7~8월)는 시금치 가격이 가장 불안정한 시기입니다."],
+            "medium": ["여름 물량이 귀한 시기(7~8월)는 시금치 가격이 가장 불안정한 시기입니다."],
             "long": ["시금치는 저장성이 없어 장기 예측 활용도는 다른 저장 작물보다 낮습니다."],
         },
     },
@@ -704,7 +704,7 @@ _CROP_STATIC: dict = {
         "reasons": {
             "short": [
                 {"label": "저장 출하 속도", "direction": "neutral", "direction_label": "→ 단기 공급",
-                 "description": "CA 저장 사과 출하 속도가 단기 공급량을 결정합니다. 출하 감소 시 즉시 가격이 오릅니다."},
+                 "description": "저온창고 저장 사과 출하 속도가 단기 공급량을 결정합니다. 출하 감소 시 즉시 가격이 오릅니다."},
                 {"label": "신구과 교체 시기", "direction": "up", "direction_label": "↑ 7~8월 공급 공백",
                  "description": "전년산 저장 사과 소진과 당해 수확(10월) 사이인 7~8월에 공급 공백이 생겨 단기 가격이 오릅니다."},
             ],
@@ -732,7 +732,7 @@ _CROP_STATIC: dict = {
         "reasons": {
             "short": [
                 {"label": "저장 출하 동향", "direction": "neutral", "direction_label": "→ 단기 공급",
-                 "description": "신고배 CA 저장 물량의 출하 속도가 단기 공급을 결정하며, 출하 지연 시 가격이 오릅니다."},
+                 "description": "신고배 저온창고 저장 물량의 출하 속도가 단기 공급을 결정하며, 출하 지연 시 가격이 오릅니다."},
                 {"label": "추석 명절 수요", "direction": "up", "direction_label": "↑ 명절 집중",
                  "description": "추석 선물세트 배 수요가 수확 직후(9~10월) 가격을 강하게 지지합니다."},
             ],
@@ -816,28 +816,28 @@ _CROP_STATIC: dict = {
 _CROP_STATIC_DEFAULT = {
     "reasons": {
         "short": [
-            {"label": "단기 수급 균형", "direction": "neutral", "direction_label": "→ 실시간 파악",
-             "description": "도매시장 일일 입하량과 경락가를 기반으로 1~3주 수급 균형을 평가합니다."},
-            {"label": "기상 충격", "direction": "up", "direction_label": "↑ 단기 리스크",
-             "description": "주산지 폭염·한파·집중호우 발생 시 생육 피해로 1~2주 내 출하량이 줄어 가격이 급등할 수 있습니다."},
+            {"label": "요즘 시장에 나오는 물량", "direction": "neutral", "direction_label": "→ 지켜보는 중",
+             "description": "도매시장에 매일 들어오는 물량과 경매 가격을 보고 있습니다. 물량이 평소보다 적으면 값이 오르고, 많으면 값이 내리는 것이 기본입니다."},
+            {"label": "날씨 피해", "direction": "up", "direction_label": "↑ 값이 오를 수 있어요",
+             "description": "이 작물을 많이 기르는 지역에 폭염·한파·큰비가 오면 농사가 피해를 입어 시장에 나오는 물량이 줄고, 한두 주 안에 값이 오를 수 있습니다."},
         ],
         "medium": [
-            {"label": "계절 수급 패턴", "direction": "neutral", "direction_label": "→ 계절 변동",
-             "description": "해당 작물의 출하 성수기·단경기 패턴을 반영하여 2개월 가격 방향을 분석합니다."},
-            {"label": "저장·수입 동향", "direction": "neutral", "direction_label": "→ 공급 완충",
-             "description": "저장 물량 출하 속도와 수입 동향이 중기 공급을 조절하여 가격 변동폭을 결정합니다."},
+            {"label": "철에 따른 물량 변화", "direction": "neutral", "direction_label": "→ 참고",
+             "description": "작물마다 많이 나오는 철과 귀한 철이 정해져 있습니다. 많이 나오는 철에는 값이 내리고, 귀한 철에는 값이 오르는 것이 해마다 반복됩니다."},
+            {"label": "저장 물량과 수입", "direction": "neutral", "direction_label": "→ 참고",
+             "description": "창고에 저장해 둔 물량이 풀리거나 외국산이 수입되면 값이 크게 뛰는 것을 막아줍니다. 반대로 저장 물량이 바닥나면 값이 오릅니다."},
         ],
         "long": [
-            {"label": "재배 면적·작황 전망", "direction": "neutral", "direction_label": "→ 장기 공급",
-             "description": "당해 파종 면적과 생육 상황이 3개월 후 출하량을 결정하는 장기 지표입니다."},
-            {"label": "수요 트렌드", "direction": "neutral", "direction_label": "→ 소비 변화",
-             "description": "가공 수요·수출·건강식 트렌드 등 소비 구조 변화가 장기 가격 방향에 영향을 줍니다."},
+            {"label": "올해 심은 양과 농사 상황", "direction": "neutral", "direction_label": "→ 참고",
+             "description": "올해 농가들이 얼마나 심었고 농사가 잘 되고 있는지가 석 달 뒤 시장에 나올 물량을 정합니다. 많이 심고 잘 자라면 값이 내리고, 그 반대면 오릅니다."},
+            {"label": "먹는 사람들의 변화", "direction": "neutral", "direction_label": "→ 참고",
+             "description": "가공식품 재료로 많이 쓰이거나 건강식품으로 인기를 얻으면 사려는 사람이 늘어 값이 오르고, 소비가 줄면 값이 내립니다."},
         ],
     },
     "notes": {
-        "short": ["단기 예측은 기상 이변과 산지 출하 동향 모니터링이 핵심입니다."],
-        "medium": ["2개월 예측 시 계절 출하 패턴과 저장 재고 현황을 참고하세요."],
-        "long": ["장기 예측은 재배 면적·작황 조사 통계와 수요 트렌드를 함께 고려합니다."],
+        "short": ["앞으로 1~3주 값은 날씨와 산지에서 나오는 물량이 가장 중요합니다."],
+        "medium": ["두 달 전망은 철에 따른 물량 변화와 창고에 남은 물량을 함께 보면 됩니다."],
+        "long": ["석 달 전망은 올해 심은 양과 농사 상황, 소비 변화를 바탕으로 한 큰 방향입니다."],
     },
 }
 
@@ -923,9 +923,9 @@ async def get_forecast_explanation(
     )
 
     reasons = [_factor_reason(factor) for factor in (fc.top_factors or [])]
-    # top_factors 없으면 기간별 정적 데이터로 보완
-    if not reasons:
-        reasons = static_reasons
+    reasons = [r for r in reasons if r.get("message")]  # 설명 없는 내부 요인은 숨김
+    # 모델 요인 뒤에 기간별 상세 설명을 항상 붙여 어르신도 이유를 읽을 수 있게 함
+    reasons = reasons + [r for r in static_reasons if r.get("label") not in {x.get("label") for x in reasons}]
 
     return {
         "item_code": fc.item_code,
@@ -1086,22 +1086,24 @@ def _factor_reason(factor: dict) -> dict:
     direction = str(factor.get("direction") or "up")
     contribution = float(factor.get("contribution") or 0.0)
     label_map = {
-        "price_lag_model": "최근 가격 흐름",
-        "risk_overlay": "주산지 위험 보정",
+        "price_lag_model": "요즘 가격 흐름",
+        "risk_overlay": "주요 산지 상황",
     }
     message_map = {
-        ("price_lag_model", "up"): "최근 가격 흐름이 상승 쪽으로 기울었습니다.",
-        ("price_lag_model", "down"): "최근 가격 흐름이 하락 쪽으로 기울었습니다.",
-        ("risk_overlay", "up"): "주산지 위험 신호가 가격 상승 압력을 더했습니다.",
-        ("risk_overlay", "down"): "주산지 위험 신호가 가격 상승 압력을 낮췄습니다.",
+        ("price_lag_model", "up"): "요즘 시장에서 거래되는 가격이 계속 조금씩 오르고 있습니다. 이런 흐름이 이어지면 앞으로도 가격이 오를 가능성이 높습니다.",
+        ("price_lag_model", "down"): "요즘 시장에서 거래되는 가격이 조금씩 내려가고 있습니다. 이런 흐름이 이어지면 앞으로도 가격이 내려갈 가능성이 높습니다.",
+        ("risk_overlay", "up"): "이 작물을 많이 기르는 지역에 날씨 피해나 출하량 감소 같은 걱정스러운 소식이 있습니다. 물량이 줄면 가격이 오르기 쉽습니다.",
+        ("risk_overlay", "down"): "이 작물을 많이 기르는 지역의 사정이 좋아서, 물량이 넉넉하게 나올 것으로 보입니다. 물량이 많으면 가격이 오르기 어렵습니다.",
     }
+    known = name in label_map
     return {
         "factor": name,
-        "label": label_map.get(name, name or "기타 요인"),
+        # 내부 요인 이름(lgbm_ensemble 등)은 그대로 노출하지 않음
+        "label": label_map.get(name, "AI 종합 판단" if name else "기타 요인"),
         "direction": direction,
         "direction_label": _direction_label(direction),
         "contribution": contribution,
-        "message": message_map.get((name, direction), "모델 계산에 반영된 요인입니다."),
+        "message": message_map.get((name, direction)) if known else "",
     }
 
 

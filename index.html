@@ -1213,7 +1213,7 @@ async function fetchAndRenderTrend(itemCode, days){
   const phaseCol=data.horizon_phase==="short"?"#1a8a1a":data.horizon_phase==="medium"?"#a07010":"#6a1e9a";
   const phaseBg=data.horizon_phase==="short"?"#e8f5e9":data.horizon_phase==="medium"?"#fefce2":"#f5e8ff";
   badge.textContent=`${phaseLabel} 분석`;
-  badge.style.cssText=`font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:${phaseBg};color:${phaseCol}`;
+  badge.style.cssText=`font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${phaseBg};color:${phaseCol}`;
   badge.style.display="inline-block";
 
   const reasons=data.reasons||[];
@@ -1227,31 +1227,32 @@ async function fetchAndRenderTrend(itemCode, days){
 
   let html="";
   if(headline){
-    html+=`<div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:6px;padding:5px 8px;background:var(--bg);border-radius:6px;border-left:3px solid ${phaseCol}">${headline}${prob!=null?" · "+probStr:""}</div>`;
+    html+=`<div style="font-size:13px;color:var(--text);font-weight:700;margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border-left:4px solid ${phaseCol};line-height:1.5">${headline}${prob!=null?"<br>"+probStr:""}</div>`;
   }
 
   if(reasons.length){
-    html+=`<div style="display:flex;flex-direction:column;gap:5px">`;
+    html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
     html+=reasons.map(r=>{
       const col=dirColors[r.direction]||"#6a1e9a";
       const bg=dirBg[r.direction]||"#f5f0ff";
       const icon=r.direction==="up"?"↑":r.direction==="down"?"↓":"→";
-      return`<div style="background:${bg};border:1px solid ${col}22;border-radius:7px;padding:6px 9px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-          <span style="font-size:11px;font-weight:800;color:${col}">${icon}</span>
-          <span style="font-size:10px;font-weight:700;color:var(--text)">${r.label||""}</span>
-          ${r.direction_label?`<span style="font-size:9px;font-weight:700;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
+      const body=r.description||r.message||"";
+      return`<div style="background:${bg};border:1px solid ${col}22;border-radius:8px;padding:9px 11px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap">
+          <span style="font-size:15px;font-weight:800;color:${col}">${icon}</span>
+          <span style="font-size:13px;font-weight:800;color:var(--text)">${r.label||""}</span>
+          ${r.direction_label?`<span style="font-size:11px;font-weight:700;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
         </div>
-        <div style="font-size:9px;color:var(--muted);line-height:1.4">${r.description||""}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.65">${body}</div>
       </div>`;
     }).join("");
     html+=`</div>`;
   }
 
   if(notes.length){
-    html+=`<div style="margin-top:6px;padding:5px 8px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">`;
-    html+=`<div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px">참고 포인트</div>`;
-    html+=notes.map(n=>`<div style="font-size:9px;color:var(--muted);padding:2px 0;border-bottom:1px solid var(--border)">• ${n}</div>`).join("");
+    html+=`<div style="margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">`;
+    html+=`<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px">📌 이것만 기억하세요</div>`;
+    html+=notes.map(n=>`<div style="font-size:12px;color:var(--text);line-height:1.6;padding:3px 0">• ${n}</div>`).join("");
     html+=`</div>`;
   }
 
