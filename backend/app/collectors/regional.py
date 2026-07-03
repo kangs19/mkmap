@@ -192,6 +192,12 @@ async def collect_regional_prices(days: int = 3) -> dict:
         for day_off in range(days):
             target = end_d - timedelta(days=day_off)
             date_str = target.strftime("%Y-%m-%d")
+            # 이 날짜의 기존 행 먼저 삭제 — 표본 부족으로 이번에 빠지는 시장의
+            # 옛(오염) 값이 남지 않도록 (upsert만으로는 stale 행이 잔존)
+            await db.execute(
+                delete(RegionalMarketPrice).where(RegionalMarketPrice.date == target)
+            )
+            await db.commit()
             for item_code, filt in CROP_FILTER.items():
                 agg = await loop.run_in_executor(
                     None, _collect_crop_sync, api_key, date_str, item_code, filt
