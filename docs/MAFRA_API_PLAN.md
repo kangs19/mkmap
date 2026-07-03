@@ -56,6 +56,21 @@
 ### E. 친환경 프리미엄 (160)
 - 친환경 vs 일반 가격차 → 친환경 전환 농가 의사결정 지원
 
+## 도매/소매 가격 API — 파라미터 확정 (2026-07-03)
+
+211.237 채널의 도매(217)/소매(163)는 필수 파라미터가 엑셀 명세에만 있어 확정 어려움. 대신
+**data.go.kr에 동일 데이터가 더 깔끔한 REST로 등재**되어 있고, 우리 키가 되는 api.agromarket.kr 호스트를 씀:
+
+| API | 엔드포인트 | 필수 파라미터 |
+|-----|-----------|--------------|
+| 일별 도소매 (15156057) | `https://api.agromarket.kr/api/perDay/v1/price` | serviceKey, pageNo, numOfRows, `cond[exmn_ymd::GTE/LTE]`, `cond[ctgry_cd::EQ]`, `cond[item_cd::EQ]` |
+| 지역별 품목별 도소매 (15156062) | `https://api.agromarket.kr/api/perRegion/v1/price` | serviceKey, pageNo, numOfRows, `cond[exmn_ymd::GTE/LTE]`, `cond[sgg_cd::EQ]` |
+| 품목 표준코드 (15141818) | `https://api.agromarket.kr/api/katCode/v1/goods` | serviceKey (gds_l/m/sclsf 코드 15,436건) |
+
+- 키·엔드포인트·파라미터 모두 확정, 200 응답 확인.
+- **남은 것**: perDay는 `item_cd`/`ctgry_cd`가 필수인데 katCode의 `gds_*_cd`와 필드명이 달라 정확한 코드 매핑 필요. 이거 확정되면 **실측 소매가**(현재 ×1.35 추정 대체) + 도소매 마진 기능 구현 가능.
+- 가치: 지역 도매가는 이미 경매(654)로 확보했으므로, 이 API의 핵심 가치는 **실측 소매가**.
+
 ## 다음 작업
 1. **Railway 환경변수 `AGROMARKET_API_KEY` 설정** → 지역 도매가 활성화 (필수)
 2. 저수율(669)/특보(671) 수집기 추가 + 지역코드(AREA_SPR_CD/BJDNGCD) → 시군구 매핑
