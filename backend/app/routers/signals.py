@@ -146,10 +146,16 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
             else:
                 risk_level = "normal"
 
+        _up_p = (f.up_probability or f.up_probability_14d) if f else None
+        # 방향-확률 일관성: 상승확률로부터 방향 유도 (모순 표시 방지)
+        if _up_p is not None:
+            _dir = "up" if _up_p >= 0.55 else "down" if _up_p <= 0.45 else "neutral"
+        else:
+            _dir = (f.direction or f.direction_14d) if f else None
         items_out.append({
             "item_code": code,
-            "direction_14d": (f.direction or f.direction_14d) if f else None,
-            "up_probability_14d": (f.up_probability or f.up_probability_14d) if f else None,
+            "direction_14d": _dir,
+            "up_probability_14d": _up_p,
             "volatility_risk": f.volatility_risk_30d if f else None,
             "confidence": f.confidence if f else None,
             "risk_score": risk_score,

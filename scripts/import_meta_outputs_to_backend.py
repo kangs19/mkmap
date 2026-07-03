@@ -119,8 +119,11 @@ async def import_forecasts(path: Path, target_date: date) -> int:
                 item_code=item_code,
                 base_date=target_date,
                 model_version=_model_version(model_scope),
-                direction_14d=_forecast_direction(str(prediction.get("risk_adjusted_direction") or prediction.get("predicted_direction") or "stable")),
+                # 방향은 상승확률에서 일관되게 유도 (방향-확률 모순 방지)
+                direction_14d=_direction_from_probability(up_probability),
+                direction=_direction_from_probability(up_probability),
                 up_probability_14d=up_probability,
+                up_probability=up_probability,
                 surge_probability_14d=surge_probability,
                 volatility_risk_30d=_volatility_risk(risk_overlay),
                 bottom_probability=bottom_probability,
@@ -166,6 +169,16 @@ def _forecast_direction(direction: str) -> str:
     if direction == "up":
         return "up"
     if direction == "down":
+        return "down"
+    return "neutral"
+
+
+def _direction_from_probability(p: float) -> str:
+    """방향을 상승확률에서 유도 — 방향-확률 모순 방지.
+    (확률은 리스크보정 변화까지 반영된 값이므로 이것을 단일 기준으로 삼는다.)"""
+    if p >= 0.55:
+        return "up"
+    if p <= 0.45:
         return "down"
     return "neutral"
 

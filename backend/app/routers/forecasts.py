@@ -1084,10 +1084,30 @@ def _josa_eunneun(word: str) -> str:
     return "는"
 
 
+def _prob_direction(up_prob: float | None) -> str:
+    """상승확률로부터 방향 유도 — 방향·확률 표기 일관성 보장."""
+    if up_prob is None:
+        return "neutral"
+    if up_prob >= 0.55:
+        return "up"
+    if up_prob <= 0.45:
+        return "down"
+    return "neutral"
+
+
 def _build_explanation_headline(fc: Forecast, item_name: str) -> str:
+    up = fc.up_probability_14d
+    direction = _prob_direction(up)
+    # 표시 확률은 해당 방향의 확률 (하락이면 1-상승확률)
+    if direction == "down" and up is not None:
+        shown = 1.0 - up
+    elif direction == "up" and up is not None:
+        shown = up
+    else:
+        shown = up  # 보합/불확실은 상승확률 그대로
     return (
-        f"{item_name}{_josa_eunneun(item_name)} 향후 14일 기준 {_direction_label(fc.direction_14d)} 가능성이 "
-        f"{_percent_label(fc.up_probability_14d)}로 계산되었습니다."
+        f"{item_name}{_josa_eunneun(item_name)} 향후 14일 기준 {_direction_label(direction)} 가능성이 "
+        f"{_percent_label(shown)}로 계산되었습니다."
     )
 
 
