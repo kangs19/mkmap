@@ -149,23 +149,30 @@ async def get_drought_index(db: AsyncSession = Depends(get_db), debug: int = 0, 
     from app.models.drought import DroughtIndex
     # 진단: Railway → MAFRA 서버 도달 여부 + 키 확인
     if debug:
-        from app.collectors.mafra import _mafra_key, MAFRA_BASE, DS_RESERVOIR
-        import httpx
-        key = _mafra_key()
-        info = {"key_present": bool(key), "key_len": len(key)}
+        import traceback
+        info = {}
         try:
+            from app.collectors.mafra import _mafra_key, MAFRA_BASE, DS_RESERVOIR
+            import httpx
+            key = _mafra_key()
+            info = {"key_present": bool(key), "key_len": len(key or "")}
             url = f"{MAFRA_BASE}/{key}/json/{DS_RESERVOIR}/1/2"
-            async with httpx.AsyncClient(timeout=15) as c:
+            async with httpx.AsyncClient(timeout=20) as c:
                 r = await c.get(url)
             info["http_status"] = r.status_code
             info["body_head"] = r.text[:200]
         except Exception as e:
-            info["error"] = f"{type(e).__name__}: {str(e)[:150]}"
+            info["exception"] = f"{type(e).__name__}: {str(e)[:200]}"
+            info["trace"] = traceback.format_exc()[-600:]
         return info
     # 수동 수집 트리거
     if collect:
-        from app.collectors.mafra import collect_drought_index
-        return await collect_drought_index()
+        import traceback
+        try:
+            from app.collectors.mafra import collect_drought_index
+            return await collect_drought_index()
+        except Exception as e:
+            return {"collect_error": f"{type(e).__name__}: {str(e)[:200]}", "trace": traceback.format_exc()[-600:]}
     rows = (await db.execute(
         select(DroughtIndex).order_by(DroughtIndex.base_ym.desc()).limit(4)
     )).scalars().all()
