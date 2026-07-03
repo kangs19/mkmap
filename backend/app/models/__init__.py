@@ -8,8 +8,10 @@ from app.models.api import ApiKey, ApiUsage
 from app.models.production import CropProduction
 from app.models.meta import ItemMeta
 from app.models.regional_price import RegionalMarketPrice
+from app.models.community import User, CommunityComment, FieldReport
 
 __all__ = [
+    "User", "CommunityComment", "FieldReport",
     "Item", "ItemRegion", "ItemEvent",
     "DailyPrice", "DailyWeather", "DailyMarket",
     "RegionSignal", "Forecast",

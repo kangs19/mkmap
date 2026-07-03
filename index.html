@@ -521,9 +521,42 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
           </div>
           <div id="rp-trend-reasons" style="margin-top:6px"></div>
         </div>
+
+        <!-- 현장 신호 (AI와 분리된 사용자 제보 집계) -->
+        <div class="fm-news-section" id="cm-field-section" style="display:none">
+          <div class="fm-sec-title">🌾 현장 신호 <span style="font-size:10px;font-weight:400;color:var(--muted)">(농부·유통인 제보, AI 예측과 별개)</span></div>
+          <div id="cm-field-summary" style="margin-top:6px"></div>
+        </div>
+
+        <!-- 커뮤니티 (지역 × 품목) -->
+        <div class="fm-news-section" id="cm-section">
+          <div class="fm-sec-title" style="display:flex;align-items:center;gap:8px">
+            💬 <span id="cm-title">커뮤니티</span>
+            <span id="cm-count" style="font-size:11px;font-weight:600;color:var(--muted)"></span>
+            <span id="cm-user-chip" style="margin-left:auto;font-size:11px"></span>
+          </div>
+          <div id="cm-auth-box" style="margin-top:8px"></div>
+          <div id="cm-report-btn-box" style="margin-top:8px"></div>
+          <div id="cm-input-box" style="margin-top:8px"></div>
+          <div id="cm-list" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
       </div>
     </div>
   </aside>
+</div>
+
+<!-- 우리지역 평가 모달 -->
+<div id="cm-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeFieldReport()">
+  <div style="background:white;border-radius:14px;padding:20px;width:340px;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="font-size:15px;font-weight:800;margin-bottom:2px">🌾 우리지역 평가하기</div>
+    <div id="cm-report-target" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+    <div id="cm-report-form"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button onclick="submitFieldReport()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2e7d32;color:white;font-weight:700;font-size:13px;cursor:pointer">등록하기</button>
+      <button onclick="closeFieldReport()" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:white;font-size:13px;cursor:pointer">닫기</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px">제보 내용은 현장 참고자료로만 쓰이며 AI 예측에는 반영되지 않습니다.</div>
+  </div>
 </div>
 
 <!-- BOTTOM TIMELINE -->
@@ -1259,6 +1292,298 @@ async function fetchAndRenderTrend(itemCode, days){
   el.innerHTML=html||`<div style="font-size:10px;color:var(--muted)">분석 정보 없음</div>`;
 }
 
+// ── 커뮤니티 (지역 × 품목) ────────────────────────────────────────────────
+let cmUser=JSON.parse(localStorage.getItem("mk_user")||"null");
+let cmToken=localStorage.getItem("mk_token")||null;
+let cmItem=null, cmRegion="전국";
+
+function cmHeaders(json){
+  const h=json?{"Content-Type":"application/json"}:{};
+  if(cmToken) h["Authorization"]="Bearer "+cmToken;
+  return h;
+}
+function cmEsc(s){const d=document.createElement("div");d.textContent=s||"";return d.innerHTML;}
+
+async function loadCommunity(itemCode, regionName){
+  cmItem=itemCode; cmRegion=regionName||"전국";
+  const itemName=ITEMS[itemCode]?.name||itemCode;
+  document.getElementById("cm-title").textContent=`${cmRegion} ${itemName} 커뮤니티`;
+  renderAuthBox();
+  renderReportBtn();
+  renderInputBox();
+  fetchComments();
+  fetchFieldSummary();
+}
+
+function renderAuthBox(){
+  const el=document.getElementById("cm-auth-box");
+  const chip=document.getElementById("cm-user-chip");
+  if(cmUser){
+    const badge=cmUser.role==="farmer"?"🌾":cmUser.role==="trader"?"🚚":"";
+    chip.innerHTML=`${badge}<b>${cmEsc(cmUser.nickname)}</b>님 <a href="#" onclick="cmLogout();return false" style="color:var(--muted);font-size:10px">로그아웃</a>`;
+    el.innerHTML="";
+    return;
+  }
+  chip.innerHTML="";
+  el.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+    <div style="font-size:12px;font-weight:700;margin-bottom:6px">로그인하고 이야기를 나눠보세요</div>
+    <div id="cm-auth-form">
+      <input id="cm-email" type="email" placeholder="이메일" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+      <input id="cm-pw" type="password" placeholder="비밀번호" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+      <div id="cm-signup-extra" style="display:none">
+        <input id="cm-nick" placeholder="닉네임 (2~20자)" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+        <select id="cm-role" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+          <option value="general">일반회원</option>
+          <option value="farmer">농부 (인증은 추후 관리자 승인)</option>
+          <option value="trader">유통인</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="cmLogin()" id="cm-login-btn" style="flex:1;padding:8px;border:none;border-radius:6px;background:#2e7d32;color:white;font-weight:700;font-size:12px;cursor:pointer">로그인</button>
+        <button onclick="cmToggleSignup()" id="cm-signup-btn" style="flex:1;padding:8px;border:1px solid #2e7d32;border-radius:6px;background:white;color:#2e7d32;font-weight:700;font-size:12px;cursor:pointer">회원가입</button>
+      </div>
+      <div id="cm-auth-msg" style="font-size:11px;color:#c02828;margin-top:4px"></div>
+    </div>
+  </div>`;
+}
+
+let cmSignupMode=false;
+function cmToggleSignup(){
+  const extra=document.getElementById("cm-signup-extra");
+  if(!cmSignupMode){
+    cmSignupMode=true;
+    extra.style.display="block";
+    document.getElementById("cm-login-btn").style.display="none";
+    document.getElementById("cm-signup-btn").textContent="가입하기";
+  }else{
+    cmRegister();
+  }
+}
+
+async function cmLogin(){
+  const email=document.getElementById("cm-email").value.trim();
+  const pw=document.getElementById("cm-pw").value;
+  const msg=document.getElementById("cm-auth-msg");
+  if(!email||!pw){msg.textContent="이메일과 비밀번호를 입력해 주세요.";return;}
+  try{
+    const r=await fetch("/api/v1/auth/login",{method:"POST",headers:cmHeaders(true),body:JSON.stringify({email,password:pw})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail?.message||"로그인 실패");
+    cmToken=d.token; cmUser=d.user;
+    localStorage.setItem("mk_token",cmToken);
+    localStorage.setItem("mk_user",JSON.stringify(cmUser));
+    cmSignupMode=false;
+    loadCommunity(cmItem,cmRegion);
+  }catch(e){msg.textContent=e.message;}
+}
+
+async function cmRegister(){
+  const email=document.getElementById("cm-email").value.trim();
+  const pw=document.getElementById("cm-pw").value;
+  const nick=document.getElementById("cm-nick").value.trim();
+  const role=document.getElementById("cm-role").value;
+  const msg=document.getElementById("cm-auth-msg");
+  if(!email||!pw||!nick){msg.textContent="이메일·비밀번호·닉네임을 모두 입력해 주세요.";return;}
+  try{
+    const r=await fetch("/api/v1/auth/register",{method:"POST",headers:cmHeaders(true),body:JSON.stringify({email,password:pw,nickname:nick,role})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail?.message||(d.detail?.[0]?.msg)||"가입 실패");
+    cmToken=d.token; cmUser=d.user;
+    localStorage.setItem("mk_token",cmToken);
+    localStorage.setItem("mk_user",JSON.stringify(cmUser));
+    cmSignupMode=false;
+    loadCommunity(cmItem,cmRegion);
+  }catch(e){msg.textContent=e.message;}
+}
+
+function cmLogout(){
+  cmToken=null; cmUser=null; cmSignupMode=false;
+  localStorage.removeItem("mk_token"); localStorage.removeItem("mk_user");
+  loadCommunity(cmItem,cmRegion);
+}
+
+function renderInputBox(){
+  const el=document.getElementById("cm-input-box");
+  if(!cmUser){el.innerHTML="";return;}
+  el.innerHTML=`<div style="display:flex;gap:6px">
+    <input id="cm-new-comment" placeholder="${cmEsc(cmRegion)} 소식이나 의견을 남겨주세요" maxlength="1000"
+      style="flex:1;padding:9px;border:1px solid var(--border);border-radius:6px;font-size:12px"
+      onkeydown="if(event.key==='Enter')cmPost()">
+    <button onclick="cmPost()" style="padding:9px 14px;border:none;border-radius:6px;background:#2e7d32;color:white;font-weight:700;font-size:12px;cursor:pointer">등록</button>
+  </div>`;
+}
+
+async function cmPost(){
+  const inp=document.getElementById("cm-new-comment");
+  const content=inp.value.trim();
+  if(!content) return;
+  const r=await fetch("/api/v1/community/comments",{method:"POST",headers:cmHeaders(true),
+    body:JSON.stringify({item_code:cmItem,region:cmRegion,content})});
+  if(r.ok){inp.value="";fetchComments();}
+  else if(r.status===401){cmLogout();}
+}
+
+async function fetchComments(){
+  const list=document.getElementById("cm-list");
+  try{
+    const r=await fetch(`/api/v1/community/comments?item_code=${cmItem}&region=${encodeURIComponent(cmRegion)}`,{headers:cmHeaders(false)});
+    if(!r.ok) throw new Error();
+    const d=await r.json();
+    document.getElementById("cm-count").textContent=d.total?`댓글 ${d.total}개`:"";
+    if(!d.comments.length){
+      list.innerHTML=`<div style="font-size:12px;color:var(--muted);padding:8px 0">아직 댓글이 없습니다. 첫 소식을 남겨보세요!</div>`;
+      return;
+    }
+    list.innerHTML=d.comments.map(c=>{
+      const roleBadge=c.role==="farmer"?`<span style="font-size:10px;background:#e8f5e9;color:#1a8a1a;padding:1px 6px;border-radius:8px;font-weight:700">🌾 인증 농부</span>`
+        :c.role==="trader"?`<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:8px;font-weight:700">🚚 유통인</span>`:"";
+      const dt=c.created_at?new Date(c.created_at):null;
+      const when=dt?`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`:"";
+      const del=c.is_mine&&!c.is_deleted?`<a href="#" onclick="cmDelete(${c.id});return false" style="font-size:10px;color:var(--muted)">삭제</a>`:"";
+      return`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
+          <b style="font-size:12px">${cmEsc(c.nickname)}</b>${roleBadge}
+          <span style="font-size:10px;color:var(--muted);margin-left:auto">${when}</span>${del}
+        </div>
+        <div style="font-size:12px;line-height:1.55;color:${c.is_deleted?"var(--muted)":"var(--text)"}">${cmEsc(c.content)}</div>
+        ${!c.is_deleted?`<div style="margin-top:4px;display:flex;gap:10px">
+          <a href="#" onclick="cmLike(${c.id});return false" style="font-size:11px;color:var(--muted);text-decoration:none">👍 ${c.likes||0}</a>
+          <a href="#" onclick="cmReport(${c.id});return false" style="font-size:11px;color:var(--muted);text-decoration:none">신고</a>
+        </div>`:""}
+      </div>`;
+    }).join("");
+  }catch(e){
+    list.innerHTML=`<div style="font-size:12px;color:var(--muted)">댓글을 불러오지 못했습니다.</div>`;
+  }
+}
+
+async function cmLike(id){
+  if(!cmUser){alert("로그인이 필요합니다.");return;}
+  const r=await fetch(`/api/v1/community/comments/${id}/like`,{method:"POST",headers:cmHeaders(false)});
+  if(r.ok) fetchComments();
+}
+async function cmReport(id){
+  if(!cmUser){alert("로그인이 필요합니다.");return;}
+  if(!confirm("이 댓글을 신고하시겠습니까?"))return;
+  await fetch(`/api/v1/community/comments/${id}/report`,{method:"POST",headers:cmHeaders(false)});
+  alert("신고가 접수되었습니다.");
+}
+async function cmDelete(id){
+  if(!confirm("댓글을 삭제하시겠습니까?"))return;
+  const r=await fetch(`/api/v1/community/comments/${id}`,{method:"DELETE",headers:cmHeaders(false)});
+  if(r.ok) fetchComments();
+}
+
+// ── 우리지역 평가 (현장 제보) ─────────────────────────────
+function renderReportBtn(){
+  const el=document.getElementById("cm-report-btn-box");
+  if(cmUser&&(cmUser.role==="farmer"||cmUser.role==="trader"||cmUser.role==="admin")){
+    el.innerHTML=`<button onclick="openFieldReport()" style="width:100%;padding:10px;border:2px solid #2e7d32;border-radius:8px;background:#f1f8f1;color:#2e7d32;font-weight:800;font-size:13px;cursor:pointer">🌾 우리지역 평가하기</button>`;
+  }else{ el.innerHTML=""; }
+}
+
+const FR_FIELDS=[
+  {key:"growth",label:"생육상태",opts:[["good","좋음"],["normal","보통"],["bad","나쁨"]]},
+  {key:"pest",label:"병해충",opts:[["none","없음"],["some","있음"],["severe","심각"]]},
+  {key:"shipment",label:"출하량",opts:[["up","증가"],["normal","평년"],["down","감소"]]},
+  {key:"price_feeling",label:"가격 체감",opts:[["up","오를 것 같다"],["same","비슷"],["down","내릴 것 같다"]]},
+];
+const FR_DAMAGE=["폭염","가뭄","태풍","우박","호우"];
+let frSel={};
+
+function openFieldReport(){
+  frSel={growth:"normal",pest:"none",shipment:"normal",price_feeling:"same",damage:new Set()};
+  const itemName=ITEMS[cmItem]?.name||cmItem;
+  document.getElementById("cm-report-target").textContent=`${cmRegion} · ${itemName}`;
+  const form=document.getElementById("cm-report-form");
+  let html=FR_FIELDS.map(f=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px">${f.label}</div>
+      <div style="display:flex;gap:5px">${f.opts.map(([v,l])=>
+        `<button data-fr="${f.key}" data-val="${v}" onclick="frPick('${f.key}','${v}')"
+          style="flex:1;padding:8px 4px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:white">${l}</button>`).join("")}
+      </div>
+    </div>`).join("");
+  html+=`<div style="margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;margin-bottom:4px">기상피해 (해당 시)</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${FR_DAMAGE.map(d=>
+      `<button data-dmg="${d}" onclick="frDamage('${d}')" style="padding:7px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:white">${d}</button>`).join("")}
+    </div>
+  </div>
+  <div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:4px">한줄평</div>
+    <input id="fr-comment" maxlength="300" placeholder="현장 분위기를 한 줄로 남겨주세요"
+      style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+  </div>`;
+  form.innerHTML=html;
+  FR_FIELDS.forEach(f=>frPick(f.key,frSel[f.key]));
+  document.getElementById("cm-report-modal").style.display="flex";
+}
+function frPick(key,val){
+  frSel[key]=val;
+  document.querySelectorAll(`[data-fr="${key}"]`).forEach(b=>{
+    const on=b.dataset.val===val;
+    b.style.background=on?"#2e7d32":"white";
+    b.style.color=on?"white":"var(--text)";
+    b.style.borderColor=on?"#2e7d32":"var(--border)";
+    b.style.fontWeight=on?"700":"400";
+  });
+}
+function frDamage(d){
+  if(frSel.damage.has(d))frSel.damage.delete(d);else frSel.damage.add(d);
+  document.querySelectorAll(`[data-dmg]`).forEach(b=>{
+    const on=frSel.damage.has(b.dataset.dmg);
+    b.style.background=on?"#c62828":"white";
+    b.style.color=on?"white":"var(--text)";
+    b.style.borderColor=on?"#c62828":"var(--border)";
+  });
+}
+function closeFieldReport(){document.getElementById("cm-report-modal").style.display="none";}
+
+async function submitFieldReport(){
+  const body={
+    item_code:cmItem, region:cmRegion,
+    growth:frSel.growth, pest:frSel.pest, shipment:frSel.shipment,
+    price_feeling:frSel.price_feeling,
+    weather_damage:[...frSel.damage].join(",")||null,
+    comment:document.getElementById("fr-comment").value.trim()||null,
+  };
+  const r=await fetch("/api/v1/community/field-reports",{method:"POST",headers:cmHeaders(true),body:JSON.stringify(body)});
+  const d=await r.json();
+  if(r.ok){closeFieldReport();alert("제보해 주셔서 감사합니다!");fetchFieldSummary();}
+  else alert(d.detail?.message||"등록에 실패했습니다.");
+}
+
+async function fetchFieldSummary(){
+  const sec=document.getElementById("cm-field-section");
+  const el=document.getElementById("cm-field-summary");
+  try{
+    const r=await fetch(`/api/v1/community/field-reports/summary?item_code=${cmItem}`);
+    if(!r.ok) throw new Error();
+    const d=await r.json();
+    if(!d.report_count){sec.style.display="none";return;}
+    sec.style.display="block";
+    const pct=(obj,key)=>{const t=Object.values(obj).reduce((a,b)=>a+b,0);return t?Math.round((obj[key]||0)/t*100):0;};
+    const rows=[
+      ["생육 나쁨",pct(d.growth,"bad"),"#c62828"],
+      ["병해충 발생",pct(d.pest,"some")+pct(d.pest,"severe"),"#e65100"],
+      ["출하 감소",pct(d.shipment,"down"),"#6a1e9a"],
+      ["값 오를 듯",pct(d.price_feeling,"up"),"#1565c0"],
+    ];
+    const dmg=Object.entries(d.weather_damage||{}).map(([k,v])=>`${k} ${v}건`).join(" · ");
+    el.innerHTML=`
+      <div style="font-size:12px;color:var(--text);margin-bottom:6px">최근 ${d.days}일간 <b>${d.reporter_count}명</b>이 <b>${d.report_count}건</b> 제보</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${rows.map(([l,p,c])=>`
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;width:70px;color:var(--muted)">${l}</span>
+          <div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${c}"></div></div>
+          <span style="font-size:11px;font-weight:700;width:32px;text-align:right;color:${c}">${p}%</span>
+        </div>`).join("")}
+      </div>
+      ${dmg?`<div style="font-size:11px;color:#c62828;margin-top:5px">⚠️ 기상피해 제보: ${dmg}</div>`:""}`;
+  }catch(e){sec.style.display="none";}
+}
+
 // ── 가격 차트 ─────────────────────────────────────────────────────────────
 async function renderPriceChart(item_code){
   const canvas=document.getElementById("price-chart");
@@ -1509,6 +1834,9 @@ function showRegionDetail(name,code,d){
 
   // 기간별 가격 동향 분석
   fetchAndRenderTrend(curItem, curPeriod);
+
+  // 커뮤니티 + 현장 신호
+  loadCommunity(curItem, name||"전국");
 
   // 차트 렌더
   renderPriceChart(curItem);

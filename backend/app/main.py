@@ -12,7 +12,7 @@ from app.models import (  # noqa: F401 — Base.metadata.create_all 위해 모�
     RegionSignal, Forecast, ApiKey, ApiUsage, CropProduction, ItemMeta,
     RegionalMarketPrice,
 )
-from app.routers import items, forecasts, signals, maps, admin
+from app.routers import items, forecasts, signals, maps, admin, auth_user, community
 from app.config import get_settings
 from app.scheduler import start_scheduler, stop_scheduler
 from app.auth import verify_api_key, log_request
@@ -191,6 +191,8 @@ app.include_router(items.router)
 app.include_router(forecasts.router)
 app.include_router(signals.router)
 app.include_router(maps.router)
+app.include_router(auth_user.router)
+app.include_router(community.router)
 app.include_router(admin.router)
 app.include_router(admin.router, prefix="/api/v1")
 
