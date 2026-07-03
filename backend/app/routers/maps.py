@@ -144,9 +144,28 @@ GET {base}/api/v1/report/today</pre>
 
 
 @router.get("/api/v1/drought")
-async def get_drought_index(db: AsyncSession = Depends(get_db)):
+async def get_drought_index(db: AsyncSession = Depends(get_db), debug: int = 0, collect: int = 0):
     """전국 농업용수 저수율 가뭄 지표 (MAFRA 669). 최신 + 3개월 추이."""
     from app.models.drought import DroughtIndex
+    # 진단: Railway → MAFRA 서버 도달 여부 + 키 확인
+    if debug:
+        from app.collectors.mafra import _mafra_key, MAFRA_BASE, DS_RESERVOIR
+        import httpx
+        key = _mafra_key()
+        info = {"key_present": bool(key), "key_len": len(key)}
+        try:
+            url = f"{MAFRA_BASE}/{key}/json/{DS_RESERVOIR}/1/2"
+            async with httpx.AsyncClient(timeout=15) as c:
+                r = await c.get(url)
+            info["http_status"] = r.status_code
+            info["body_head"] = r.text[:200]
+        except Exception as e:
+            info["error"] = f"{type(e).__name__}: {str(e)[:150]}"
+        return info
+    # 수동 수집 트리거
+    if collect:
+        from app.collectors.mafra import collect_drought_index
+        return await collect_drought_index()
     rows = (await db.execute(
         select(DroughtIndex).order_by(DroughtIndex.base_ym.desc()).limit(4)
     )).scalars().all()
