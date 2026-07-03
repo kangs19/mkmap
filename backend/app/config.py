@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     kma_api_key: str = ""
     kosis_api_key: str = ""
     ecos_api_key: str = ""
+    agromarket_api_key: str = ""   # 도매시장 통합홈페이지 실시간 경락 API (api.agromarket.kr)
 
     api_secret_key: str = "change-this-secret-key"
     jwt_secret_key: str = "change-this-jwt-secret"

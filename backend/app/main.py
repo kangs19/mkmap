@@ -100,17 +100,22 @@ async def _auto_recover():
 
     await asyncio.sleep(5)
 
-    # 지역별 도매/소매 가격이 비어 있으면 즉시 수집 (배포 직후 도매/소매 기능 복구)
+    # 지역별 도매가(agromarket 실시간 경락) 신형식 데이터가 없으면 즉시 수집
     try:
         from app.models.regional_price import RegionalMarketPrice
         async with AsyncSessionLocal() as db:
-            reg_count = (
-                await db.execute(select(func.count()).select_from(RegionalMarketPrice))
+            # 신형식(6자리 시장코드) 행 존재 여부
+            new_fmt = (
+                await db.execute(
+                    select(func.count()).select_from(RegionalMarketPrice).where(
+                        func.length(RegionalMarketPrice.market_code) >= 6
+                    )
+                )
             ).scalar()
-        if not reg_count:
+        if not new_fmt:
             from app.collectors.regional import collect_regional_prices
             r = await collect_regional_prices(days=3)
-            logging.info("[auto_recover] regional prices backfilled: %s", r.get("rows_saved"))
+            logging.info("[auto_recover] regional prices backfilled: %s", r)
     except Exception as exc:
         logging.error("[auto_recover] regional price backfill failed: %s", exc)
 

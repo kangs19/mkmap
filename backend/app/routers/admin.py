@@ -2378,25 +2378,6 @@ async def import_production(
     return {"saved": len(records), "status": "ok"}
 
 
-@router.get("/server-ip")
-async def get_server_ip():
-    """서버의 현재 아웃바운드 IP 조회 (API 호출서버 등록용)."""
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get("https://api.ipify.org?format=json")
-            data = r.json()
-            return {"outbound_ip": data.get("ip"), "service": "ipify"}
-    except Exception as e:
-        try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                r = await client.get("https://ifconfig.me/all.json")
-                data = r.json()
-                return {"outbound_ip": data.get("ip_addr"), "service": "ifconfig"}
-        except:
-            return {"outbound_ip": "unknown", "error": str(e)}
-
-
 @router.post("/collect/regional-prices")
 async def collect_regional_prices_now(
     days: int = 7,
