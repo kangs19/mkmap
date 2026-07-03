@@ -7,6 +7,12 @@
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
       "port": 8000,
       "cwd": "backend"
+    },
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765"],
+      "port": 8765
     }
   ]
 }
