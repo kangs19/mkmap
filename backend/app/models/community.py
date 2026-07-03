@@ -14,12 +14,28 @@ class User(Base):
     password_hash: Mapped[str]      = mapped_column(String(200))
     nickname:      Mapped[str]      = mapped_column(String(50), unique=True, index=True)
     role:          Mapped[str]      = mapped_column(String(20), default="general")  # general | farmer | trader | admin
-    farmer_verified: Mapped[bool]   = mapped_column(Boolean, default=False)  # 인증 농부 (관리자 승인)
+    farmer_verified: Mapped[bool]   = mapped_column(Boolean, default=False)  # 농부/유통인 자격 인증 완료
+    phone:         Mapped[str]      = mapped_column(String(20), nullable=True, index=True)
+    phone_verified: Mapped[bool]    = mapped_column(Boolean, default=False)  # 휴대폰 본인 인증 완료
     region:        Mapped[str]      = mapped_column(String(50), nullable=True)   # 활동 지역 (예: 괴산군)
     trust_score:   Mapped[int]      = mapped_column(Integer, default=0)
     is_active:     Mapped[bool]     = mapped_column(Boolean, default=True)
     created_at:    Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_login:    Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+
+class PhoneVerification(Base):
+    """휴대폰 SMS 인증번호 (OTP). 코드는 해시로 저장."""
+    __tablename__ = "phone_verifications"
+    __table_args__ = {"extend_existing": True}
+
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone:      Mapped[str]      = mapped_column(String(20), index=True)
+    code_hash:  Mapped[str]      = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    attempts:   Mapped[int]      = mapped_column(Integer, default=0)   # 검증 시도 횟수
+    verified:   Mapped[bool]     = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class CommunityComment(Base):

@@ -94,7 +94,8 @@ async def create_comment(body: CommentIn, request: Request, db: AsyncSession = D
         region=body.region,
         user_id=user.id,
         nickname=user.nickname,
-        role=user.role if (user.role != "farmer" or user.farmer_verified) else "general",
+        # 농부·유통인 배지는 인증 완료 시에만 표시
+        role=user.role if (user.role in ("general", "admin") or user.farmer_verified) else "general",
         content=body.content,
         parent_id=body.parent_id,
     )
@@ -163,10 +164,12 @@ _ALLOWED = {
 @router.post("/field-reports")
 async def create_field_report(body: FieldReportIn, request: Request, db: AsyncSession = Depends(get_db)):
     user = await require_user(request, db)
-    if user.role not in ("farmer", "trader", "admin"):
+    if user.role == "admin" or (user.role in ("farmer", "trader") and user.farmer_verified):
+        pass
+    else:
         raise HTTPException(status_code=403, detail={
             "error": "farmer_only",
-            "message": "우리지역 평가는 농부·유통인 회원만 등록할 수 있습니다. 회원정보에서 유형을 변경해 주세요.",
+            "message": "우리지역 평가는 휴대폰 인증을 마친 농부·유통인 회원만 등록할 수 있습니다.",
         })
     for field, allowed in _ALLOWED.items():
         if getattr(body, field) not in allowed:

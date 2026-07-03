@@ -131,5 +131,15 @@ async def init_db():
                     "CREATE UNIQUE INDEX IF NOT EXISTS uq_forecasts_item_date_horizon "
                     "ON forecasts (item_code, base_date, horizon_days)"
                 ))
+                # users: 휴대폰 인증 컬럼 추가 (기존 테이블 대응)
+                await conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)"
+                ))
+                await conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE"
+                ))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_users_phone ON users (phone)"
+                ))
             except Exception:
                 pass  # 이미 존재하거나 다른 이유로 실패해도 무시
