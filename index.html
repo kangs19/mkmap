@@ -505,6 +505,17 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
         <!-- 탭2: 재배·시장 -->
         <div class="rp-pane" id="rp-pane-stats" style="display:none">
+        <!-- 전국 농업용수 저수율 가뭄 지표 -->
+        <div id="rp-drought" style="display:none;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div>
+              <div style="font-size:11px;color:var(--muted);font-weight:700">💧 전국 농업용수 저수율 <span id="rp-drought-ym" style="color:var(--muted);font-weight:500"></span></div>
+              <div style="margin-top:2px"><span id="rp-drought-rate" style="font-size:20px;font-weight:800">—</span><span style="font-size:12px;color:var(--muted)">%</span>
+                <span id="rp-drought-badge" style="margin-left:6px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px"></span></div>
+            </div>
+            <div style="text-align:right;font-size:10px;color:var(--muted);max-width:140px" id="rp-drought-note"></div>
+          </div>
+        </div>
         <!-- 재배 현황 | 리스크 분석 (2단) -->
         <div class="fm-mid-row">
           <div class="fm-mid-col">
@@ -1396,6 +1407,30 @@ function switchRpTab(tab){
     const pane=document.getElementById("rp-pane-"+t);
     if(pane) pane.style.display=(t===tab)?"":"none";
   });
+  if(tab==="stats") loadDrought();
+}
+
+// 전국 농업용수 저수율 가뭄 지표
+let _droughtLoaded=false;
+async function loadDrought(){
+  if(_droughtLoaded) return;
+  try{
+    const r=await fetch("/api/v1/drought");
+    const d=await r.json();
+    if(!d.available) return;
+    const box=document.getElementById("rp-drought");
+    const COL={normal:["#2e7d32","#e6f4e6"],watch:["#b8860b","#fdf6e3"],caution:["#d2691e","#fdeee0"],alert:["#c02828","#fbe4e4"]};
+    const c=COL[d.level]||COL.watch;
+    document.getElementById("rp-drought-ym").textContent="("+String(d.base_ym).slice(0,4)+"."+String(d.base_ym).slice(4)+")";
+    document.getElementById("rp-drought-rate").textContent=d.reservoir_rate;
+    document.getElementById("rp-drought-rate").style.color=c[0];
+    const b=document.getElementById("rp-drought-badge");
+    b.textContent=d.level_label; b.style.color=c[0]; b.style.background=c[1];
+    let noteTxt=(d.level==="caution"||d.level==="alert")?"저수율이 낮아 가뭄 시 공급 감소·가격 상승 위험":"농업용수 여유 (평년 수준)";
+    document.getElementById("rp-drought-note").textContent=noteTxt;
+    box.style.display="block";
+    _droughtLoaded=true;
+  }catch(e){/* 조용히 무시 */}
 }
 
 async function loadCommunity(itemCode, regionName){
