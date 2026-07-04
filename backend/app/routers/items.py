@@ -12,6 +12,21 @@ from datetime import date, timedelta
 router = APIRouter(prefix="/api/v1/items", tags=["items"])
 
 
+@router.get("/catalog")
+async def item_catalog():
+    """품목 카탈로그(코드·명칭·단위·분류) — 표준 응답 envelope 채택(Phase2).
+
+    단위 메타 단일 출처(KAMIS ITEM_CODE_MAP). 클라이언트가 가격 단위를 정확히 표기하는 데 사용.
+    """
+    from app.response import ok
+    from app.collectors.kamis import ITEM_CODE_MAP
+    items = [
+        {"item_code": code, "name": m["name"], "unit": m["unit"], "category": m.get("category")}
+        for code, m in ITEM_CODE_MAP.items()
+    ]
+    return ok(items, meta={"count": len(items), "source": "kamis_item_code_map"})
+
+
 @router.get("", response_model=list[ItemListResponse])
 async def list_items(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Item).where(Item.is_active == True))
