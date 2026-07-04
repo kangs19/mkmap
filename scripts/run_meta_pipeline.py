@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from datetime import date
@@ -8,6 +9,15 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _report_dir_acc(report_path: Path) -> float | None:
+    """평가 리포트에서 홀드아웃 방향정확도 읽기. 실패 시 None."""
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        return float(data.get("overall", {}).get("direction_accuracy"))
+    except Exception:
+        return None
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,6 +119,55 @@ def main() -> int:
         ],
         soft_fail=True,
     )
+
+    # ── 챔피언/챌린저: v2(물량·날씨·작물별 피처) 학습 후 홀드아웃 정확도가 더 높으면 채택 ──
+    # 모든 단계 soft-fail + try/except → v2가 조금이라도 실패하면 v1 그대로 사용 (프로덕션 안전)
+    try:
+        v2_table = REPO_ROOT / "data" / "model" / f"price_training_table_{stamp}_v2.csv"
+        v2_model = REPO_ROOT / "data" / "model" / f"price_baseline_model_{stamp}_v2.json"
+        v2_report = REPO_ROOT / "data" / "model" / f"price_baseline_model_{stamp}_v2_evaluation.json"
+        v2_build = run_step(
+            "Build price training table v2 (물량·날씨·작물별 피처)",
+            [sys.executable, "scripts/build_price_training_table_v2.py", "--date", args.date,
+             "--output-suffix", "v2"],
+            soft_fail=True,
+        )
+        v2_train = v2_build and run_step(
+            "Train price model v2",
+            [sys.executable, "scripts/train_price_baseline_model.py",
+             "--input", str(v2_table), "--output", str(v2_model),
+             "--report-output", str(v2_report)],
+            soft_fail=True,
+        )
+        if v2_train and model_ok:
+            acc_v1 = _report_dir_acc(model_report_path)
+            acc_v2 = _report_dir_acc(v2_report)
+            print(f"[champion/challenger] v1 dir_acc={acc_v1} vs v2 dir_acc={acc_v2}")
+            adopted = "v1"
+            reason = "v1 유지"
+            if acc_v1 is not None and acc_v2 is not None:
+                # 누수 의심 가드: v2 정확도가 비현실적으로 높거나(>0.9) 급등(>+0.15)이면 미채택
+                suspicious = acc_v2 > 0.9 or (acc_v2 - acc_v1) > 0.15
+                if suspicious:
+                    reason = f"v2 의심(정확도 {acc_v2:.3f}, 급등) → v1 유지"
+                elif acc_v2 >= acc_v1 + 0.005:
+                    training_table = v2_table
+                    model_path = v2_model
+                    adopted = "v2"
+                    reason = f"v2 채택 ({acc_v1:.3f}→{acc_v2:.3f})"
+            print(f"[champion/challenger] {reason}")
+            # 비교 결과 기록 (엔드포인트로 조회 가능)
+            try:
+                cmp_path = REPO_ROOT / "data" / "model" / "champion_challenger.json"
+                cmp_path.write_text(json.dumps({
+                    "date": args.date, "acc_v1": acc_v1, "acc_v2": acc_v2,
+                    "adopted": adopted, "reason": reason,
+                }, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+    except Exception as exc:  # noqa: BLE001
+        print(f"[champion/challenger] 비교 실패, v1 유지: {exc}", file=sys.stderr)
+
     if model_ok:
         run_step(
             "Predict latest prices with risk overlay",

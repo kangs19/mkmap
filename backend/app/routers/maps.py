@@ -301,6 +301,20 @@ async def get_map_production(
     }
 
 
+@router.get("/api/v1/model/champion-challenger")
+async def get_champion_challenger():
+    """가격모델 v1 vs v2(물량·날씨 피처) 홀드아웃 정확도 비교 결과."""
+    import json as _json
+    from pathlib import Path as _Path
+    p = _Path(__file__).resolve().parents[3] / "data" / "model" / "champion_challenger.json"
+    if not p.exists():
+        return {"available": False, "note": "아직 파이프라인이 v2 비교를 실행하지 않음"}
+    try:
+        return {"available": True, **_json.loads(p.read_text(encoding="utf-8"))}
+    except Exception as e:
+        return {"available": False, "error": str(e)[:120]}
+
+
 @router.get("/api/v1/map/shipment-share")
 async def get_shipment_share(item_code: str = "cabbage", db: AsyncSession = Depends(get_db)):
     """실시간 경매 산지 기반 시도별 출하 비중 (하드코딩 생산비중 대체)."""
