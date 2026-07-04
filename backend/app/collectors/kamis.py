@@ -20,7 +20,7 @@ ITEM_CODE_MAP = {
     "radish":       {"productno": "64",   "name": "무",      "unit": "20kg",  "category": "200"},
     "onion":        {"productno": "117",  "name": "양파",    "unit": "20kg",  "category": "200"},
     "green_onion":  {"productno": "122",  "name": "대파",    "unit": "1kg",   "category": "200"},
-    "garlic":       {"productno": "1003", "name": "마늘",    "unit": "10kg",  "category": "200"},
+    "garlic":       {"productno": "1003", "name": "마늘",    "unit": "20kg",  "category": "200"},  # KAMIS 깐마늘 도매 20kg 기준(156,000→7,800/kg)
     # 1차 추가
     "potato":       {"productno": "24",   "name": "감자",    "unit": "20kg",  "category": "100"},
     "sweet_potato": {"productno": "20",   "name": "고구마",  "unit": "20kg",  "category": "100"},
