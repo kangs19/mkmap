@@ -729,6 +729,7 @@ let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
+let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
 let priceViewMode="wholesale"; // "wholesale" | "retail"
 let LIVE_NATIONAL_PRICES={}; // {item_code: latestPrice} — 가락시장 최신가
 let curDetailData=null; // {name,code,d} — period 변경 시 재렌더 용
@@ -1292,6 +1293,11 @@ async function fetchRegionalPrices(item_code){
       updateRegionalStatus(item_code);
     }
   }catch(e){console.warn("지역 시세 로드 실패:",e.message);}
+  // 실제 출하 비중 (경매 산지 기반) — 전국비중 대체용
+  try{
+    const r2=await fetch(`/api/v1/map/shipment-share?item_code=${item_code}`);
+    if(r2.ok){const s=await r2.json(); if(s.available) LIVE_SHIPMENT_SHARE[item_code]=s.shares;}
+  }catch(e){}
 }
 function updateRegionalStatus(item_code){
   const el=document.getElementById("regional-price-status");
@@ -1984,9 +1990,10 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
   document.getElementById("rp-area-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-area-sub").textContent=yoy?(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"% 전년比":"전년 대비 —";
-  document.getElementById("rp-share").textContent=d.production_pct?d.production_pct+"%":"—";
+  const _rShare=d.sido?LIVE_SHIPMENT_SHARE[curItem]?.[d.sido]:null;
+  document.getElementById("rp-share").textContent=(_rShare!=null)?_rShare+"%":(d.production_pct?d.production_pct+"%":"—");
   document.getElementById("rp-share-sub").className="fm-stat-sub neu";
-  document.getElementById("rp-share-sub").textContent="전국 생산 비중";
+  document.getElementById("rp-share-sub").textContent=(_rShare!=null)?"지역 출하 비중":"전국 생산 비중";
   document.getElementById("rp-yoy").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
   document.getElementById("rp-yoy-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-yoy-sub").textContent="출하량 전년 대비";
@@ -2449,7 +2456,10 @@ function makeHoverCard(name,d,sidoKR){
   const ship=d?.shipment_ton>=10000?(d.shipment_ton/10000).toFixed(1)+'만 톤':d?.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(0)+'천 톤':(d?.shipment_ton||0)+'톤';
   const area=d?.area_ha>=10000?(d.area_ha/10000).toFixed(1)+'만 ha':d?.area_ha?d.area_ha.toLocaleString()+' ha':'—';
   const yoy=d?.shipment_yoy||0;
-  const pw=d?.production_pct?d.production_pct+'%':(d?.production_weight?(d.production_weight*100).toFixed(0)+'%':'—');
+  // 전국비중: 실제 출하비중(경매 산지) 우선, 없으면 생산비중 폴백
+  const realShare=sidoKR?LIVE_SHIPMENT_SHARE[curItem]?.[sidoKR]:null;
+  const pw=(realShare!=null)?realShare+'%':(d?.production_pct?d.production_pct+'%':(d?.production_weight?(d.production_weight*100).toFixed(0)+'%':'—'));
+  const pwLabel=(realShare!=null)?'출하 점유':'생산 점유';
   const rank=d?.rank?d.rank+'위':'—';
   // 도매/소매 가격 블록 — priceViewMode 반영
   const isWholesale=priceViewMode==="wholesale";
@@ -2546,7 +2556,7 @@ function makeHoverCard(name,d,sidoKR){
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
         <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">전국 비중</div>
         <div style="font-size:12px;font-weight:800;color:#1a2410">${pw}</div>
-        <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-top:1px">생산 점유</div>
+        <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-top:1px">${pwLabel}</div>
       </div>
       <div style="background:#f7f9f4;border:1px solid #e8eee0;border-radius:7px;padding:7px 8px;text-align:center">
         <div style="font-size:8px;color:#9aaa8a;font-weight:600;margin-bottom:2px">출하량</div>

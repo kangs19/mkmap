@@ -79,6 +79,25 @@ _VARIETY_INCLUDE = {
 }
 
 
+# plor_nm(산지) 첫 토큰 → 표준 시도명
+_SIDO_NORM = [
+    ("강원", "강원"), ("경기", "경기"), ("경상남도", "경남"), ("경남", "경남"),
+    ("경상북도", "경북"), ("경북", "경북"), ("광주", "광주"), ("대구", "대구"),
+    ("대전", "대전"), ("부산", "부산"), ("서울", "서울"), ("세종", "세종"),
+    ("울산", "울산"), ("인천", "인천"), ("전라남도", "전남"), ("전남", "전남"),
+    ("전라북도", "전북"), ("전북", "전북"), ("충청남도", "충남"), ("충남", "충남"),
+    ("충청북도", "충북"), ("충북", "충북"), ("제주", "제주"),
+]
+
+
+def _origin_sido(plor_nm: str) -> str | None:
+    nm = plor_nm or ""
+    for kw, s in _SIDO_NORM:
+        if nm.startswith(kw):
+            return s
+    return None
+
+
 def _is_std_variety(item_code: str, sclsf: str) -> bool:
     s = sclsf or ""
     if "기타" in s:
@@ -239,3 +258,81 @@ async def collect_regional_prices(days: int = 3) -> dict:
 
     logger.info("[regional] agromarket collected %s rows over %s days", total_saved, days)
     return {"status": "ok", "days": days, "rows_saved": total_saved, "source": "agromarket"}
+
+
+def _collect_shipment_sync(api_key: str, date_str: str, item_code: str, filt: tuple, max_pages: int = 12) -> dict:
+    """한 작물·날짜의 산지 시도별 거래량 합계 (blocking)."""
+    by_sido: dict[str, float] = {}
+    page = 1
+    while page <= max_pages:
+        try:
+            data = _fetch_page(api_key, date_str, filt, page)
+        except Exception:
+            break
+        body = data.get("response", {}).get("body", {})
+        items = body.get("items", {})
+        rows = items.get("item") if isinstance(items, dict) else None
+        if not rows:
+            break
+        if not isinstance(rows, list):
+            rows = [rows]
+        for it in rows:
+            if not _is_std_variety(item_code, it.get("gds_sclsf_nm", "")):
+                continue
+            s = _origin_sido(it.get("plor_nm", ""))
+            if not s:
+                continue
+            try:
+                q = float(it.get("qty") or 0)
+            except (ValueError, TypeError):
+                continue
+            if q <= 0:
+                continue
+            by_sido[s] = by_sido.get(s, 0.0) + q
+        if page * 1000 >= int(body.get("totalCount", 0) or 0):
+            break
+        page += 1
+    return by_sido
+
+
+async def collect_shipment_share(days: int = 7) -> dict:
+    """최근 N일 경매 산지 거래량 → 시도별 출하 비중(%) 저장."""
+    api_key = get_settings().agromarket_api_key
+    if not api_key:
+        return {"error": "AGROMARKET_API_KEY not configured"}
+
+    from app.models.shipment import ShipmentShare
+    end_d = kst_today()
+    loop = asyncio.get_event_loop()
+    total = 0
+
+    async with AsyncSessionLocal() as db:
+        for item_code, filt in CROP_FILTER.items():
+            agg: dict[str, float] = {}
+            for day_off in range(days):
+                date_str = (end_d - timedelta(days=day_off)).strftime("%Y-%m-%d")
+                part = await loop.run_in_executor(
+                    None, _collect_shipment_sync, api_key, date_str, item_code, filt
+                )
+                for s, q in part.items():
+                    agg[s] = agg.get(s, 0.0) + q
+            grand = sum(agg.values())
+            if grand <= 0:
+                continue
+            # 기존 스냅샷 교체
+            await db.execute(
+                delete(ShipmentShare).where(ShipmentShare.item_code == item_code)
+            )
+            rows_ = [
+                {
+                    "item_code": item_code, "sido": s, "base_date": end_d,
+                    "share_pct": round(100.0 * q / grand, 1), "volume": round(q, 1),
+                }
+                for s, q in agg.items()
+            ]
+            await db.execute(pg_insert(ShipmentShare).values(rows_))
+            await db.commit()
+            total += len(rows_)
+
+    logger.info("[shipment] share collected %s rows over %s days", total, days)
+    return {"status": "ok", "days": days, "rows_saved": total}

@@ -9,6 +9,7 @@ from app.models.production import CropProduction
 from app.models.meta import ItemMeta
 from app.models.regional_price import RegionalMarketPrice
 from app.models.drought import DroughtIndex
+from app.models.shipment import ShipmentShare
 from app.models.community import User, CommunityComment, FieldReport, PhoneVerification
 
 __all__ = [
@@ -18,5 +19,5 @@ __all__ = [
     "RegionSignal", "Forecast",
     "ApiKey", "ApiUsage",
     "CropProduction", "ItemMeta",
-    "RegionalMarketPrice", "DroughtIndex",
+    "RegionalMarketPrice", "DroughtIndex", "ShipmentShare",
 ]

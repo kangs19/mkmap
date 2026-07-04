@@ -131,6 +131,18 @@ async def _auto_recover():
     except Exception as exc:
         logging.error("[auto_recover] drought index backfill failed: %s", exc)
 
+    # 출하 비중 없으면 수집
+    try:
+        from app.models.shipment import ShipmentShare
+        async with AsyncSessionLocal() as db:
+            scount = (await db.execute(select(func.count()).select_from(ShipmentShare))).scalar()
+        if not scount:
+            from app.collectors.regional import collect_shipment_share
+            ss = await collect_shipment_share(days=7)
+            logging.info("[auto_recover] shipment share backfilled: %s", ss)
+    except Exception as exc:
+        logging.error("[auto_recover] shipment share backfill failed: %s", exc)
+
     async with AsyncSessionLocal() as db:
         today = kst_today()
         signal_count = (

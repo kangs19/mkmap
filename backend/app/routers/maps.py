@@ -301,6 +301,25 @@ async def get_map_production(
     }
 
 
+@router.get("/api/v1/map/shipment-share")
+async def get_shipment_share(item_code: str = "cabbage", db: AsyncSession = Depends(get_db)):
+    """실시간 경매 산지 기반 시도별 출하 비중 (하드코딩 생산비중 대체)."""
+    from app.models.shipment import ShipmentShare
+    rows = (await db.execute(
+        select(ShipmentShare).where(ShipmentShare.item_code == item_code)
+        .order_by(ShipmentShare.share_pct.desc())
+    )).scalars().all()
+    if not rows:
+        return {"item_code": item_code, "available": False, "shares": {}}
+    return {
+        "item_code": item_code,
+        "available": True,
+        "base_date": str(rows[0].base_date),
+        "shares": {r.sido: r.share_pct for r in rows},
+        "note": "최근 7일 도매시장 경매 산지별 출하량 비중 (계절 반영)",
+    }
+
+
 @router.get("/api/v1/map/regional-prices")
 async def get_regional_prices(
     item_code: str = "cabbage",

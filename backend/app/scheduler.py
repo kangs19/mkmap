@@ -126,6 +126,14 @@ async def daily_pipeline():
     except Exception as exc:
         logger.warning("[scheduler] drought index collection failed: %s", exc)
 
+    # 지역별 출하 비중 (경매 산지 거래량)
+    try:
+        from app.collectors.regional import collect_shipment_share
+        ss = await collect_shipment_share(days=7)
+        logger.info("[scheduler] shipment share: %s", ss)
+    except Exception as exc:
+        logger.warning("[scheduler] shipment share collection failed: %s", exc)
+
     try:
         from app.database import AsyncSessionLocal
         from app.routers.signals import get_today_report
