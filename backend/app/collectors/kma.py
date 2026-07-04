@@ -45,14 +45,15 @@ async def fetch_forecast(
     if not grid:
         return None
 
-    # 기상청 단기예보는 하루 4회 발표: 0200, 0500, 0800, 1100, 1400, 1700, 2000, 2300
-    # 가장 최근 발표시각 사용
-    now = datetime.now()
+    # 기상청 단기예보는 하루 8회 발표: 0200, 0500, 0800, 1100, 1400, 1700, 2000, 2300
+    # KST 기준 가장 최근 발표시각 사용 (UTC datetime.now() 쓰면 base_time 어긋나 조회 실패)
+    from app.timezone import kst_now
+    now_kst = kst_now()
     base_times = ["2300", "2000", "1700", "1400", "1100", "0800", "0500", "0200"]
-    base_time = "0800"  # 기본값
+    base_time = "0200"  # 기본값 (이른 새벽)
     for bt in base_times:
         hour = int(bt[:2])
-        if now.hour >= hour:
+        if now_kst.hour >= hour:
             base_time = bt
             break
 

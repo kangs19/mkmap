@@ -420,28 +420,11 @@ async def get_regional_prices(
 
 @router.get("/api/v1/map/weather")
 async def get_map_weather(
-    wdebug: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
     """지도 날씨 레이어 — 지역별 최신 날씨"""
     from app.models.weather import DailyWeather
     from sqlalchemy import func as sqlfunc
-
-    # 임시 진단: sync_weather 직접 실행 + 저장 결과
-    if wdebug:
-        import traceback
-        from app.models.weather import DailyWeather as _DW
-        from sqlalchemy import func as _sf
-        out = {}
-        try:
-            from app.collectors.sync import sync_weather
-            out["sync_result"] = await sync_weather(days_back=2)
-            # 저장 후 최신 날짜 재확인
-            mx = (await db.execute(select(_sf.max(_DW.date)))).scalar()
-            out["max_date_after"] = str(mx)
-        except Exception as e:
-            out["error"] = f"{type(e).__name__}: {str(e)[:200]}"; out["trace"] = traceback.format_exc()[-500:]
-        return out
 
     subq = (
         select(DailyWeather.region_code, sqlfunc.max(DailyWeather.date).label("max_date"))

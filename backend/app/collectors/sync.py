@@ -171,7 +171,8 @@ async def sync_weather(days_back: int = 3) -> dict:
         log.warning("KMA_API_KEY 없음 — 기상 동기화 스킵")
         return {"skipped": True}
 
-    end_date = date.today()
+    from app.timezone import kst_today
+    end_date = kst_today()  # UTC(date.today) 쓰면 06:00 KST 실행 시 전날로 조회돼 날씨 갱신 실패
     saved = 0
 
     for region_code in ALL_REGIONS:
