@@ -1912,12 +1912,16 @@ function showRegionDetail(name,code,d){
   document.getElementById("right-detail").style.display="block";
   switchRpTab("forecast");
 
-  // 현재가 — city data → regional national avg → KAMIS 최신가 순으로 폴백
+  // 현재가/예측 base — 차트가 KAMIS 전국가(품목단위)이므로 동일 소스를 우선 사용해 일치시킴
+  // (지역 도매가 agromarket는 원/kg 단위라 그대로 쓰면 ~수십배 어긋남 → 단위환산 후 폴백)
   const it=ITEMS[curItem];
   const sidoName=d.sido||"";
   const rpSido=sidoName?LIVE_REGIONAL_PRICES[curItem]?.sido_avg?.[sidoName]:null;
+  const unitKg=parseFloat(String(it.unit||"1").replace(/[^0-9.]/g,""))||1;
+  const rpSidoUnit=rpSido?.wholesale?Math.round(rpSido.wholesale*unitKg):0;      // 원/kg → 원/단위
+  const natRegUnit=Math.round((LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||0)*unitKg);
   const rawPv=d.avg_price||0;
-  const pv=rawPv||rpSido?.wholesale||LIVE_NATIONAL_PRICES[curItem]||LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||0;
+  const pv=LIVE_NATIONAL_PRICES[curItem]||rawPv||rpSidoUnit||natRegUnit||0;
   // price_vs_avg: city data 기준, 없으면 regional vs_national_pct
   const chgPct=d.price_vs_avg||(rpSido?.vs_national_pct)||0;
   const yoy=d.shipment_yoy||0;
