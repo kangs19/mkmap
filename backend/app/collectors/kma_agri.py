@@ -46,9 +46,11 @@ async def fetch_agri_village_fcst(
     if not settings.kma_api_key:
         return None
 
-    base_times = ["0800", "1100", "1400", "1700", "2000", "2300", "0200", "0500"]
-    now = datetime.now()
-    base_time = "0800"
+    # KST 기준 가장 최근 발표시각 (UTC now.hour 쓰면 base_time 어긋나 조회 실패)
+    from app.timezone import kst_now
+    base_times = ["2300", "2000", "1700", "1400", "1100", "0800", "0500", "0200"]
+    now = kst_now()
+    base_time = "0200"
     for bt in base_times:
         if now.hour >= int(bt[:2]):
             base_time = bt
@@ -91,7 +93,8 @@ async def fetch_agri_nowcast(
     if not settings.kma_api_key:
         return None
 
-    now = datetime.now()
+    from app.timezone import kst_now
+    now = kst_now()  # 초단기실황 base_date/time은 KST 기준
     params = {
         "serviceKey": settings.kma_api_key,
         "pageNo": "1",

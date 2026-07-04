@@ -440,11 +440,12 @@ async def get_map_weather(
     )
     rows = result.scalars().all()
     return {
-        "base_date": str(rows[0].date) if rows else None,
+        "base_date": str(max(r.date for r in rows)) if rows else None,
         "regions": [
             {
                 "region_code": r.region_code,
                 "region_name": r.region_name,
+                "date": str(r.date),
                 "avg_temp": r.avg_temp,
                 "max_temp": r.max_temp,
                 "min_temp": r.min_temp,
