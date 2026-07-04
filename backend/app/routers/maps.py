@@ -427,26 +427,20 @@ async def get_map_weather(
     from app.models.weather import DailyWeather
     from sqlalchemy import func as sqlfunc
 
-    # 임시 진단: KMA fetch_forecast 오늘/어제 시도 결과
+    # 임시 진단: sync_weather 직접 실행 + 저장 결과
     if wdebug:
         import traceback
-        from datetime import datetime as _dt
-        out = {"utc_now": _dt.utcnow().isoformat()}
+        from app.models.weather import DailyWeather as _DW
+        from sqlalchemy import func as _sf
+        out = {}
         try:
-            from app.collectors.kma import fetch_forecast
-            from app.collectors.sync import ALL_REGIONS
-            from app.config import get_settings as _gs
-            out["kma_key_present"] = bool(_gs().kma_api_key)
-            rc = ALL_REGIONS[0] if ALL_REGIONS else "KR-41"
-            for lbl, dd in [("today", kst_today()), ("yesterday", kst_today() - timedelta(days=1))]:
-                try:
-                    row = await fetch_forecast(rc, dd)
-                    out[lbl] = {"region": rc, "date": str(dd), "got": bool(row),
-                                "sample": {k: row[k] for k in list(row)[:5]} if row else None}
-                except Exception as e:
-                    out[lbl] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
+            from app.collectors.sync import sync_weather
+            out["sync_result"] = await sync_weather(days_back=2)
+            # 저장 후 최신 날짜 재확인
+            mx = (await db.execute(select(_sf.max(_DW.date)))).scalar()
+            out["max_date_after"] = str(mx)
         except Exception as e:
-            out["error"] = f"{type(e).__name__}: {str(e)[:150]}"; out["trace"] = traceback.format_exc()[-400:]
+            out["error"] = f"{type(e).__name__}: {str(e)[:200]}"; out["trace"] = traceback.format_exc()[-500:]
         return out
 
     subq = (
