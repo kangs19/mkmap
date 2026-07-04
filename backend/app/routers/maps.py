@@ -240,10 +240,36 @@ async def get_map_prices(
 ):
     """지도용 — 최근 30일 가격 추이"""
     from datetime import timedelta
-    # 임시: 이상치 가드 적용해 재수집 (배포 후 1회)
+    # 임시: DB의 가격 이상치 직접 정리 (배포 후 1회) — 재조회 불필요
     if resync:
-        from app.collectors.sync import sync_prices
-        return await sync_prices(days_back=14)
+        import statistics as _st
+        from datetime import timedelta as _td
+        removed = {}
+        end0 = kst_today(); start0 = end0 - _td(days=120)
+        codes = (await db.execute(
+            select(DailyPrice.item_code).where(DailyPrice.source == "kamis").distinct()
+        )).scalars().all()
+        for code in codes:
+            prows = (await db.execute(
+                select(DailyPrice).where(
+                    DailyPrice.item_code == code,
+                    DailyPrice.source == "kamis",
+                    DailyPrice.date >= start0,
+                )
+            )).scalars().all()
+            vals = [p.wholesale_price for p in prows if p.wholesale_price and p.wholesale_price > 0]
+            if len(vals) < 5:
+                continue
+            med = _st.median(vals)
+            if med <= 0:
+                continue
+            bad = [p for p in prows if p.wholesale_price and not (med / 4 <= p.wholesale_price <= med * 4)]
+            for p in bad:
+                await db.delete(p)
+            if bad:
+                removed[code] = [str(p.date) for p in bad]
+        await db.commit()
+        return {"removed_outliers": removed}
     end = kst_today()
     start = end - timedelta(days=30)
 
