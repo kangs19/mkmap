@@ -235,41 +235,10 @@ async def get_map_signals(
 @router.get("/api/v1/map/prices")
 async def get_map_prices(
     item_code: str = "cabbage",
-    resync: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
     """지도용 — 최근 30일 가격 추이"""
     from datetime import timedelta
-    # 임시: DB의 가격 이상치 직접 정리 (배포 후 1회) — 재조회 불필요
-    if resync:
-        import statistics as _st
-        from datetime import timedelta as _td
-        removed = {}
-        end0 = kst_today(); start0 = end0 - _td(days=120)
-        codes = (await db.execute(
-            select(DailyPrice.item_code).where(DailyPrice.source == "kamis").distinct()
-        )).scalars().all()
-        for code in codes:
-            prows = (await db.execute(
-                select(DailyPrice).where(
-                    DailyPrice.item_code == code,
-                    DailyPrice.source == "kamis",
-                    DailyPrice.date >= start0,
-                )
-            )).scalars().all()
-            vals = [p.wholesale_price for p in prows if p.wholesale_price and p.wholesale_price > 0]
-            if len(vals) < 5:
-                continue
-            med = _st.median(vals)
-            if med <= 0:
-                continue
-            bad = [p for p in prows if p.wholesale_price and not (med / 4 <= p.wholesale_price <= med * 4)]
-            for p in bad:
-                await db.delete(p)
-            if bad:
-                removed[code] = [str(p.date) for p in bad]
-        await db.commit()
-        return {"removed_outliers": removed}
     end = kst_today()
     start = end - timedelta(days=30)
 
@@ -300,14 +269,24 @@ async def get_map_production(
     item_code: str = "cabbage",
     db: AsyncSession = Depends(get_db),
 ):
-    """지도용 — KOSIS 연간 재배면적·생산량"""
+    """지도용 — KOSIS 연간 재배면적·생산량 (미완결/부분수집 연도 제외)"""
+    import statistics as _st
     result = await db.execute(
         select(CropProduction)
         .where(CropProduction.item_code == item_code)
         .order_by(CropProduction.year.desc())
-        .limit(5)
+        .limit(8)
     )
-    rows = result.scalars().all()
+    rows = list(result.scalars().all())
+    # 부분수집(미완결) 연도 제외: 생산량이 최근 연도 중앙값의 40% 미만이면 불완전으로 간주
+    prods = [r.production_ton for r in rows if r.production_ton and r.production_ton > 0]
+    if len(prods) >= 3:
+        med = _st.median(prods)
+        rows = [
+            r for r in rows
+            if not (r.production_ton and med > 0 and r.production_ton < med * 0.4)
+        ]
+    rows = rows[:5]
     return {
         "item_code": item_code,
         "production": [
