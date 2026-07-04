@@ -235,10 +235,15 @@ async def get_map_signals(
 @router.get("/api/v1/map/prices")
 async def get_map_prices(
     item_code: str = "cabbage",
+    resync: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
     """지도용 — 최근 30일 가격 추이"""
     from datetime import timedelta
+    # 임시: 이상치 가드 적용해 재수집 (배포 후 1회)
+    if resync:
+        from app.collectors.sync import sync_prices
+        return await sync_prices(days_back=14)
     end = kst_today()
     start = end - timedelta(days=30)
 

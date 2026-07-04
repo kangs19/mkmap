@@ -19,10 +19,35 @@ from app.collectors.kosis import fetch_all_crops_production
 from app.config import get_settings
 
 import logging
+import statistics
 log = logging.getLogger(__name__)
 
 ALL_ITEMS = list(ITEM_CODE_MAP.keys())
 ALL_REGIONS = list(REGION_GRID.keys())
+
+
+def _reject_price_outliers(rows: list[dict], item_code: str):
+    """전체 중앙값 대비 4배 초과/이하인 가격 레코드 제거.
+    KAMIS 자릿수/단위 오류(예: 마늘 155,000 → 1,550,000) 차단. 정상 변동은 통과.
+    반환: (kept_rows, dropped_dates)
+    """
+    prices = [r["wholesale_price"] for r in rows
+              if r.get("wholesale_price") and r["wholesale_price"] > 0]
+    if len(prices) < 3:
+        return rows, []  # 표본 부족 시 판단 보류
+    med = statistics.median(prices)
+    if med <= 0:
+        return rows, []
+    kept, dropped_dates = [], []
+    for r in rows:
+        p = r.get("wholesale_price")
+        if p and p > 0 and not (med / 4 <= p <= med * 4):
+            dropped_dates.append(r["date"])
+            continue
+        kept.append(r)
+    if dropped_dates:
+        log.warning("[sync_prices] %s 이상치 %d건 제거 (median=%.0f)", item_code, len(dropped_dates), med)
+    return kept, dropped_dates
 
 
 async def sync_prices(days_back: int = 7) -> dict:
@@ -56,9 +81,34 @@ async def sync_prices(days_back: int = 7) -> dict:
             log.info(f"KAMIS 가격 없음: {item_code}")
             continue
 
+        rows, dropped_dates = _reject_price_outliers(rows, item_code)
+
+        # 이상치 삭제만 하고 넣을 정상행이 없으면 삭제 후 다음 품목
+        if not rows and dropped_dates:
+            async with AsyncSessionLocal() as db:
+                from sqlalchemy import delete as _delete
+                await db.execute(_delete(DailyPrice).where(
+                    DailyPrice.item_code == item_code,
+                    DailyPrice.source == "kamis",
+                    DailyPrice.date.in_(dropped_dates),
+                ))
+                await db.commit()
+            continue
+        if not rows:
+            continue
+
         async with AsyncSessionLocal() as db:
             try:
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
+                # 이상치로 걸린 날짜의 기존 오염 행 삭제 (upsert가 덮지 못하므로)
+                if dropped_dates:
+                    from sqlalchemy import delete as _delete
+                    await db.execute(_delete(DailyPrice).where(
+                        DailyPrice.item_code == item_code,
+                        DailyPrice.source == "kamis",
+                        DailyPrice.date.in_(dropped_dates),
+                    ))
+                    await db.commit()
                 stmt = pg_insert(DailyPrice).values([
                     {
                         "item_code": row["item_code"],
