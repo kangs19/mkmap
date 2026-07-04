@@ -420,11 +420,34 @@ async def get_regional_prices(
 
 @router.get("/api/v1/map/weather")
 async def get_map_weather(
+    wdebug: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
     """지도 날씨 레이어 — 지역별 최신 날씨"""
     from app.models.weather import DailyWeather
     from sqlalchemy import func as sqlfunc
+
+    # 임시 진단: KMA fetch_forecast 오늘/어제 시도 결과
+    if wdebug:
+        import traceback
+        from datetime import datetime as _dt
+        out = {"utc_now": _dt.utcnow().isoformat()}
+        try:
+            from app.collectors.kma import fetch_forecast
+            from app.collectors.sync import ALL_REGIONS
+            from app.config import get_settings as _gs
+            out["kma_key_present"] = bool(_gs().kma_api_key)
+            rc = ALL_REGIONS[0] if ALL_REGIONS else "KR-41"
+            for lbl, dd in [("today", kst_today()), ("yesterday", kst_today() - timedelta(days=1))]:
+                try:
+                    row = await fetch_forecast(rc, dd)
+                    out[lbl] = {"region": rc, "date": str(dd), "got": bool(row),
+                                "sample": {k: row[k] for k in list(row)[:5]} if row else None}
+                except Exception as e:
+                    out[lbl] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
+        except Exception as e:
+            out["error"] = f"{type(e).__name__}: {str(e)[:150]}"; out["trace"] = traceback.format_exc()[-400:]
+        return out
 
     subq = (
         select(DailyWeather.region_code, sqlfunc.max(DailyWeather.date).label("max_date"))
