@@ -373,6 +373,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
       <div style="font-size:10px;color:var(--muted);line-height:1.45;margin-top:7px">재배 면적/가격 예측은 지도 색상 기준을 바꾸는 모드입니다. 기상 정보와 도매시장 위치는 지도 위에 보조 마커로 겹쳐 표시됩니다.</div>
+      <div id="farmmap-layer-note" style="display:none;font-size:10px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f7fbfa;border:1px solid var(--border);border-radius:8px;padding:8px 9px">
+        <b style="color:var(--text)">팜맵 색상 기준</b><br>
+        색상은 행정구역 안에서 가장 큰 팜맵 토지분류(논/밭/시설/과수 등), 진하기는 집계 면적 규모입니다. 행정구역 전체가 농지라는 뜻이 아니라, 시도/시군구 단위 요약값을 면 색으로 표시한 것입니다.
+      </div>
     </div>
 
     <!-- 기간 선택 -->
@@ -1153,6 +1157,8 @@ function applyLayer(layer,on,el){
   } else if(layer==="market"){
     on ? loadMarketLayer() : removeMarketLayer();
   } else if(layer==="farmmap"){
+    const note=document.getElementById("farmmap-layer-note");
+    if(note) note.style.display=on?"block":"none";
     if(on) loadFarmMapLanduseLayer();
     else redrawMap();
   } else if(layer==="pest"||layer==="soil"){
@@ -1411,6 +1417,11 @@ function farmMapLanduseColor(fm){
   const alpha=Math.max(.30,Math.min(.82,Math.log10(area+1)/5.2));
   return `rgba(${base[0]},${base[1]},${base[2]},${alpha})`;
 }
+function farmMapColorMeaning(fm){
+  const cls=fm?.top_class||"분류";
+  const area=Math.round(Number(fm?.area_ha)||0).toLocaleString();
+  return `색상은 대표 분류(${cls}), 진하기는 농지분류 집계 면적(${area}ha) 규모를 뜻합니다.`;
+}
 function farmMapSummaryHtml(fm){
   if(!fm) return "";
   const entries=Object.entries(fm.classes||{}).sort((a,b)=>b[1]-a[1]).slice(0,4);
@@ -1423,7 +1434,7 @@ function makeFarmMapHoverCard(title,fm){
     <div style="font-size:12px;color:var(--text)">농지분류 면적 <b>${Math.round(fm.area_ha).toLocaleString()}ha</b></div>
     <div style="font-size:11px;color:var(--muted);margin-top:2px">필지 ${Math.round(fm.parcel_count||0).toLocaleString()}개 · 대표 ${fm.top_class}</div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:7px">${farmMapSummaryHtml(fm)}</div>
-    <div style="font-size:10px;color:var(--muted);margin-top:7px">공식 팜맵 농지분류입니다. 작물별 재배면적이 아닙니다.</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">${farmMapColorMeaning(fm)}<br>행정구역 전체를 농지로 칠한 것이 아니라, 해당 구역 안의 공식 팜맵 농지분류 집계를 요약 표시한 것입니다. 작물별 재배면적도 아닙니다.</div>
   </div>`;
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
@@ -2614,7 +2625,7 @@ function showRegionDetail(name,code,d){
       fmSection.style.display="";
       document.getElementById("rp-farmmap-main").textContent=`${Math.round(fmData.area_ha||0).toLocaleString()} ha`;
       document.getElementById("rp-farmmap-sub").innerHTML=`필지 ${Math.round(fmData.parcel_count||0).toLocaleString()}개<br>대표 분류 ${fmData.top_class||"—"}<br>작물별 면적 아님`;
-      document.getElementById("rp-farmmap-classes").innerHTML=farmMapSummaryHtml(fmData);
+      document.getElementById("rp-farmmap-classes").innerHTML=farmMapSummaryHtml(fmData)+`<div style="width:100%;font-size:10px;color:var(--muted);line-height:1.55;margin-top:4px">지도 색은 실제 농지 경계가 아니라 행정구역 단위 팜맵 농지분류 집계입니다. ${farmMapColorMeaning(fmData)}</div>`;
       const cap=farmMapCapacityForRegion(curItem,code);
       renderFarmMapCapacity(cap);
       if(!cap){
@@ -2943,7 +2954,7 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(cd,pfx);
       const fm=farmMapForSidoCode(sido);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:1,dashArray:"5 3"};
       if(!ents.length||!isActiveCropProvince(ents))return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
       return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
@@ -3108,7 +3119,7 @@ function drawCities(sido){
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=activeCodes.has(code)?cd[code]:null;
       const fm=farmMapForCity(sido,f.properties[nameProp]||code);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:1,dashArray:"5 3"};
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
       return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
