@@ -550,6 +550,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-forecast-risk-summary" id="rp-forecast-risk-summary">—</div>
             </div>
             <div id="rp-forecast-risk-bars" class="fm-risk-bars-compact"></div>
+            <div id="rp-risk-explain" style="font-size:9px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f8faf5;border:1px solid var(--border);border-radius:7px;padding:7px 8px"></div>
           </div>
         </div>
 
@@ -2586,6 +2587,24 @@ function showRegionDetail(name,code,d){
   }
   const forecastRiskBars=document.getElementById("rp-forecast-risk-bars");
   if(forecastRiskBars) forecastRiskBars.innerHTML=riskRowsHtml;
+  const unifiedRisk=buildRiskBreakdown(d,priceCtx,chgPct);
+  const unifiedRiskHtml=riskBarsHtml(unifiedRisk.rows,{compact:true,showBasis:true});
+  if(gaugeEl){
+    gaugeEl.className="fm-risk-circle "+(unifiedRisk.total>=70?"high":unifiedRisk.total>=50?"warn":"ok");
+    document.getElementById("rp-gauge-num").textContent=unifiedRisk.total;
+    document.getElementById("rp-gauge-lbl").textContent=unifiedRisk.level.label;
+  }
+  if(statsRiskBars) statsRiskBars.innerHTML=unifiedRiskHtml;
+  if(forecastRiskBars) forecastRiskBars.innerHTML=unifiedRiskHtml;
+  if(riskSummary){
+    const topUnified=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0];
+    const topInfo=riskLevelInfo(topUnified.score);
+    riskSummary.textContent=`종합 ${unifiedRisk.total}(${unifiedRisk.level.label}) · 주요 ${topUnified.label} ${topUnified.score}(${topInfo.label})`;
+  }
+  const riskExplain=document.getElementById("rp-risk-explain");
+  if(riskExplain){
+    riskExplain.innerHTML=`<b>점수 해석</b>: 0~100점, 높을수록 선택 기간에 가격이 크게 흔들리거나 공급 스트레스가 커질 가능성이 높다는 뜻입니다.<br><b>산출 기준</b>: 백엔드 지역 위험 신호가 있으면 가격 50% + 기상 35% + 생산/KOSIS 공급 15% 공식을 씁니다. 백엔드 신호가 없는 지도 기본값은 가격지수와 출하 전년비 기반 파생점수입니다. 아래 세부 막대는 같은 종합점수를 실데이터와 파생 지표로 나눈 설명용 값이며, 없는 데이터를 임의 실측값처럼 표시하지 않습니다.`;
+  }
 
   // ── 출하·시장 동향
   const sh=d.shipment_ton||0;
@@ -2638,6 +2657,67 @@ function riskColor(s){
   if(s>=50)return"rgba(220,100,0,.55)";
   if(s>=30)return"rgba(180,140,0,.5)";
   return"rgba(100,60,200,.45)";
+}
+function riskLevelInfo(score){
+  const s=Number(score)||0;
+  if(s>=70) return {key:"high",label:"높음",color:"#c02828",hint:"가격 급변 또는 공급 차질 가능성이 커서 우선 확인이 필요합니다."};
+  if(s>=50) return {key:"warn",label:"주의",color:"#b86010",hint:"변동 가능성이 있어 산지와 시장 흐름을 같이 확인해야 합니다."};
+  if(s>=30) return {key:"mid",label:"관찰",color:"#a07010",hint:"일부 변동 신호가 있어 모니터링 대상입니다."};
+  return {key:"ok",label:"낮음",color:"#1a8a1a",hint:"현재 확인된 위험 신호가 약합니다."};
+}
+function riskSourceTag(source){
+  if(source==="live") return `<span class="fm-data-tag live">실데이터</span>`;
+  if(source==="derived") return `<span class="fm-data-tag model">파생</span>`;
+  return `<span class="fm-data-tag model">추정</span>`;
+}
+function buildRiskBreakdown(d,priceCtx,chgPct){
+  const total=Math.max(0,Math.min(100,Math.round(Number(d?.risk_score)||0)));
+  const regionKey=d?.province_code||PROV_NAME_MAP[d?.sido]||d?.sido;
+  const signal=LIVE_SIGNALS[curItem]?.[regionKey]||LIVE_SIGNALS[curItem]?.[d?.code];
+  const marketChange=Math.abs(Number(chgPct)||0);
+  const weatherScore=signal?.risk_score!=null
+    ? Math.max(0,Math.min(100,Math.round(signal.risk_score)))
+    : Math.round(total*0.35);
+  const cropScore=Math.max(0,Math.min(100,Math.round(
+    Math.abs(Number(d?.shipment_yoy)||0)*1.5 + Math.max(0,100-(Number(d?.harvest_rate)||85))*0.6 + total*0.15
+  )));
+  const marketScore=Math.max(0,Math.min(100,Math.round(
+    marketChange*3 + Math.abs(Number(d?.price_vs_avg)||0)*1.2 + total*0.25
+  )));
+  const rows=[
+    {
+      icon:"🌧",
+      label:"기상·재해",
+      score:weatherScore,
+      source:signal?"live":"derived",
+      basis:signal?.summary||"실시간 기상 신호가 없을 때는 종합점수 일부를 설명용으로 배분한 파생값",
+    },
+    {
+      icon:"🌱",
+      label:"출하·생육",
+      score:cropScore,
+      source:"derived",
+      basis:"출하 전년비, 수확 진행률, 산지 비중으로 계산한 공급 스트레스",
+    },
+    {
+      icon:"📊",
+      label:"시장·가격",
+      score:marketScore,
+      source:priceCtx?.rp?"live":"derived",
+      basis:priceCtx?.rp?"지역 도매/소매 실측가와 전국 평균 차이 기반":"예상 변동률과 가격지수 차이 기반",
+    },
+  ];
+  return {total,level:riskLevelInfo(total),rows};
+}
+function riskBarsHtml(rows,{compact=false,showBasis=false}={}){
+  return rows.map(r=>{
+    const info=riskLevelInfo(r.score);
+    return`<div class="fm-risk-bar-row">
+      <div class="fm-risk-bar-info"><span>${r.icon} ${r.label} ${riskSourceTag(r.source)}</span><b style="color:${info.color}">${r.score} <span style="font-size:9px;font-weight:600">${info.label}</span></b></div>
+      <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${info.color}"></div></div>
+      ${showBasis?`<div style="font-size:${compact?"8px":"9px"};color:var(--muted);line-height:1.45;margin-top:3px">${r.basis}</div>`:""}
+    </div>`;
+  }).join("");
 }
 function prodColor(areaHa){
   if(areaHa>=20000)return"rgba(10,90,10,.80)";
@@ -3466,7 +3546,8 @@ function makeHoverCard(name,d,sidoKR){
 
     <div style="margin-bottom:9px">
       <div style="font-size:9px;color:#9aaa8a;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">주요 리스크</div>
-      ${rBars}
+      ${riskBarsHtml(buildRiskBreakdown(d,priceCtx,chg).rows,{compact:true,showBasis:false})}
+      <div style="font-size:8px;color:#8a9a7a;line-height:1.45;margin-top:5px">0~100점, 높을수록 가격 변동·공급 스트레스 가능성이 큽니다. 상세 탭에서 산출 근거를 볼 수 있습니다.</div>
     </div>
 
     <div style="margin-bottom:10px">
