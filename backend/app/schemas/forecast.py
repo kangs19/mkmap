@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -9,6 +9,8 @@ class TopFactor(BaseModel):
 
 
 class ForecastResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     item_code: str
     item_name: str
     base_date: str

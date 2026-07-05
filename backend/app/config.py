@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     wordpress_base_url: str = ""
     discord_webhook_url: str = ""
     default_rate_limit_per_day: int = 100
+    active_price_model_prefix: str = "price_horizon_model_20260701_mixed_approved_v3"
+    active_price_predictions_path: str = ""
+    active_price_explanations_path: str = ""
 
     # SMS 인증 (알리고 Aligo). 미설정 시 개발환경에서만 코드 노출.
     sms_provider: str = ""          # "aligo" | "" (미설정)

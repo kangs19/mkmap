@@ -9,6 +9,12 @@ from app.models.signal import RegionSignal
 from app.schemas.forecast import ForecastResponse, TopFactor
 from datetime import date
 from app.timezone import kst_today
+from app.services.horizon_forecasts import (
+    horizon_explanation_response,
+    horizon_response,
+    load_horizon_explanation,
+    load_horizon_forecast,
+)
 
 router = APIRouter(prefix="/api/v1/items", tags=["forecasts"])
 
@@ -28,6 +34,10 @@ async def get_forecast(
             "message": f"품목 코드 '{item_code}'를 찾을 수 없습니다.",
             "code": 404
         })
+
+    horizon_fc = load_horizon_forecast(item_code, target_date)
+    if horizon_fc:
+        return ForecastResponse(**horizon_response(item, horizon_fc))
 
     base_date = date.fromisoformat(target_date) if target_date else kst_today()
 
@@ -849,6 +859,13 @@ async def get_forecast_explanation(
     horizon: int = 14,
     db: AsyncSession = Depends(get_db),
 ):
+    result = await db.execute(select(Item).where(Item.item_code == item_code))
+    item_for_horizon = result.scalar_one_or_none()
+    if item_for_horizon:
+        horizon_explanation = load_horizon_explanation(item_code, target_date)
+        if horizon_explanation:
+            return horizon_explanation_response(item_for_horizon, horizon_explanation)
+
     item, fc, base_date = await _load_item_forecast(item_code, target_date, db, horizon=horizon)
     latest_price_date = (
         await db.execute(

@@ -429,3 +429,30 @@ python scripts\push_outputs_to_server.py --date 2026-07-02 --server https://mk-m
 - 약 78%
 
 UPSERT 안정화로 Railway DB sync가 이제 올바르게 작동해야 한다. 다음 06:00 KST 스케줄러가 실행되면 Railway에서 자동으로 pipeline + sync가 진행된다.
+## Session 32 - Main UI/UX renewal and horizon forecast deploy prep (2026-07-05)
+
+Completed:
+
+- Renewed `index.html` into an operational price-forecast dashboard.
+- The first screen now focuses on item selection, multi-horizon forecast cards, forecast reasons, risk map, item comparison, high-risk alerts, and data-source status.
+- Added `backend/app/services/horizon_forecasts.py`.
+- Updated `backend/app/routers/forecasts.py` so forecast/explanation APIs first try active horizon prediction artifacts and fall back to DB forecasts if artifacts are absent.
+- Added active horizon config:
+  - `ACTIVE_PRICE_MODEL_PREFIX`
+  - `ACTIVE_PRICE_PREDICTIONS_PATH`
+  - `ACTIVE_PRICE_EXPLANATIONS_PATH`
+
+Deployment note:
+
+- Remote `origin/main` had newer operational commits, so this work was rebased on top of `origin/main`.
+- Rebase policy:
+  - keep remote fixes for collectors, DB, scheduler, and pipeline
+  - keep the renewed `index.html`
+  - reapply minimal horizon forecast API wiring
+- Generated `data/` artifacts were intentionally not committed.
+
+Important caveat:
+
+- The renewed UI deploys immediately with the code.
+- File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
+- If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.

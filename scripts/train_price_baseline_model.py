@@ -15,7 +15,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_COLUMNS = {
     "base_date",
     "item_code",
-    "target_next_change",
     # Absolute prices hurt cross-item training (cabbage=400원 vs garlic=5000원).
     # Only normalized/relative features are used as model inputs.
     "avg_price",
@@ -35,18 +34,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=None)
     parser.add_argument("--report-output", default=None)
     parser.add_argument("--backtest-output", default=None)
+    parser.add_argument("--target-column", default="target_next_change", help="Training target column in the input CSV")
     parser.add_argument("--backtest-min-train-rows", type=int, default=24)
     parser.add_argument("--backtest-window-count", type=int, default=8)
     parser.add_argument("--min-item-rows", type=int, default=24)
     parser.add_argument("--item-model-max-mae-ratio", type=float, default=1.0)
     parser.add_argument("--item-model-short-history-rows", type=int, default=45)
     parser.add_argument("--item-model-short-history-min-mae-ratio", type=float, default=0.95)
+    parser.add_argument(
+        "--include-features",
+        default="",
+        help="Optional comma-separated feature allowlist for controlled candidate experiments.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    rows, features = _read_rows(Path(args.input))
+    include_features = _parse_include_features(args.include_features)
+    rows, features = _read_rows(Path(args.input), args.target_column, include_features=include_features)
     if len(rows) < 10:
         print(json.dumps({"ok": False, "reason": "not_enough_rows", "rows": len(rows)}, ensure_ascii=False, indent=2))
         return 1
@@ -58,7 +64,7 @@ def main() -> int:
     model = _fit_linear_model(train, features)
     threshold = _tune_direction_threshold(model, test)
     model["direction_threshold"] = threshold
-    metrics = _evaluate(model, test, threshold)
+    global_metrics = _evaluate(model, test, threshold)
     item_models = _fit_item_models(
         rows,
         features,
@@ -69,6 +75,7 @@ def main() -> int:
         short_history_rows=args.item_model_short_history_rows,
         short_history_min_mae_ratio=args.item_model_short_history_min_mae_ratio,
     )
+    metrics = _evaluate_routed(model, item_models, test, threshold)
     backtest = _rolling_backtest(
         rows,
         features,
@@ -83,6 +90,8 @@ def main() -> int:
     backtest_path = Path(args.backtest_output) if args.backtest_output else out_path.with_name(out_path.stem + "_backtest.json")
     payload = {
         "model_type": "standardized_linear_baseline",
+        "target_column": args.target_column,
+        "horizon_days": _horizon_days_from_target(args.target_column),
         "features": features,
         "intercept": model["intercept"],
         "coefficients": model["coefficients"],
@@ -92,6 +101,7 @@ def main() -> int:
         "train_rows": len(train),
         "test_rows": len(test),
         "metrics": metrics,
+        "global_metrics": global_metrics,
         "probability_calibration": _probability_calibration(backtest, threshold),
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -113,18 +123,31 @@ def main() -> int:
     return 0
 
 
-def _read_rows(path: Path) -> tuple[list[dict[str, float | str]], list[str]]:
+def _read_rows(
+    path: Path,
+    target_column: str = "target_next_change",
+    include_features: set[str] | None = None,
+) -> tuple[list[dict[str, float | str]], list[str]]:
     rows: list[dict[str, float | str]] = []
     with path.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
             return [], []
-        features = [field for field in reader.fieldnames if field not in EXCLUDED_COLUMNS]
+        if target_column not in reader.fieldnames:
+            raise ValueError(f"Target column not found in input CSV: {target_column}")
+        features = [
+            field
+            for field in reader.fieldnames
+            if field not in EXCLUDED_COLUMNS and not field.startswith("target_")
+        ]
+        if include_features is not None:
+            features = [field for field in features if field in include_features]
         for row in reader:
             parsed: dict[str, float | str] = {"base_date": row["base_date"], "item_code": row["item_code"]}
             try:
-                for field in features + ["target_next_change"]:
+                for field in features:
                     parsed[field] = float(row[field])
+                parsed["target_next_change"] = float(row[target_column])
             except (TypeError, ValueError):
                 continue
             rows.append(parsed)
@@ -134,6 +157,23 @@ def _read_rows(path: Path) -> tuple[list[dict[str, float | str]], list[str]]:
         if any(abs(float(row[feature])) > 0 for row in rows)
     ]
     return sorted(rows, key=lambda row: (str(row["base_date"]), str(row["item_code"]))), usable_features
+
+
+def _parse_include_features(raw: str) -> set[str] | None:
+    features = {part.strip() for part in raw.split(",") if part.strip()}
+    return features or None
+
+
+def _horizon_days_from_target(target_column: str) -> int | None:
+    if target_column == "target_next_change":
+        return 1
+    if target_column.startswith("target_") and target_column.endswith("d_change"):
+        value = target_column.removeprefix("target_").removesuffix("d_change")
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _time_split(rows: list[dict[str, float | str]]) -> tuple[list[dict[str, float | str]], list[dict[str, float | str]]]:
@@ -301,11 +341,11 @@ def _probability_calibration(backtest: dict[str, object], direction_threshold: f
     direction_accuracy = float(summary.get("direction_accuracy") or 0.0)
     prediction_count = int(summary.get("prediction_count") or 0)
     scale = max(direction_threshold, mae * 2.0, 0.01)
-    if prediction_count < 10:
+    if prediction_count < 30:
         confidence = "low"
-    elif direction_accuracy >= 0.65 and mae <= scale:
+    elif direction_accuracy >= 0.75 and mae <= scale:
         confidence = "high"
-    elif direction_accuracy >= 0.55:
+    elif direction_accuracy >= 0.65:
         confidence = "medium"
     else:
         confidence = "low"
@@ -434,6 +474,32 @@ def _evaluate(model: dict[str, object], rows: list[dict[str, float | str]], thre
         "sign_accuracy": round(sum(sign_hits) / len(sign_hits), 4) if sign_hits else 0.0,
         "direction_accuracy": round(sum(direction_hits) / len(direction_hits), 4) if direction_hits else 0.0,
     }
+
+
+def _evaluate_routed(
+    model: dict[str, object],
+    item_models: dict[str, dict[str, object]],
+    rows: list[dict[str, float | str]],
+    threshold: float,
+) -> dict[str, float]:
+    if not item_models:
+        return _evaluate(model, rows, threshold)
+    predictions = []
+    for row in rows:
+        item_code = str(row["item_code"])
+        active_model = item_models.get(item_code, model)
+        active_threshold = float(active_model.get("direction_threshold", threshold))
+        pred = _predict(active_model, row)
+        actual = float(row["target_next_change"])
+        predictions.append(
+            {
+                "prediction": round(pred, 6),
+                "actual": round(actual, 6),
+                "predicted_direction": _direction(pred, active_threshold),
+                "actual_direction": _direction(actual, active_threshold),
+            }
+        )
+    return _aggregate_prediction_metrics(predictions)
 
 
 def _tune_direction_threshold(model: dict[str, object], rows: list[dict[str, float | str]]) -> float:

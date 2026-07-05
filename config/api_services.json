@@ -19,6 +19,58 @@
       "notes": "농작물생산조사 통계표를 사용해 지역별 재배면적, 생산량, 생산 비중 피처를 만든다."
     }
   },
+  "agromarket": {
+    "wholesale_price": {
+      "display_name": "AgroMarket wholesale price",
+      "engine_role": "price_market",
+      "priority": "P0",
+      "required_env": ["AGROMARKET_API_KEY"],
+      "status": "endpoint_verified",
+      "base_url": "http://211.237.50.150:7080/openapi",
+      "grid": "Grid_20150406000000000217_1",
+      "notes": "Daily item wholesale price features collected by scripts/collect_agromarket_price_features.py and joined into the price training table."
+    },
+    "retail_price": {
+      "display_name": "AgroMarket retail price",
+      "engine_role": "price_market",
+      "priority": "P0",
+      "required_env": ["AGROMARKET_API_KEY"],
+      "status": "endpoint_verified",
+      "base_url": "http://211.237.50.150:7080/openapi",
+      "grid": "Grid_20141225000000000163_1",
+      "notes": "Daily item retail price features collected by scripts/collect_agromarket_price_features.py and joined into the price training table."
+    },
+    "settlement_volume_amount": {
+      "display_name": "AgroMarket settlement volume and amount",
+      "engine_role": "price_market",
+      "priority": "P0",
+      "required_env": ["AGROMARKET_API_KEY"],
+      "status": "endpoint_verified",
+      "base_url": "http://211.237.50.150:7080/openapi",
+      "grid": "Grid_20240625000000000658_1",
+      "notes": "Daily wholesale-market settlement amount and quantity. Converted to settlement price and volume features."
+    },
+    "realtime_auction": {
+      "display_name": "AgroMarket realtime auction volume",
+      "engine_role": "price_market",
+      "priority": "P1",
+      "required_env": ["AGROMARKET_API_KEY"],
+      "status": "endpoint_verified",
+      "base_url": "http://211.237.50.150:7080/openapi",
+      "grid": "Grid_20240625000000000654_1",
+      "notes": "Realtime auction rows require SALEDATE and WHSALCD. Current pipeline collects Seoul Garak volume as a short-term market pressure feature; auction price is excluded until package-unit normalization is implemented."
+    }
+  },
+  "farmap": {
+    "spatial_crop_context": {
+      "display_name": "FarmMap spatial crop context",
+      "engine_role": "production_region",
+      "priority": "P2",
+      "required_env": ["FARMAP_API_KEY"],
+      "status": "key_configured_spec_required",
+      "notes": "Use after official endpoint/spec confirmation for crop-region mapping, land-use context, and picture-engine spatial metadata."
+    }
+  },
   "data_go_kr": {
     "at_market_settlement": {
       "display_name": "한국농수산식품유통공사 전국 공영도매시장 정산정보",

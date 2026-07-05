@@ -338,3 +338,148 @@ Invoke-RestMethod `
 10. smoke 실행
 
 AT settlement는 추측 금지다. 검색 결과에 유사 품목이 섞이기 쉽다.
+## AgroMarket 가격 피처 수집과 학습 테이블 재생성 (2026-07-05)
+
+새로 확보한 AgroMarket API는 가격 예측 우선순위 P0 데이터다. 실제 키는 `.env`의 `AGROMARKET_API_KEY`에만 둔다.
+
+활용 가능성 진단:
+
+```powershell
+python scripts\audit_agromarket_data_availability.py `
+  --date 2026-07-01 `
+  --lookback-days 3 `
+  --output data\diagnostics\20260701\agromarket_availability.json
+```
+
+가격 피처 수집:
+
+```powershell
+python scripts\collect_agromarket_price_features.py `
+  --date 2026-07-01 `
+  --days-back 60 `
+  --rows 100
+```
+
+학습 테이블과 모델 재생성:
+
+```powershell
+python scripts\build_price_training_table.py --date 2026-07-01
+python scripts\train_price_baseline_model.py `
+  --input data\model\price_training_table_20260701.csv `
+  --output data\model\price_baseline_model_20260701_agromarket.json `
+  --report-output data\model\price_baseline_model_20260701_agromarket_evaluation.json `
+  --backtest-output data\model\price_baseline_model_20260701_agromarket_backtest.json
+python scripts\predict_latest_prices.py `
+  --features data\model\price_training_table_20260701.csv `
+  --model data\model\price_baseline_model_20260701_agromarket.json `
+  --signals data\signals\20260701\region_risk_signals.json `
+  --output data\model\latest_price_predictions_20260701_agromarket_risk.json
+```
+
+현재 저장 위치:
+
+- 원자료/피처 캐시: `data/features/YYYYMMDD/agromarket_*`
+- 진단 결과: `data/diagnostics/YYYYMMDD/agromarket_availability.json`
+- 학습 테이블: `data/model/price_training_table_YYYYMMDD.csv`
+- 모델/평가/예측: `data/model/*agromarket*`
+
+`data/`는 로컬 캐시/산출물 성격이므로 기본적으로 git commit 대상이 아니다.
+
+## AgroMarket auction volume feature (2026-07-05)
+
+Realtime auction data requires both `SALEDATE` and `WHSALCD`. Current implementation uses Seoul Garak market `110001` as the first stable market-pressure source.
+
+Backfill command:
+
+```powershell
+python scripts\collect_agromarket_auction_features.py `
+  --date 2026-07-01 `
+  --days-back 365 `
+  --rows 1000 `
+  --max-pages 5
+```
+
+If the full command is too slow, run per item:
+
+```powershell
+python scripts\collect_agromarket_auction_features.py --date 2026-07-01 --days-back 365 --items onion --rows 1000 --max-pages 4
+python scripts\collect_agromarket_auction_features.py --date 2026-07-01 --days-back 365 --items green_onion --rows 1000 --max-pages 3
+python scripts\collect_agromarket_auction_features.py --date 2026-07-01 --days-back 365 --items garlic --rows 1000 --max-pages 3
+```
+
+Daily pipeline default:
+
+```powershell
+python scripts\run_meta_pipeline.py --date 2026-07-01 --auction-days-back 120
+```
+
+Current training table uses `agromarket_auction_volume_norm` only. Auction price is intentionally excluded until `STD` package-unit normalization is implemented.
+
+## Horizon-specific price model workflow (2026-07-05)
+
+Purpose:
+
+- Train separate price-change models for each forecast period instead of reusing a next-day target for every UI label.
+- Current supported horizons: 1d, 7d, 14d, 30d, 90d, 180d, 365d.
+
+Build training table:
+
+```powershell
+python scripts\build_price_training_table.py --date 2026-07-01 --min-history 14
+```
+
+The table is stored at:
+
+- `data/model/price_training_table_YYYYMMDD.csv`
+
+Target columns:
+
+- `target_next_change`: legacy next available market point
+- `target_1d_change`
+- `target_7d_change`
+- `target_14d_change`
+- `target_30d_change`
+- `target_90d_change`
+- `target_180d_change`
+- `target_365d_change`
+
+Train all horizon models:
+
+```powershell
+python scripts\train_price_horizon_models.py `
+  --input data\model\price_training_table_20260701.csv `
+  --output-dir data\model\horizons `
+  --prefix price_horizon_model_20260701_agromarket_365_auction_variant `
+  --min-rows 80
+```
+
+Output files:
+
+- `data/model/horizons/*_1d.json`
+- `data/model/horizons/*_7d.json`
+- `data/model/horizons/*_14d.json`
+- `data/model/horizons/*_30d.json`
+- `data/model/horizons/*_90d.json`
+- `data/model/horizons/*_180d.json`
+- `data/model/horizons/*_summary.json`
+
+Generate combined latest predictions:
+
+```powershell
+python scripts\predict_price_horizons.py `
+  --features data\model\price_training_table_20260701.csv `
+  --models-dir data\model\horizons `
+  --model-prefix price_horizon_model_20260701_agromarket_365_auction_variant `
+  --output data\model\latest_price_horizon_predictions_20260701.json
+```
+
+Storage rule:
+
+- `data/model/horizons/` contains generated local artifacts.
+- These artifacts are reproducible and can stay out of git unless explicitly deciding to version model snapshots.
+- Code/config/docs are the source of truth for regeneration.
+
+Current yearly limitation:
+
+- With the current 2025-07-22 to 2026-06-30 local table, `target_365d_change` has 0 usable rows.
+- A real yearly model needs at least about two years of price history, preferably three or more.

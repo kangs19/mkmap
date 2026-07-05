@@ -93,6 +93,8 @@ def _predict_row(
     risk_adjustment_scale: float = 0.02,
 ) -> dict[str, object]:
     active_model, model_scope = _select_model(model, row["item_code"])
+    horizon_days = int(active_model.get("horizon_days") or model.get("horizon_days") or 1)
+    target_column = str(active_model.get("target_column") or model.get("target_column") or "target_next_change")
     coefficients = active_model["coefficients"]
     feature_stats = active_model.get("feature_stats", {})
     assert isinstance(coefficients, dict)
@@ -131,12 +133,18 @@ def _predict_row(
         "item_code": row["item_code"],
         "avg_price": float(row["avg_price"]),
         "model_scope": model_scope,
+        "target_column": target_column,
+        "horizon_days": horizon_days,
+        "predicted_change": round(prediction, 6),
         "predicted_next_change": round(prediction, 6),
         "predicted_direction": direction,
         "direction_threshold": round(direction_threshold, 6),
         "risk_adjustment": round(risk_adjustment, 6),
+        "risk_adjusted_change": round(adjusted_prediction, 6),
         "risk_adjusted_next_change": round(adjusted_prediction, 6),
         "risk_adjusted_direction": adjusted_direction,
+        f"up_probability_{horizon_days}d": up_probability,
+        f"surge_probability_{horizon_days}d": surge_probability,
         "up_probability_14d": up_probability,
         "surge_probability_14d": surge_probability,
         "bottom_probability": round(1.0 - up_probability, 4),

@@ -1,0 +1,54 @@
+{
+  "cabbage": {
+    "season_spring": ["봄배추", "봄"],
+    "season_highland": ["고냉지배추", "고랭지배추", "여름배추", "여름(고랭지)", "고랭지"],
+    "season_autumn": ["김장(가을)배추", "가을배추", "가을"],
+    "season_winter": ["월동배추", "월동"],
+    "stored": ["저장배추"],
+    "processed": ["절임배추"],
+    "wrap": ["쌈배추"],
+    "imported": ["배추(수입)", "수입"],
+    "other": ["기타배추", "생채용 배추", "기타"]
+  },
+  "radish": {
+    "season_spring": ["봄무", "봄"],
+    "season_highland": ["고냉지무", "고랭지무", "여름무", "고랭지"],
+    "season_autumn": ["가을무", "가을"],
+    "season_winter": ["월동무", "월동"],
+    "stored": ["저장무"],
+    "bunched": ["다발무"],
+    "processed": ["무말랭이"],
+    "colored": ["자색무"],
+    "other": ["기타무", "기타"]
+  },
+  "onion": {
+    "early": ["조생양파"],
+    "mid": ["중생양파"],
+    "late": ["만생양파"],
+    "fresh": ["햇양파"],
+    "stored": ["저장양파"],
+    "peeled": ["깐양파"],
+    "red": ["자주양파"],
+    "imported": ["양파(수입)", "수입"],
+    "general": ["양파(일반)", "양파"]
+  },
+  "green_onion": {
+    "general": ["대파(일반)", "대파"],
+    "peeled": ["깐대파"],
+    "imported": ["대파(수입)", "수입"],
+    "other": ["기타대파"]
+  },
+  "garlic": {
+    "peeled_daeseo": ["깐마늘 대서", "깐마늘(대서)", "햇깐마늘(대서)"],
+    "peeled_namdo": ["깐마늘(남도)", "햇깐마늘(남도)"],
+    "fresh_hanji": ["햇마늘 한지"],
+    "fresh_daeseo": ["햇마늘 대서"],
+    "stored_hanji": ["저장형 한지"],
+    "stored_daeseo": ["저장형 대서"],
+    "six_clove": ["육쪽마늘"],
+    "green": ["풋마늘"],
+    "stem": ["마늘쫑"],
+    "imported": ["수입", "마늘쫑(수입)", "냉동마늘(수입)"],
+    "other": ["기타마늘"]
+  }
+}

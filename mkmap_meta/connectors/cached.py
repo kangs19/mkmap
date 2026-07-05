@@ -19,6 +19,8 @@ class CachedEventConnector(EventConnector):
             "typhoon",
             "weather_alert",
             "weather_chart",
+            "rain_reservoir",
+            "weather_alert_insurance",
         ]
 
     def fetch_events(self, target_date: date) -> list[EventFeature]:
@@ -32,7 +34,15 @@ class CachedEventConnector(EventConnector):
 
 class CachedPriceConnector(PriceConnector):
     def __init__(self, source_names: list[str] | None = None) -> None:
-        self.source_names = source_names or ["kamis_price", "at_regional_price", "at_market_settlement"]
+        self.source_names = source_names or [
+            "kamis_price",
+            "at_regional_price",
+            "at_market_settlement",
+            "agromarket_wholesale_price",
+            "agromarket_retail_price",
+            "agromarket_settlement",
+            "agromarket_auction_price",
+        ]
 
     def fetch_prices(self, item_code: str, target_date: date, days_back: int = 7) -> list[PriceFeature]:
         prices: list[PriceFeature] = []
@@ -63,7 +73,7 @@ class CachedProductionConnector(ProductionConnector):
 
 class CachedWeatherConnector(WeatherConnector):
     def __init__(self, source_names: list[str] | None = None) -> None:
-        self.source_names = source_names or ["kma_crop_weather"]
+        self.source_names = source_names or ["kma_crop_weather", "rda_agri_weather"]
 
     def fetch_weather(self, item_code: str, target_date: date) -> list[WeatherFeature]:
         weather: list[WeatherFeature] = []
