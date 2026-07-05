@@ -300,6 +300,57 @@
       gap: 10px;
     }
 
+    .decision-card {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--green);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfa;
+      margin-bottom: 14px;
+    }
+
+    .decision-card strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+
+    .decision-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .reason-group {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fcfdfb;
+      display: grid;
+      gap: 10px;
+    }
+
+    .reason-group-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+
+    .reason-group-header strong {
+      font-size: 14px;
+    }
+
+    .reason-group-header span {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
     .reason,
     .region,
     .note {
@@ -549,6 +600,10 @@
         <section class="grid hidden" id="detail-grid">
           <div class="panel">
             <h2>주요 판단 근거</h2>
+            <div class="decision-card hidden" id="pressure-summary">
+              <strong id="pressure-title">결론 준비 중</strong>
+              <p id="pressure-body">예측 설명을 불러오고 있습니다.</p>
+            </div>
             <ul class="reason-list" id="reason-list"></ul>
           </div>
 
@@ -638,6 +693,9 @@
       upProbability: document.getElementById("up-probability"),
       probabilityFill: document.getElementById("probability-fill"),
       surgeProbability: document.getElementById("surge-probability"),
+      pressureSummary: document.getElementById("pressure-summary"),
+      pressureTitle: document.getElementById("pressure-title"),
+      pressureBody: document.getElementById("pressure-body"),
       reasonList: document.getElementById("reason-list"),
       regionList: document.getElementById("region-list"),
       freshnessList: document.getElementById("freshness-list"),
@@ -697,19 +755,70 @@
       return "chip";
     }
 
-    function renderReasons(reasons) {
-      if (!reasons || reasons.length === 0) {
+    function groupTone(direction) {
+      if (direction === "up") return "up";
+      if (direction === "down") return "down";
+      return "";
+    }
+
+    function groupReasons(reasons) {
+      const templates = [
+        { direction: "up", title: "상승 압력", hint: "값을 올릴 수 있는 요인" },
+        { direction: "down", title: "하락 압력", hint: "값을 낮출 수 있는 요인" },
+        { direction: "neutral", title: "확인할 변수", hint: "방향보다 점검이 필요한 요인" },
+      ];
+      return templates
+        .map((group) => ({
+          ...group,
+          items: (reasons || []).filter((reason) => (reason.direction || "neutral") === group.direction),
+        }))
+        .filter((group) => group.items.length > 0);
+    }
+
+    function renderPressure(summary) {
+      if (!summary || (!summary.title && !summary.body)) {
+        el.pressureSummary.classList.add("hidden");
+        return;
+      }
+      el.pressureTitle.textContent = summary.title || "예측 결론";
+      el.pressureBody.textContent = summary.body || "";
+      el.pressureSummary.style.borderLeftColor = summary.color || "var(--green)";
+      el.pressureSummary.style.background = summary.bg || "#fbfcfa";
+      el.pressureSummary.classList.remove("hidden");
+    }
+
+    function renderReasons(reasons, groups) {
+      const reasonGroups = groups && groups.length
+        ? groups.map((group) => ({
+            direction: group.direction || group.key || "neutral",
+            title: group.title || "판단 근거",
+            hint: group.hint || "",
+            items: group.items || [],
+          })).filter((group) => group.items.length > 0)
+        : groupReasons(reasons);
+
+      if (reasonGroups.length === 0) {
         el.reasonList.innerHTML = `<li class="reason"><p>표시할 판단 근거가 아직 없습니다.</p></li>`;
         return;
       }
 
-      el.reasonList.innerHTML = reasons.map((reason) => `
-        <li class="reason">
-          <div class="reason-title">
-            <span>${reason.label || reason.factor || "판단 근거"}</span>
-            <span class="direction ${reason.direction || ""}">${reason.direction_label || ""}</span>
+      el.reasonList.innerHTML = reasonGroups.map((group) => `
+        <li class="reason-group">
+          <div class="reason-group-header">
+            <strong class="direction ${groupTone(group.direction)}">${group.title}</strong>
+            <span>${group.hint}</span>
           </div>
-          <p>${reason.description || reason.summary || "설명 데이터가 준비 중입니다."}</p>
+          <ul class="reason-list">
+            ${(group.items || []).map((reason) => `
+              <li class="reason">
+                <div class="reason-title">
+                  <span>${reason.label || reason.factor || "판단 근거"}</span>
+                  <span class="direction ${reason.direction || ""}">${reason.direction_label || ""}</span>
+                </div>
+                <p>${reason.description || reason.message || reason.summary || "설명 데이터가 준비 중입니다."}</p>
+              </li>
+            `).join("")}
+          </ul>
         </li>
       `).join("");
     }
@@ -784,7 +893,8 @@
         el.surgeProbability.textContent = "AI 예측 준비 중";
       }
 
-      renderReasons(data.reasons);
+      renderPressure(data.pressure_summary);
+      renderReasons(data.reasons, data.reason_groups);
       renderRegions(data.risk_regions);
       renderFreshness(data.data_freshness);
       renderNotes(data.notes, data.disclaimer);

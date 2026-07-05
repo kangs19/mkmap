@@ -1119,3 +1119,18 @@ Important caveat:
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
   - local backend at `http://127.0.0.1:8017` returned `pressure_summary` and `reason_groups` for cabbage explanation with status 200.
   - browser load of the local app had no captured runtime errors.
+
+## Session 64 - Forecast Explanation Page Contract Alignment (2026-07-05)
+
+- Extended the standalone forecast explanation page at `map_viewer/templates/forecast_explanation.html` to consume the same API contract as the main map UI.
+- Added a visible decision card above the reason list:
+  - title/body come from `pressure_summary`.
+  - backend color/background hints are applied when present.
+- Reworked the reason section:
+  - prefers backend `reason_groups`.
+  - falls back to grouping legacy `reasons` into `상승 압력`, `하락 압력`, and `확인할 변수`.
+  - reads `message` as well as `description`/`summary`, so horizon model contribution explanations display instead of empty placeholder text.
+- Verification:
+  - `cd backend; python -m pytest tests\test_api.py -q` passed: 33 tests.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - local browser check at `http://127.0.0.1:8017/forecast-explanation?item=cabbage&horizon=14` showed the decision card and grouped 상승/하락 reasons with no captured runtime errors.
