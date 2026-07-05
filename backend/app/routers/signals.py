@@ -193,7 +193,7 @@ async def get_dashboard_cards(
 
     price_res = await db.execute(
         select(DailyPrice)
-        .where(DailyPrice.date >= start_30d, DailyPrice.date <= base_date, DailyPrice.source == "kamis")
+        .where(DailyPrice.date >= start_30d, DailyPrice.date <= base_date)
         .order_by(DailyPrice.item_code, DailyPrice.date)
     )
     price_by_item: dict[str, list[DailyPrice]] = {}

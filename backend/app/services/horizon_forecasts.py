@@ -84,15 +84,20 @@ def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
 
 def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict[str, Any]:
     horizons = _normalized_horizons(explanation.get("horizons", {}))
+    confidence = _combined_confidence(horizons)
+    model_scope = _combined_model_scope(horizons)
+    base_date = str(explanation.get("base_date") or "")
     return {
         "item_code": str(explanation.get("item_code") or item.item_code),
         "item_name": getattr(item, "item_name", None) or str(explanation.get("item_code") or ""),
-        "base_date": str(explanation.get("base_date") or ""),
+        "base_date": base_date,
         "headline": _summary(getattr(item, "item_name", None) or str(explanation.get("item_code") or ""), horizons),
         "model": {
             "version": str(explanation.get("model_version") or _active_model_version()),
-            "scope": _combined_model_scope(horizons),
-            "confidence": _combined_confidence(horizons),
+            "scope": model_scope,
+            "confidence": confidence,
+            "confidence_reason": _horizon_confidence_reason(confidence, model_scope, horizons),
+            "confidence_factors": _horizon_confidence_factors(model_scope, horizons),
         },
         "forecast": {
             "active_horizons": [int(key) for key in sorted(horizons, key=lambda value: int(value))],
@@ -109,8 +114,51 @@ def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict
             if isinstance(row, dict)
         },
         "held_horizons": explanation.get("held_horizons", []),
+        "data_freshness": {
+            "price": {"status": "unknown", "latest_date": base_date or None},
+            "region_signal": {"status": "unknown", "latest_date": None},
+            "forecast": {"status": "fresh" if base_date else "unknown", "latest_date": base_date or None},
+        },
         "source": "horizon_file",
     }
+
+
+def _horizon_confidence_reason(
+    confidence: str,
+    model_scope: str,
+    horizons: dict[str, dict[str, Any]],
+) -> str:
+    held = [key for key, row in horizons.items() if row.get("held_out")]
+    if confidence == "high" and model_scope in {"item", "mixed"}:
+        return "Active horizon model outputs are available with item-level or mixed item/global coverage."
+    if held:
+        return f"Some horizons are held back by quality gates: {', '.join(sorted(held, key=int))}d."
+    return "Confidence is based on the available active horizon forecast file."
+
+
+def _horizon_confidence_factors(
+    model_scope: str,
+    horizons: dict[str, dict[str, Any]],
+) -> list[dict[str, str]]:
+    active_count = len(horizons)
+    held_count = sum(1 for row in horizons.values() if row.get("held_out"))
+    return [
+        {
+            "key": "model_scope",
+            "label": "item/global horizon coverage",
+            "status": "strong" if model_scope in {"item", "mixed"} else "medium",
+        },
+        {
+            "key": "active_horizons",
+            "label": f"{active_count} active horizons",
+            "status": "strong" if active_count >= 3 else ("medium" if active_count else "missing"),
+        },
+        {
+            "key": "quality_gate",
+            "label": "horizon quality gates",
+            "status": "weak" if held_count else "strong",
+        },
+    ]
 
 
 def _normalized_horizons(raw: Any) -> dict[str, dict[str, Any]]:

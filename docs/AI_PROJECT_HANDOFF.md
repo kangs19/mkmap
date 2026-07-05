@@ -632,3 +632,21 @@ Important caveat:
   - Privacy policy, terms, consent text, and deletion/export policy still need final production copy and links.
   - Import/substitute supply, soil/FarmMap, and pest map overlays remain beta or unconnected.
   - KMA/API collectors should be monitored after each deploy because external provider failures can still reduce feature completeness.
+
+## Session 48 - CI Failure Repair After Launch Sweep (2026-07-05)
+
+- After pushing Session 47, GitHub Actions still failed on the latest `main` commit even though local smoke tests and production deploy checks passed.
+- Root cause:
+  - CI runs backend tests against SQLite `test_agri.db`.
+  - `Forecast` now requires `horizon_days`, `direction`, and `up_probability`, but SQLite initialization only ran `create_all`; the compatibility migration lived inside the PostgreSQL-only block.
+  - Existing SQLite test DB schemas could therefore miss `forecasts.horizon_days`, causing API tests to fail with `sqlite3.OperationalError: no such column: forecasts.horizon_days`.
+- Fix:
+  - Added SQLite-safe schema repair in `backend/app/database.py` immediately after `Base.metadata.create_all`.
+  - It checks columns with `PRAGMA table_info`, adds missing forecast/user columns, backfills `direction/up_probability`, removes duplicate forecast rows by `(item_code, base_date, horizon_days)`, and creates the horizon-aware unique index.
+- Additional API contract fixes:
+  - File-backed horizon explanation responses now include `model.confidence_reason`, `model.confidence_factors`, and `data_freshness`, matching the DB-backed explanation schema.
+  - Dashboard cards now calculate 30-day price changes across available `DailyPrice` sources instead of hard-filtering to `source == "kamis"`, so test/imported/expanded collectors can participate.
+- Verification:
+  - Reproduced the GitHub Actions commands locally under `backend/`.
+  - `python -m pytest tests/test_pipeline.py -v --tb=short` passed: 15 passed.
+  - `python -m pytest tests/test_api.py -v --tb=short` passed: 30 passed.

@@ -48,6 +48,40 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if _db_url.startswith("sqlite"):
+            async def sqlite_columns(table: str) -> set[str]:
+                result = await conn.execute(text(f"PRAGMA table_info({table})"))
+                return {row[1] for row in result.fetchall()}
+
+            async def sqlite_add_column(table: str, column: str, definition: str) -> None:
+                if column not in await sqlite_columns(table):
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+
+            await sqlite_add_column("forecasts", "horizon_days", "INTEGER NOT NULL DEFAULT 14")
+            await sqlite_add_column("forecasts", "direction", "VARCHAR(20)")
+            await sqlite_add_column("forecasts", "up_probability", "FLOAT")
+            await conn.execute(text("""
+                UPDATE forecasts
+                SET direction = direction_14d,
+                    up_probability = up_probability_14d
+                WHERE direction IS NULL AND direction_14d IS NOT NULL
+            """))
+            await conn.execute(text("DROP INDEX IF EXISTS uq_forecasts_item_date"))
+            await conn.execute(text("""
+                DELETE FROM forecasts
+                WHERE id NOT IN (
+                    SELECT MIN(id)
+                    FROM forecasts
+                    GROUP BY item_code, base_date, horizon_days
+                )
+            """))
+            await conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_forecasts_item_date_horizon "
+                "ON forecasts (item_code, base_date, horizon_days)"
+            ))
+            await sqlite_add_column("users", "phone", "VARCHAR(20)")
+            await sqlite_add_column("users", "phone_verified", "BOOLEAN DEFAULT FALSE")
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_phone ON users (phone)"))
         # 기존 테이블에 UniqueConstraint가 없을 경우 안전하게 추가 (PostgreSQL only)
         if _db_url.startswith("postgresql"):
             try:
