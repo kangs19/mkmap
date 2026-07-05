@@ -58,6 +58,7 @@ PY_COMPILE_TARGETS = [
     "scripts/test_live_weather_chart.py",
     "scripts/audit_farmmap_spatial_file.py",
     "scripts/build_farmmap_crop_region_summary.py",
+    "scripts/import_farmmap_crop_region_summary.py",
     "scripts/run_smoke_suite.py",
     "backend/app/main.py",
     "backend/app/collectors/kamis.py",

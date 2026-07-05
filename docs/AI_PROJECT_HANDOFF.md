@@ -690,3 +690,27 @@ Important caveat:
   - Run `scripts/audit_farmmap_spatial_file.py --input <file>`.
   - Run `scripts/build_farmmap_crop_region_summary.py` with confirmed field names.
   - Add DB import from summary JSON into `farmmap_crop_regions`.
+
+## Session 50 - FarmMap Summary DB Import Path (2026-07-05)
+
+- Continued the FarmMap sequence after the foundation work.
+- Added local/batch importer:
+  - `scripts/import_farmmap_crop_region_summary.py`
+  - Reads summary JSON from `scripts/build_farmmap_crop_region_summary.py`.
+  - Calls `init_db()`, records the source file in `farmmap_source_files`, and inserts normalized rows into `farmmap_crop_regions`.
+  - Supports `--replace-source` to safely re-import the same FarmMap source file while validating mappings.
+- Added admin import API:
+  - `POST /admin/import/farmmap/crop-regions`
+  - Protected by `X-Admin-Key`.
+  - Accepts the same summary JSON shape plus `replace_source`.
+  - Deletes existing rows for the same `source_file` by default to avoid duplicate import collisions.
+- Verification:
+  - Built a sample CSV summary with cabbage/onion/radish aliases.
+  - Imported it into a temporary SQLite DB.
+  - Queried `get_farmmap_crop_regions("cabbage")` and confirmed `available:true`, 1 region, 1.0 ha, source crop `고랭지배추`.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - Backend API tests passed: 31 passed.
+- Next work:
+  - Secure one official FarmMap province source file.
+  - If it is SHP/DBF, either convert to CSV/GeoJSON or add direct DBF parsing support.
+  - Audit actual fields, build summary JSON, import to production through `/admin/import/farmmap/crop-regions`.

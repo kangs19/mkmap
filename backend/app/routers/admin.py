@@ -2347,6 +2347,32 @@ class ProductionRow(BaseModel):
     source: str = "kosis"
 
 
+class FarmMapCropRegionRow(BaseModel):
+    item_code: str
+    source_crop_name: Optional[str] = None
+    sido: str
+    sigungu: Optional[str] = None
+    region_code: Optional[str] = None
+    farm_count: Optional[int] = None
+    area_m2: Optional[float] = None
+    area_ha: Optional[float] = None
+    geometry_level: str = "sigungu"
+    source_file: Optional[str] = None
+    source_year: Optional[int] = None
+    source: str = "farmmap"
+    confidence: str = "source_checked"
+
+
+class FarmMapCropRegionImportRequest(BaseModel):
+    source_file: str = "unknown"
+    source_year: Optional[int] = None
+    matched_source_rows: int = 0
+    unmatched_source_rows: int = 0
+    item_counts: dict[str, int] = {}
+    replace_source: bool = True
+    rows: list[FarmMapCropRegionRow]
+
+
 @router.post("/import/production")
 async def import_production(
     rows: list[ProductionRow],
@@ -2376,6 +2402,57 @@ async def import_production(
     await db.execute(stmt)
     await db.commit()
     return {"saved": len(records), "status": "ok"}
+
+
+@router.post("/import/farmmap/crop-regions")
+async def import_farmmap_crop_regions(
+    payload: FarmMapCropRegionImportRequest,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """Import audited FarmMap crop-region summaries into Railway DB."""
+    from sqlalchemy import delete
+    from app.models.farmmap import FarmMapCropRegion, FarmMapSourceFile
+
+    source_file = payload.source_file or "unknown"
+    if payload.replace_source:
+        await db.execute(delete(FarmMapCropRegion).where(FarmMapCropRegion.source_file == source_file))
+        await db.execute(delete(FarmMapSourceFile).where(FarmMapSourceFile.file_name == source_file))
+
+    db.add(FarmMapSourceFile(
+        file_name=source_file,
+        file_format="summary_json",
+        detected_crops_json=json.dumps(payload.item_counts, ensure_ascii=False),
+        import_status="imported",
+        notes=f"matched={payload.matched_source_rows}, unmatched={payload.unmatched_source_rows}",
+    ))
+
+    objects = [
+        FarmMapCropRegion(
+            item_code=row.item_code,
+            source_crop_name=row.source_crop_name,
+            sido=row.sido,
+            sigungu=row.sigungu,
+            region_code=row.region_code,
+            farm_count=row.farm_count,
+            area_m2=row.area_m2,
+            area_ha=row.area_ha,
+            geometry_level=row.geometry_level,
+            source_file=row.source_file or source_file,
+            source_year=row.source_year or payload.source_year,
+            source=row.source,
+            confidence=row.confidence,
+        )
+        for row in payload.rows
+        if row.item_code and row.sido
+    ]
+    db.add_all(objects)
+    await db.commit()
+    return {
+        "saved": len(objects),
+        "source_file": source_file,
+        "status": "ok",
+    }
 
 
 @router.post("/collect/regional-prices")

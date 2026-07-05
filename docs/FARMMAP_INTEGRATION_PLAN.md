@@ -60,8 +60,11 @@ Alias file:
 1. Run `scripts/audit_farmmap_spatial_file.py --input <downloaded-file>`.
 2. Review detected fields/crops.
 3. If crop and area fields exist, run a region-summary importer.
-4. Add `/api/v1/map/farmmap/crop-regions?item_code=cabbage`.
-5. Replace beta FarmMap/soil layer UI with a real source-labeled layer.
+4. Import the summary:
+   - local: `python scripts/import_farmmap_crop_region_summary.py --input <summary.json> --replace-source`
+   - production: `POST /admin/import/farmmap/crop-regions` with `X-Admin-Key`.
+5. Query `/api/v1/map/farmmap/crop-regions?item_code=cabbage`.
+6. Replace beta FarmMap/soil layer UI with a real source-labeled layer.
 
 ## Data Integrity
 
