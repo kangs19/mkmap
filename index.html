@@ -591,6 +591,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div id="rp-farmmap-sub" style="font-size:10px;color:var(--muted);text-align:right;line-height:1.45"></div>
             </div>
             <div id="rp-farmmap-classes" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"></div>
+            <div id="rp-farmmap-capacity" style="display:none;margin-top:8px;font-size:10px;color:var(--muted);line-height:1.45;border-top:1px solid var(--border);padding-top:7px"></div>
           </div>
         </div>
 
@@ -837,7 +838,7 @@ window.onload=async()=>{
   buildTimeline();
 
   // 실데이터 fetch
-  await Promise.allSettled([fetchLiveData(),fetchSignalsByItem("cabbage"),fetchReport(),fetchRegionalPrices("cabbage"),fetchNationalPrice("cabbage")]);
+  await Promise.allSettled([fetchLiveData(),fetchSignalsByItem("cabbage"),fetchReport(),fetchRegionalPrices("cabbage"),fetchNationalPrice("cabbage"),fetchFarmMapCapacity("cabbage")]);
 
   // UI 렌더
   renderItemMenu();
@@ -967,6 +968,7 @@ function selectItem(k){
   if(!LIVE_SIGNALS[k]) tasks.push(fetchSignalsByItem(k));
   if(!LIVE_REGIONAL_PRICES[k]) tasks.push(fetchRegionalPrices(k));
   if(!LIVE_NATIONAL_PRICES[k]) tasks.push(fetchNationalPrice(k));
+  if(!FARMMAP_CAPACITY[k]) tasks.push(fetchFarmMapCapacity(k).catch(()=>null));
   if(tasks.length) Promise.all(tasks).then(()=>redrawMap()); else redrawMap();
 }
 
@@ -1079,6 +1081,7 @@ function renderDashboardPanel(){
 const activeLayers=new Set(["production","price","weather"]);
 let weatherMarkerLayer=null, marketMarkerLayer=null;
 let FARMMAP_LANDUSE=null, FARMMAP_LANDUSE_BY_CODE={}, FARMMAP_LANDUSE_BY_CITY={};
+let FARMMAP_CAPACITY={}, FARMMAP_CAPACITY_BY_CODE={};
 
 // 주요 도매시장 위치 (위도, 경도, 이름)
 const MARKETS=[
@@ -1247,6 +1250,45 @@ async function fetchFarmMapLanduse(){
   Object.values(FARMMAP_LANDUSE_BY_CODE).forEach(finalizeFarmMapSummary);
   Object.values(FARMMAP_LANDUSE_BY_CITY).forEach(finalizeFarmMapSummary);
   return data;
+}
+async function fetchFarmMapCapacity(itemCode=curItem){
+  if(FARMMAP_CAPACITY[itemCode]) return FARMMAP_CAPACITY[itemCode];
+  const r=await fetch(`/api/v1/map/farmmap/crop-capacity?item_code=${encodeURIComponent(itemCode)}`);
+  if(!r.ok) throw new Error("farmmap capacity api");
+  const data=await r.json();
+  FARMMAP_CAPACITY[itemCode]=data;
+  FARMMAP_CAPACITY_BY_CODE[itemCode]={};
+  (data.regions||[]).forEach(row=>{
+    FARMMAP_CAPACITY_BY_CODE[itemCode][String(row.region_code)]=row;
+  });
+  return data;
+}
+function farmMapCapacityForRegion(itemCode,regionCode){
+  return FARMMAP_CAPACITY_BY_CODE[itemCode]?.[String(regionCode)]||null;
+}
+function renderFarmMapCapacity(cap){
+  const el=document.getElementById("rp-farmmap-capacity");
+  if(!el) return;
+  if(!cap){
+    el.style.display="none";
+    el.innerHTML="";
+    return;
+  }
+  const score=cap.capacity_score;
+  const labelMap={strong:"강함",moderate:"보통",limited:"제한",crop_metadata_only:"작물 메타만",insufficient_data:"부족"};
+  const matchMap={sigungu:"시군구 공식 농지분류 매칭",province:"도 단위 보조 매칭"};
+  const label=labelMap[cap.capacity_label]||cap.capacity_label||"";
+  const match=matchMap[cap.farmmap_match_level]||"FarmMap 미매칭";
+  const share=cap.production_share_pct!=null?` · 생산비중 ${cap.production_share_pct}%`:"";
+  const ratio=cap.crop_to_agri_landuse_ratio!=null?` · 작물/농지비 ${Math.round(cap.crop_to_agri_landuse_ratio*100)}%`:"";
+  el.style.display="";
+  el.innerHTML=`재배 기반 점수 <b style="color:var(--text)">${score??"—"}</b> <span class="fm-data-tag ${cap.confidence==="high"?"live":"model"}">${label}</span><br>${match}${share}${ratio}`;
+}
+function renderFarmMapCapacityStatus(text){
+  const el=document.getElementById("rp-farmmap-capacity");
+  if(!el) return;
+  el.style.display="";
+  el.innerHTML=text;
 }
 function emptyFarmMapSummary(sido,sigungu){
   return {sido,sigungu,area_ha:0,parcel_count:0,classes:{},source_type:"landuse_only"};
@@ -2304,8 +2346,21 @@ function showRegionDetail(name,code,d){
       document.getElementById("rp-farmmap-main").textContent=`${Math.round(fmData.area_ha||0).toLocaleString()} ha`;
       document.getElementById("rp-farmmap-sub").innerHTML=`필지 ${Math.round(fmData.parcel_count||0).toLocaleString()}개<br>대표 분류 ${fmData.top_class||"—"}<br>작물별 면적 아님`;
       document.getElementById("rp-farmmap-classes").innerHTML=farmMapSummaryHtml(fmData);
+      const cap=farmMapCapacityForRegion(curItem,code);
+      renderFarmMapCapacity(cap);
+      if(!cap){
+        renderFarmMapCapacityStatus("재배 기반 점수 계산 중...");
+        fetchFarmMapCapacity(curItem).then(()=>{
+          if(curDetailData?.code===code){
+            const nextCap=farmMapCapacityForRegion(curItem,code);
+            if(nextCap) renderFarmMapCapacity(nextCap);
+            else renderFarmMapCapacityStatus("재배 기반 점수 — 작물 주산지 메타 없음<br>FarmMap 공식 농지분류만 표시 중");
+          }
+        }).catch(()=>renderFarmMapCapacityStatus("재배 기반 점수 — API 확인 필요"));
+      }
     }else{
       fmSection.style.display="none";
+      renderFarmMapCapacity(null);
     }
   }
 

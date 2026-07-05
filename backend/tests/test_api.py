@@ -321,6 +321,51 @@ async def test_farmmap_landuse_regions_contract(client):
 
 
 @pytest.mark.asyncio
+async def test_farmmap_crop_capacity_contract(client):
+    source_file = "test_farmmap_capacity.json"
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(FarmMapLanduseRegion).where(FarmMapLanduseRegion.source_file == source_file))
+        db.add_all([
+            FarmMapLanduseRegion(
+                sido="강원특별자치도",
+                sigungu="평창군",
+                landuse_class="밭",
+                parcel_count=120,
+                area_m2=1_500_000.0,
+                area_ha=150.0,
+                source_file=source_file,
+                source="farmmap",
+                confidence="landuse_only",
+            ),
+            FarmMapLanduseRegion(
+                sido="강원특별자치도",
+                sigungu="평창군",
+                landuse_class="논",
+                parcel_count=40,
+                area_m2=400_000.0,
+                area_ha=40.0,
+                source_file=source_file,
+                source="farmmap",
+                confidence="landuse_only",
+            ),
+        ])
+        await db.commit()
+
+    r = await client.get("/api/v1/map/farmmap/crop-capacity?item_code=cabbage")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["available"] is True
+    assert data["source_type"] == "crop_metadata_plus_farmmap_landuse"
+    region = next(row for row in data["regions"] if row["region_code"] == "32340")
+    assert region["region_name"] == "평창군"
+    assert region["farmmap_match_level"] == "sigungu"
+    assert region["confidence"] == "high"
+    assert region["farmmap_landuse"]["agri_area_ha"] >= 190
+    assert region["capacity_score"] is not None
+    assert "not FarmMap crop acreage" in data["score_meaning"]
+
+
+@pytest.mark.asyncio
 async def test_report_today(client):
     r = await client.get("/api/v1/report/today")
     assert r.status_code == 200

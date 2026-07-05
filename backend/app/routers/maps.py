@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from sqlalchemy import select, and_
 from pathlib import Path
+import json
 from datetime import date, timedelta
 from app.database import get_db
 from app.models.signal import RegionSignal
@@ -30,6 +31,83 @@ ITEM_NAMES = {
     "green_onion": "대파",
     "garlic": "마늘",
 }
+
+CITY_AGRI_DATA_PATHS = [
+    Path(__file__).resolve().parents[3] / "map_viewer" / "static" / "city_agri_data.json",
+    Path("/app/map_viewer/static/city_agri_data.json"),
+]
+
+SIDO_FULL_NAMES = {
+    "강원": "강원특별자치도",
+    "충북": "충청북도",
+    "제주": "제주특별자치도",
+    "전남": "전라남도",
+    "전북": "전북특별자치도",
+    "경북": "경상북도",
+    "경남": "경상남도",
+    "경기": "경기도",
+    "충남": "충청남도",
+}
+
+AGRI_LANDUSE_CLASSES = {"밭", "논", "시설", "과수"}
+
+
+def _load_city_agri_data() -> dict:
+    for path in CITY_AGRI_DATA_PATHS:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return {}
+
+
+def _empty_landuse_summary(sido: str | None = None, sigungu: str | None = None) -> dict:
+    return {
+        "sido": sido,
+        "sigungu": sigungu,
+        "area_ha": 0.0,
+        "agri_area_ha": 0.0,
+        "parcel_count": 0,
+        "classes": {},
+    }
+
+
+def _add_landuse(summary: dict, row: FarmMapLanduseRegion) -> None:
+    area = float(row.area_ha or 0.0)
+    summary["area_ha"] += area
+    summary["parcel_count"] += int(row.parcel_count or 0)
+    summary["classes"][row.landuse_class] = summary["classes"].get(row.landuse_class, 0.0) + area
+    if row.landuse_class in AGRI_LANDUSE_CLASSES:
+        summary["agri_area_ha"] += area
+
+
+def _finalize_landuse(summary: dict | None) -> dict | None:
+    if not summary:
+        return None
+    classes = summary.get("classes") or {}
+    top_class = sorted(classes.items(), key=lambda item: item[1], reverse=True)[0][0] if classes else None
+    return {
+        "sido": summary.get("sido"),
+        "sigungu": summary.get("sigungu"),
+        "total_area_ha": round(summary.get("area_ha", 0.0), 4),
+        "agri_area_ha": round(summary.get("agri_area_ha", 0.0), 4),
+        "parcel_count": summary.get("parcel_count") or 0,
+        "top_class": top_class,
+        "class_totals_ha": {
+            key: round(value, 4)
+            for key, value in sorted(classes.items(), key=lambda item: item[1], reverse=True)
+        },
+    }
+
+
+def _capacity_label(score: int | None, confidence: str) -> str:
+    if score is None:
+        return "insufficient_data"
+    if confidence == "crop_only":
+        return "crop_metadata_only"
+    if score >= 75:
+        return "strong"
+    if score >= 50:
+        return "moderate"
+    return "limited"
 
 
 @router.get("/admin/ui", response_class=HTMLResponse)
@@ -419,6 +497,146 @@ async def get_farmmap_landuse_regions(
             }
             for row in rows
         ],
+    }
+
+
+@router.get("/api/v1/map/farmmap/crop-capacity")
+async def get_farmmap_crop_capacity(
+    item_code: str = "cabbage",
+    db: AsyncSession = Depends(get_db),
+):
+    """Crop-region capacity score from crop metadata plus official FarmMap land-use.
+
+    This is not a price forecast and not crop-specific FarmMap acreage. It is a
+    source-labeled support feature: crop production metadata supplies crop
+    relevance, while FarmMap land-use supplies verified agricultural land context.
+    """
+
+    city_data = _load_city_agri_data()
+    item_regions = city_data.get(item_code) or {}
+    if not item_regions:
+        return {
+            "item_code": item_code,
+            "available": False,
+            "source_type": "crop_metadata_plus_farmmap_landuse",
+            "regions": [],
+            "note": "No city-level crop metadata is available for this item.",
+        }
+
+    landuse_rows = (await db.execute(select(FarmMapLanduseRegion))).scalars().all()
+    city_landuse: dict[tuple[str, str], dict] = {}
+    province_landuse: dict[str, dict] = {}
+    for row in landuse_rows:
+        if row.sigungu:
+            key = (row.sido, row.sigungu)
+            city_landuse.setdefault(key, _empty_landuse_summary(row.sido, row.sigungu))
+            _add_landuse(city_landuse[key], row)
+        province_landuse.setdefault(row.sido, _empty_landuse_summary(row.sido, None))
+        _add_landuse(province_landuse[row.sido], row)
+
+    total_production = sum(float(region.get("production_ton") or 0.0) for region in item_regions.values())
+    max_production = max((float(region.get("production_ton") or 0.0) for region in item_regions.values()), default=0.0)
+
+    prepared: list[dict] = []
+    max_agri_area = 0.0
+    for region_code, region in item_regions.items():
+        short_sido = region.get("sido") or ""
+        full_sido = SIDO_FULL_NAMES.get(short_sido, short_sido)
+        sigungu = region.get("name") or ""
+        exact = city_landuse.get((full_sido, sigungu))
+        province = province_landuse.get(full_sido)
+        matched = exact or province
+        match_level = "sigungu" if exact else "province" if province else None
+        if exact:
+            max_agri_area = max(max_agri_area, float(exact.get("agri_area_ha") or 0.0))
+        prepared.append({
+            "region_code": region_code,
+            "region_name": sigungu,
+            "sido": short_sido,
+            "sido_full": full_sido,
+            "production_ton": float(region.get("production_ton") or 0.0),
+            "crop_area_ha": float(region.get("area_ha") or 0.0),
+            "shipment_yoy": region.get("shipment_yoy"),
+            "price_index": region.get("price_index"),
+            "landuse": matched,
+            "match_level": match_level,
+        })
+
+    if max_agri_area <= 0:
+        max_agri_area = max((float((row.get("landuse") or {}).get("agri_area_ha") or 0.0) for row in prepared), default=0.0)
+
+    regions = []
+    exact_matches = 0
+    province_matches = 0
+    for row in prepared:
+        production = row["production_ton"]
+        crop_area = row["crop_area_ha"]
+        production_share_pct = round(production / total_production * 100.0, 2) if total_production else None
+        production_norm = production / max_production if max_production else 0.0
+        landuse_summary = _finalize_landuse(row["landuse"])
+        agri_area = float((row["landuse"] or {}).get("agri_area_ha") or 0.0)
+        agri_norm = agri_area / max_agri_area if max_agri_area else 0.0
+        crop_landuse_ratio = min(crop_area / agri_area, 1.0) if agri_area else None
+
+        if row["match_level"] == "sigungu":
+            exact_matches += 1
+            confidence = "high"
+            score = round(65 * production_norm + 25 * agri_norm + 10 * (crop_landuse_ratio or 0.0))
+        elif row["match_level"] == "province":
+            province_matches += 1
+            confidence = "medium"
+            score = round(75 * production_norm + 10 * agri_norm)
+        else:
+            confidence = "crop_only"
+            score = round(65 * production_norm) if production_norm else None
+
+        if score is not None:
+            score = max(0, min(100, int(score)))
+
+        regions.append({
+            "region_code": row["region_code"],
+            "region_name": row["region_name"],
+            "sido": row["sido"],
+            "sido_full": row["sido_full"],
+            "crop_area_ha": round(crop_area, 4),
+            "production_ton": round(production, 4),
+            "production_share_pct": production_share_pct,
+            "shipment_yoy": row["shipment_yoy"],
+            "price_index": row["price_index"],
+            "farmmap_match_level": row["match_level"],
+            "farmmap_landuse": landuse_summary,
+            "crop_to_agri_landuse_ratio": round(crop_landuse_ratio, 4) if crop_landuse_ratio is not None else None,
+            "capacity_score": score,
+            "capacity_label": _capacity_label(score, confidence),
+            "confidence": confidence,
+            "source_notes": [
+                "crop metadata: map_viewer/static/city_agri_data.json",
+                "FarmMap: official land-use summary, not crop-specific acreage",
+            ] if row["match_level"] else [
+                "crop metadata only; FarmMap land-use not imported for this region",
+            ],
+        })
+
+    regions.sort(
+        key=lambda item: (
+            item["capacity_score"] is not None,
+            item["capacity_score"] or -1,
+            item["production_ton"],
+        ),
+        reverse=True,
+    )
+
+    return {
+        "item_code": item_code,
+        "available": True,
+        "source_type": "crop_metadata_plus_farmmap_landuse",
+        "score_meaning": "regional crop capacity/support signal; not a price forecast and not FarmMap crop acreage",
+        "farmmap_available": bool(landuse_rows),
+        "region_count": len(regions),
+        "matched_region_count": exact_matches,
+        "province_fallback_count": province_matches,
+        "total_production_ton": round(total_production, 4) if total_production else None,
+        "regions": regions,
     }
 
 

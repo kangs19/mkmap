@@ -931,3 +931,33 @@ Important caveat:
 - Next work:
   - Use a normal browser or cleared-profile browser to visually verify `https://mk-map.com` after deployment.
   - Continue with `crop_capacity_score` feature generation from FarmMap land-use plus crop main-region metadata.
+
+## Session 58 - FarmMap Crop Capacity Score API And UI Hook (2026-07-05)
+
+- Continued from the FarmMap land-use layer into model-support features.
+- Added backend endpoint:
+  - `GET /api/v1/map/farmmap/crop-capacity?item_code=cabbage`
+  - source type: `crop_metadata_plus_farmmap_landuse`
+  - combines `map_viewer/static/city_agri_data.json` crop-region metadata with imported `farmmap_landuse_regions`.
+- Score semantics:
+  - `capacity_score` is a regional crop support/capacity signal.
+  - It is not a price forecast.
+  - It is not FarmMap crop acreage.
+  - crop metadata supplies crop relevance; official FarmMap land-use supplies agricultural land context.
+- Matching rules:
+  - `sigungu`: exact `sido_full + sigungu` FarmMap match, confidence `high`.
+  - `province`: province-level FarmMap fallback, confidence `medium`.
+  - no FarmMap match: crop metadata only, confidence `crop_only`.
+- UI update:
+  - right detail panel FarmMap section now has `재배 기반 점수`.
+  - if the clicked FarmMap city has no crop metadata for the selected item, UI explains: `작물 주산지 메타 없음 / FarmMap 공식 농지분류만 표시 중`.
+- Verification:
+  - `python -m pytest tests/test_api.py::test_farmmap_crop_capacity_contract tests/test_api.py::test_farmmap_landuse_regions_contract -q` passed.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - local browser verification confirmed the FarmMap layer opens the right detail panel and shows the capacity fallback text for a FarmMap-only city.
+- CI guard:
+  - `scripts/run_smoke_suite.py` now py-compiles `backend/app/routers/maps.py`.
+- Next work:
+  - deploy and verify the new capacity API in production.
+  - feed `capacity_score`, `farmmap_match_level`, and `crop_to_agri_landuse_ratio` into the price training feature table.
+  - add a small source tooltip/explanation in the UI so users do not confuse capacity score with price prediction probability.

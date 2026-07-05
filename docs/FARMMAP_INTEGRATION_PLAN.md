@@ -164,6 +164,31 @@ Verified local UI behavior on 2026-07-05:
 - Layer toggle activates and recolors imported regions.
 - Clicking a FarmMap-colored city opens the right detail panel and displays official FarmMap totals.
 
+## Crop Capacity Score
+
+Implemented endpoint:
+
+- `GET /api/v1/map/farmmap/crop-capacity?item_code=<item>`
+- combines city-level crop metadata from `map_viewer/static/city_agri_data.json` with `farmmap_landuse_regions`.
+- returns `capacity_score`, `capacity_label`, `confidence`, `farmmap_match_level`, `crop_to_agri_landuse_ratio`, and source notes.
+
+Score guardrail:
+
+- This is a regional crop support/capacity feature.
+- It is not a price forecast.
+- It is not FarmMap crop acreage.
+- Exact city FarmMap matches are `high` confidence; province fallback is `medium`; missing FarmMap is `crop_only`.
+
+Current UI status:
+
+- The right detail panel shows `재배 기반 점수` inside the FarmMap section.
+- If the clicked FarmMap city is not present in the selected crop metadata, the UI says the crop main-region metadata is missing and only official FarmMap land-use is being shown.
+
+Next model step:
+
+- Add `capacity_score`, `farmmap_match_level`, and `crop_to_agri_landuse_ratio` to the training feature table.
+- Treat missing FarmMap as a feature coverage flag, not as zero farmland.
+
 ## Data Integrity
 
 - If a FarmMap source only has land-use type but no crop, label it as land-use context, not crop area.
