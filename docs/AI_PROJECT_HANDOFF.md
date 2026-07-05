@@ -1134,3 +1134,21 @@ Important caveat:
   - `cd backend; python -m pytest tests\test_api.py -q` passed: 33 tests.
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
   - local browser check at `http://127.0.0.1:8017/forecast-explanation?item=cabbage&horizon=14` showed the decision card and grouped 상승/하락 reasons with no captured runtime errors.
+
+## Session 65 - Map Hover And Production Coverage Clarity (2026-07-05)
+
+- Addressed map UX issue where hover cards could fail after drilling from province to city/county level.
+- Updated `index.html`:
+  - added a map-level hover fallback using `elementFromPoint` for Leaflet SVG paths and marker icons.
+  - marker child elements no longer intercept pointer events, so region pins receive hover reliably.
+  - tooltip horizontal position is clamped inside the viewport to avoid left/right clipping.
+  - no-price fallback now shows `가격 수집 중` instead of calculating and displaying `0원`.
+- Clarified production/coverage semantics:
+  - right-panel `재배·시장` tab now explains that highlighted city/county areas are representative or currently verified production/shipment metadata, not the only places that produce or ship the crop.
+  - same-province confirmed production areas are listed when available.
+  - if only one city/county is in current metadata, the UI explicitly says other areas are data-unverified, not non-producing.
+  - inactive hover cards now say the area is outside current representative crop metadata, not that there is no production.
+- Verification:
+  - `cd backend; python -m pytest tests\test_api.py -q` passed: 33 tests.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - local browser check drilled into cabbage/Chungbuk/Goesan and verified the lower-level hover card appears, remains inside viewport, and no longer shows `0원` for unavailable price.

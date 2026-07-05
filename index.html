@@ -108,6 +108,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* 항상표시 지역 핀 */
 .region-pin{background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:auto;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;cursor:pointer;}
+.region-pin *{pointer-events:none;}
 .rp-name{font-size:11px;font-weight:700;color:#1a2410;white-space:nowrap;}
 .rp-chg{font-size:13px;font-weight:800;line-height:1.3;}
 .rp-chg.up{color:#c02828;}.rp-chg.down{color:#1a8a1a;}.rp-chg.flat{color:#6a1e9a;}
@@ -581,6 +582,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-stat-cell"><div class="fm-stat-lbl">전년 대비</div><div class="fm-stat-val" id="rp-yoy">—</div><div class="fm-stat-sub" id="rp-yoy-sub"></div></div>
               <div class="fm-stat-cell"><div class="fm-stat-lbl">주산지 순위</div><div class="fm-stat-val" id="rp-rank">—</div><div class="fm-stat-sub" id="rp-rank-sub"></div></div>
             </div>
+            <div class="fm-source-note" id="rp-coverage-note" style="margin-top:10px"></div>
+            <div class="fm-source-note" id="rp-neighbor-note" style="margin-top:7px"></div>
           </div>
           <div id="rp-farmmap-section" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#f7fbfa">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -852,6 +855,7 @@ window.onload=async()=>{
   // 지도 초기화
   map_=L.map("map",{zoomControl:true,preferCanvas:false,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
   mapVectorRenderer=L.svg({padding:0.5});
+  setupMapHoverFallback();
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
   // 남한 경계에 딱 맞게
@@ -2392,6 +2396,27 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-rank").textContent=d.rank?d.rank+"위":"—";
   document.getElementById("rp-rank-sub").className="fm-stat-sub neu";
   document.getElementById("rp-rank-sub").textContent="전국 주산지 순위";
+  const coverageNote=document.getElementById("rp-coverage-note");
+  const neighborNote=document.getElementById("rp-neighbor-note");
+  const normalizedSido=PROV_NAME_MAP[d.sido]||d.sido||sidoName;
+  const activeInProvince=activeCropCitiesInSido(curItem,normalizedSido);
+  const visibleCityNames=activeInProvince.map(x=>x.name).filter(Boolean);
+  if(coverageNote){
+    const sourceLabel=d._farmmapLanduse
+      ? "팜맵 농지분류 기반 참고 지역"
+      : d.rank
+        ? "주산지/출하 메타에 잡힌 대표 산지"
+        : "지역 단위 참고 데이터";
+    coverageNote.innerHTML=`<b>표시 범위 해석</b><br>${name}만 ${it.name} 출하가 확인된다는 뜻이 아닙니다. 지도에서 진하게 표시되는 곳은 현재 확보된 ${sourceLabel}이며, 미표시 시군은 아직 작물별 출하량·재배면적이 검증되지 않은 지역입니다.`;
+  }
+  if(neighborNote){
+    if(visibleCityNames.length>1){
+      const others=visibleCityNames.filter(v=>v!==name);
+      neighborNote.innerHTML=`<b>${SIDO_SHORT[normalizedSido]||d.sido||"해당 도"} 내 확인 산지</b><br>${[name,...others].slice(0,5).join(" · ")}${visibleCityNames.length>5?` 외 ${visibleCityNames.length-5}곳`:""}`;
+    }else{
+      neighborNote.innerHTML=`<b>${SIDO_SHORT[normalizedSido]||d.sido||"해당 도"} 내 확인 산지</b><br>현재 지도 메타에는 ${name}만 대표 산지로 확인되어 있습니다. 다른 시군은 출하 없음이 아니라 데이터 미확인으로 처리합니다.`;
+    }
+  }
 
   // ── 리스크 게이지
   const fmData=d._farmmapLanduse||farmMapForCity(PROV_NAME_MAP[d.sido]||d.sido,name)||farmMapForSidoCode(PROV_NAME_MAP[d.sido]||d.sido);
@@ -2639,6 +2664,13 @@ function cropSharePct(d,itemCode=curItem){
   if(d.production_pct) return d.production_pct;
   if(d.production_weight) return Math.round(d.production_weight*100);
   return cropSharePctFromTon(d.shipment_ton||d.production_ton||0,itemCode);
+}
+function activeCropCitiesInSido(itemCode,sido){
+  const pfx=SIDO_PREFIX[sido]||SIDO_PREFIX[PROV_NAME_MAP[sido]]||"";
+  if(!pfx) return [];
+  return cropEntriesForPrefix(CITY_DATA[itemCode]||{},pfx)
+    .map(([code,d])=>({code,...d}))
+    .sort((a,b)=>(a.rank||999)-(b.rank||999));
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
@@ -2919,6 +2951,7 @@ function bindMarkerDomEvents(marker,handlers){
     const el=marker.getElement?.();
     if(!el||el.dataset.fmDomBound==="1") return;
     el.dataset.fmDomBound="1";
+    el.__fmTooltipHandlers=handlers;
     const enter=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.enter?.(e);};
     const move=e=>handlers.move?.(e);
     const leave=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.leave?.(e);};
@@ -2953,6 +2986,7 @@ function bindPathDomEvents(layer,handlers){
     const el=layer.getElement?.();
     if(!el||el.dataset.fmDomBound==="1") return;
     el.dataset.fmDomBound="1";
+    el.__fmTooltipHandlers=handlers;
     const enter=e=>handlers.enter?.(e);
     const move=e=>handlers.move?.(e);
     const leave=e=>handlers.leave?.(e);
@@ -2982,6 +3016,32 @@ function bindPathDomEvents(layer,handlers){
   setTimeout(bind,0);
   bind();
 }
+let __fmHoverPathEl=null;
+function setupMapHoverFallback(){
+  const mapEl=document.getElementById("map");
+  if(!mapEl||mapEl.dataset.fmHoverFallback==="1") return;
+  mapEl.dataset.fmHoverFallback="1";
+  mapEl.addEventListener("mousemove",e=>{
+    const raw=document.elementFromPoint(e.clientX,e.clientY);
+    const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
+    const handlers=path?.__fmTooltipHandlers;
+    if(path&&handlers){
+      if(__fmHoverPathEl!==path){
+        __fmHoverPathEl?.__fmTooltipHandlers?.leave?.(e);
+        __fmHoverPathEl=path;
+        handlers.enter?.(e);
+      }
+      handlers.move?.(e);
+    }else if(__fmHoverPathEl){
+      __fmHoverPathEl.__fmTooltipHandlers?.leave?.(e);
+      __fmHoverPathEl=null;
+    }
+  },{passive:true});
+  mapEl.addEventListener("mouseleave",e=>{
+    __fmHoverPathEl?.__fmTooltipHandlers?.leave?.(e);
+    __fmHoverPathEl=null;
+  },{passive:true});
+}
 function showMapTooltip(html, e){
   const tip=document.getElementById('map-tooltip');
   tip.innerHTML=html;
@@ -3003,6 +3063,7 @@ function _positionTooltip(e){
 
   // 좌우: 오른쪽 공간 우선, 부족하면 왼쪽
   let left = (cx + gap + tw + 8 <= vw) ? cx + gap : cx - gap - tw;
+  left = Math.max(8, Math.min(left, vw - tw - 8));
 
   // 상하: 커서 기준 중앙 정렬 후 화면 안으로 클램프
   let top = cy - th / 2;
@@ -3099,7 +3160,7 @@ function getRegionPriceContext(d,sidoKR){
   const activePct=rp
     ? (isWholesale?(rp.vs_national_pct||0):(retailNat&&rp.retail?(rp.retail-retailNat)/retailNat*100:(rp.vs_national_pct||0)))
     : (d?.price_vs_avg||0);
-  const fallback=isWholesale?(d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0):0;
+  const fallback=d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0;
   return {
     rp,
     unit,
@@ -3173,7 +3234,7 @@ function makeHoverCard(name,d,sidoKR){
   const priceCtx=getRegionPriceContext(d,sidoKR);
   const rp=priceCtx.rp;
   const market=priceCtx.market;
-  if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
+  if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#6a7a5a;padding:8px 0;line-height:1.55">현재 ${it.name} 대표 산지 메타에는 포함되지 않은 지역입니다.<br>출하하지 않는다는 뜻은 아니며, 작물별 출하량·재배면적 검증 데이터가 아직 부족한 상태입니다.</div></div>`;
   const chg=priceCtx.activePct||(d?.price_vs_avg)||0;
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
   const risk=riskMap[d?.risk_level]||{l:'정상',c:'normal'};
@@ -3183,7 +3244,7 @@ function makeHoverCard(name,d,sidoKR){
   const hoverChg=periodForecastPct(chg,curPeriod);
   const hoverSign=hoverChg>0?'+':'';
   const hoverChgCls=hoverChg>10?'up':hoverChg<-10?'down':'flat';
-  const predicted=Math.round(curPrice*(1+hoverChg/100));
+  const predicted=curPrice?Math.round(curPrice*(1+hoverChg/100)):null;
   const ship=d?.shipment_ton>=10000?(d.shipment_ton/10000).toFixed(1)+'만 톤':d?.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(0)+'천 톤':(d?.shipment_ton||0)+'톤';
   const area=d?.area_ha>=10000?(d.area_ha/10000).toFixed(1)+'만 ha':d?.area_ha?d.area_ha.toLocaleString()+' ha':'—';
   const yoy=d?.shipment_yoy||0;
@@ -3223,10 +3284,10 @@ function makeHoverCard(name,d,sidoKR){
     </div>`:`<div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
       <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
       <div style="display:flex;align-items:baseline;gap:8px">
-        <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted.toLocaleString()}원</span>
-        <span style="font-size:12px;font-weight:700" class="rhc-chg ${hoverChgCls}">${hoverSign}${hoverChg.toFixed(1)}% ${hoverChg>0?'↑':hoverChg<0?'↓':'→'}</span>
+        <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted?predicted.toLocaleString()+"원":"가격 수집 중"}</span>
+        ${predicted?`<span style="font-size:12px;font-weight:700" class="rhc-chg ${hoverChgCls}">${hoverSign}${hoverChg.toFixed(1)}% ${hoverChg>0?'↑':hoverChg<0?'↓':'→'}</span>`:""}
       </div>
-      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/${priceCtx.unit||'단위'}</div>
+      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">${curPrice?`현재 평균 ${curPrice.toLocaleString()}원/${priceCtx.unit||'단위'}`:"지역/전국 가격 API 대기 중"}</div>
       <div style="font-size:10px;color:#6a7a5a;margin-top:5px">영향 시장: <b>${market.name}</b> · ${market.basis}<br>${market.source_note||""}</div>
     </div>`;
 
