@@ -2193,9 +2193,9 @@ function drawProvinces(){
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
-      // 실 지역 시세 있으면 데이터 없어도 색상 표시
+      // 현재 선택 작물의 산지 데이터가 없는 지역은 가격 데이터가 있어도 비활성 처리
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
-      if(!ents.length&&!rpColor)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"3"};
+      if(!ents.length)return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
@@ -2223,10 +2223,10 @@ function drawProvinces(){
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:"#1a3d66",fillOpacity:.95});showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:ents.length?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:ents.length?0.95:0.35});if(ents.length)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
-        click:()=>{hideMapTooltip();(ents.length||getRegionalSidoData(sido))&&zoomProv(f,sido,pname);}
+        click:()=>{hideMapTooltip();if(ents.length)zoomProv(f,sido,pname);}
       });
     }
   }).addTo(map_);
