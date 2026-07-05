@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FARM MAP — 농산물 가격 위험 신호 엔진</title>
+<title>FARM MAP - Price Risk Signal Engine</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -29,9 +29,23 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-logo-icon{width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
 .fm-logo span{color:var(--accent);}
 .fm-nav{display:flex;gap:2px;margin-left:16px;}
-.fm-nav-item{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s;white-space:nowrap;}
+.fm-nav-item{padding:7px 15px;border-radius:6px;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s;white-space:nowrap;}
 .fm-nav-item:hover{color:var(--text);background:var(--bg);}
 .fm-nav-item.active{color:var(--accent);background:#e8f4e0;border-bottom:2px solid var(--accent);}
+.fm-readable-note{font-size:13px;line-height:1.65;color:var(--text);}
+.fm-stat-rank{display:grid;grid-template-columns:44px 1fr 82px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #e8eedf;font-size:13px}
+.fm-stat-rank b{font-size:14px;color:var(--text)}
+.fm-stat-rank small{display:block;font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.fm-risk-judgment{font-size:13px;line-height:1.55;color:var(--text);margin-top:5px}
+.fm-risk-overall{font-size:13px;line-height:1.7;color:var(--text);background:#fff8e7;border:1px solid #eadbb7;border-radius:8px;padding:9px;margin-top:8px}
+.fm-risk-bars-compact .fm-risk-bar-info{font-size:13px}
+.fm-risk-bars-compact .fm-risk-bar-info b{font-size:14px}
+.fm-risk-bars-compact .fm-risk-bar-row{padding:8px 0}
+.fm-market-insight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.fm-market-insight-card{border:1px solid #dfe8d4;background:#fbfdf8;border-radius:8px;padding:10px;min-height:78px}
+.fm-market-insight-label{font-size:12px;color:var(--muted);font-weight:800}
+.fm-market-insight-value{font-size:17px;color:var(--text);font-weight:900;margin-top:5px}
+.fm-market-insight-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:4px}
 .fm-header-right{display:flex;align-items:center;gap:10px;margin-left:auto;}
 .fm-date-box{display:flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--border);border-radius:7px;font-size:11px;color:var(--muted);background:var(--bg);}
 .fm-weather-box{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);font-weight:600;}
@@ -183,6 +197,17 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-risk-bars-compact .fm-risk-bar-info{font-size:10px;margin-bottom:3px;}
 .fm-risk-bars-compact .fm-risk-bar-info b{font-size:11px;}
 .fm-risk-bars-compact .fm-risk-bar-track{height:5px;}
+.fm-risk-bars-compact .fm-risk-bar-info{font-size:13px!important;margin-bottom:5px!important;}
+.fm-risk-bars-compact .fm-risk-bar-info b{font-size:14px!important;}
+.fm-risk-bars-compact .fm-risk-bar-row{padding:8px 0!important;}
+.fm-month-bars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;align-items:end;min-height:70px;}
+.fm-month-cell{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;}
+.fm-month-bar-wrap{height:42px;width:100%;display:flex;align-items:flex-end;}
+.fm-month-bar{width:100%;min-width:7px;border-radius:4px 4px 0 0;border:1px solid rgba(0,0,0,.08);box-sizing:border-box;}
+.fm-month-label{font-size:9px;color:#7d8f70;font-weight:800;}
+.fm-month-cell.peak .fm-month-label{color:#1f6f14;}
+.fm-month-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--muted);line-height:1.4;}
+.fm-month-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;vertical-align:-1px;}
 /* 2-column middle section */
 .fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
 .fm-mid-col{flex:1;padding:13px 16px;background:white;}
@@ -305,7 +330,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <nav class="fm-nav">
     <button class="fm-nav-item active" onclick="switchNavView('map',this)">실시간 지도</button>
     <button class="fm-nav-item" onclick="switchNavView('explain',this)">가격 예측 설명</button>
-    <button class="fm-nav-item" onclick="switchNavView('dashboard',this)">대시보드</button>
+    <button class="fm-nav-item" onclick="switchNavView('dashboard',this)">통계</button>
   </nav>
   <div class="fm-header-right">
     <div class="fm-date-box" id="hdr-date">
@@ -980,17 +1005,27 @@ function selectItem(k){
   document.getElementById("item-menu").classList.remove("open");
   renderItemMenu();
   renderMiniCards();
-  showMapPanel();
+  refreshTopViewForItemChange();
   const tasks=[];
   if(!LIVE_SIGNALS[k]) tasks.push(fetchSignalsByItem(k));
   if(!LIVE_REGIONAL_PRICES[k]) tasks.push(fetchRegionalPrices(k));
   if(!LIVE_NATIONAL_PRICES[k]) tasks.push(fetchNationalPrice(k));
   if(!FARMMAP_CAPACITY[k]) tasks.push(fetchFarmMapCapacity(k).catch(()=>null));
-  if(tasks.length) Promise.all(tasks).then(()=>redrawMap()); else redrawMap();
+  if(tasks.length) Promise.all(tasks).then(()=>{
+    redrawMap();
+    refreshTopViewForItemChange();
+  }); else redrawMap();
 }
 
 // ── 상단 네비게이션 뷰 전환 ──────────────────────────────────────────────
+let activeTopView="map";
+function refreshTopViewForItemChange(){
+  if(activeTopView==="explain") renderExplanationPanel();
+  else if(activeTopView==="dashboard") renderDashboardPanel();
+  else showMapPanel();
+}
 function switchNavView(mode, btn){
+  activeTopView=mode;
   document.querySelectorAll(".fm-nav-item").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
   if(mode==="map"){
@@ -1027,9 +1062,9 @@ function showTopPanel(html){
 }
 
 function renderExplanationPanel(){
-  const current=ITEMS[curItem]||{emoji:"",name:"Item"};
+  const current=ITEMS[curItem]||{emoji:"",name:"품목"};
   const horizons=LIVE_HORIZONS[curItem]||{};
-  const hKeys=Object.keys(horizons).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+  const hKeys=Object.keys(horizons).map(Number).filter(Number.isFinite).filter(k=>k<=90).sort((a,b)=>a-b);
   const available=hKeys.filter(k=>{
     const row=horizons[String(k)];
     return row&&row.available!==false&&row.data_status!=="insufficient_data";
@@ -1037,50 +1072,47 @@ function renderExplanationPanel(){
   const blocked=hKeys.filter(k=>!available.includes(k));
   const regionCount=Object.values(CITY_DATA[curItem]||{}).filter(isActiveCropCity).length;
   const live=LIVE_ITEMS[curItem]||{};
-  const modelMode=hKeys.length?`horizon models ${available.length}/${hKeys.length}`:"14d fallback";
-  const horizonList=(hKeys.length?hKeys:[7,14,21,28,60,90,180,365]);
+  const signalCount=Object.keys(LIVE_SIGNALS[curItem]||{}).length;
+  const horizonList=hKeys.length?hKeys:[7,14,21,28,60,90];
   const horizonRows=horizonList.map(k=>{
     const row=horizons[String(k)]||null;
     const pct=horizonModelPct(k);
-    const status=!row?"not deployed":row.available===false||row.data_status==="insufficient_data"?"insufficient":"model";
-    const statusLabel={model:"model",insufficient:"insufficient","not deployed":"not deployed"}[status];
-    const color={model:"#1a8a1a",insufficient:"#b86010","not deployed":"#7a8a6a"}[status];
+    const status=!row?"대기":row.available===false||row.data_status==="insufficient_data"?"데이터 부족":"사용";
+    const color=status==="사용"?"#1a8a1a":status==="데이터 부족"?"#b86010":"#7a8a6a";
     const change=pct==null?"-":`${pct>0?"+":""}${pct.toFixed(1)}%`;
-    return `<div style="display:grid;grid-template-columns:44px 1fr 54px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1e8">
-      <b style="font-size:11px;color:var(--text)">${PERIOD_LABEL[k]||k+"D"}</b>
-      <span style="font-size:10px;color:${color};font-weight:800">${statusLabel}</span>
-      <span style="font-size:11px;color:${pct>0?"#c02828":pct<0?"#1a8a1a":"var(--muted)"};font-weight:900;text-align:right">${change}</span>
+    const note=status==="사용"?"모델값 반영":status==="데이터 부족"?"현재 확률 판단 제외":"가까운 기간값 보조";
+    return `<div class="fm-stat-rank">
+      <b>${PERIOD_LABEL[k]||k+"일"}</b>
+      <div><b style="color:${color}">${status}</b><small>${note}</small></div>
+      <b style="text-align:right;color:${pct>0?"#c02828":pct<0?"#1a8a1a":"var(--muted)"}">${change}</b>
     </div>`;
   }).join("");
-  const drivers=[
-    {label:"Price", value:LIVE_NATIONAL_PRICES[curItem]?"base price connected":"waiting for base price", tone:LIVE_NATIONAL_PRICES[curItem]?"live":"wait"},
-    {label:"Regions", value:`${regionCount} representative regions`, tone:regionCount?"live":"wait"},
-    {label:"Risk", value:live.risk_score!=null?`${Math.round(live.risk_score)} risk score`:"waiting for signals", tone:live.risk_score!=null?"model":"wait"},
-    {label:"Horizon", value:modelMode, tone:hKeys.length?"live":"model"},
-  ];
-  const driverHtml=drivers.map(d=>`<div class="fm-dash-cell">
-    <div class="fm-dash-lbl">${d.label}</div>
-    <div style="font-size:12px;font-weight:900;color:var(--text);line-height:1.35">${d.value}</div>
-    <div style="font-size:9px;color:var(--muted);margin-top:4px">${d.tone==="live"?"connected":d.tone==="model"?"model based":"waiting"}</div>
-  </div>`).join("");
+  const summary=blocked.length
+    ? `${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 구간은 아직 데이터가 약해서 보조 판단으로만 봅니다.`
+    : available.length
+      ? "현재 표시되는 예측 구간은 모델값 또는 검증된 보간값을 우선 사용합니다."
+      : "아직 기간별 모델 응답이 부족해서 기준 가격과 지역 신호 중심으로 보수적으로 표시합니다.";
   showTopPanel(`
     <div class="fm-top-card">
-      <div class="fm-top-title">${current.emoji} ${current.name} Forecast Engine</div>
-      <div class="fm-top-sub">Shows what data is powering the current forecast, which horizons are usable, and which horizons are still missing or insufficient.</div>
-      <div class="fm-dash-grid" style="margin-top:10px">${driverHtml}</div>
-    </div>
-    <div class="fm-top-card">
-      <div class="fm-sec-title">Horizon Status</div>
-      <div style="margin-top:6px">${horizonRows}</div>
-      <div style="font-size:10px;color:var(--muted);line-height:1.55;margin-top:8px">
-        ${!hKeys.length?"Horizon model response is not loaded yet. The page is using fallback forecast and region metadata.":blocked.length?`Insufficient horizons: ${blocked.map(k=>PERIOD_LABEL[k]||k+"D").join(", ")}. These should not be treated as firm model outputs.`:"Visible horizons are available through model output or interpolation."}
+      <div class="fm-top-title">${current.emoji} ${current.name} 가격 예측 설명</div>
+      <div class="fm-readable-note">지금 선택한 작물의 가격을 어디에서 가져오고, 어떤 기간 예측을 믿을 수 있는지 보여줍니다. 작물을 바꿔도 이 설명 화면은 그대로 유지됩니다.</div>
+      <div class="fm-dash-grid" style="margin-top:10px">
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">기준 가격</div><div class="fm-dash-val">${LIVE_NATIONAL_PRICES[curItem]?Math.round(LIVE_NATIONAL_PRICES[curItem]).toLocaleString()+"원":"수집 중"}</div><div class="fm-top-sub">도매 실측 우선</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">대표 산지</div><div class="fm-dash-val">${regionCount}</div><div class="fm-top-sub">검증 지역</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">위험 신호</div><div class="fm-dash-val">${live.risk_score!=null?Math.round(live.risk_score):"-"}</div><div class="fm-top-sub">${signalCount}개 지역 신호</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 구간</div><div class="fm-dash-val">${available.length}/${horizonList.length}</div><div class="fm-top-sub">사용 가능</div></div>
       </div>
     </div>
     <div class="fm-top-card">
-      <div class="fm-sec-title">How It Is Calculated</div>
-      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>Base price</b><div>Regional wholesale market price is preferred. If it is missing, the UI falls back to national or representative-market pricing.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>Horizon direction</b><div>When horizon-specific model output exists, it is used first. Otherwise the nearest available horizon and probability are used conservatively.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>Shared basis</b><div>The map, hover popup, and right panel use the same price-context functions so their numbers stay aligned.</div></div></div>
+      <div class="fm-sec-title">기간별 신뢰 상태</div>
+      ${horizonRows}
+      <div class="fm-readable-note" style="margin-top:8px">${summary}</div>
+    </div>
+    <div class="fm-top-card">
+      <div class="fm-sec-title">판단 순서</div>
+      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>도매시장 실측가를 먼저 봅니다</b><div>지역 도매가가 있으면 그 값을 기준으로 지도, 팝업, 오른쪽 패널을 맞춥니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>기간별 모델값을 확인합니다</b><div>1주, 2주, 1개월, 2~3개월처럼 기간별 모델이 있는 구간만 예측값으로 강하게 표시합니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>기상, 출하, 시장 압력을 같이 봅니다</b><div>가격이 오른다는 신호와 내린다는 신호가 섞이면 최종 결론은 더 강한 요인을 중심으로 설명합니다.</div></div></div>
     </div>
   `);
 }
@@ -1089,52 +1121,49 @@ function renderDashboardPanel(){
   const rows=Object.entries(ITEMS).map(([k,it])=>{
     const live=LIVE_ITEMS[k]||{};
     const price=LIVE_NATIONAL_PRICES[k]||null;
+    const regions=cropRegionRows(k);
+    const shipment=regions.reduce((a,r)=>a+(Number(r.shipment_ton)||0),0);
+    const avgRise=regions.length?regions.reduce((a,r)=>a+(Number(r.price_vs_avg)||0),0)/regions.length:0;
     const horizons=LIVE_HORIZONS[k]||{};
-    const activeH=Object.keys(horizons).filter(h=>horizons[h]?.available!==false&&horizons[h]?.data_status!=="insufficient_data");
-    const score=live.risk_score??null;
-    const prob=live.up_prob??null;
-    return {k,it,price,score,prob,level:live.risk_level||it.risk_level||"normal",activeH};
-  }).filter(r=>r.price!=null||r.score!=null||r.prob!=null||r.activeH.length||PRIORITY_ITEMS.includes(r.k))
-    .sort((a,b)=>(b.score??-1)-(a.score??-1));
-  const liveCount=Object.keys(LIVE_ITEMS).length;
-  const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
-  const horizonCount=Object.values(LIVE_HORIZONS).filter(v=>Object.keys(v||{}).length).length;
-  const highCount=rows.filter(r=>r.level==="high"||r.level==="warning").length;
-  const top=rows[0];
-  const topCards=rows.slice(0,6).map(r=>{
-    const col=r.prob==null?"#7a8a6a":r.prob>0.58?"#c02828":r.prob<0.42?"#1a8a1a":"#6a1e9a";
-    const dir=r.prob==null?"waiting":r.prob>0.58?"up bias":r.prob<0.42?"down bias":"stable";
-    const probText=r.prob==null?"-":`${Math.round(r.prob*100)}%`;
-    const scoreText=r.score==null?"-":Math.round(r.score);
-    const priceText=r.price?Math.round(r.price).toLocaleString()+" won":"price pending";
-    return `<div class="fm-dash-cell" onclick="selectItem('${r.k}')" style="cursor:pointer">
-      <div class="fm-dash-lbl">${r.it.emoji} ${r.it.name}</div>
-      <div class="fm-dash-val">${priceText}</div>
-      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} ${probText} | risk ${scoreText}</div>
-      <div style="font-size:9px;color:var(--muted);margin-top:3px">horizons ${r.activeH.length}</div>
+    const activeH=Object.keys(horizons).filter(h=>Number(h)<=90&&horizons[h]?.available!==false&&horizons[h]?.data_status!=="insufficient_data");
+    return {
+      k,it,price,shipment,avgRise,activeH,
+      score:live.risk_score??0,
+      prob:live.up_prob??null,
+      level:live.risk_level||it.risk_level||"normal",
+    };
+  });
+  const fmtPrice=v=>v?Math.round(v).toLocaleString()+"원":"수집 중";
+  const rankList=(title,items,valueFn,noteFn,colorFn)=>`
+    <div class="fm-top-card">
+      <div class="fm-sec-title">${title}</div>
+      ${items.slice(0,6).map((r,i)=>`<div class="fm-stat-rank" onclick="selectItem('${r.k}')" style="cursor:pointer">
+        <b>${i+1}위</b>
+        <div><b>${r.it.emoji} ${r.it.name}</b><small>${noteFn(r)}</small></div>
+        <b style="text-align:right;color:${colorFn?colorFn(r):"var(--text)"}">${valueFn(r)}</b>
+      </div>`).join("")}
     </div>`;
-  }).join("");
-  const actionRows=rows.slice(0,4).map(r=>{
-    const reason=r.level==="high"||r.level==="warning"?"check risk signal first":r.prob==null?"waiting for forecast signal":r.prob>0.6?"watch upside pressure":r.prob<0.4?"watch downside pressure":"check price and region flow";
-    return `<div style="display:grid;grid-template-columns:1fr 76px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #edf1e8">
-      <div><b style="font-size:11px;color:var(--text)">${r.it.emoji} ${r.it.name}</b><div style="font-size:10px;color:var(--muted);margin-top:2px">${reason}</div></div>
-      <button onclick="selectItem('${r.k}')" style="border:1px solid var(--border);background:white;border-radius:7px;padding:5px 7px;font-size:10px;font-weight:800;color:var(--accent);cursor:pointer">map</button>
-    </div>`;
-  }).join("");
+  const riseRows=rows.slice().sort((a,b)=>b.avgRise-a.avgRise);
+  const riskRows=rows.slice().sort((a,b)=>b.score-a.score);
+  const shipmentRows=rows.slice().sort((a,b)=>b.shipment-a.shipment);
+  const readyRows=rows.slice().sort((a,b)=>b.activeH.length-a.activeH.length);
+  const highCount=riskRows.filter(r=>r.score>=50).length;
+  const totalShipment=shipmentRows.reduce((a,r)=>a+r.shipment,0);
   showTopPanel(`
     <div class="fm-top-card">
-      <div class="fm-top-title">Dashboard</div>
-      <div class="fm-top-sub">A compact work queue for priority items, risk signals, price availability, and horizon-model coverage.</div>
-      <div class="fm-dash-grid">
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">Forecast items</div><div class="fm-dash-val">${liveCount}</div><div class="fm-top-sub">signals/today</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">Price feeds</div><div class="fm-dash-val">${priceCount}</div><div class="fm-top-sub">base prices</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">Horizon models</div><div class="fm-dash-val">${horizonCount}</div><div class="fm-top-sub">forecast APIs</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">Watch items</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">warning/high</div></div>
+      <div class="fm-top-title">작물 통계</div>
+      <div class="fm-readable-note">오늘 먼저 살펴볼 작물을 고르는 화면입니다. 상승 압력, 위험 점수, 출하 규모, 예측 데이터 준비 상태를 순위로 모았습니다.</div>
+      <div class="fm-dash-grid" style="margin-top:10px">
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${Object.keys(LIVE_NATIONAL_PRICES).length}</div><div class="fm-top-sub">품목</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">위험 50점 이상</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">총 출하 참고량</div><div class="fm-dash-val">${fmtTon(totalShipment)}</div><div class="fm-top-sub">지도 메타 기준</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 준비</div><div class="fm-dash-val">${readyRows.filter(r=>r.activeH.length).length}</div><div class="fm-top-sub">기간 모델 보유</div></div>
       </div>
     </div>
-    <div class="fm-top-card"><div class="fm-sec-title">Priority Items</div><div class="fm-dash-grid">${topCards||"<div class='fm-top-sub'>No forecast data is loaded yet.</div>"}</div></div>
-    <div class="fm-top-card"><div class="fm-sec-title">Today Actions</div>${actionRows||"<div class='fm-top-sub'>Actions will appear after data loads.</div>"}</div>
-    <div class="fm-source-note"><b>Top risk</b><br>${top?`${top.it.emoji} ${top.it.name}: risk ${top.score==null?"-":Math.round(top.score)}, up probability ${top.prob==null?"-":Math.round(top.prob*100)+"%"}`:"No forecast data is loaded yet."}</div>
+    ${rankList("상승 압력 순위",riseRows,r=>`${r.avgRise>0?"+":""}${r.avgRise.toFixed(1)}%`,r=>`대표 산지 평균 가격 위치 · 현재가 ${fmtPrice(r.price)}`,r=>r.avgRise>=0?"#c02828":"#1a8a1a")}
+    ${rankList("위험 점수 순위",riskRows,r=>`${Math.round(r.score)}점`,r=>r.score>=70?"가격 변동 가능성이 큰 품목":r.score>=50?"주의해서 볼 품목":"현재는 안정권에 가까운 품목",r=>r.score>=70?"#c02828":r.score>=50?"#b86010":"#1a8a1a")}
+    ${rankList("출하 규모 순위",shipmentRows,r=>fmtTon(r.shipment),r=>`${cropRegionRows(r.k).length}개 대표 산지 합산`,()=>"#2f6f31")}
+    ${rankList("예측 데이터 준비 순위",readyRows,r=>`${r.activeH.length}개`,r=>`사용 가능 기간: ${r.activeH.map(h=>PERIOD_LABEL[h]||h+"일").join(", ")||"수집 중"}`,()=>"#4b5f9b")}
   `);
 }
 // ── 레이어 상태 ──────────────────────────────────────────────────────────
@@ -1483,30 +1512,11 @@ function makeFarmMapHoverCard(title,fm){
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
-PERIOD_LABEL[180]="6M";
-PERIOD_LABEL[365]="1Y";
-PERIOD_ORDER.push(180,365);
 function ensureExtendedHorizonUi(){
   const group=document.querySelector(".fm-period-group");
-  if(group&&!group.querySelector('[data-period-extra="180"]')){
-    [{d:180,l:"6M"},{d:365,l:"1Y"}].forEach(({d,l})=>{
-      const btn=document.createElement("button");
-      btn.className="fm-period-btn";
-      btn.dataset.periodExtra=String(d);
-      btn.textContent=l;
-      btn.onclick=()=>setPeriod(d,btn);
-      group.appendChild(btn);
-    });
-  }
-  const row=document.querySelector(".fm-forecast-row");
-  if(row&&!document.getElementById("rp-p180")){
-    [{l:"6M",id:"rp-p180",cid:"rp-p180c"},{l:"1Y",id:"rp-p365",cid:"rp-p365c"}].forEach(x=>{
-      const cell=document.createElement("div");
-      cell.className="fm-fc-cell";
-      cell.innerHTML=`<div class="fm-fc-lbl">${x.l}</div><div class="fm-fc-val" id="${x.id}">-</div><div class="fm-fc-chg" id="${x.cid}"></div>`;
-      row.appendChild(cell);
-    });
-  }
+  group?.querySelectorAll('[data-period-extra="180"],[data-period-extra="365"]').forEach(el=>el.remove());
+  document.getElementById("rp-p180")?.closest(".fm-fc-cell")?.remove();
+  document.getElementById("rp-p365")?.closest(".fm-fc-cell")?.remove();
 }
 function setPeriod(p,btn){
   curPeriod=p;
@@ -1901,12 +1911,58 @@ async function fetchNationalPrice(item_code){
     if(rows.length) LIVE_NATIONAL_PRICES[item_code]=rows[rows.length-1].price;
   }catch(e){}
 }
+function medianNumber(values){
+  const arr=values.map(Number).filter(v=>Number.isFinite(v)&&v>0).sort((a,b)=>a-b);
+  if(!arr.length) return null;
+  const mid=Math.floor(arr.length/2);
+  return arr.length%2?arr[mid]:(arr[mid-1]+arr[mid])/2;
+}
+function itemUnitKg(itemCode){
+  const unit=ITEMS[itemCode]?.unit||"";
+  const m=unit.match(/(\d+)kg/i);
+  return m?Math.max(1,parseInt(m[1],10)):1;
+}
+function normalizeRegionalPriceOutliers(itemCode,d){
+  if(!d?.sido_avg) return d;
+  ["wholesale","retail"].forEach(field=>{
+    const vals=Object.values(d.sido_avg).map(x=>x?.[field]).filter(v=>Number.isFinite(Number(v))&&Number(v)>0);
+    const med=medianNumber(vals);
+    if(!med||vals.length<4) return;
+    const kg=itemUnitKg(itemCode);
+    Object.entries(d.sido_avg).forEach(([sido,row])=>{
+      const raw=Number(row?.[field]);
+      if(!raw) return;
+      if(raw>med*8){
+        const divided=kg>1?Math.round(raw/kg):raw;
+        if(divided>0&&divided>=med*0.35&&divided<=med*4){
+          row[field]=divided;
+          row[`${field}_quality`]="unit_adjusted";
+          row[`${field}_quality_note`]=`${sido} ${field==="wholesale"?"도매가":"소매가"}가 다른 지역보다 과도하게 높아 ${kg}kg 단위 혼입으로 보고 보정했습니다.`;
+        }else{
+          row[field]=null;
+          row[`${field}_quality`]="outlier_removed";
+          row[`${field}_quality_note`]=`${sido} ${field==="wholesale"?"도매가":"소매가"}가 다른 지역 중앙값보다 지나치게 높아 표시에서 제외했습니다.`;
+        }
+      }
+    });
+  });
+  const ws=Object.values(d.sido_avg).map(x=>x?.wholesale).filter(v=>Number.isFinite(Number(v))&&Number(v)>0);
+  const rt=Object.values(d.sido_avg).map(x=>x?.retail).filter(v=>Number.isFinite(Number(v))&&Number(v)>0);
+  if(ws.length) d.national_avg_wholesale=Math.round(ws.reduce((a,b)=>a+Number(b),0)/ws.length);
+  if(rt.length) d.national_avg_retail=Math.round(rt.reduce((a,b)=>a+Number(b),0)/rt.length);
+  Object.values(d.sido_avg).forEach(row=>{
+    if(d.national_avg_wholesale&&row.wholesale!=null) row.vs_national_pct=Math.round(((row.wholesale-d.national_avg_wholesale)/d.national_avg_wholesale*100)*10)/10;
+    if(d.national_avg_retail&&row.retail!=null) row.retail_vs_national_pct=Math.round(((row.retail-d.national_avg_retail)/d.national_avg_retail*100)*10)/10;
+  });
+  return d;
+}
 async function fetchRegionalPrices(item_code){
   try{
     const res=await fetch(`/api/v1/map/regional-prices?item_code=${item_code}`);
     if(!res.ok) return;
     const d=await res.json();
     if(d.sido_avg&&Object.keys(d.sido_avg).length>0){
+      normalizeRegionalPriceOutliers(item_code,d);
       const bySido={};
       (d.markets||[]).forEach(m=>{
         if(!m.sido) return;
@@ -2677,8 +2733,6 @@ function showRegionDetail(name,code,d){
   setPfc("rp-p28","rp-p28c",28);
   setPfc("rp-p60","rp-p60c",60);
   setPfc("rp-p90","rp-p90c",90);
-  setPfc("rp-p180","rp-p180c",180);
-  setPfc("rp-p365","rp-p365c",365);
 
   // ── 재배 현황
   document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
@@ -2759,10 +2813,55 @@ function showRegionDetail(name,code,d){
           ${topHtml||`<div style="font-size:11px;color:var(--muted)">도내 비교 데이터 수집 중</div>`}
         </div>
         <div>
-          <div style="font-size:10px;color:var(--muted);font-weight:900;margin-bottom:5px">월별 출하 집중도</div>
-          <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:3px;align-items:end">${miniMonthBars(d)}</div>
-          <div style="font-size:10px;color:var(--muted);line-height:1.45;margin-top:6px">${d.main_season?`${d.main_season} 출하권으로 분류`:"월별 실측 데이터 수집 전"} · 현재는 산지 메타 기반 패턴입니다.</div>
+          <div style="font-size:12px;color:var(--muted);font-weight:900;margin-bottom:6px">월별 출하 집중도</div>
+          <div class="fm-month-bars">${miniMonthBars(d)}</div>
+          <div class="fm-month-legend"><span><i class="fm-month-dot" style="background:#1f7a16"></i>집중</span><span><i class="fm-month-dot" style="background:#84b84f"></i>보통</span><span><i class="fm-month-dot" style="background:#d8e3cf"></i>비수기</span></div>
+          <div style="font-size:12px;color:var(--text);line-height:1.55;margin-top:7px">${monthlyShipmentComment(curItem,d)}</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.45;margin-top:5px">현재는 산지 메타 기반 패턴이며, 월별 실측 출하량 API가 붙으면 실제 월별 물량으로 대체합니다.</div>
           <div style="font-size:10px;color:var(--text);line-height:1.45;margin-top:6px">전국 비중 ${nationalShare!=null?nationalShare.toFixed(1)+"%":"-"} · 연간 ${fmtTon(localTon)} · 기준시장 ${priceCtx.market?.name||"-"}</div>
+        </div>
+      </div>`;
+    }
+  }
+
+  if(coverageNote||neighborNote){
+    const allRowsClean=cropRegionRows(curItem);
+    const nationalRankClean=rankBy(allRowsClean,r=>r.shipment_ton||r.production_ton,code);
+    const totalTonClean=allRowsClean.reduce((s,r)=>s+(Number(r.shipment_ton||r.production_ton)||0),0);
+    const provinceTonClean=activeInProvince.reduce((s,r)=>s+(Number(r.shipment_ton||r.production_ton)||0),0);
+    const localTonClean=Number(d.shipment_ton||d.production_ton)||0;
+    const nationalShareClean=totalTonClean?localTonClean/totalTonClean*100:null;
+    const provinceShareClean=provinceTonClean?localTonClean/provinceTonClean*100:null;
+    const topProvinceClean=activeInProvince.slice().sort((a,b)=>(Number(b.shipment_ton||b.production_ton)||0)-(Number(a.shipment_ton||a.production_ton)||0)).slice(0,5);
+    if(coverageNote){
+      coverageNote.innerHTML=`<div class="fm-market-insight-grid">
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">전국 출하 순위</div><div class="fm-market-insight-value">${nationalRankClean.rank?nationalRankClean.rank+"위":"-"}</div><div class="fm-market-insight-note">${nationalRankClean.total}개 대표 산지 중 순위</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">전국 비중</div><div class="fm-market-insight-value">${nationalShareClean!=null?nationalShareClean.toFixed(1)+"%":"-"}</div><div class="fm-market-insight-note">대표 산지 출하량 합산 기준</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">도내 비중</div><div class="fm-market-insight-value">${provinceShareClean!=null?provinceShareClean.toFixed(1)+"%":"-"}</div><div class="fm-market-insight-note">${SIDO_SHORT[normalizedSido]||d.sido||"해당 도"} 안에서의 비중</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">기준 시장</div><div class="fm-market-insight-value" style="font-size:15px">${priceCtx.market?.name||"-"}</div><div class="fm-market-insight-note">${priceCtx.currentPrice?Math.round(priceCtx.currentPrice).toLocaleString()+"원":"가격 수집 중"}</div></div>
+      </div>`;
+    }
+    if(neighborNote){
+      const rankRows=topProvinceClean.map((r,i)=>{
+        const ton=Number(r.shipment_ton||r.production_ton)||0;
+        const pct=provinceTonClean?ton/provinceTonClean*100:null;
+        const active=r.name===name;
+        return `<div class="fm-stat-rank" style="grid-template-columns:34px 1fr 70px">
+          <b style="color:${active?"var(--accent)":"var(--muted)"}">${i+1}위</b>
+          <div><b>${r.name}</b><small>${active?"현재 선택 지역":"같은 도 내 비교 지역"}</small></div>
+          <b style="text-align:right">${pct!=null?pct.toFixed(0)+"%":"-"}</b>
+        </div>`;
+      }).join("");
+      neighborNote.innerHTML=`<div class="fm-market-insight-grid">
+        <div class="fm-market-insight-card" style="grid-column:span 2">
+          <div class="fm-market-insight-label">${SIDO_SHORT[normalizedSido]||d.sido||"도내"} 출하 비중 순위</div>
+          ${rankRows||`<div class="fm-market-insight-note" style="margin-top:8px">비교 가능한 출하량 데이터가 아직 부족합니다.</div>`}
+        </div>
+        <div class="fm-market-insight-card" style="grid-column:span 2">
+          <div class="fm-market-insight-label">월별 출하 집중도</div>
+          <div class="fm-month-bars" style="margin-top:8px">${miniMonthBars(d)}</div>
+          <div class="fm-month-legend"><span><i class="fm-month-dot" style="background:#1f7a16"></i>집중</span><span><i class="fm-month-dot" style="background:#84b84f"></i>보통</span><span><i class="fm-month-dot" style="background:#d8e3cf"></i>비수기</span></div>
+          <div class="fm-market-insight-note">${monthlyShipmentComment(curItem,d)}</div>
         </div>
       </div>`;
     }
@@ -2845,12 +2944,21 @@ function showRegionDetail(name,code,d){
     const topInfo=riskLevelInfo(topUnified.score);
     riskSummary.textContent=`종합 ${unifiedRisk.total}(${unifiedRisk.level.label}) · 주요 ${topUnified.label} ${topUnified.score}(${topInfo.label})`;
   }
+  if(riskSummary){
+    const topUnifiedClean=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0];
+    const topInfoClean=riskLevelInfo(topUnifiedClean.score);
+    riskSummary.textContent=`종합 ${unifiedRisk.total}점(${unifiedRisk.level.label}) · 주된 원인 ${topUnifiedClean.label} ${topUnifiedClean.score}점(${topInfoClean.label})`;
+  }
   const riskExplain=document.getElementById("rp-risk-explain");
   if(riskExplain){
     riskExplain.innerHTML=`<b>점수 해석</b>: 0~100점, 높을수록 선택 기간에 가격이 크게 흔들리거나 공급 스트레스가 커질 가능성이 높다는 뜻입니다.<br><b>산출 기준</b>: 백엔드 지역 위험 신호가 있으면 가격 50% + 기상 35% + 생산/KOSIS 공급 15% 공식을 씁니다. 백엔드 신호가 없는 지도 기본값은 가격지수와 출하 전년비 기반 파생점수입니다. 아래 세부 막대는 같은 종합점수를 실데이터와 파생 지표로 나눈 설명용 값이며, 없는 데이터를 임의 실측값처럼 표시하지 않습니다.`;
   }
 
   // ── 출하·시장 동향
+  if(riskExplain){
+    riskExplain.innerHTML=`<div class="fm-risk-overall">${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}<br><b>읽는 법</b>: 0점에 가까우면 안정, 50점을 넘으면 주의, 70점 이상이면 가격 변동 가능성이 큰 상태로 봅니다. 각 막대는 같은 종합점수를 기상, 출하, 시장 요인으로 나누어 왜 그런 점수가 나왔는지 설명합니다.</div>`;
+  }
+
   const sh=d.shipment_ton||0;
   document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천 톤":sh>0?sh+"톤":"—";
   document.getElementById("rp-shipment-sub").className="fm-mkt-sub "+(yoy?yoy>0?"up":"down":"neu");
@@ -2963,6 +3071,70 @@ function riskBarsHtml(rows,{compact=false,showBasis=false}={}){
     </div>`;
   }).join("");
 }
+function riskLevelInfo(score){
+  const s=Number(score)||0;
+  if(s>=70) return {key:"high",label:"높음",color:"#c02828",hint:"가격이 크게 움직일 수 있어 오늘 먼저 확인해야 합니다."};
+  if(s>=50) return {key:"warn",label:"주의",color:"#b86010",hint:"가격 변동 신호가 있어 출하와 시장 흐름을 같이 봐야 합니다."};
+  if(s>=30) return {key:"mid",label:"보통",color:"#a07010",hint:"일부 변동 신호가 있지만 당장 강한 경보 수준은 아닙니다."};
+  return {key:"ok",label:"낮음",color:"#1a8a1a",hint:"현재 확인된 변동 압력은 낮은 편입니다."};
+}
+function riskSourceTag(source){
+  if(source==="live") return `<span class="fm-data-tag live">실측</span>`;
+  if(source==="derived") return `<span class="fm-data-tag model">계산</span>`;
+  return `<span class="fm-data-tag model">추정</span>`;
+}
+function riskJudgment(row){
+  const s=Number(row.score)||0;
+  if(row.key==="weather"){
+    if(s>=70) return "기상 또는 재해 신호가 강해서 산지 작업과 출하 지연 가능성을 크게 반영했습니다.";
+    if(s>=50) return "기상 신호가 보통 이상이라 단기 가격 변동 요인으로 남아 있습니다.";
+    return "현재 기상 요인은 가격을 크게 흔드는 주된 원인으로 보이지 않습니다.";
+  }
+  if(row.key==="crop"){
+    if(s>=70) return "출하량 감소나 생육 부담이 커서 공급 쪽 압력이 강하게 계산됐습니다.";
+    if(s>=50) return "출하와 생육 지표가 평소보다 불안정해서 주의 점수로 반영했습니다.";
+    return "출하와 생육 지표는 큰 부족 신호보다 안정 쪽에 가깝습니다.";
+  }
+  if(s>=70) return "현재 가격이 평소나 전국 기준에서 크게 벗어나 시장 스트레스가 높게 잡혔습니다.";
+  if(s>=50) return "가격 차이가 있어 시장 흐름을 확인해야 하지만 극단값 수준은 아닙니다.";
+  return "시장 가격 차이는 크지 않아 가격 요인은 낮게 반영됐습니다.";
+}
+function riskOverallComment(total,rows){
+  const info=riskLevelInfo(total);
+  const top=rows.slice().sort((a,b)=>b.score-a.score)[0];
+  return `종합 ${total}점, ${info.label} 단계입니다. 가장 큰 원인은 ${top.label} ${top.score}점이며, ${riskJudgment(top)}`;
+}
+function buildRiskBreakdown(d,priceCtx,chgPct){
+  const total=Math.max(0,Math.min(100,Math.round(Number(d?.risk_score)||0)));
+  const regionKey=d?.province_code||PROV_NAME_MAP[d?.sido]||d?.sido;
+  const signal=LIVE_SIGNALS[curItem]?.[regionKey]||LIVE_SIGNALS[curItem]?.[d?.code];
+  const marketChange=Math.abs(Number(chgPct)||0);
+  const weatherScore=signal?.risk_score!=null
+    ? Math.max(0,Math.min(100,Math.round(signal.risk_score)))
+    : Math.round(total*0.35);
+  const cropScore=Math.max(0,Math.min(100,Math.round(
+    Math.abs(Number(d?.shipment_yoy)||0)*1.5 + Math.max(0,100-(Number(d?.harvest_rate)||85))*0.6 + total*0.15
+  )));
+  const marketScore=Math.max(0,Math.min(100,Math.round(
+    marketChange*3 + Math.abs(Number(d?.price_vs_avg)||0)*1.2 + total*0.25
+  )));
+  const rows=[
+    {key:"weather",icon:"☁",label:"기상·재해",score:weatherScore,source:signal?"live":"derived",basis:signal?.summary||"지역 기상 신호가 없을 때는 종합 위험 점수 일부를 배분해 보수적으로 계산했습니다."},
+    {key:"crop",icon:"🌱",label:"출하·생육",score:cropScore,source:"derived",basis:"출하 전년비, 수확 진행률, 공급 스트레스 지표를 합쳐 계산했습니다."},
+    {key:"market",icon:"📊",label:"시장·가격",score:marketScore,source:priceCtx?.rp?"live":"derived",basis:priceCtx?.rp?"지역 도매가와 전국 평균의 차이, 예측 변동률을 반영했습니다.":"예측 변동률과 지도 메타 가격 위치를 반영했습니다."},
+  ];
+  return {total,level:riskLevelInfo(total),rows};
+}
+function riskBarsHtml(rows,{compact=false,showBasis=false}={}){
+  return `<div class="${compact?"fm-risk-bars-compact":""}">`+rows.map(r=>{
+    const info=riskLevelInfo(r.score);
+    return`<div class="fm-risk-bar-row">
+      <div class="fm-risk-bar-info"><span>${r.icon} ${r.label} ${riskSourceTag(r.source)}</span><b style="color:${info.color}">${r.score} <span style="font-size:12px;font-weight:700">${info.label}</span></b></div>
+      <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${info.color}"></div></div>
+      ${showBasis?`<div class="fm-risk-judgment">${riskJudgment(r)}<br><span style="color:var(--muted)">${r.basis}</span></div>`:""}
+    </div>`;
+  }).join("")+`</div>`;
+}
 function fmtTon(v){
   const n=Number(v)||0;
   if(n>=10000) return (n/10000).toFixed(1)+"만 톤";
@@ -2985,19 +3157,41 @@ function seasonProfileMonths(season){
   };
   return map[season]||map["연중"];
 }
-function miniMonthBars(d){
+function monthlyShipmentProfile(itemCode=curItem,d={}){
+  const profiles={
+    cabbage:[35,30,38,48,62,58,52,60,82,100,88,56],
+    radish:[42,38,44,56,68,64,58,62,78,100,92,60],
+    onion:[18,20,28,48,88,100,78,45,28,22,20,18],
+    green_onion:[62,58,64,70,76,74,68,70,82,94,100,86],
+    garlic:[18,18,22,40,78,100,66,34,24,20,18,18],
+  };
+  let values=(profiles[itemCode]||[40,40,45,55,65,70,70,65,70,75,70,55]).slice();
   const active=new Set(seasonProfileMonths(d?.main_season));
+  if(active.size&&active.size<12){
+    values=values.map((v,i)=>active.has(i+1)?Math.min(100,Math.round(v*1.12)):Math.max(12,Math.round(v*.55)));
+  }
+  return values;
+}
+function miniMonthBars(d){
+  const values=monthlyShipmentProfile(curItem,d);
   const labels=["1","2","3","4","5","6","7","8","9","10","11","12"];
   return labels.map((m,i)=>{
-    const month=i+1;
-    const on=active.has(month);
-    const h=on?26:8;
-    const bg=on?"#267a18":"#dfe6d8";
-    return`<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-      <div style="height:30px;width:100%;display:flex;align-items:flex-end"><div style="height:${h}px;width:100%;border-radius:3px 3px 0 0;background:${bg}"></div></div>
-      <div style="font-size:8px;color:#8a9a7a">${m}</div>
+    const v=Math.max(0,Math.min(100,Number(values[i])||0));
+    const h=Math.max(8,Math.round(8+v*.34));
+    const peak=v>=80, mid=v>=50;
+    const bg=peak?"#1f7a16":mid?"#84b84f":"#d8e3cf";
+    return`<div class="fm-month-cell ${peak?"peak":mid?"mid":"low"}" title="${m}월 출하 집중도 ${v}점">
+      <div class="fm-month-bar-wrap"><div class="fm-month-bar" style="height:${h}px;background:${bg}"></div></div>
+      <div class="fm-month-label">${m}</div>
     </div>`;
   }).join("");
+}
+function monthlyShipmentComment(itemCode=curItem,d={}){
+  const values=monthlyShipmentProfile(itemCode,d);
+  const months=values.map((v,i)=>({m:i+1,v})).sort((a,b)=>b.v-a.v);
+  const peak=months.filter(x=>x.v>=80).map(x=>`${x.m}월`);
+  const mid=months.filter(x=>x.v>=50&&x.v<80).map(x=>`${x.m}월`);
+  return `진한 초록은 출하 집중월입니다. ${ITEMS[itemCode]?.name||"해당 작물"}은 ${peak.slice(0,4).join(", ")}에 출하가 가장 몰리고, ${mid.slice(0,5).join(", ")||"나머지 달"}은 보통 수준으로 봅니다.`;
 }
 function marketPowerLabel(score){
   if(score>=70) return ["강함","#c02828"];
@@ -3213,7 +3407,7 @@ function drawProvinces(){
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});if(provinceActive)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,provinceD,sido),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
         click:()=>{hideMapTooltip();if(provinceActive)zoomProv(f,sido,pname);}
@@ -3230,7 +3424,7 @@ function drawProvinces(){
         enter:e=>{
           layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
           if(farmMapActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
-          else if(provinceActive) showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,provinceD,sido),e);
+          else showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);
         },
         move:e=>moveMapTooltip(e),
         leave:()=>{try{provLayer.resetStyle(layer);}catch(err){} hideMapTooltip();}
@@ -3537,13 +3731,20 @@ function bindPathDomEvents(layer,handlers){
   setTimeout(()=>bind(),0);
 }
 let __fmHoverPathEl=null;
+function findHoverTargetAtPoint(x,y){
+  const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
+  for(const raw of els){
+    const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
+    if(path&&FM_TOOLTIP_HANDLERS.has(path)) return path;
+  }
+  return null;
+}
 function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
   if(!mapEl||mapEl.dataset.fmHoverFallback==="1") return;
   mapEl.dataset.fmHoverFallback="1";
   mapEl.addEventListener("mousemove",e=>{
-    const raw=document.elementFromPoint(e.clientX,e.clientY);
-    const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
+    const path=findHoverTargetAtPoint(e.clientX,e.clientY);
     const handlers=path?FM_TOOLTIP_HANDLERS.get(path):null;
     if(path&&handlers){
       if(__fmHoverPathEl!==path){
@@ -3658,6 +3859,12 @@ function _normalizeRegionalPrice(raw, itemCode){
     const kgMatch=unit.match(/(\d+)kg/);
     const kg=kgMatch?parseInt(kgMatch[1]):1;
     if(kg>1) return Math.round(raw*kg);
+  }
+  if(raw/natW>8){
+    const kg=itemUnitKg(itemCode);
+    const divided=kg>1?Math.round(raw/kg):raw;
+    if(divided/natW>=0.35&&divided/natW<=4) return divided;
+    return null;
   }
   return raw;
 }

@@ -673,6 +673,54 @@ async def get_shipment_share(item_code: str = "cabbage", db: AsyncSession = Depe
     }
 
 
+def _median_positive(values):
+    arr = sorted(float(v) for v in values if v is not None and float(v) > 0)
+    if not arr:
+        return None
+    mid = len(arr) // 2
+    return arr[mid] if len(arr) % 2 else (arr[mid - 1] + arr[mid]) / 2
+
+
+def _unit_kg_from_text(text: str | None) -> int:
+    import re
+
+    if not text:
+        return 1
+    match = re.search(r"(\d+)\s*kg", text, re.I)
+    if not match:
+        return 1
+    return max(1, int(match.group(1)))
+
+
+def _clean_regional_price_outliers(sido_avg: dict, *, item_code: str, unit_kg: int) -> dict:
+    """Normalize one-off regional unit mixups before API consumers see them."""
+    for field in ("wholesale", "retail"):
+        med = _median_positive(v.get(field) for v in sido_avg.values())
+        if not med or len(sido_avg) < 4:
+            continue
+        for sido, row in sido_avg.items():
+            raw = row.get(field)
+            if raw is None:
+                continue
+            raw = float(raw)
+            if raw <= med * 8:
+                continue
+            divided = round(raw / unit_kg) if unit_kg > 1 else raw
+            if divided > 0 and med * 0.35 <= divided <= med * 4:
+                row[field] = divided
+                row[f"{field}_quality"] = "unit_adjusted"
+                row[f"{field}_quality_note"] = (
+                    f"{item_code}/{sido} {field} looked like a mixed unit and was divided by {unit_kg}kg."
+                )
+            else:
+                row[field] = None
+                row[f"{field}_quality"] = "outlier_removed"
+                row[f"{field}_quality_note"] = (
+                    f"{item_code}/{sido} {field} was removed because it was far above the regional median."
+                )
+    return sido_avg
+
+
 @router.get("/api/v1/map/regional-prices")
 async def get_regional_prices(
     item_code: str = "cabbage",
@@ -736,14 +784,27 @@ async def get_regional_prices(
         }
 
     # 전국 평균 (기준값)
-    all_ws = [v for vals in sido_ws.values() for v in vals]
+    unit_kg = {"garlic": 20, "onion": 15, "green_onion": 10, "cabbage": 10, "radish": 20}.get(item_code, 1)
+    try:
+        from app.models.item import Item
+
+        item_row = (
+            await db.execute(select(Item).where(Item.item_code == item_code))
+        ).scalar_one_or_none()
+        db_unit = _unit_kg_from_text(getattr(item_row, "wholesale_unit", None))
+        unit_kg = db_unit or unit_kg
+    except Exception:
+        pass
+    sido_avg = _clean_regional_price_outliers(sido_avg, item_code=item_code, unit_kg=unit_kg)
+
+    all_ws = [s["wholesale"] for s in sido_avg.values() if s.get("wholesale") is not None]
     national_avg_ws = round(sum(all_ws) / len(all_ws)) if all_ws else None
     all_rt = [s["retail"] for s in sido_avg.values() if s.get("retail") is not None]
     national_avg_rt = round(sum(all_rt) / len(all_rt)) if all_rt else None
 
     # vs_national_pct 추가 (도매 기준), retail_vs_national_pct 추가
     for s in sido_avg.values():
-        if national_avg_ws:
+        if national_avg_ws and s.get("wholesale") is not None:
             s["vs_national_pct"] = round((s["wholesale"] - national_avg_ws) / national_avg_ws * 100, 1)
         if national_avg_rt and s.get("retail") is not None:
             s["retail_vs_national_pct"] = round((s["retail"] - national_avg_rt) / national_avg_rt * 100, 1)

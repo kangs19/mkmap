@@ -12,6 +12,7 @@ from app.main import app
 from app.models.forecast import Forecast
 from app.models.item import Item
 from app.models.price import DailyPrice
+from app.models.regional_price import RegionalMarketPrice
 from app.models.signal import RegionSignal
 from app.models.farmmap import FarmMapLanduseRegion
 
@@ -47,6 +48,39 @@ async def test_forecast_endpoint(client, item_code):
     r = await client.get(f"/api/v1/items/{item_code}/forecast")
     # 404는 데이터 없는 것(정상), 500은 서버 오류(비정상)
     assert r.status_code in (200, 404)
+
+
+@pytest.mark.asyncio
+async def test_regional_price_endpoint_normalizes_garlic_unit_outlier(client):
+    item_code = "garlic"
+    base_date = date(2026, 7, 3)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionalMarketPrice).where(RegionalMarketPrice.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="garlic",
+            category="test",
+            wholesale_unit="20kg",
+            is_active=True,
+        ))
+        db.add_all([
+            RegionalMarketPrice(item_code=item_code, date=base_date, market_code="T001", market_name="Seoul", sido="Seoul", wholesale_price=4000, retail_price=5400),
+            RegionalMarketPrice(item_code=item_code, date=base_date, market_code="T002", market_name="Busan", sido="Busan", wholesale_price=4200, retail_price=5600),
+            RegionalMarketPrice(item_code=item_code, date=base_date, market_code="T003", market_name="Daegu", sido="Daegu", wholesale_price=3900, retail_price=5200),
+            RegionalMarketPrice(item_code=item_code, date=base_date, market_code="T004", market_name="Jeju", sido="Jeju", wholesale_price=153613, retail_price=207378),
+        ])
+        await db.commit()
+
+    r = await client.get(f"/api/v1/map/regional-prices?item_code={item_code}")
+    assert r.status_code == 200
+    data = r.json()
+    jeju = data["sido_avg"]["Jeju"]
+    assert jeju["wholesale"] == 7681
+    assert jeju["wholesale_quality"] == "unit_adjusted"
+    assert jeju["retail"] == 10369
+    assert jeju["retail_quality"] == "unit_adjusted"
+    assert data["national_avg_wholesale"] < 6000
 
 
 @pytest.mark.asyncio
