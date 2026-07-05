@@ -581,3 +581,14 @@ Important caveat:
 - Verification:
   - Browser static check confirmed compact grid CSS (`grid`, 3 columns, 11px values, 5px/6px padding), risk block present, and no console errors.
   - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+
+## Session 45 - City-Level Map Hover Repair (2026-07-05)
+
+- User reported that after drilling into a region/city map level, moving the mouse over the area still did not show the hover card.
+- Updated `index.html` city-level map event handling:
+  - City polygon layers now bind `mouseover`, `mouseenter`, `pointerover`, and `pointerenter`, plus matching move/leave events.
+  - Added `bindPathDomEvents()` to attach hover/move/leave handlers directly to the underlying SVG path. This is a fallback when Leaflet's event delegation is unreliable after zoom/drill transitions.
+  - City label markers also get Leaflet-level hover handlers in addition to the existing DOM marker handlers.
+- Verification:
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - Static browser load reported no console errors.

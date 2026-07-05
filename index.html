@@ -2555,14 +2555,35 @@ function drawCities(sido){
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const name=f.properties[nameProp]||code,d=activeCodes.has(code)?cd[code]:null;
+      const enterCity=e=>{
+        const isSelected=curDetailData?.code===code;
+        e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
+        showCityTooltip(name,d,e);
+      };
+      const leaveCity=e=>{
+        cityLayer.resetStyle(e.target);
+        hideMapTooltip();
+      };
+      const enterCityDom=e=>{
+        const isSelected=curDetailData?.code===code;
+        layer.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
+        showCityTooltip(name,d,e);
+      };
+      const leaveCityDom=()=>{
+        cityLayer.resetStyle(layer);
+        hideMapTooltip();
+      };
       layer.on({
-        mouseover:e=>{
-          const isSelected=curDetailData?.code===code;
-          e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
-          showCityTooltip(name,d,e);
-        },
+        mouseover:enterCity,
+        mouseenter:enterCity,
+        pointerover:enterCity,
+        pointerenter:enterCity,
         mousemove:e=>moveMapTooltip(e),
-        mouseout:e=>{cityLayer.resetStyle(e.target);hideMapTooltip();},
+        pointermove:e=>moveMapTooltip(e),
+        mouseout:leaveCity,
+        mouseleave:leaveCity,
+        pointerout:leaveCity,
+        pointerleave:leaveCity,
         click:()=>{
           hideMapTooltip();
           if(curDetailData?.code===code){
@@ -2575,6 +2596,12 @@ function drawCities(sido){
             if(d||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
           }
         },
+      });
+      layer.on("add",()=>{try{layer.bringToFront();}catch(e){}});
+      bindPathDomEvents(layer,{
+        enter:enterCityDom,
+        move:e=>moveMapTooltip(e),
+        leave:leaveCityDom
       });
     }
   }).addTo(map_);
@@ -2591,6 +2618,12 @@ function drawCities(sido){
         enter:e=>showCityTooltip(d.name,d,e),
         move:e=>moveMapTooltip(e),
         leave:()=>hideMapTooltip(),
+        click:()=>{hideMapTooltip();showRegionDetail(d.name,code,d);}
+      });
+      pin.on({
+        mouseover:e=>showCityTooltip(d.name,d,e),
+        mousemove:e=>moveMapTooltip(e),
+        mouseout:()=>hideMapTooltip(),
         click:()=>{hideMapTooltip();showRegionDetail(d.name,code,d);}
       });
     }catch(e){}
@@ -2631,6 +2664,41 @@ function bindMarkerDomEvents(marker,handlers){
     });
   };
   marker.on("add",bind);
+  bind();
+}
+
+function bindPathDomEvents(layer,handlers){
+  const bind=()=>{
+    const el=layer.getElement?.();
+    if(!el||el.dataset.fmDomBound==="1") return;
+    el.dataset.fmDomBound="1";
+    const enter=e=>handlers.enter?.(e);
+    const move=e=>handlers.move?.(e);
+    const leave=e=>handlers.leave?.(e);
+    if(handlers.enter){
+      el.addEventListener("mouseenter",enter);
+      el.addEventListener("mouseover",enter);
+      el.addEventListener("pointerenter",enter);
+      el.addEventListener("pointerover",enter);
+    }
+    if(handlers.move){
+      el.addEventListener("mousemove",move);
+      el.addEventListener("pointermove",move);
+    }
+    if(handlers.leave){
+      el.addEventListener("mouseleave",leave);
+      el.addEventListener("mouseout",leave);
+      el.addEventListener("pointerleave",leave);
+      el.addEventListener("pointerout",leave);
+    }
+    if(handlers.click) el.addEventListener("click",e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      handlers.click(e);
+    });
+  };
+  layer.on("add",bind);
+  setTimeout(bind,0);
   bind();
 }
 function showMapTooltip(html, e){
