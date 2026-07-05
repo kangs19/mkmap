@@ -2182,6 +2182,28 @@ function modeCityColor(d){
   if(curMode==="risk")       return riskColor(d.risk_score||20);
   return priceColor(periodForecastPct(d.price_vs_avg||0,curPeriod));
 }
+function cropCityMetric(d){
+  return {
+    ton:(d?.shipment_ton||d?.production_ton||0),
+    area:(d?.area_ha||0),
+    weight:(d?.production_weight||0),
+    pct:(d?.production_pct||0),
+    rank:(d?.rank||999),
+  };
+}
+function isActiveCropCity(d){
+  const m=cropCityMetric(d);
+  return m.weight>=0.02||m.pct>=2||m.rank<=10||m.ton>=20000||m.area>=450;
+}
+function cropEntriesForPrefix(cd,pfx){
+  return Object.entries(cd).filter(([c,d])=>c.startsWith(pfx)&&isActiveCropCity(d));
+}
+function isActiveCropProvince(ents){
+  const ton=ents.reduce((s,[,d])=>s+(d.shipment_ton||d.production_ton||0),0);
+  const area=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
+  const weight=ents.reduce((s,[,d])=>s+(d.production_weight||0),0);
+  return weight>=0.05||ton>=50000||area>=1500;
+}
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
 function drawProvinces(){
@@ -2192,15 +2214,14 @@ function drawProvinces(){
   provLayer=L.geoJSON(provGeo,{
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-      const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
-      // 현재 선택 작물의 산지 데이터가 없는 지역은 가격 데이터가 있어도 비활성 처리
+      const ents=cropEntriesForPrefix(cd,pfx);
+      if(!ents.length||!isActiveCropProvince(ents))return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
-      if(!ents.length)return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-      const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
+      const ents=cropEntriesForPrefix(CITY_DATA[curItem]||{},pfx);
       const pname=f.properties.name||"";
       const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
       const totArea=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
@@ -2210,6 +2231,7 @@ function drawProvinces(){
       const avgPrice=ents.length?ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length:0;
       const avgYoy=ents.length?ents.reduce((s,[,d])=>s+(d.shipment_yoy||0),0)/ents.length:0;
       const topCity=ents.length?ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a)):null;
+      const provinceActive=ents.length&&isActiveCropProvince(ents);
       const mockD=ents.length?{
         avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
         price_vs_avg:Math.round(avgChg*10)/10,
@@ -2223,10 +2245,10 @@ function drawProvinces(){
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:ents.length?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:ents.length?0.95:0.35});if(ents.length)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});if(provinceActive)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
-        click:()=>{hideMapTooltip();if(ents.length)zoomProv(f,sido,pname);}
+        click:()=>{hideMapTooltip();if(provinceActive)zoomProv(f,sido,pname);}
       });
     }
   }).addTo(map_);
@@ -2234,8 +2256,8 @@ function drawProvinces(){
   // 도별 compact 핀 라벨
   provGeo.features.forEach(f=>{
     const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-    const ents=Object.entries(cd).filter(([c])=>c.startsWith(pfx));
-    if(!ents.length)return;
+    const ents=cropEntriesForPrefix(cd,pfx);
+    if(!ents.length||!isActiveCropProvince(ents))return;
     try{
       const center=L.geoJSON(f).getBounds().getCenter();
       const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
@@ -2252,8 +2274,8 @@ let navLevel="national"; // national / province / city
 
 function makeProvinceSummary(sido){
   const pfx=SIDO_PREFIX[sido]||"";
-  const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
-  if(!ents.length) return null;
+  const ents=cropEntriesForPrefix(CITY_DATA[curItem]||{},pfx);
+  if(!ents.length||!isActiveCropProvince(ents)) return null;
   const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
   const totArea=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
   const pwSum=ents.reduce((s,[,d])=>s+(d.production_weight||0),0);
@@ -2322,6 +2344,7 @@ function drawCities(sido){
   provLayer=null;cityLayer=null;
   provPinLayer=L.layerGroup().addTo(map_); // city pins도 추적 레이어에 담아 cleanup 보장
   const cd=CITY_DATA[curItem]||{},pfx=SIDO_PREFIX[sido]||"";
+  const activeCodes=new Set(cropEntriesForPrefix(cd,pfx).map(([c])=>c));
   const filtered={type:"FeatureCollection",features:cityGeo.features.filter(f=>String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5).startsWith(pfx))};
 
   // 시군 hover 카드 공통 함수
@@ -2333,13 +2356,13 @@ function drawCities(sido){
   cityLayer=L.geoJSON(filtered,{
     style:f=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
-      const d=cd[code];
+      const d=activeCodes.has(code)?cd[code]:null;
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
       return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
-      const name=f.properties[nameProp]||code,d=cd[code];
+      const name=f.properties[nameProp]||code,d=activeCodes.has(code)?cd[code]:null;
       layer.on({
         mouseover:e=>{
           const isSelected=curDetailData?.code===code;
@@ -2366,7 +2389,7 @@ function drawCities(sido){
   }).addTo(map_);
 
   // 데이터 있는 모든 시군에 compact 핀 라벨 — provPinLayer에 추가해 cleanup 보장
-  Object.entries(cd).filter(([c])=>c.startsWith(pfx)).forEach(([code,d])=>{
+  Object.entries(cd).filter(([c,d])=>c.startsWith(pfx)&&isActiveCropCity(d)).forEach(([code,d])=>{
     const feat=filtered.features.find(f=>String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5)===code);
     if(!feat)return;
     try{

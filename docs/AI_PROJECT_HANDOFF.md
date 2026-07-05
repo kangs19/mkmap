@@ -461,6 +461,7 @@ Important caveat:
 - User feedback: regions without the selected crop must not be colored as if the crop exists there.
 - Fixed province map styling so a region is active/colored only when `CITY_DATA[curItem]` has matching production-region entries for that province prefix.
 - Regional price API data alone is no longer enough to color or enable a province. Non-producing regions stay muted grey, do not show the crop hover card, and do not zoom into lower-level crop detail on click.
+- Strengthened the crop-region gate: city entries must pass minimum production/area/share/rank checks, and province entries must aggregate to meaningful main-region scale before they receive color, pins, hover cards, or click drill-down.
 - Important product rule: map color means "this selected crop has mapped production/main-region data here"; price data may enrich that region, but must not create a crop region by itself.
 
 # Session 35 - Map hover/click popup and period-aware price map (2026-07-05 KST)
