@@ -51,6 +51,16 @@ Date: 2026-07-06
 - FarmMap + crop-region overlap now uses a stronger green dashed outline (`8 4 2 4`) so users can distinguish general land-use shading from selected-crop production areas.
 - Reconfirmed 6-month/1-year long horizons remain hidden from the default UI until accuracy reports justify showing them.
 - Updated `docs/UX_FUNCTION_AUDIT_100.md` with the checked items.
+- Reworked the detailed cultivation/market panel so the visible content is centered on practical statistics:
+  - national shipment rank,
+  - national share,
+  - within-province share,
+  - price influence judgment,
+  - within-province shipment ranking,
+  - monthly shipment concentration,
+  - selected wholesale market basis.
+- Fixed the Korean particle in monthly shipment text, e.g. `배추는` instead of `배추은`.
+- Synchronized the small top rank/share cells with the larger shipment insight cards.
 
 ## Working Style To Continue
 

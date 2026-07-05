@@ -2894,6 +2894,65 @@ function showRegionDetail(name,code,d){
     }
   }
 
+  if(coverageNote||neighborNote){
+    const allRowsFinal=cropRegionRows(curItem);
+    const totalTonFinal=allRowsFinal.reduce((sum,row)=>sum+(Number(row.shipment_ton||row.production_ton)||0),0);
+    const provinceTonFinal=activeInProvince.reduce((sum,row)=>sum+(Number(row.shipment_ton||row.production_ton)||0),0);
+    const localTonFinal=Number(d.shipment_ton||d.production_ton)||0;
+    const nationalRankFinal=rankBy(allRowsFinal,row=>row.shipment_ton||row.production_ton,code);
+    const nationalShareFinal=totalTonFinal?localTonFinal/totalTonFinal*100:null;
+    const provinceShareFinal=provinceTonFinal?localTonFinal/provinceTonFinal*100:null;
+    const priceInfluenceScore=Math.min(100,Math.round((nationalShareFinal||0)*3 + Math.abs(Number(chgPct)||0)*2 + Math.max(0,Number(yoy)||0)*0.8));
+    const [priceInfluenceLabel,priceInfluenceColor]=marketPowerLabel(priceInfluenceScore);
+    const selectedMarketName=priceCtx.market?.name||"-";
+    const currentPriceLabel=priceCtx.currentPrice?`${Math.round(priceCtx.currentPrice).toLocaleString()}원`:"가격 수집 중";
+    const shareEl=document.getElementById("rp-share");
+    const shareSubEl=document.getElementById("rp-share-sub");
+    const rankEl=document.getElementById("rp-rank");
+    const rankSubEl=document.getElementById("rp-rank-sub");
+    if(shareEl) shareEl.textContent=nationalShareFinal!=null?`${nationalShareFinal.toFixed(1)}%`:"-";
+    if(shareSubEl) shareSubEl.textContent="대표 산지 출하량 기준";
+    if(rankEl) rankEl.textContent=nationalRankFinal.rank?`${nationalRankFinal.rank}위`:"-";
+    if(rankSubEl) rankSubEl.textContent=`${nationalRankFinal.total}개 대표 산지 중 순위`;
+    if(coverageNote){
+      coverageNote.innerHTML=`<div class="fm-market-insight-grid">
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">전국 출하 순위</div><div class="fm-market-insight-value">${nationalRankFinal.rank?nationalRankFinal.rank+"위":"-"}</div><div class="fm-market-insight-note">${nationalRankFinal.total}개 대표 산지 기준</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">전국 비중</div><div class="fm-market-insight-value">${nationalShareFinal!=null?nationalShareFinal.toFixed(1)+"%":"-"}</div><div class="fm-market-insight-note">${fmtTon(localTonFinal)} / ${fmtTon(totalTonFinal)}</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">도내 비중</div><div class="fm-market-insight-value">${provinceShareFinal!=null?provinceShareFinal.toFixed(1)+"%":"-"}</div><div class="fm-market-insight-note">${SIDO_SHORT[normalizedSido]||d.sido||"해당 도"} 안 출하 비중</div></div>
+        <div class="fm-market-insight-card"><div class="fm-market-insight-label">가격 영향도</div><div class="fm-market-insight-value" style="color:${priceInfluenceColor}">${priceInfluenceLabel}</div><div class="fm-market-insight-note">비중·가격차·전년비를 함께 본 판단</div></div>
+      </div>`;
+    }
+    if(neighborNote){
+      const topProvinceFinal=activeInProvince
+        .slice()
+        .sort((a,b)=>(Number(b.shipment_ton||b.production_ton)||0)-(Number(a.shipment_ton||a.production_ton)||0))
+        .slice(0,5);
+      const rankRowsFinal=topProvinceFinal.map((row,i)=>{
+        const ton=Number(row.shipment_ton||row.production_ton)||0;
+        const pct=provinceTonFinal?ton/provinceTonFinal*100:null;
+        const active=row.name===name;
+        return `<div class="fm-stat-rank" style="grid-template-columns:34px 1fr 70px">
+          <b style="color:${active?"var(--accent)":"var(--muted)"}">${i+1}위</b>
+          <div><b>${row.name}</b><small>${active?"현재 선택 지역":"같은 도 비교 지역"}</small></div>
+          <b style="text-align:right">${pct!=null?pct.toFixed(0)+"%":"-"}</b>
+        </div>`;
+      }).join("");
+      neighborNote.innerHTML=`<div class="fm-market-insight-grid">
+        <div class="fm-market-insight-card" style="grid-column:span 2">
+          <div class="fm-market-insight-label">${SIDO_SHORT[normalizedSido]||d.sido||"도내"} 출하 비중 순위</div>
+          ${rankRowsFinal||`<div class="fm-market-insight-note" style="margin-top:8px">비교 가능한 출하량 데이터가 아직 부족합니다.</div>`}
+        </div>
+        <div class="fm-market-insight-card" style="grid-column:span 2">
+          <div class="fm-market-insight-label">월별 출하 집중도</div>
+          <div class="fm-month-bars" style="margin-top:8px">${miniMonthBars(d)}</div>
+          <div class="fm-month-legend"><span><i class="fm-month-dot" style="background:#1f7a16"></i>집중</span><span><i class="fm-month-dot" style="background:#84b84f"></i>보통</span><span><i class="fm-month-dot" style="background:#d8e3cf"></i>비수기</span></div>
+          <div class="fm-market-insight-note">${monthlyShipmentComment(curItem,d)}</div>
+          <div class="fm-market-insight-note"><b>기준 시장</b> ${selectedMarketName} · ${currentPriceLabel}</div>
+        </div>
+      </div>`;
+    }
+  }
+
   const fmData=d._farmmapLanduse||farmMapForCity(PROV_NAME_MAP[d.sido]||d.sido,name)||farmMapForSidoCode(PROV_NAME_MAP[d.sido]||d.sido);
   const fmSection=document.getElementById("rp-farmmap-section");
   if(fmSection){
@@ -3220,7 +3279,13 @@ function monthlyShipmentComment(itemCode=curItem,d={}){
   const months=values.map((v,i)=>({m:i+1,v})).sort((a,b)=>b.v-a.v);
   const peak=months.filter(x=>x.v>=80).map(x=>`${x.m}월`);
   const mid=months.filter(x=>x.v>=50&&x.v<80).map(x=>`${x.m}월`);
-  return `진한 초록은 출하 집중월입니다. ${ITEMS[itemCode]?.name||"해당 작물"}은 ${peak.slice(0,4).join(", ")}에 출하가 가장 몰리고, ${mid.slice(0,5).join(", ")||"나머지 달"}은 보통 수준으로 봅니다.`;
+  const itemName=ITEMS[itemCode]?.name||"해당 작물";
+  return `진한 초록은 출하 집중월입니다. ${itemName}${josaEunNeun(itemName)} ${peak.slice(0,4).join(", ")}에 출하가 가장 몰리고, ${mid.slice(0,5).join(", ")||"나머지 달"}은 보통 수준으로 봅니다.`;
+}
+function josaEunNeun(word){
+  if(!word) return "은";
+  const code=word.charCodeAt(word.length-1)-0xAC00;
+  return (code>=0&&code<11172&&code%28!==0)?"은":"는";
 }
 function marketPowerLabel(score){
   if(score>=70) return ["강함","#c02828"];
