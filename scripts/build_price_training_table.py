@@ -16,6 +16,11 @@ sys.path.insert(0, str(REPO_ROOT))
 from mkmap_meta.connectors.cached import CachedPriceConnector
 from mkmap_meta.registry import default_registry
 from mkmap_meta.storage import data_dir, read_json
+from scripts.farmmap_capacity_features import (
+    FARMMAP_FEATURE_COLUMNS,
+    default_farmmap_capacity_features,
+    load_farmmap_capacity_features_by_item,
+)
 
 
 TARGET_HORIZONS_DAYS = (1, 7, 14, 30, 90, 180, 365)
@@ -73,6 +78,7 @@ def main() -> int:
     connector = CachedPriceConnector()
     rows: list[dict[str, Any]] = []
     supply_by_month = _monthly_supply_context_features()
+    farmmap_features_by_item = load_farmmap_capacity_features_by_item()
 
     for item_code in sorted(registry.all_items()):
         prices = connector.fetch_prices(item_code, target_date)
@@ -88,6 +94,7 @@ def main() -> int:
                 agromarket_by_date,
                 weather_by_date,
                 supply_by_month,
+                farmmap_features_by_item.get(item_code, default_farmmap_capacity_features()),
                 min_history=args.min_history,
             )
         )
@@ -137,6 +144,7 @@ def main() -> int:
         "weather_obs_norm",
         "supply_rain_reservoir_risk",
         "supply_weather_alert_insurance_risk",
+        *FARMMAP_FEATURE_COLUMNS,
         *ITEM_SPECIFIC_FEATURES,
         "target_next_change",
         *[f"target_{days}d_change" for days in TARGET_HORIZONS_DAYS],
@@ -311,6 +319,7 @@ def _training_rows(
     agromarket_by_date: dict[date, dict[str, float]],
     weather_by_date: dict[date, dict[str, float]],
     supply_by_month: dict[str, dict[str, float]],
+    farmmap_features: dict[str, float],
     min_history: int,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -356,6 +365,10 @@ def _training_rows(
             volatility_14d=round(pstdev(returns_14), 6) if len(returns_14) > 1 else 0.0,
             ag_volume_norm=ag_volume_norm,
         )
+        farmmap_row = {
+            column: round(float(farmmap_features.get(column, 0.0)), 6)
+            for column in FARMMAP_FEATURE_COLUMNS
+        }
 
         rows.append(
             {
@@ -401,6 +414,7 @@ def _training_rows(
                 "weather_obs_norm": round(min(float(weather.get("obs_count", 0.0)), 100.0) / 100.0, 6),
                 "supply_rain_reservoir_risk": round(float(supply.get("rain_reservoir_risk", 0.0)), 6),
                 "supply_weather_alert_insurance_risk": round(float(supply.get("weather_alert_insurance_risk", 0.0)), 6),
+                **farmmap_row,
                 **item_specific,
                 "target_next_change": _pct_change(next_value, current),
                 **horizon_targets,

@@ -41,6 +41,8 @@ PY_COMPILE_TARGETS = [
     "scripts/backfill_weather_history.py",
     "scripts/import_meta_outputs_to_backend.py",
     "scripts/build_price_training_table.py",
+    "scripts/build_price_training_table_v2.py",
+    "scripts/farmmap_capacity_features.py",
     "scripts/build_mixed_horizon_model_set.py",
     "scripts/train_price_baseline_model.py",
         "scripts/train_price_horizon_models.py",

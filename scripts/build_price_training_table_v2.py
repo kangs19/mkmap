@@ -73,6 +73,11 @@ _os.chdir(str(_mkmap_root))
 from mkmap_meta.connectors.cached import CachedPriceConnector
 from mkmap_meta.registry import default_registry
 from mkmap_meta.storage import data_dir
+from scripts.farmmap_capacity_features import (
+    FARMMAP_FEATURE_COLUMNS,
+    default_farmmap_capacity_features,
+    load_farmmap_capacity_features_by_item,
+)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -1347,6 +1352,8 @@ COMMON_FIELDS = [
     "temp_30d_avg", "rain_30d_sum",
     "temp_month_avg", "rain_month_sum",
     "temp_vs_prev_month", "rain_vs_prev_month",
+    # FarmMap crop-region support priors
+    *FARMMAP_FEATURE_COLUMNS,
 ]
 
 
@@ -1356,6 +1363,7 @@ def _build_rows_for_item(
     at_wholesale_by_date: dict[date, float],
     vol_by_date: dict[date, float],
     weather_by_date: dict[date, dict],
+    farmmap_features: dict[str, float],
     min_history: int,
 ) -> list[dict]:
     rows = []
@@ -1382,6 +1390,10 @@ def _build_rows_for_item(
             **common,
             "at_wholesale_norm": at_wholesale_norm,
         }
+        row.update({
+            column: round(float(farmmap_features.get(column, 0.0)), 6)
+            for column in FARMMAP_FEATURE_COLUMNS
+        })
 
         # 거래량 피처
         row.update(_volume_features(base_date, vol_by_date))
@@ -1429,6 +1441,7 @@ def main() -> int:
 
     all_rows: list[dict] = []
     item_summary: dict[str, dict] = {}
+    farmmap_features_by_item = load_farmmap_capacity_features_by_item(_mkmap_root)
 
     for item_code in sorted(registry.all_items()):
         prices = connector.fetch_prices(item_code, target_date)
@@ -1436,8 +1449,9 @@ def main() -> int:
         at_ws = _daily_at_wholesale(prices)
         vol_by_date = _daily_volume_series(prices)
         weather_by_date = _load_weather_series(item_code, target_date)
+        farmmap_features = farmmap_features_by_item.get(item_code, default_farmmap_capacity_features())
         rows = _build_rows_for_item(
-            item_code, retail_series, at_ws, vol_by_date, weather_by_date, args.min_history
+            item_code, retail_series, at_ws, vol_by_date, weather_by_date, farmmap_features, args.min_history
         )
 
         if rows:

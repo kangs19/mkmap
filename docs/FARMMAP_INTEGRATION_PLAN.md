@@ -186,8 +186,32 @@ Current UI status:
 
 Next model step:
 
-- Add `capacity_score`, `farmmap_match_level`, and `crop_to_agri_landuse_ratio` to the training feature table.
+- Done: `scripts/farmmap_capacity_features.py` now derives item-level FarmMap priors for the price training tables.
+- Done: `scripts/build_price_training_table.py` and `scripts/build_price_training_table_v2.py` include:
+  - `farmmap_capacity_score_norm`
+  - `farmmap_capacity_match_ratio`
+  - `farmmap_capacity_high_conf_ratio`
+  - `farmmap_crop_to_landuse_ratio`
+  - `farmmap_agri_landuse_area_norm`
+  - `farmmap_missing_flag`
 - Treat missing FarmMap as a feature coverage flag, not as zero farmland.
+- Current training rows are item/date-level, so these are item-level priors. A future region/date model should join FarmMap rows per region.
+
+Next model step:
+
+- Retrain horizon models with these FarmMap columns.
+- Compare against the current champion by horizon and item before promotion.
+- Expand FarmMap province coverage to lower `farmmap_missing_flag`.
+
+## Model Gate Result
+
+2026-07-05 candidate prefix: `price_horizon_model_20260705_farmmap_candidate`.
+
+- Trained: 1d, 7d, 14d, 30d, 90d, 180d.
+- Skipped: 365d, because there are currently 0 usable 365-day target rows in the latest table.
+- Strict comparison against `price_horizon_model_20260701_mixed_approved_v3` did not approve any FarmMap candidate horizon.
+- Keep the feature columns, but do not promote the candidate artifacts yet.
+- Main improvement path: wider FarmMap coverage plus a region/date-level model instead of only static item-level priors.
 
 ## Data Integrity
 

@@ -961,3 +961,87 @@ Important caveat:
   - deploy and verify the new capacity API in production.
   - feed `capacity_score`, `farmmap_match_level`, and `crop_to_agri_landuse_ratio` into the price training feature table.
   - add a small source tooltip/explanation in the UI so users do not confuse capacity score with price prediction probability.
+
+## Session 59 - FarmMap Capacity Features In Training Tables (2026-07-05)
+
+- Continued after production capacity API deploy verification.
+- Added reusable feature helper:
+  - `scripts/farmmap_capacity_features.py`
+  - reads `map_viewer/static/city_agri_data.json` for crop-region metadata.
+  - reads normalized local FarmMap land-use rows from `backend/agri_twin.db` when available.
+  - does not trust raw untracked summary JSON as the primary source, because local JSON display can show encoding noise depending on shell/reader.
+- Added six static item-level FarmMap priors to both training table builders:
+  - `farmmap_capacity_score_norm`
+  - `farmmap_capacity_match_ratio`
+  - `farmmap_capacity_high_conf_ratio`
+  - `farmmap_crop_to_landuse_ratio`
+  - `farmmap_agri_landuse_area_norm`
+  - `farmmap_missing_flag`
+- Applied to:
+  - `scripts/build_price_training_table.py`
+  - `scripts/build_price_training_table_v2.py`
+- Interpretation:
+  - current model rows are item/date-level, not region/date-level, so FarmMap features are repeated as item-level production/cultivation-capacity priors.
+  - `farmmap_missing_flag` prevents the model from treating missing FarmMap coverage as confirmed zero farmland.
+  - exact city matches increase `farmmap_capacity_high_conf_ratio`; province fallback can still contribute to match coverage if added later.
+- Local feature sample for cabbage:
+  - `farmmap_capacity_score_norm`: `0.382145`
+  - `farmmap_capacity_match_ratio`: `0.540465`
+  - `farmmap_capacity_high_conf_ratio`: `0.540465`
+  - `farmmap_crop_to_landuse_ratio`: `0.319477`
+  - `farmmap_agri_landuse_area_norm`: `0.42053`
+  - `farmmap_missing_flag`: `0.0`
+- Verification:
+  - `python -m py_compile scripts/farmmap_capacity_features.py scripts/build_price_training_table.py scripts/build_price_training_table_v2.py scripts/run_smoke_suite.py` passed.
+  - `python scripts/build_price_training_table.py --date 2026-07-05 --min-history 7` exported `data/model/price_training_table_20260705.csv` with 1,121 rows and the six FarmMap columns.
+  - `python scripts/build_price_training_table_v2.py --date 2026-07-05 --min-history 7 --output-suffix farmmap_check` exported item CSVs plus `data/model/price_training_table_20260705_farmmap_check.csv` with 1,121 rows.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+- Current limits:
+  - only Gangwon, Chungbuk, and Jeju FarmMap land-use rows are present in the local normalized DB.
+  - many item main regions are outside that coverage, so several items intentionally keep `farmmap_missing_flag=1`.
+  - this is still a support prior, not a region-specific model. A future region/date model should join regional prices, regional weather, shipment-share, and FarmMap region rows directly.
+- Next work:
+  - run full horizon-model training with the new columns and compare backtest metrics against the previous champion.
+  - only promote if holdout/backtest accuracy improves or remains stable with better explanation quality.
+  - expand FarmMap source coverage for Jeonnam, Jeonbuk, Gyeongbuk, Gyeongnam, Gyeonggi, and Chungnam to reduce missing flags for cabbage/onion/garlic/green onion.
+
+## Session 60 - FarmMap Candidate Model Gate (2026-07-05)
+
+- Trained a full FarmMap-feature candidate from `data/model/price_training_table_20260705.csv`:
+  - prefix: `price_horizon_model_20260705_farmmap_candidate`
+  - trained horizons: 1, 7, 14, 30, 90, 180
+  - skipped horizon: 365, because `target_365d_change` has 0 usable rows in the 2026-07-05 table.
+- Target availability:
+  - 1d: 1,121 rows
+  - 7d: 1,101 rows
+  - 14d: 1,076 rows
+  - 30d: 1,016 rows
+  - 90d: 821 rows
+  - 180d: 516 rows
+  - 365d: 0 rows
+- Robustness audit:
+  - `scripts/audit_price_model_robustness.py` completed for 6 horizons.
+  - output: `data/model/horizons/price_horizon_model_20260705_farmmap_candidate_robustness.json`
+- Quality gate:
+  - default gate with `min_backtest_predictions=100` held all 6 horizons because the candidate backtest count is 40.
+  - diagnostic gate with `min_backtest_predictions=40` produced:
+    - candidate: 1d, 180d
+    - conditional: 90d
+    - hold: 7d, 14d, 30d
+  - important hold reasons:
+    - 7d: low test and backtest direction, high temporal risk.
+    - 14d: low test direction, medium temporal risk.
+    - 30d: low backtest direction, medium temporal risk.
+- Champion comparison:
+  - compared candidate against `price_horizon_model_20260701_mixed_approved_v3` with `scripts/build_mixed_horizon_model_set.py`.
+  - output: `data/model/horizons/price_horizon_model_20260705_farmmap_mixed_checked_approval_report.json`
+  - result: all checked horizons stayed on baseline.
+  - reason: the FarmMap candidate improved some MAE/backtest values, but failed one or more strict gates for direction accuracy or MAE regression per horizon.
+- Decision:
+  - do not promote the FarmMap candidate model artifacts yet.
+  - keep the FarmMap training columns in code, because they are useful and source-safe.
+  - improve data coverage and feature interaction before using FarmMap as an active prediction driver.
+- Next work:
+  - add wider FarmMap province coverage to reduce missing flags.
+  - try region/date-level training once regional price, weather, shipment-share, and FarmMap rows can be joined directly.
+  - add a feature contribution audit for the new FarmMap columns so explanations show whether they are helping or simply adding noise.
