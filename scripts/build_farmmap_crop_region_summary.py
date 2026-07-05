@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -12,15 +13,14 @@ from audit_farmmap_spatial_file import (
     load_aliases,
     read_csv_rows,
     read_dbf_rows,
-    read_dbf_stream,
     read_geojson_rows,
+    read_zip_dbf_rows,
 )
-import zipfile
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build item/region FarmMap summaries from audited CSV or GeoJSON data.")
-    parser.add_argument("--input", required=True, help="CSV, GeoJSON, or JSON source file.")
+    parser = argparse.ArgumentParser(description="Build item/region FarmMap summaries from audited CSV, GeoJSON, DBF, or SHP ZIP data.")
+    parser.add_argument("--input", required=True, help="CSV, GeoJSON, JSON, DBF, or ZIP source file.")
     parser.add_argument("--output", required=True, help="Output summary JSON path.")
     parser.add_argument("--crop-field", help="Crop name field. Auto-detected when omitted.")
     parser.add_argument("--area-field", help="Area field in square meters by default. Auto-detected when omitted.")
@@ -42,9 +42,9 @@ def main() -> int:
     rows, fields = load_rows(input_path, args.sample_rows)
     crop_field = args.crop_field or first(audit["detected"]["crop_fields"])
     area_field = args.area_field or first(audit["detected"]["area_fields"])
-    sido_field = args.sido_field or first_field(fields, ["sido", "시도", "도"])
-    sigungu_field = args.sigungu_field or first_field(fields, ["sigungu", "시군구", "군", "시"])
-    region_code_field = args.region_code_field or first_field(fields, ["pnu", "법정", "adm", "code", "코드"])
+    sido_field = args.sido_field or first_field(fields, ["sido", "\uc2dc\ub3c4", "__source_sido"])
+    sigungu_field = args.sigungu_field or first_field(fields, ["sigungu", "\uc2dc\uad70\uad6c", "\uad70", "\uad6c", "__source_sigungu"])
+    region_code_field = args.region_code_field or first_field(fields, ["pnu", "\ubc95\uc815", "adm", "code", "\ucf54\ub4dc"])
 
     missing = [
         name
@@ -100,8 +100,10 @@ def load_rows(path: Path, sample_rows: int) -> tuple[list[dict[str, Any]], list[
             dbf_names = [name for name in zf.namelist() if name.lower().endswith(".dbf")]
             if not dbf_names:
                 raise ValueError("ZIP does not contain a DBF attribute table.")
-            with zf.open(dbf_names[0]) as fp:
-                rows, fields, _extra = read_dbf_stream(fp.read(), limit)
+            rows, fields, _extra = read_zip_dbf_rows(zf, dbf_names, limit)
+            for extra_field in ("__source_entry", "__source_year", "__source_sido", "__source_sigungu"):
+                if rows and extra_field in rows[0] and extra_field not in fields:
+                    fields.append(extra_field)
             return rows, fields
     raise ValueError(f"Unsupported file type: {path.suffix}")
 

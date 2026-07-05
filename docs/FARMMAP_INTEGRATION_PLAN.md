@@ -69,6 +69,35 @@ Alias file:
 5. Query `/api/v1/map/farmmap/crop-regions?item_code=cabbage`.
 6. Replace beta FarmMap/soil layer UI with a real source-labeled layer.
 
+## Verified Public Source: Gangwon
+
+Official public source verified on 2026-07-05 KST:
+
+- data.go.kr detail page: `https://www.data.go.kr/data/15104490/fileData.do`
+- source title: `농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도`
+- downloaded file: `농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip`
+- local raw path: `data/farmmap/raw/농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip`
+- file size: 203,035,902 bytes
+- archive contents: 18 SHP/DBF city/county bundles, 736,009 DBF records
+- verified fields: `CLSF_NM`, `CLSF_CD`, `STDG_CD`, `STDG_ADDR`, `PNU`, `AREA`, `SOURCE_NM`, `FLIGHT_YMD`, `UPDT_YMD`
+
+Important finding: this Gangwon FarmMap source does not contain a crop or item name field. `CLSF_NM` is a land-use class, not a crop. Observed values are `밭`, `논`, `시설`, `과수`, and `비경지`. Therefore this source must be used as an agricultural land-use/parcel base layer and a regional farming capacity feature, not as direct crop-specific acreage.
+
+Generated local audit and summary:
+
+- audit: `data/farmmap/audits/gangwon_20251231_audit.json`
+- land-use summary: `data/farmmap/summaries/gangwon_20251231_landuse_summary.json`
+- summary output: 736,009 source rows -> 89 region/class rows, total 104,853.407179 ha
+- class totals: 밭 67,180.66 ha, 논 30,319.39 ha, 시설 4,501.43 ha, 과수 2,766.52 ha, 비경지 85.41 ha
+
+Because `data/` is local/raw-data storage, these outputs are not committed. Rebuild with:
+
+```bash
+python scripts/download_farmmap_source.py --province 강원특별자치도 --max-mb 250
+python scripts/audit_farmmap_spatial_file.py --input data/farmmap/raw/농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip --sample-rows 1800 --output data/farmmap/audits/gangwon_20251231_audit.json
+python scripts/build_farmmap_landuse_region_summary.py --input data/farmmap/raw/농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip --output data/farmmap/summaries/gangwon_20251231_landuse_summary.json
+```
+
 ## Data Integrity
 
 - If a FarmMap source only has land-use type but no crop, label it as land-use context, not crop area.

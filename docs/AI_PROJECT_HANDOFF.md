@@ -736,3 +736,47 @@ Important caveat:
 - Important DBF caveat:
   - DBF field names are limited and often ASCII/abbreviated. If an official source has unclear field names, pass explicit `--crop-field`, `--area-field`, `--sido-field`, and `--sigungu-field`.
   - If a provider attached an XLSX column dictionary, use that to map DBF field names before import.
+
+## Session 52 - Official Gangwon FarmMap Download And Land-Use Summary (2026-07-05)
+
+- Continued the FarmMap integration sequence with a real public data.go.kr source.
+- Added official source catalog:
+  - `config/farmmap_public_sources.json`
+  - Gangwon is marked `verified_downloaded`.
+  - Other province IDs are marked `candidate_needs_download_verification` so they are not treated as confirmed.
+- Added official downloader:
+  - `scripts/download_farmmap_source.py`
+  - Reads `config/farmmap_public_sources.json`, resolves `publicDataDetailPk`, calls data.go.kr download metadata, and downloads the official ZIP.
+- Downloaded the verified Gangwon source locally:
+  - data.go.kr page: `https://www.data.go.kr/data/15104490/fileData.do`
+  - title: `농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도`
+  - file: `농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip`
+  - size: 203,035,902 bytes
+  - local path under untracked raw-data storage: `data/farmmap/raw/...zip`
+- Strengthened FarmMap ZIP/DBF handling:
+  - `scripts/audit_farmmap_spatial_file.py` now samples all DBF files inside a ZIP, not only the first DBF.
+  - `scripts/build_farmmap_crop_region_summary.py` now reads all DBFs inside a ZIP when a future crop-name source is available.
+  - Korean field hints were repaired from mojibake to stable Unicode escapes.
+- Added land-use summary builder:
+  - `scripts/build_farmmap_landuse_region_summary.py`
+  - Aggregates FarmMap land-use classes by source province/city and area.
+- Real Gangwon audit result:
+  - ZIP contains 18 city/county SHP/DBF bundles.
+  - DBF total records: 736,009.
+  - Fields include `CLSF_NM`, `CLSF_CD`, `STDG_ADDR`, `PNU`, `AREA`, `SOURCE_NM`, `FLIGHT_YMD`, `UPDT_YMD`.
+  - No crop/item-name field exists in this official Gangwon file.
+  - `CLSF_NM` is land-use classification, with values such as `밭`, `논`, `시설`, `과수`, `비경지`; it must not be shown as crop-specific acreage.
+- Generated local summary:
+  - `data/farmmap/summaries/gangwon_20251231_landuse_summary.json`
+  - 736,009 records -> 89 region/class rows.
+  - total area: 104,853.407179 ha.
+  - class totals: 밭 67,180.66 ha, 논 30,319.39 ha, 시설 4,501.43 ha, 과수 2,766.52 ha, 비경지 85.41 ha.
+- Product/data decision:
+  - Use this official FarmMap source as an agricultural land-use/parcel base and regional farming-capacity feature.
+  - Do not use it directly as a crop-specific map layer.
+  - Crop-specific regions still need KOSIS/main-region metadata, AT/KAMIS market data, crop weather regions, or a FarmMap source that actually includes crop attributes.
+- Next work:
+  - Verify/download priority province sources in `config/farmmap_public_sources.json`, especially Jeonnam, Jeonbuk, Gyeongbuk, Gyeongnam, Jeju, and Chungbuk.
+  - Check whether any province/source variant includes a real crop attribute field.
+  - Add a DB model/import path for FarmMap land-use summaries if the UI/model will consume this feature directly.
+  - Combine land-use area with existing crop main-region metadata to create a sourced regional crop-capacity feature.

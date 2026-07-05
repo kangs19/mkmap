@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import struct
 import sys
 import zipfile
@@ -14,14 +15,25 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ALIASES_PATH = REPO_ROOT / "config" / "farmmap_crop_aliases.json"
 
-CROP_FIELD_HINTS = ("crop", "crp", "작물", "품목", "재배", "농작물", "cult")
-AREA_FIELD_HINTS = ("area", "면적", "m2", "㎡", "ha", "hect", "평")
-REGION_FIELD_HINTS = ("sido", "시도", "sigungu", "시군구", "법정", "pnu", "region", "adm")
+CROP_FIELD_HINTS = ("crop", "crp", "\uc791\ubb3c", "\ud488\ubaa9", "\uc7ac\ubc30", "\ub18d\uc791\ubb3c", "cult")
+AREA_FIELD_HINTS = ("area", "\uba74\uc801", "m2", "\u33a1", "ha", "hect", "\ud3c9")
+REGION_FIELD_HINTS = (
+    "sido",
+    "\uc2dc\ub3c4",
+    "sigungu",
+    "\uc2dc\uad70\uad6c",
+    "\ubc95\uc815",
+    "pnu",
+    "region",
+    "adm",
+    "addr",
+    "\uc8fc\uc18c",
+)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit a downloaded FarmMap spatial source file before importing it.")
-    parser.add_argument("--input", required=True, help="Path to FarmMap ZIP, CSV, GeoJSON, or JSON file.")
+    parser.add_argument("--input", required=True, help="Path to FarmMap ZIP, CSV, GeoJSON, JSON, or DBF file.")
     parser.add_argument("--output", help="Optional JSON report path. Defaults to stdout only.")
     parser.add_argument("--sample-rows", type=int, default=500, help="Maximum rows/features to sample.")
     args = parser.parse_args()
@@ -104,8 +116,7 @@ def audit_zip(path: Path, aliases: dict[str, list[str]], sample_rows: int) -> di
             extra.update({"entries": names[:50], "sample_entry": geojson_names[0], "entry_count": len(names)})
             return build_report(path, "zip/geojson", fields, rows, aliases, extra=extra)
         if dbf_names:
-            with zf.open(dbf_names[0]) as fp:
-                rows, fields, extra = read_dbf_stream(fp.read(), sample_rows)
+            rows, fields, extra = read_zip_dbf_rows(zf, dbf_names, sample_rows)
             extra.update({
                 "entries": names[:50],
                 "sample_entry": dbf_names[0],
@@ -126,7 +137,7 @@ def audit_zip(path: Path, aliases: dict[str, list[str]], sample_rows: int) -> di
                     "entry_count": len(names),
                     "shp_count": len(shp_names),
                     "dbf_count": len(dbf_names),
-                    "note": "ZIP contains SHP/DBF. Install pyshp or GDAL, or convert to GeoJSON/CSV for import.",
+                    "note": "ZIP contains SHP but no DBF table was found. Convert to GeoJSON/CSV for import.",
                 },
                 blocked_reason="shp_reader_not_available",
             )
@@ -139,6 +150,42 @@ def audit_zip(path: Path, aliases: dict[str, list[str]], sample_rows: int) -> di
             extra={"entries": names[:50], "entry_count": len(names), "lowercase_entries": lower[:10]},
             blocked_reason="no_supported_table_entry",
         )
+
+
+def read_zip_dbf_rows(zf: zipfile.ZipFile, dbf_names: list[str], sample_rows: int) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    all_rows: list[dict[str, Any]] = []
+    fields: list[str] = []
+    dbf_entries = []
+    dbf_fields: list[dict[str, Any]] = []
+    per_dbf_limit = max(1, sample_rows // max(1, len(dbf_names)))
+
+    for dbf_name in dbf_names:
+        with zf.open(dbf_name) as fp:
+            rows, entry_fields, entry_extra = read_dbf_stream(fp.read(), per_dbf_limit)
+        entry_meta = infer_entry_region(dbf_name)
+        for row in rows:
+            row.setdefault("__source_entry", dbf_name)
+            for key, value in entry_meta.items():
+                row.setdefault(key, value)
+        all_rows.extend(rows)
+        for field in entry_fields:
+            if field not in fields:
+                fields.append(field)
+        if not dbf_fields:
+            dbf_fields = entry_extra.get("dbf_fields", [])
+        dbf_entries.append({
+            "entry": dbf_name,
+            "record_count": entry_extra.get("dbf_record_count"),
+            "sample_count": entry_extra.get("dbf_sample_count"),
+            **entry_meta,
+        })
+
+    return all_rows[:sample_rows], fields, {
+        "dbf_record_count": sum(int(entry.get("record_count") or 0) for entry in dbf_entries),
+        "dbf_sample_count": min(len(all_rows), sample_rows),
+        "dbf_fields": dbf_fields,
+        "dbf_entries": dbf_entries,
+    }
 
 
 def read_csv_rows(path: Path, sample_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
@@ -222,6 +269,19 @@ def read_dbf_stream(raw: bytes, sample_rows: int) -> tuple[list[dict[str, Any]],
     }
 
 
+def infer_entry_region(entry_name: str) -> dict[str, Any]:
+    stem = Path(entry_name).stem
+    parts = re.split(r"[_/\\]+", stem)
+    meta: dict[str, Any] = {}
+    if parts and re.fullmatch(r"\d{4}", parts[0]):
+        meta["__source_year"] = int(parts[0])
+    if len(parts) >= 2:
+        meta["__source_sido"] = parts[1]
+    if len(parts) >= 3:
+        meta["__source_sigungu"] = parts[2]
+    return meta
+
+
 def decode_dbf_value(raw: bytes, field_type: str) -> Any:
     text = decode_dbf_text(raw).strip()
     if not text:
@@ -274,6 +334,11 @@ def build_report(
     region_fields = matching_fields(fields, REGION_FIELD_HINTS)
     crop_values = collect_values(rows, crop_fields)
     alias_hits = match_aliases(crop_values, aliases)
+    value_profiles = {
+        field: collect_values(rows, [field]).most_common(20)
+        for field in fields
+        if field.upper() in {"CLSF_NM", "CLSF_CD", "STDG_ADDR", "SOURCE_NM", "UPDT_TP_NM", "CHG_RSN_NM"}
+    }
 
     readiness = "ready_for_mapping"
     issues = []
@@ -302,6 +367,7 @@ def build_report(
             "region_fields": region_fields,
             "crop_values_top": crop_values.most_common(30),
             "alias_hits": alias_hits,
+            "value_profiles": value_profiles,
         },
         "import_readiness": readiness,
         "issues": issues,
