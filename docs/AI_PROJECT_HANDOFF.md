@@ -456,6 +456,22 @@ Important caveat:
 - The renewed UI deploys immediately with the code.
 - File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
 - If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.
+# Session 39 - Align hover, pin, and right-panel map prices (2026-07-05 KST)
+
+- User feedback: the mouse-hover popup price and the right detail-panel price did not match for the same map selection.
+- Root causes fixed:
+  - Province/city paths could pass either `KR-42`-style codes or short Korean names such as `강원`, so regional price lookup could fall back differently by surface.
+  - Hover-card fallback prediction used raw local deviation while the right detail panel used period-aware `periodForecastPct(...)`.
+  - Some city price pins did not pass an explicit province code, making regional price enrichment less consistent.
+- Added `normalizeSidoCode(...)` and `getRegionPriceContext(...)` so map pins, hover cards, and right detail panels share one regional price context.
+- Hover-card fallback predicted price now uses the same selected-horizon calculation as the right detail panel.
+- Hover-card current-average unit now uses the item unit such as `10kg` instead of hardcoded `/kg`.
+- Local verification:
+  - Smoke suite passed.
+  - Browser check loaded the map with 4 province pins and no runtime errors.
+  - Province hover for 강원 showed `5,342원/10kg`, matching the province pin.
+  - City-level 평창군 pin showed `5,137원/10kg`, and the right panel showed predicted price `5,137원` with current price `5,763원 / 10kg`.
+
 # Session 38 - Hover-only map cards and clearer market/share context (2026-07-05 KST)
 
 - User feedback: click drill-down must not leave a fixed popup on the map; hover cards should appear only while hovering. Also requested clearer wholesale/retail market influence, better card sizing, and no blank national-share fields.

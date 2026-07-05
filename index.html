@@ -1936,14 +1936,9 @@ function showRegionDetail(name,code,d){
   // (지역 도매가 agromarket는 원/kg 단위라 그대로 쓰면 ~수십배 어긋남 → 단위환산 후 폴백)
   const it=ITEMS[curItem];
   const sidoName=d.sido||"";
-  const rpSido=sidoName?LIVE_REGIONAL_PRICES[curItem]?.sido_avg?.[sidoName]:null;
-  const unitKg=parseFloat(String(it.unit||"1").replace(/[^0-9.]/g,""))||1;
-  const rpSidoUnit=rpSido?.wholesale?Math.round(rpSido.wholesale*unitKg):0;      // 원/kg → 원/단위
-  const natRegUnit=Math.round((LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||0)*unitKg);
-  const rawPv=d.avg_price||0;
-  const pv=LIVE_NATIONAL_PRICES[curItem]||rawPv||rpSidoUnit||natRegUnit||0;
-  // price_vs_avg: city data 기준, 없으면 regional vs_national_pct
-  const chgPct=d.price_vs_avg||(rpSido?.vs_national_pct)||0;
+  const priceCtx=getRegionPriceContext(d,PROV_NAME_MAP[sidoName]||sidoName);
+  const pv=priceCtx.currentPrice||0;
+  const chgPct=priceCtx.activePct||0;
   const yoy=d.shipment_yoy||0;
   const rs=d.risk_score||0;
 
@@ -2416,7 +2411,7 @@ function drawCities(sido){
     if(!feat)return;
     try{
       const center=L.geoJSON(feat).getBounds().getCenter();
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d),className:'',iconSize:[0,0],iconAnchor:[40,40]})});
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[0,0],iconAnchor:[40,40]})});
       pin.on({
         mouseover:e=>showCityTooltip(d.name,d,e),
         mousemove:e=>moveMapTooltip(e),
@@ -2463,14 +2458,21 @@ function _positionTooltip(e){
 }
 
 // ── 인터랙션 헬퍼 ─────────────────────────────────────────────────────────
+function normalizeSidoCode(sidoOrCode){
+  if(!sidoOrCode) return "";
+  if(SIDO_SHORT[sidoOrCode]) return sidoOrCode;
+  return PROV_NAME_MAP[sidoOrCode]||sidoOrCode;
+}
 function getRegionalSidoData(sidoKR){
   const rp=LIVE_REGIONAL_PRICES[curItem];
   if(!rp) return null;
-  const name=SIDO_SHORT[sidoKR];
+  const code=normalizeSidoCode(sidoKR);
+  const name=SIDO_SHORT[code]||sidoKR;
   return rp.sido_avg?.[name]||null;
 }
 function influenceMarketFor(sidoKR,d){
-  const sidoName=SIDO_SHORT[sidoKR]||d?.sido||"";
+  const code=normalizeSidoCode(sidoKR);
+  const sidoName=SIDO_SHORT[code]||d?.sido||"";
   const map={
     "서울":["가락시장","수도권 중앙 도매 기준"],
     "경기":["가락시장","수도권 중앙 도매 기준"],
@@ -2507,25 +2509,52 @@ function _normalizeRegionalPrice(raw, itemCode){
   return raw;
 }
 
-function makePinHtml(name,d,sidoKR){
-  const rawRp=sidoKR?getRegionalSidoData(sidoKR):null;
-  // KAMIS 단위 정규화
+function getRegionPriceContext(d,sidoKR){
+  const it=ITEMS[curItem]||{};
+  const unit=it.unit||"";
+  const normalizedSido=normalizeSidoCode(sidoKR||d?.sido||"");
+  const rawRp=normalizedSido?getRegionalSidoData(normalizedSido):null;
   const rp=rawRp?{
     wholesale:_normalizeRegionalPrice(rawRp.wholesale,curItem),
     retail:_normalizeRegionalPrice(rawRp.retail,curItem),
     vs_national_pct:rawRp.vs_national_pct,
   }:null;
+  const isWholesale=priceViewMode==="wholesale";
+  const retailNat=getRetailNatAvg(curItem);
+  const nationalWholesale=LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||LIVE_NATIONAL_PRICES[curItem]||0;
+  const primaryPrice=rp?(isWholesale?rp.wholesale:rp.retail):0;
+  const secondaryPrice=rp?(isWholesale?rp.retail:rp.wholesale):0;
+  const activePct=rp
+    ? (isWholesale?(rp.vs_national_pct||0):(retailNat&&rp.retail?(rp.retail-retailNat)/retailNat*100:(rp.vs_national_pct||0)))
+    : (d?.price_vs_avg||0);
+  const fallback=d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0;
+  return {
+    rp,
+    unit,
+    isWholesale,
+    primaryLabel:isWholesale?"도매가":"소매가",
+    secondaryLabel:isWholesale?"소매가":"도매가",
+    primaryShort:isWholesale?"도":"소",
+    secondaryShort:isWholesale?"소":"도",
+    currentPrice:primaryPrice||fallback,
+    secondaryPrice,
+    nationalAvg:isWholesale?nationalWholesale:retailNat,
+    activePct,
+    market:influenceMarketFor(normalizedSido,d),
+  };
+}
+
+function makePinHtml(name,d,sidoKR){
+  const ctx=getRegionPriceContext(d,sidoKR);
+  const rp=ctx.rp;
   const isCurrent=(curPeriod<=7);
-  const isW=priceViewMode==="wholesale";
-  const unit=ITEMS[curItem]?.unit||"";
+  const unit=ctx.unit;
   if(rp){
-    const mainPrice=isW?rp.wholesale:rp.retail;
-    const subPrice=isW?rp.retail:rp.wholesale;
-    const mainLabel=isW?"도":"소";
-    const subLabel=isW?"소":"도";
-    const pct=rp.vs_national_pct||0;
-    const rNat=!isW?getRetailNatAvg(curItem):null;
-    const activePct=isW?pct:(rNat&&rp.retail?(rp.retail-rNat)/rNat*100:pct);
+    const mainPrice=ctx.currentPrice;
+    const subPrice=ctx.secondaryPrice;
+    const mainLabel=ctx.primaryShort;
+    const subLabel=ctx.secondaryShort;
+    const activePct=ctx.activePct;
     const pm=applyForecast(mainPrice,curPeriod,activePct);
     const ps=applyForecast(subPrice,curPeriod,activePct);
     const pctColor=activePct>5?'#c02828':activePct<-5?'#1a8a1a':'#6a1e9a';
@@ -2546,10 +2575,10 @@ function makePinHtml(name,d,sidoKR){
   const cls=chg>5?'up':chg<-5?'down':'flat';
   // 소매 모드: 도매가에 소매 마진 추정 (KAMIS 역산 기준 ~1.35x)
   const rawBaseP=d.avg_price||LIVE_NATIONAL_PRICES[curItem]||0;
-  const baseP=(!isW&&rawBaseP)?Math.round(rawBaseP*1.35):rawBaseP;
+  const baseP=(!ctx.isWholesale&&rawBaseP)?Math.round(rawBaseP*1.35):rawBaseP;
   const predP=applyForecast(baseP,curPeriod,chg);
   const fctPct=periodForecastPct(chg,curPeriod);
-  const modeLabel=isW?"도":"소";
+  const modeLabel=ctx.primaryShort;
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
   return`<div class="region-pin">
     <div class="rp-name">${name}</div>
@@ -2560,19 +2589,20 @@ function makePinHtml(name,d,sidoKR){
 
 function makeHoverCard(name,d,sidoKR){
   const it=ITEMS[curItem]||{emoji:'🌿',name:'작물'};
-  const rp=sidoKR?getRegionalSidoData(sidoKR):null;
-  const rna=LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale;
-  const market=influenceMarketFor(sidoKR,d);
+  const priceCtx=getRegionPriceContext(d,sidoKR);
+  const rp=priceCtx.rp;
+  const market=priceCtx.market;
   if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
-  const chg=(rp?.vs_national_pct)||(d?.price_vs_avg)||0,sign=chg>0?'+':'';
-  const chgCls=chg>10?'up':chg<-10?'down':'flat';
+  const chg=priceCtx.activePct||(d?.price_vs_avg)||0;
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};
   const risk=riskMap[d?.risk_level]||{l:'정상',c:'normal'};
   const rs=d?.risk_score||0;
   // curPrice: LIVE 지역가 → city 평균가 → 전국 평균 순 fallback
-  const rawWs=rp?.wholesale;
-  const curPrice=rawWs||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||0;
-  const predicted=Math.round(curPrice*(1+chg/100));
+  const curPrice=priceCtx.currentPrice||0;
+  const hoverChg=periodForecastPct(chg,curPeriod);
+  const hoverSign=hoverChg>0?'+':'';
+  const hoverChgCls=hoverChg>10?'up':hoverChg<-10?'down':'flat';
+  const predicted=Math.round(curPrice*(1+hoverChg/100));
   const ship=d?.shipment_ton>=10000?(d.shipment_ton/10000).toFixed(1)+'만 톤':d?.shipment_ton>=1000?(d.shipment_ton/1000).toFixed(0)+'천 톤':(d?.shipment_ton||0)+'톤';
   const area=d?.area_ha>=10000?(d.area_ha/10000).toFixed(1)+'만 ha':d?.area_ha?d.area_ha.toLocaleString()+' ha':'—';
   const yoy=d?.shipment_yoy||0;
@@ -2583,19 +2613,11 @@ function makeHoverCard(name,d,sidoKR){
   const pwLabel=(realShare!=null)?'출하 점유':'생산 추정';
   const rank=d?.rank?d.rank+'위':'—';
   // 도매/소매 가격 블록 — priceViewMode 반영
-  const isWholesale=priceViewMode==="wholesale";
-  const primaryPrice=isWholesale?rp?.wholesale:rp?.retail;
-  const secondaryPrice=isWholesale?rp?.retail:rp?.wholesale;
-  const primaryLabel=isWholesale?"🏪 도매가":"🛒 소매가";
-  const secondaryLabel=isWholesale?"🛒 소매가":"🏪 도매가";
-  // retail vs_national 계산 (wholesale 기준 없으면 sido 평균으로)
-  const retailNatAvg=(()=>{
-    const rdata=LIVE_REGIONAL_PRICES[curItem];
-    if(!rdata?.sido_avg) return null;
-    const vals=Object.values(rdata.sido_avg).map(s=>s.retail).filter(Boolean);
-    return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
-  })();
-  const primaryNat=isWholesale?rna:retailNatAvg;
+  const primaryPrice=priceCtx.currentPrice;
+  const secondaryPrice=priceCtx.secondaryPrice;
+  const primaryLabel=priceCtx.isWholesale?"🏪 도매가":"🛒 소매가";
+  const secondaryLabel=priceCtx.isWholesale?"🛒 소매가":"🏪 도매가";
+  const primaryNat=priceCtx.nationalAvg;
   const vsNat=primaryPrice&&primaryNat?((primaryPrice-primaryNat)/primaryNat*100):chg;
   const vsStr=(vsNat>0?'+':'')+vsNat.toFixed(1)+'% vs 전국평균';
   const priceBlock=rp?`
@@ -2620,9 +2642,9 @@ function makeHoverCard(name,d,sidoKR){
       <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
       <div style="display:flex;align-items:baseline;gap:8px">
         <span style="font-size:20px;font-weight:900;color:#1a2410">${predicted.toLocaleString()}원</span>
-        <span style="font-size:12px;font-weight:700" class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span>
+        <span style="font-size:12px;font-weight:700" class="rhc-chg ${hoverChgCls}">${hoverSign}${hoverChg.toFixed(1)}% ${hoverChg>0?'↑':hoverChg<0?'↓':'→'}</span>
       </div>
-      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/kg</div>
+      <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/${priceCtx.unit||'단위'}</div>
       <div style="font-size:10px;color:#6a7a5a;margin-top:5px">영향 시장: <b>${market.name}</b> · ${market.basis}</div>
     </div>`;
 
