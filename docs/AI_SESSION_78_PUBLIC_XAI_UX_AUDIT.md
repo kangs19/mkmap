@@ -42,6 +42,16 @@ Date: 2026-07-06
 4. Cultivation/market tab should be rebuilt around monthly shipment, regional shipment rank, national share, and market influence.
 5. More page copy should continue moving from feature explanation to judgment text.
 
+## Follow-up Implemented In Same Workstream
+
+- Added DOM fallback click handling for province and city/county vector paths. This makes drill-down and detail selection work even when Leaflet's native SVG event path is unstable after zoom.
+- Verified lower-level hover with browser coordinates after drilling into a province. The city/county hover card displayed normally.
+- Repaired the map back button label so it shows `← 전국` / `← 시도명` instead of broken text.
+- Added a visible FarmMap legend for field, paddy, facility, and orchard classes.
+- FarmMap + crop-region overlap now uses a stronger green dashed outline (`8 4 2 4`) so users can distinguish general land-use shading from selected-crop production areas.
+- Reconfirmed 6-month/1-year long horizons remain hidden from the default UI until accuracy reports justify showing them.
+- Updated `docs/UX_FUNCTION_AUDIT_100.md` with the checked items.
+
 ## Working Style To Continue
 
 - Treat trust issues first: any fake-looking number, internal label, or inconsistent price should be fixed before adding new decoration.

@@ -397,10 +397,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
         <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
-      <div style="font-size:10px;color:var(--muted);line-height:1.45;margin-top:7px">재배 면적/가격 예측은 지도 색상 기준을 바꾸는 모드입니다. 기상 정보와 도매시장 위치는 지도 위에 보조 마커로 겹쳐 표시됩니다.</div>
+      <div style="font-size:10px;color:var(--text);line-height:1.45;margin-top:7px">현재 판단은 가격 색상을 기본으로 봅니다. 팜맵을 켜면 농지분류가 우선 보이고, 작물 산지와 겹치는 곳은 굵은 점선 테두리로 표시합니다.</div>
       <div id="farmmap-layer-note" style="display:none;font-size:10px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f7fbfa;border:1px solid var(--border);border-radius:8px;padding:8px 9px">
-        <b style="color:var(--text)">팜맵 색상 기준</b><br>
-        색상은 행정구역 안에서 가장 큰 팜맵 토지분류(논/밭/시설/과수 등), 진하기는 집계 면적 규모입니다. 행정구역 전체가 농지라는 뜻이 아니라, 시도/시군구 단위 요약값을 면 색으로 표시한 것입니다.
+        <b style="color:var(--text)">팜맵 범례</b>
+        <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#267a74"></div><span class="fm-legend-lbl">밭 중심 농지</span></div>
+        <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#3674b5"></div><span class="fm-legend-lbl">논 중심 농지</span></div>
+        <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#c4582a"></div><span class="fm-legend-lbl">시설 재배지</span></div>
+        <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#905c1c"></div><span class="fm-legend-lbl">과수원</span></div>
+        <div style="margin-top:5px;color:var(--text)">굵은 점선 테두리는 현재 선택 작물의 산지 데이터와 팜맵 농지분류가 겹친 곳입니다. 행정구역 전체가 농지라는 뜻은 아닙니다.</div>
       </div>
     </div>
 
@@ -1519,6 +1523,19 @@ function makeFarmMapHoverCard(title,fm){
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:7px">${farmMapSummaryHtml(fm)}</div>
     <div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">${farmMapColorMeaning(fm)}<br>행정구역 전체를 농지로 칠한 것이 아니라, 해당 구역 안의 공식 팜맵 농지분류 집계를 요약 표시한 것입니다. 작물별 재배면적도 아닙니다.</div>
   </div>`;
+}
+function farmMapLanduseColor(fm){
+  if(!fm) return "rgba(80,80,60,.16)";
+  const area=Number(fm.area_ha)||0;
+  const cls=String(fm.top_class||"");
+  const base=cls.includes("\uB17C") ? [54,116,181] : cls.includes("\uC2DC\uC124") ? [196,88,42] : cls.includes("\uACFC\uC218") ? [144,92,28] : [38,132,116];
+  const alpha=Math.max(.30,Math.min(.82,Math.log10(area+1)/5.2));
+  return `rgba(${base[0]},${base[1]},${base[2]},${alpha})`;
+}
+function farmMapColorMeaning(fm){
+  const cls=fm?.top_class||"분류";
+  const area=Math.round(Number(fm?.area_ha)||0).toLocaleString();
+  return `대표 농지분류는 ${cls}, 집계 면적은 ${area}ha입니다. 작물 재배면적이 아니라 팜맵 농지분류 요약으로 봐야 합니다.`;
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
@@ -3386,7 +3403,7 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(cd,pfx);
       const fm=farmMapForSidoCode(sido);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:1,dashArray:"5 3"};
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:(ents.length&&isActiveCropProvince(ents))?3.4:2.2,color:(ents.length&&isActiveCropProvince(ents))?"#267a18":"rgba(20,70,60,.55)",fillOpacity:1,dashArray:(ents.length&&isActiveCropProvince(ents))?"8 4 2 4":"5 3"};
       if(!ents.length||!isActiveCropProvince(ents))return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
       return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
@@ -3439,7 +3456,8 @@ function drawProvinces(){
           else showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);
         },
         move:e=>moveMapTooltip(e),
-        leave:()=>{try{provLayer.resetStyle(layer);}catch(err){} hideMapTooltip();}
+        leave:()=>{try{provLayer.resetStyle(layer);}catch(err){} hideMapTooltip();},
+        click:()=>{hideMapTooltip();if(provinceActive||farmMapActive)zoomProv(f,sido,pname);}
       });
     }
   }).addTo(map_);
@@ -3530,10 +3548,10 @@ function updateBackBtn(){
     btn.style.display="none";
   } else if(navLevel==="province"){
     btn.style.display="flex";
-    btn.textContent="← 전국";
+    btn.textContent="\u2190 \uC804\uAD6D";
   } else if(navLevel==="city"){
     btn.style.display="flex";
-    btn.textContent=`← ${curProv?.pname||"시도"}`;
+    btn.textContent=`\u2190 ${curProv?.pname||"\uC2DC\uB3C4"}`;
   }
   btn.onmouseenter=()=>btn.style.background="#f0f8e8";
   btn.onmouseleave=()=>btn.style.background="white";
@@ -3560,7 +3578,7 @@ function drawCities(sido){
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=activeCodes.has(code)?cd[code]:null;
       const fm=farmMapForCity(sido,f.properties[nameProp]||code);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:1,dashArray:"5 3"};
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:d?3.4:2.2,color:d?"#267a18":"rgba(20,70,60,.55)",fillOpacity:1,dashArray:d?"8 4 2 4":"5 3"};
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
       return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
@@ -3630,7 +3648,19 @@ function drawCities(sido){
       bindPathDomEvents(layer,{
         enter:enterCityDom,
         move:e=>moveMapTooltip(e),
-        leave:leaveCityDom
+        leave:leaveCityDom,
+        click:()=>{
+          hideMapTooltip();
+          if(curDetailData?.code===code){
+            curDetailData=null;navLevel="province";
+            document.getElementById("right-hint").style.display="flex";
+            document.getElementById("right-detail").style.display="none";
+            updateBackBtn();
+          } else {
+            showRegionDetail(name,code,detailD);
+            if(detailD||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
+          }
+        }
       });
     }
   }).addTo(map_);
