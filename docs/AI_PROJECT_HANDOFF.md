@@ -456,6 +456,15 @@ Important caveat:
 - The renewed UI deploys immediately with the code.
 - File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
 - If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.
+# Session 35 - Map hover/click popup and period-aware price map (2026-07-05 KST)
+
+- User feedback: lower map levels lost popup behavior after clicking into a region; map colors looked all green; left period buttons did not visibly change map prices.
+- Changed the default map mode from production to price so the first view emphasizes crop price/risk signals instead of green production area shading.
+- Changed production/price layer priority: when the price layer is enabled, the map uses price mode even if production is also checked.
+- Added period-aware forecast calculation with `periodForecastPct(localPct, days)`. Region colors and price pins now use both local regional price deviation and the selected horizon instead of only static production color or a weak global multiplier.
+- Added Leaflet click popups through `openRegionPopup(...)`. Province click opens a summary popup after zooming into the lower level; city polygon and city price pin clicks open the same rich region card while also updating the right detail panel.
+- Local verification: page loaded without JS console errors; default pins show varied price forecast values such as negative/positive percentages instead of a single green production view; smoke suite passed.
+
 # Session 34 - Map-first UI restore and layer control repair (2026-07-05 KST)
 
 - User feedback: the simplified dashboard removed too much of the core product value. The desired product is map-first: left/top controls for crop, period, and map filters; center map with crop/price/market/climate signals; right detail panel with forecast, chart, reason analysis, period analysis, and crop context tabs.

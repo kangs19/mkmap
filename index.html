@@ -86,6 +86,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 #map{flex:1;min-width:0;}
 .leaflet-container{background:#e8e4dc;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
+.fm-leaf-popup .leaflet-popup-content-wrapper{border-radius:10px;border:1px solid var(--border);box-shadow:0 10px 28px rgba(25,40,15,.18);}
+.fm-leaf-popup .leaflet-popup-content{margin:0;width:300px!important;}
+.fm-leaf-popup .leaflet-popup-tip{border:1px solid var(--border);}
 .leaflet-tooltip::before{display:none!important;}
 /* 커스텀 맵 툴팁 — position:fixed로 어느 위치도 짤림 없음 */
 #map-tooltip{
@@ -723,7 +726,7 @@ const NEWS_BY_ITEM={
 };
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
-let curItem="cabbage",curMode="production",viewLevel="province",curProv=null,curPeriod=28;
+let curItem="cabbage",curMode="price",viewLevel="province",curProv=null,curPeriod=28;
 let map_,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
@@ -890,7 +893,7 @@ function switchNavView(mode, btn){
   document.querySelectorAll(".fm-nav-item").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
   if(mode==="map"){
-    curMode="production";
+    curMode="price";
   } else if(mode==="production"){
     curMode="production";
   } else if(mode==="risk"){
@@ -948,9 +951,9 @@ function handleLayer(el,layer){
 function applyLayer(layer,on,el){
   if(layer==="production"||layer==="price"){
     // 체크된 레이어 중 우선순위: production > price
-    if(activeLayers.has("production")) curMode="production";
-    else if(activeLayers.has("price")) curMode="price";
-    else curMode="production"; // 둘 다 꺼도 기본값
+    if(activeLayers.has("price")) curMode="price";
+    else if(activeLayers.has("production")) curMode="production";
+    else curMode="price"; // 둘 다 꺼도 가격 중심 기본값
     redrawMap();
   } else if(layer==="weather"){
     on ? loadWeatherLayer() : removeWeatherLayer();
@@ -1953,11 +1956,7 @@ function showRegionDetail(name,code,d){
   const upProb=LIVE_ITEMS[curItem]?.up_prob??0.5;
   // 단기(≤28일)는 chgPct 기반, 장기는 AI up_prob도 반영
   function periodChgPct(days){
-    const base=chgPct*(days/28);
-    if(days<=28) return base;
-    // 장기: AI 방향 추가 반영
-    const aiBoost=(upProb-0.5)*20*(days/90);
-    return base+aiBoost;
+    return periodForecastPct(chgPct,days);
   }
   const mainChg=periodChgPct(curPeriod);
   const predictedPrice=pv?Math.round(pv*(1+mainChg/100)):null;
@@ -2114,9 +2113,9 @@ function regionalPriceColor(sido){
   if(!sd) return null;
   if(priceViewMode==="retail"){
     const rNat=getRetailNatAvg(curItem);
-    if(rNat&&sd.retail) return priceColor((sd.retail-rNat)/rNat*100*periodScale());
+    if(rNat&&sd.retail) return priceColor(periodForecastPct((sd.retail-rNat)/rNat*100,curPeriod));
   }
-  return priceColor((sd.vs_national_pct||0)*periodScale());
+  return priceColor(periodForecastPct(sd.vs_national_pct||0,curPeriod));
 }
 // 기간 스케일 계수 (28일=1.0 기준, 90일=2.5)
 function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
@@ -2124,12 +2123,24 @@ function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
 function globalForecastPct(days){
   const upProb=LIVE_ITEMS[curItem]?.up_prob??0.5;
   // ±20% max at 90days; neutral(0.5)→0%
-  return (upProb-0.5)*40*(days/90);
+  const live=LIVE_ITEMS[curItem]||{};
+  const dir=live.direction==="up"?1:live.direction==="down"?-1:0;
+  const surge=live.surge_prob!=null?(live.surge_prob-0.2)*16:0;
+  const prob=(upProb-0.5)*46;
+  return (prob + dir*6 + surge) * (days/90);
+}
+function periodForecastPct(localPct,days){
+  const local=Number.isFinite(localPct)?localPct:0;
+  const shortTerm=local*(days/28);
+  const ai=globalForecastPct(days);
+  const mix=days<=28?0.35:0.55;
+  const pct=shortTerm*(1-mix)+ai*mix;
+  return Math.max(-45,Math.min(45,pct));
 }
 // 현재가에 기간 예측 반영한 가격 계산
-function applyForecast(basePrice,days){
+function applyForecast(basePrice,days,localPct=0){
   if(!basePrice||days<=7) return basePrice;
-  return Math.round(basePrice*(1+globalForecastPct(days)/100));
+  return Math.round(basePrice*(1+periodForecastPct(localPct,days)/100));
 }
 
 function modeColor(ents, sido){
@@ -2152,24 +2163,24 @@ function modeColor(ents, sido){
         if(priceViewMode==="retail"){
           const rNat=getRetailNatAvg(curItem);
           const rt=_normalizeRegionalPrice(sd.retail,curItem);
-          if(rNat&&rt) return priceColor((rt-rNat)/rNat*100*periodScale());
+          if(rNat&&rt) return priceColor(periodForecastPct((rt-rNat)/rNat*100,curPeriod));
         }
         const ws=_normalizeRegionalPrice(sd.wholesale,curItem);
         const natW=rpData.national_avg_wholesale;
-        if(ws&&natW) return priceColor((ws-natW)/natW*100*periodScale());
-        return priceColor((sd.vs_national_pct||0)*periodScale());
+        if(ws&&natW) return priceColor(periodForecastPct((ws-natW)/natW*100,curPeriod));
+        return priceColor(periodForecastPct(sd.vs_national_pct||0,curPeriod));
       }
     }
   }
   const retail=(priceViewMode==="retail");
   const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0)*(retail?1.35:1),0)/ents.length;
-  return priceColor(avg*periodScale());
+  return priceColor(periodForecastPct(avg,curPeriod));
 }
 function modeCityColor(d){
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
   if(curMode==="risk")       return riskColor(d.risk_score||20);
-  return priceColor((d.price_vs_avg||0)*periodScale());
+  return priceColor(periodForecastPct(d.price_vs_avg||0,curPeriod));
 }
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
@@ -2239,10 +2250,36 @@ function drawProvinces(){
 // 탐색 단계: "national" → "province" → "city"
 let navLevel="national"; // national / province / city
 
+function makeProvinceSummary(sido){
+  const pfx=SIDO_PREFIX[sido]||"";
+  const ents=Object.entries(CITY_DATA[curItem]||{}).filter(([c])=>c.startsWith(pfx));
+  if(!ents.length) return null;
+  const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
+  const totArea=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
+  const pwSum=ents.reduce((s,[,d])=>s+(d.production_weight||0),0);
+  const avgChg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
+  const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
+  const avgYoy=ents.reduce((s,[,d])=>s+(d.shipment_yoy||0),0)/ents.length;
+  const topCity=ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a));
+  return {
+    avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
+    price_vs_avg:Math.round(avgChg*10)/10,
+    shipment_ton:tot,
+    shipment_yoy:Math.round(avgYoy*10)/10,
+    area_ha:totArea,
+    production_pct:Math.round(pwSum*100),
+    rank:topCity?topCity[1].rank:null,
+    risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',
+    risk_score:Math.round(Math.abs(avgChg)*3+30),
+    _cities:ents.map(([,c])=>c.name).join('·'),
+  };
+}
+
 function zoomProv(f,sido,pname){
   curProv={f,sido,pname};viewLevel="city";navLevel="province";
   map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
   drawCities(sido);
+  setTimeout(()=>openRegionPopup(L.geoJSON(f),pname,makeProvinceSummary(sido),sido),120);
   updateBackBtn();
 }
 
@@ -2320,6 +2357,7 @@ function drawCities(sido){
             updateBackBtn();
           } else {
             showRegionDetail(name,code,d);
+            openRegionPopup(layer,name,d,d?.sido);
             if(d||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
           }
         },
@@ -2338,7 +2376,7 @@ function drawCities(sido){
         mouseover:e=>showCityTooltip(d.name,d,e),
         mousemove:e=>moveMapTooltip(e),
         mouseout:()=>hideMapTooltip(),
-        click:()=>showRegionDetail(d.name,code,d),
+        click:()=>{showRegionDetail(d.name,code,d);openRegionPopup(L.geoJSON(feat),d.name,d,d?.sido);},
       });
       provPinLayer.addLayer(pin);
     }catch(e){}
@@ -2358,6 +2396,16 @@ function hideMapTooltip(){
   document.getElementById('map-tooltip').style.display='none';
 }
 function moveMapTooltip(e){ _positionTooltip(e); }
+
+function openRegionPopup(layer,name,d,sidoKR){
+  if(!map_||!layer) return;
+  const center=layer.getBounds?layer.getBounds().getCenter():layer.getLatLng?.();
+  if(!center) return;
+  L.popup({maxWidth:330,className:"fm-leaf-popup",closeButton:true,autoPan:true})
+    .setLatLng(center)
+    .setContent(makeHoverCard(name,d,sidoKR))
+    .openOn(map_);
+}
 
 function _positionTooltip(e){
   const tip=document.getElementById('map-tooltip');
@@ -2419,10 +2467,10 @@ function makePinHtml(name,d,sidoKR){
     const pct=rp.vs_national_pct||0;
     const rNat=!isW?getRetailNatAvg(curItem):null;
     const activePct=isW?pct:(rNat&&rp.retail?(rp.retail-rNat)/rNat*100:pct);
-    const pm=applyForecast(mainPrice,curPeriod);
-    const ps=applyForecast(subPrice,curPeriod);
+    const pm=applyForecast(mainPrice,curPeriod,activePct);
+    const ps=applyForecast(subPrice,curPeriod,activePct);
     const pctColor=activePct>5?'#c02828':activePct<-5?'#1a8a1a':'#6a1e9a';
-    const fctPct=globalForecastPct(curPeriod);
+    const fctPct=periodForecastPct(activePct,curPeriod);
     const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
     const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     const bottomColor=isCurrent?pctColor:fctColor;
@@ -2440,8 +2488,8 @@ function makePinHtml(name,d,sidoKR){
   // 소매 모드: 도매가에 소매 마진 추정 (KAMIS 역산 기준 ~1.35x)
   const rawBaseP=d.avg_price||LIVE_NATIONAL_PRICES[curItem]||0;
   const baseP=(!isW&&rawBaseP)?Math.round(rawBaseP*1.35):rawBaseP;
-  const predP=applyForecast(baseP,curPeriod);
-  const fctPct=globalForecastPct(curPeriod);
+  const predP=applyForecast(baseP,curPeriod,chg);
+  const fctPct=periodForecastPct(chg,curPeriod);
   const modeLabel=isW?"도":"소";
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
   return`<div class="region-pin">
