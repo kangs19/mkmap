@@ -547,3 +547,26 @@ Important caveat:
 - Local browser verification: `도매시장 위치` toggles from unchecked to checked, marker icons increased from 4 to 12, `2개월` period button becomes active, console errors were empty.
 - Smoke verification: `scripts/run_smoke_suite.py --timeout-seconds 300` passed after the UI repair.
 - Next UI work: split the right panel into clearer tabs for exact forecast amount, chart and price movement reason, period/horizon analysis, crop metadata, market signals, and climate/event overlays. Keep the map as the primary experience; do not replace it with a card-only landing/dashboard.
+## Session 43 - UI Numeric Source Audit (2026-07-05)
+
+- User requested a full check of all numeric UI data because prior Claude work may have inserted arbitrary values.
+- Added the source audit document:
+  - `docs/data-audit/07-ui-numeric-source-audit.md`
+- Production API spot-checks returned 200:
+  - `/api/v1/signals/today`
+  - `/api/v1/dashboard/cards`
+  - `/api/v1/map/prices?item_code=cabbage`
+  - `/api/v1/map/regional-prices?item_code=cabbage`
+  - `/api/v1/map/weather`
+  - `/api/v1/drought`
+- Frontend fixes in `index.html`:
+  - Header weather no longer shows hardcoded sunny/mock text. It now summarizes `/api/v1/map/weather` or shows unavailable.
+  - Inline `CITY_DATA` fallback is cleared before static city data loads, and cleared entirely if `/static/city_agri_data.json` fails. This prevents old hardcoded city numbers from leaking into the map.
+  - Dashboard/default briefing no longer uses `ITEMS.risk_score` or `ITEMS.up_prob` fallback numbers. Missing API values render as `—`/collection state.
+  - Detail confidence no longer uses arbitrary period-based percentage. It now uses API confidence labels.
+  - Retail fallback multiplier `wholesale * 1.35` was removed. Missing regional retail data is hidden instead of estimated.
+  - Missing forecast probability no longer defaults to fake `0.5`; neutral/no-value display is used.
+- Remaining weak-source items:
+  - city-level production/harvest/rank values still depend on static KOSIS-based `city_agri_data.json`; replace with DB-backed `/api/v1/map/production`.
+  - market influence by region is still static/reference-like; compute from agromarket origin/market flow.
+  - import/substitute supply, pest/soil/FarmMap features, and fine-grained city weather need new collectors or validation before showing numbers.

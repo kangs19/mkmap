@@ -766,6 +766,7 @@ let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 �
 let priceViewMode="wholesale"; // "wholesale" | "retail"
 let LIVE_NATIONAL_PRICES={}; // {item_code: latestPrice} — 가락시장 최신가
 let curDetailData=null; // {name,code,d} — period 변경 시 재렌더 용
+let CITY_DATA_SOURCE="unloaded";
 
 function setDataStatusPill(state,text){
   const pill=document.getElementById("data-status-pill");
@@ -776,14 +777,34 @@ function setDataStatusPill(state,text){
   txt.textContent=text;
 }
 
+async function updateHeaderWeather(){
+  const el=document.getElementById("hdr-weather");
+  if(!el) return;
+  el.textContent="기상 데이터 수집 중";
+  try{
+    const r=await fetch("/api/v1/map/weather");
+    if(!r.ok) throw new Error("weather api");
+    const data=await r.json();
+    const regs=(data.regions||[]).filter(x=>Number.isFinite(Number(x.avg_temp)));
+    if(!regs.length){
+      el.textContent="기상 데이터 없음";
+      return;
+    }
+    const avg=regs.reduce((s,x)=>s+Number(x.avg_temp),0)/regs.length;
+    const alerts=(data.regions||[]).filter(x=>x.heat_alert||x.cold_alert||x.heavy_rain_alert).length;
+    el.textContent=alerts?`기상특보 ${alerts}건 · 평균 ${avg.toFixed(1)}℃`:`전국 평균 ${avg.toFixed(1)}℃`;
+  }catch(e){
+    el.textContent="기상 API 미연동";
+  }
+}
+
 // ── 초기화 ────────────────────────────────────────────────────────────────
 window.onload=async()=>{
   const now=new Date();
   document.getElementById("hdr-date-text").textContent=
     `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
 
-  // 날씨 (mock)
-  document.getElementById("hdr-weather").textContent="☀️ 맑음";
+  updateHeaderWeather();
 
   // 저장된 로그인 세션 반영 (헤더 버튼)
   refreshAuthUI();
@@ -834,6 +855,8 @@ window.onload=async()=>{
 
   // city_agri_data.json 로드해서 CITY_DATA에 23개 품목 채우기
   const cityDataPromise=fetch("/static/city_agri_data.json").then(r=>r.json()).then(raw=>{
+    for(const key of Object.keys(CITY_DATA)) CITY_DATA[key]={};
+    CITY_DATA_SOURCE="static_kosis_seed";
     for(const [itemCode, cities] of Object.entries(raw)){
       if(!CITY_DATA[itemCode]) CITY_DATA[itemCode]={};
       for(const [cityCode, d] of Object.entries(cities)){
@@ -854,7 +877,11 @@ window.onload=async()=>{
         };
       }
     }
-  }).catch(e=>console.warn("city_agri_data 로드 실패:",e.message));
+  }).catch(e=>{
+    for(const key of Object.keys(CITY_DATA)) CITY_DATA[key]={};
+    CITY_DATA_SOURCE="unavailable";
+    console.warn("city_agri_data 로드 실패:",e.message);
+  });
 
   Promise.all([
     fetchGeo("skorea_provinces.json"),
@@ -980,22 +1007,25 @@ function renderDashboardPanel(){
   const rows=Object.entries(ITEMS).map(([k,it])=>{
     const live=LIVE_ITEMS[k]||{};
     const price=LIVE_NATIONAL_PRICES[k]||null;
-    const score=live.risk_score||it.risk_score||0;
-    const prob=live.up_prob??it.up_prob??0.5;
+    const score=live.risk_score??null;
+    const prob=live.up_prob??null;
     return {k,it,price,score,prob,level:live.risk_level||it.risk_level||"normal"};
-  }).sort((a,b)=>b.score-a.score);
+  }).filter(r=>r.price!=null||r.score!=null||r.prob!=null)
+    .sort((a,b)=>(b.score??-1)-(a.score??-1));
   const liveCount=Object.keys(LIVE_ITEMS).length;
   const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
   const top=rows[0];
-  const upCount=rows.filter(r=>r.prob>0.6).length;
+  const upCount=rows.filter(r=>r.prob!=null&&r.prob>0.6).length;
   const highCount=rows.filter(r=>r.level==="high"||r.level==="warning").length;
   const topCards=rows.slice(0,6).map(r=>{
-    const col=r.prob>0.58?"#c02828":r.prob<0.42?"#1a8a1a":"#6a1e9a";
-    const dir=r.prob>0.58?"상승":r.prob<0.42?"하락":"보합";
+    const col=r.prob==null?"#7a8a6a":r.prob>0.58?"#c02828":r.prob<0.42?"#1a8a1a":"#6a1e9a";
+    const dir=r.prob==null?"예측 수집중":r.prob>0.58?"상승":r.prob<0.42?"하락":"보합";
+    const probText=r.prob==null?"—":`${Math.round(r.prob*100)}%`;
+    const scoreText=r.score==null?"—":Math.round(r.score);
     return `<div class="fm-dash-cell" onclick="selectItem('${r.k}')" style="cursor:pointer">
       <div class="fm-dash-lbl">${r.it.emoji} ${r.it.name}</div>
       <div class="fm-dash-val">${r.price?Math.round(r.price).toLocaleString()+"원":"—"}</div>
-      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} 확률 ${Math.round(r.prob*100)}% · 위험 ${r.score}</div>
+      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} 확률 ${probText} · 위험 ${scoreText}</div>
     </div>`;
   }).join("");
   showTopPanel(`
@@ -1015,7 +1045,7 @@ function renderDashboardPanel(){
     </div>
     <div class="fm-source-note">
       <b>현재 최상위 리스크</b><br>
-      ${top?`${top.it.emoji} ${top.it.name}: 위험점수 ${top.score}, 상승확률 ${Math.round(top.prob*100)}%`:"수집된 예측 데이터가 없습니다."}
+      ${top?`${top.it.emoji} ${top.it.name}: 위험점수 ${top.score==null?"—":Math.round(top.score)}, 상승확률 ${top.prob==null?"—":Math.round(top.prob*100)+"%"}`:"수집된 예측 데이터가 없습니다."}
     </div>
   `);
 }
@@ -1232,34 +1262,35 @@ function renderDefaultPanel(){
   const ranked=Object.entries(ITEMS).map(([k,it])=>{
     const live=LIVE_ITEMS[k]||{};
     return{k,it,
-      score:live.risk_score||it.risk_score||0,
-      level:live.risk_level||it.risk_level||"normal",
-      prob:live.up_prob??it.up_prob??0.5,
+      score:live.risk_score??null,
+      level:live.risk_level||"normal",
+      prob:live.up_prob??null,
       surge:live.surge_prob||null,
       vol:live.volatility||null,
       region:live.top_region||null,
       sig:live.summary||null,
     };
-  }).sort((a,b)=>b.score-a.score);
+  }).sort((a,b)=>(b.score??-1)-(a.score??-1));
+  const liveRanked=ranked.filter(r=>r.score!=null||r.prob!=null);
 
   // ── 요약 문구 ──
-  const topRisk=ranked[0];
-  const highCount=ranked.filter(r=>r.level==="high").length;
-  const warnCount=ranked.filter(r=>r.level==="warning").length;
-  const upItems=ranked.filter(r=>r.prob>0.6);
-  const downItems=ranked.filter(r=>r.prob<0.4);
+  const topRisk=liveRanked[0];
+  const highCount=liveRanked.filter(r=>r.level==="high").length;
+  const warnCount=liveRanked.filter(r=>r.level==="warning").length;
+  const upItems=liveRanked.filter(r=>r.prob!=null&&r.prob>0.6);
+  const downItems=liveRanked.filter(r=>r.prob!=null&&r.prob<0.4);
 
   let summary="";
   if(!hasLive){
     summary="AI 예측 모델 초기화 중입니다. 전국 농산물 가격 데이터가 곧 표시됩니다.";
   } else if(highCount>0){
-    const highNames=ranked.filter(r=>r.level==="high").map(r=>r.it.name).join("·");
+    const highNames=liveRanked.filter(r=>r.level==="high").map(r=>r.it.name).join("·");
     summary=`🔴 위험 품목 ${highCount}개 감지: ${highNames}. ${topRisk.it.name}의 14일 상승 확률 ${Math.round(topRisk.prob*100)}%로 주산지 모니터링이 필요합니다.`;
   } else if(warnCount>0){
-    const warnNames=ranked.filter(r=>r.level==="warning").slice(0,2).map(r=>r.it.name).join("·");
+    const warnNames=liveRanked.filter(r=>r.level==="warning").slice(0,2).map(r=>r.it.name).join("·");
     summary=`🟠 경고 품목 ${warnCount}개(${warnNames}) 등 기상·출하 리스크 신호 감지. 상승 우세 ${upItems.length}종 / 하락 우세 ${downItems.length}종.`;
   } else {
-    const stableNames=ranked.slice(0,2).map(r=>`${r.it.name}(${Math.round(r.prob*100)}%)`).join(", ");
+    const stableNames=liveRanked.slice(0,2).map(r=>`${r.it.name}(${r.prob==null?"—":Math.round(r.prob*100)+"%"})`).join(", ");
     summary=`🟢 전반적 안정세. 상위 관찰 품목: ${stableNames}. 상승 가능 ${upItems.length}종 / 하락 가능 ${downItems.length}종.`;
   }
   const elSummary=document.getElementById("brief-summary");
@@ -1268,18 +1299,21 @@ function renderDefaultPanel(){
   // ── 위험 품목 TOP 5 (디테일 강화) ──
   const elList=document.getElementById("brief-risk-list");
   if(elList){
-    elList.innerHTML=ranked.slice(0,5).map(({k,it,score,level,prob,surge,vol,region,sig})=>{
+    if(!liveRanked.length){
+      elList.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:10px;background:#f8fbf5;border:1px dashed #d6e3c7;border-radius:9px">예측 API에서 검증된 위험/확률 값이 아직 도착하지 않았습니다. 임의 기본값은 표시하지 않습니다.</div>`;
+    }else{
+    elList.innerHTML=liveRanked.slice(0,5).map(({k,it,score,level,prob,surge,vol,region,sig})=>{
       const lv=RL[level]||"정상";
       const icon=RI[level]||"🟢";
       const col=RC[level]||"#1a8a1a";
       const bg=RB[level]||"#f0f8f0";
-      const probPct=Math.round(prob*100);
-      const estChg=((prob-0.5)*30*(curPeriod/90));
-      const chgStr=(estChg>0?'+':'')+estChg.toFixed(1)+'%';
+      const probPct=prob==null?null:Math.round(prob*100);
+      const estChg=prob==null?null:((prob-0.5)*30*(curPeriod/90));
+      const chgStr=estChg==null?'—':(estChg>0?'+':'')+estChg.toFixed(1)+'%';
       const chgCol=estChg>0?'#c02828':'#1a8a1a';
       const curPrice=LIVE_NATIONAL_PRICES[k];
-      const estPrice=curPrice?Math.round(curPrice*(1+estChg/100)):null;
-      const dirLabel=prob>0.6?`↑ 상승 ${probPct}%`:prob<0.4?`↓ 하락 ${100-probPct}%`:`→ 보합 (${probPct}%)`;
+      const estPrice=(curPrice&&estChg!=null)?Math.round(curPrice*(1+estChg/100)):null;
+      const dirLabel=prob==null?`예측 수집중`:prob>0.6?`↑ 상승 ${probPct}%`:prob<0.4?`↓ 하락 ${100-probPct}%`:`→ 보합 (${probPct}%)`;
       const surgeStr=surge!=null?` · 급등 ${Math.round(surge*100)}%`:'';
       const volStr=vol?` · 변동성 ${vol}`:'';
       const regionStr=region?`<div style="font-size:9px;color:#7a6a4a;margin-top:2px">📍 ${region} 주의</div>`:'';
@@ -1305,6 +1339,7 @@ function renderDefaultPanel(){
         </div>
       </div>`;
     }).join("");
+    }
   }
 
   // ── 현재 시세 그리드 (도매가 + 방향 + 변화 예측) ──
@@ -1315,13 +1350,12 @@ function renderDefaultPanel(){
       elPrices.innerHTML=priceItems.map(([k,price])=>{
         const it=ITEMS[k];if(!it||!price) return"";
         const live=LIVE_ITEMS[k]||{};
-        const prob=live.up_prob??0.5;
-        const score=live.risk_score||0;
-        const dir=prob>0.58?'↑':prob<0.42?'↓':'→';
-        const col=prob>0.58?"#c02828":prob<0.42?"#1a8a1a":"#6a1e9a";
-        const bg=prob>0.58?"#fff0f0":prob<0.42?"#f0fff0":"#f8f0ff";
-        const chgPct=((prob-0.5)*20).toFixed(1);
-        const chgStr=(chgPct>0?'+':'')+chgPct+'%';
+        const prob=live.up_prob??null;
+        const dir=prob==null?'·':prob>0.58?'↑':prob<0.42?'↓':'→';
+        const col=prob==null?"#7a8a6a":prob>0.58?"#c02828":prob<0.42?"#1a8a1a":"#6a1e9a";
+        const bg=prob==null?"#f8fbf5":prob>0.58?"#fff0f0":prob<0.42?"#f0fff0":"#f8f0ff";
+        const chgPct=prob==null?null:((prob-0.5)*20).toFixed(1);
+        const chgStr=chgPct==null?'예측 수집중':(chgPct>0?'+':'')+chgPct+'%';
         const lv=live.risk_level||"normal";
         return`<div onclick="selectItem('${k}')" style="background:${bg};border:1px solid ${col}22;border-radius:8px;padding:7px 8px;cursor:pointer;transition:opacity .1s"
           onmouseenter="this.style.opacity='.8'" onmouseleave="this.style.opacity='1'">
@@ -1354,13 +1388,14 @@ async function fetchLiveData(){
     }
     items.forEach(it=>{
       if(!it.item_code) return;
-      const prob=it.up_probability??it.up_probability_14d??0.5;
+      const prob=it.up_probability??it.up_probability_14d??null;
       const dir=prob>0.55?"up":prob<0.45?"down":"neutral";
       LIVE_ITEMS[it.item_code]={
         direction:it.direction_14d||dir,
         up_prob:prob,
-        risk_level:it.risk_level||ITEMS[it.item_code]?.risk_level,
-        risk_score:it.risk_score||ITEMS[it.item_code]?.risk_score,
+        risk_level:it.risk_level||"normal",
+        risk_score:it.risk_score??null,
+        confidence:it.confidence||null,
         chg_pct:it.chg_pct||it.price_change_pct||null,
         surge_prob:it.surge_probability_14d||null,
         volatility:it.volatility_risk_30d||null,
@@ -1945,8 +1980,8 @@ async function renderPriceChart(item_code){
 
     // 예측 구간 — curPeriod 일 뒤 목표
     const it=ITEMS[item_code]||{};
-    const upProb=LIVE_ITEMS[item_code]?.up_prob??0.5;
-    const dirFactor=upProb>0.5?(upProb-0.5)*2:-(0.5-upProb)*2; // -1~+1
+    const upProb=LIVE_ITEMS[item_code]?.up_prob??null;
+    const dirFactor=upProb==null?0:(upProb>0.5?(upProb-0.5)*2:-(0.5-upProb)*2); // -1~+1
     const maxChgPct=Math.abs(dirFactor)*18; // 최대 ±18%
 
     // 미래 날짜 라벨
@@ -2065,8 +2100,6 @@ function showRegionDetail(name,code,d){
 
   // ── 가격 예측
   document.getElementById("rp-horizon-badge").textContent=`${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 후`;
-  // 선택된 기간 기준 메인 예측가
-  const upProb=LIVE_ITEMS[curItem]?.up_prob??0.5;
   // 단기(≤28일)는 chgPct 기반, 장기는 AI up_prob도 반영
   function periodChgPct(days){
     return periodForecastPct(chgPct,days);
@@ -2081,9 +2114,9 @@ function showRegionDetail(name,code,d){
     chgEl.textContent=(mainChg>0?"+":"")+mainChg.toFixed(1)+"% "+(mainChg>0?"↑":"↓");
     chgEl.className="fm-price-chg "+(mainChg>2?"up":mainChg<-2?"down":"neu");
   }else{chgEl.textContent="";chgEl.className="fm-price-chg neu";}
-  // AI 신뢰도는 기간 길수록 낮아짐
-  const baseConf=Math.max(55,85-Math.floor(curPeriod/7)*3);
-  document.getElementById("rp-conf-lbl").textContent=`AI 신뢰도: ${baseConf}%`;
+  const confMap={high:"높음",medium:"보통",low:"낮음",insufficient_data:"데이터 부족"};
+  const conf=LIVE_ITEMS[curItem]?.confidence||LIVE_ITEMS[curItem]?.model_confidence||null;
+  document.getElementById("rp-conf-lbl").textContent=`신뢰도: ${conf?confMap[conf]||conf:"모델 응답 없음"}`;
 
   // 기간별 예측 6셀 (1주/2주/3주/4주/2개월/3개월)
   const setPfc=(id,cid,days)=>{
@@ -2237,7 +2270,8 @@ function regionalPriceColor(sido){
 function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
 // 기간별 글로벌 예측 변화율 (핀 라벨용) — up_prob 기반
 function globalForecastPct(days){
-  const upProb=LIVE_ITEMS[curItem]?.up_prob??0.5;
+  const upProb=LIVE_ITEMS[curItem]?.up_prob??null;
+  if(upProb==null) return 0;
   // ±20% max at 90days; neutral(0.5)→0%
   const live=LIVE_ITEMS[curItem]||{};
   const dir=live.direction==="up"?1:live.direction==="down"?-1:0;
@@ -2288,14 +2322,13 @@ function modeColor(ents, sido){
       }
     }
   }
-  const retail=(priceViewMode==="retail");
-  const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0)*(retail?1.35:1),0)/ents.length;
+  const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
   return priceColor(periodForecastPct(avg,curPeriod));
 }
 function modeCityColor(d){
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
-  if(curMode==="risk")       return riskColor(d.risk_score||20);
+  if(curMode==="risk")       return d.risk_score!=null?riskColor(d.risk_score):"rgba(80,80,60,.18)";
   return priceColor(periodForecastPct(d.price_vs_avg||0,curPeriod));
 }
 function cropCityMetric(d){
@@ -2361,7 +2394,7 @@ function drawProvinces(){
       const avgYoy=ents.length?ents.reduce((s,[,d])=>s+(d.shipment_yoy||0),0)/ents.length:0;
       const topCity=ents.length?ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a)):null;
       const provinceActive=ents.length&&isActiveCropProvince(ents);
-      const mockD=ents.length?{
+      const provinceD=ents.length?{
         avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
         price_vs_avg:Math.round(avgChg*10)/10,
         shipment_ton:tot,
@@ -2374,7 +2407,7 @@ function drawProvinces(){
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});if(provinceActive)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,mockD,sido),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});if(provinceActive)showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,provinceD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
         click:()=>{hideMapTooltip();if(provinceActive)zoomProv(f,sido,pname);}
@@ -2391,11 +2424,11 @@ function drawProvinces(){
       const center=L.geoJSON(f).getBounds().getCenter();
       const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
       const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
-      const mockD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+      const pinD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
       pin.addTo(provPinLayer);
       bindMarkerDomEvents(pin,{
-        enter:e=>showMapTooltip(makeHoverCard(`${f.properties.name||sido} (${ents.length}개 시·군)`,mockD,sido),e),
+        enter:e=>showMapTooltip(makeHoverCard(`${f.properties.name||sido} (${ents.length}개 시·군)`,pinD,sido),e),
         move:e=>moveMapTooltip(e),
         leave:()=>hideMapTooltip(),
         click:()=>{hideMapTooltip();zoomProv(f,sido,f.properties.name||sido);}
@@ -2677,7 +2710,7 @@ function getRegionPriceContext(d,sidoKR){
   const activePct=rp
     ? (isWholesale?(rp.vs_national_pct||0):(retailNat&&rp.retail?(rp.retail-retailNat)/retailNat*100:(rp.vs_national_pct||0)))
     : (d?.price_vs_avg||0);
-  const fallback=d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0;
+  const fallback=isWholesale?(d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0):0;
   return {
     rp,
     unit,
@@ -2723,9 +2756,8 @@ function makePinHtml(name,d,sidoKR){
   const chg=d.price_vs_avg||0;
   const sign=chg>0?'+':'';
   const cls=chg>5?'up':chg<-5?'down':'flat';
-  // 소매 모드: 도매가에 소매 마진 추정 (KAMIS 역산 기준 ~1.35x)
   const rawBaseP=d.avg_price||LIVE_NATIONAL_PRICES[curItem]||0;
-  const baseP=(!ctx.isWholesale&&rawBaseP)?Math.round(rawBaseP*1.35):rawBaseP;
+  const baseP=(!ctx.isWholesale&&!rp)?0:rawBaseP;
   const predP=applyForecast(baseP,curPeriod,chg);
   const fctPct=periodForecastPct(chg,curPeriod);
   const modeLabel=ctx.primaryShort;
@@ -2820,7 +2852,7 @@ function makeHoverCard(name,d,sidoKR){
     </div>`;
   }).join('');
 
-  // 주요 작물 태그 (curItem 기반 + 인접 작물 mock)
+  // 주요 작물 태그 (curItem 기반 + 인접 작물 참고 표시)
   const cropMap={
     cabbage:['배추','무','대파'],radish:['무','배추','감자'],
     onion:['양파','마늘','대파'],green_onion:['대파','양파','배추'],
