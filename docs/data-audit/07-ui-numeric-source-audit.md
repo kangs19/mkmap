@@ -34,6 +34,7 @@ Checked against `https://mk-map.com` on 2026-07-05:
 | Hover card price | current and predicted price | `getRegionPriceContext()` from regional/national API prices | fixed | Hover and right detail use same price context. |
 | Hover card production share | shipment share or production share | `/api/v1/map/shipment-share` if loaded; otherwise KOSIS production share from static seed | partial | Label distinguishes shipment share vs production estimate. |
 | Right forecast price | selected horizon predicted price | current price + period forecast formula | derived | Formula is transparent but still model output, not raw API. |
+| Right period trend reasons | forecast conclusion plus grouped up/down/neutral reasons | `/api/v1/items/{item}/forecast/explanation` | fixed | UI now shows a decision card first, then separates 상승 압력, 하락 압력, 확인할 변수 so mixed reasons are not read as a contradiction. |
 | Right confidence | confidence label | `/api/v1/signals/today.confidence` | fixed | Removed arbitrary `85% - period` calculation. |
 | Right chart history | historical prices | `/api/v1/map/prices` | OK | Removed previous random/sample chart fallback in earlier work. |
 | Right chart forecast band | future curve | model probability + latest KAMIS price | partial | If probability is unavailable, curve stays neutral instead of fabricated direction. |

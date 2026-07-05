@@ -1123,6 +1123,11 @@ def _prob_direction(up_prob: float | None) -> str:
 
 def _build_explanation_headline(fc: Forecast, item_name: str) -> str:
     up = fc.up_probability_14d
+    if up is None:
+        return (
+            f"{item_name}{_josa_eunneun(item_name)} 현재 상승·하락 판단에 필요한 확률 데이터가 부족합니다. "
+            "아래 요인은 가격을 올리는 압력과 내리는 압력을 나누어 참고하세요."
+        )
     direction = _prob_direction(up)
     # 표시 확률은 해당 방향의 확률 (하락이면 1-상승확률)
     if direction == "down" and up is not None:

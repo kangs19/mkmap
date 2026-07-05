@@ -1073,3 +1073,24 @@ Important caveat:
   - contribution is real, not dead code.
   - do not promote yet, because the candidate model failed champion comparison on direction/MAE gates.
   - next model work should reduce unstable FarmMap influence by adding better regional coverage and region/date joins rather than static item-level priors only.
+
+## Session 62 - Forecast Reason Clarity And Market Basis Labels (2026-07-05)
+
+- Addressed UX issue: period trend analysis could show one factor saying price may rise and another saying price may fall, without a clear conclusion.
+- Updated `index.html` trend rendering:
+  - reads forecast probability/direction from the correct `forecast` object in `/forecast/explanation`.
+  - adds a top decision card before reasons.
+  - groups reason cards into `상승 압력`, `하락 압력`, and `확인할 변수`.
+  - if the model has no probability/direction and both up/down reasons exist, the UI says the period has mixed pressure and names that stock/import/shipment timing should be watched before taking one-sided conclusion.
+- Updated market basis copy:
+  - right panel now includes market source note beside the selected price basis.
+  - hover card market section explains whether the wholesale value is a measured regional wholesale-market average or representative fallback.
+  - retail note says whether regional retail is observed or unavailable instead of implying a multiplier estimate.
+- Updated backend explanation headline:
+  - if `up_probability_14d` is missing, headline no longer says `정보 없음로`.
+  - it now states that probability data is insufficient and that upward/downward pressure should be read separately.
+- Verification:
+  - `python -m py_compile backend/app/routers/forecasts.py` passed.
+  - `cd backend; python -m pytest tests/test_api.py -q` passed: 33 tests.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - local browser static load had no app runtime errors; API warnings were expected because a static file server does not expose backend `/api` routes.

@@ -1682,31 +1682,57 @@ async function fetchAndRenderTrend(itemCode, days){
   const reasons=data.reasons||[];
   const notes=data.notes||[];
   const headline=data.headline||"";
-  const prob=data.up_probability_14d;
+  const forecast=data.forecast||{};
+  const prob=forecast.up_probability_14d??data.up_probability_14d??null;
+  const direction=forecast.direction_14d||data.direction||null;
+  const decision=trendDecisionSummary({direction,prob,reasons,phaseLabel});
   const probStr=prob!=null?`<span style="font-weight:800;color:${prob>0.55?"#c02828":prob<0.45?"#1a8a1a":"#6a1e9a"}">${Math.round(prob*100)}% 상승 확률</span>`:"";
 
   const dirColors={up:"#c02828",down:"#1a8a1a",neutral:"#6a1e9a"};
   const dirBg={up:"#fff0f0",down:"#f0fff0",neutral:"#f5f0ff"};
 
   let html="";
+  html+=`<div style="font-size:13px;color:var(--text);font-weight:800;margin-bottom:8px;padding:9px 11px;background:${decision.bg};border-radius:8px;border-left:4px solid ${decision.color};line-height:1.55">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <span>${decision.title}</span>
+      ${probStr}
+    </div>
+    <div style="font-size:12px;font-weight:600;color:#4a5a3a;margin-top:4px">${decision.body}</div>
+  </div>`;
   if(headline){
-    html+=`<div style="font-size:13px;color:var(--text);font-weight:700;margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border-left:4px solid ${phaseCol};line-height:1.5">${headline}${prob!=null?"<br>"+probStr:""}</div>`;
+    html+=`<div style="font-size:12px;color:var(--text);font-weight:700;margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);line-height:1.5">${headline}</div>`;
   }
 
   if(reasons.length){
+    const groups=[
+      {key:"up",title:"상승 압력",hint:"값을 올릴 수 있는 요인"},
+      {key:"down",title:"하락 압력",hint:"값을 낮출 수 있는 요인"},
+      {key:"neutral",title:"확인할 변수",hint:"방향보다 점검이 필요한 요인"},
+    ].map(g=>({...g,items:reasons.filter(r=>(r.direction||"neutral")===g.key)})).filter(g=>g.items.length);
     html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
-    html+=reasons.map(r=>{
+    html+=groups.map(g=>{
+      const col=dirColors[g.key]||"#6a1e9a";
+      const bg=dirBg[g.key]||"#f5f0ff";
+      return`<div style="background:${bg};border:1px solid ${col}22;border-radius:8px;padding:9px 11px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:900;color:${col}">${g.title}</span>
+          <span style="font-size:10px;color:#6a7a5a;font-weight:700">${g.hint}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+        ${g.items.map(r=>{
       const col=dirColors[r.direction]||"#6a1e9a";
-      const bg=dirBg[r.direction]||"#f5f0ff";
       const icon=r.direction==="up"?"↑":r.direction==="down"?"↓":"→";
       const body=r.description||r.message||"";
-      return`<div style="background:${bg};border:1px solid ${col}22;border-radius:8px;padding:9px 11px">
+      return`<div style="background:white;border:1px solid ${col}18;border-radius:7px;padding:8px 9px">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap">
           <span style="font-size:15px;font-weight:800;color:${col}">${icon}</span>
           <span style="font-size:13px;font-weight:800;color:var(--text)">${r.label||""}</span>
           ${r.direction_label?`<span style="font-size:11px;font-weight:700;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
         </div>
         <div style="font-size:12px;color:var(--text);line-height:1.65">${body}</div>
+      </div>`;
+        }).join("")}
+        </div>
       </div>`;
     }).join("");
     html+=`</div>`;
@@ -1720,6 +1746,31 @@ async function fetchAndRenderTrend(itemCode, days){
   }
 
   el.innerHTML=html||`<div style="font-size:10px;color:var(--muted)">분석 정보 없음</div>`;
+}
+
+function trendDecisionSummary({direction,prob,reasons,phaseLabel}){
+  const upCount=(reasons||[]).filter(r=>r.direction==="up").length;
+  const downCount=(reasons||[]).filter(r=>r.direction==="down").length;
+  const neutralCount=(reasons||[]).filter(r=>!r.direction||r.direction==="neutral").length;
+  if(direction==="up"){
+    return {title:`결론: ${phaseLabel}에는 상승 쪽을 더 봅니다`,body:"아래 상승 요인이 하락 요인보다 더 크게 반영된 상태입니다.",color:"#c02828",bg:"#fff0f0"};
+  }
+  if(direction==="down"){
+    return {title:`결론: ${phaseLabel}에는 하락 쪽을 더 봅니다`,body:"아래 하락 요인이 상승 요인보다 더 크게 반영된 상태입니다.",color:"#1a8a1a",bg:"#f0fff0"};
+  }
+  if(direction==="neutral"&&prob!=null){
+    return {title:`결론: ${phaseLabel}에는 보합 가능성이 큽니다`,body:"상승과 하락 요인이 비슷하거나 변화폭이 작아, 큰 방향보다 변동 리스크를 봐야 합니다.",color:"#6a1e9a",bg:"#f5f0ff"};
+  }
+  if(upCount&&downCount){
+    return {title:`결론: ${phaseLabel}에는 방향이 엇갈립니다`,body:`상승 압력 ${upCount}개와 하락 압력 ${downCount}개가 동시에 있습니다. 지금은 한쪽 결론보다 재고, 수입, 출하량 중 어느 변수가 먼저 움직이는지가 중요합니다.`,color:"#a07010",bg:"#fff9e6"};
+  }
+  if(upCount>downCount){
+    return {title:`결론: ${phaseLabel}에는 상승 압력을 먼저 봅니다`,body:"다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다.",color:"#c02828",bg:"#fff0f0"};
+  }
+  if(downCount>upCount){
+    return {title:`결론: ${phaseLabel}에는 하락 압력을 먼저 봅니다`,body:"다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다.",color:"#1a8a1a",bg:"#f0fff0"};
+  }
+  return {title:`결론: ${phaseLabel}에는 추가 데이터가 필요합니다`,body:`참고 요인 ${neutralCount}개가 있지만 상승/하락 판단을 낼 만큼의 모델 신호가 부족합니다.`,color:"#6a1e9a",bg:"#f5f0ff"};
 }
 
 // ── 커뮤니티 (지역 × 품목) ────────────────────────────────────────────────
@@ -2285,7 +2336,7 @@ function showRegionDetail(name,code,d){
   if(marketBasis){
     const m=priceCtx.market;
     const date=m.date?` · ${m.date}`:"";
-    marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b> · ${m.basis}${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span>`;
+    marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b> · ${m.basis}${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span><br><span>${m.source_note||""} ${priceCtx.priceSourceNote||""}</span>`;
   }
   const chgEl=document.getElementById("rp-chg");
   if(pv&&mainChg!==0){
@@ -3005,9 +3056,10 @@ function marketBasisFor(rawRp,sidoKR,d){
       basis:`${SIDO_SHORT[normalizeSidoCode(sidoKR)]||d?.sido||"지역"} 도매시장 실측 평균`,
       date:rawRp.market_base_date||LIVE_REGIONAL_PRICES[curItem]?.base_date||null,
       source:"실측",
+      source_note:"agromarket 도매시장 거래 데이터",
     };
   }
-  return {...fallback,date:LIVE_REGIONAL_PRICES[curItem]?.base_date||LIVE_BASE_DATE||null,source:"대표"};
+  return {...fallback,date:LIVE_REGIONAL_PRICES[curItem]?.base_date||LIVE_BASE_DATE||null,source:"대표",source_note:"지역 실측 시장명이 없을 때 쓰는 대표 영향 시장"};
 }
 // KAMIS 단위 정규화: 지역 도매가가 전국 평균의 30% 미만이면 kg 단위 가격으로 판단 → item 단위 kg수 곱
 function _normalizeRegionalPrice(raw, itemCode){
@@ -3032,6 +3084,7 @@ function getRegionPriceContext(d,sidoKR){
     wholesale:_normalizeRegionalPrice(rawRp.wholesale,curItem),
     retail:_normalizeRegionalPrice(rawRp.retail,curItem),
     vs_national_pct:rawRp.vs_national_pct,
+    retail_source:rawRp.retail_source||((rawRp.retail!=null)?"observed":"unavailable"),
   }:null;
   const isWholesale=priceViewMode==="wholesale";
   const retailNat=getRetailNatAvg(curItem);
@@ -3055,7 +3108,17 @@ function getRegionPriceContext(d,sidoKR){
     nationalAvg:isWholesale?nationalWholesale:retailNat,
     activePct,
     market:marketBasisFor(rawRp,normalizedSido,d),
+    priceSourceNote:priceSourceNote(rp,isWholesale),
   };
+}
+
+function priceSourceNote(rp,isWholesale){
+  if(!rp) return "지역 실측 시세가 없으면 전국 평균 또는 주산지 기준으로 대체 표시합니다.";
+  const wholesaleNote="도매가는 해당 지역 도매시장 실측 평균입니다.";
+  const retailNote=rp.retail!=null
+    ? "소매가는 API에서 제공된 지역 소매 실측 평균입니다."
+    : "소매가는 해당 지역 실측값이 없어 표시하지 않습니다.";
+  return isWholesale?`${wholesaleNote} ${retailNote}`:`${retailNote} ${wholesaleNote}`;
 }
 
 function makePinHtml(name,d,sidoKR){
@@ -3149,7 +3212,8 @@ function makeHoverCard(name,d,sidoKR){
         </div>
       </div>
       <div style="margin-top:7px;font-size:10px;color:#5a7a9a;line-height:1.45;word-break:keep-all">
-        영향 시장: <b style="color:#1a3a5c">${market.name}</b> · ${market.basis}
+        영향 시장: <b style="color:#1a3a5c">${market.name}</b> · ${market.basis}<br>
+        <span style="color:#6a7a5a">${market.source_note||""} ${priceCtx.priceSourceNote||""}</span>
       </div>
     </div>`:`<div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
       <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
@@ -3158,7 +3222,7 @@ function makeHoverCard(name,d,sidoKR){
         <span style="font-size:12px;font-weight:700" class="rhc-chg ${hoverChgCls}">${hoverSign}${hoverChg.toFixed(1)}% ${hoverChg>0?'↑':hoverChg<0?'↓':'→'}</span>
       </div>
       <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/${priceCtx.unit||'단위'}</div>
-      <div style="font-size:10px;color:#6a7a5a;margin-top:5px">영향 시장: <b>${market.name}</b> · ${market.basis}</div>
+      <div style="font-size:10px;color:#6a7a5a;margin-top:5px">영향 시장: <b>${market.name}</b> · ${market.basis}<br>${market.source_note||""}</div>
     </div>`;
 
   // 주요 리스크 바
