@@ -485,6 +485,27 @@ Important caveat:
   - Browser inspection confirmed `rp-trend-reasons` now lives under `rp-pane-forecast`.
   - Province markers render with 110x58 hit areas; city markers render with 116x64 hit areas and direct DOM event binding.
 
+# Session 41 - Data trust labels, working top tabs, and clearer dashboard (2026-07-05 KST)
+
+- User feedback: 재배·시장 탭의 정보가 검증된 값인지 임의값인지 확인 필요. Top `가격 예측 설명` tab did not feel functional, and dashboard was hard to read.
+- Audit result:
+  - Verified/live-style values: regional/national prices from map price APIs, regional price data, shipment-share API where available.
+  - Model/derived values: annual production/shipment, production share fallback, risk breakdown when no direct signal exists, daily quantity converted from annual amount.
+  - Removed/blocked unverified values: import volume is now shown as `미연동` instead of a made-up percentage/tonnage.
+- Removed random UI data:
+  - `renderPriceChart(...)` no longer generates random fallback price history. If no price history API rows are available, the chart area states that history data is not available.
+  - Right-panel risk breakdown no longer uses `Math.random()`. Scores are deterministic and labelled as live/model.
+- Added source badges:
+  - `실데이터`: API/cache source.
+  - `모델`/`추정`: derived from available data.
+  - `미연동`: do not display fabricated numbers.
+- Changed top nav `가격 예측 설명` and `대시보드` from external links to working in-page panels.
+- Dashboard panel now summarizes prediction count, price collection count, warning/high count, upward-bias count, and prioritized item cards.
+- Local verification:
+  - Smoke suite passed.
+  - Browser check confirmed top explanation panel opens, dashboard panel opens, and map returns correctly.
+  - Detail stats tab shows labels such as `대표 도매가 실데이터`, `일평균 환산량 추정`, and `수입/대체 공급 미연동`.
+
 # Session 38 - Hover-only map cards and clearer market/share context (2026-07-05 KST)
 
 - User feedback: click drill-down must not leave a fixed popup on the map; hover cards should appear only while hovering. Also requested clearer wholesale/retail market influence, better card sizing, and no blank national-share fields.

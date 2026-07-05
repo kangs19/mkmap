@@ -206,6 +206,24 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-mkt-val{font-size:13px;font-weight:900;color:var(--text);}
 .fm-mkt-sub{font-size:9px;margin-top:3px;font-weight:600;}
 .fm-mkt-sub.up{color:#c02828;}.fm-mkt-sub.down{color:#1a8a1a;}
+.fm-data-tag{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:8px;font-size:8px;font-weight:800;vertical-align:middle;border:1px solid transparent;}
+.fm-data-tag.live{background:#e8f5e9;color:#1a8a1a;border-color:#b7ddb7;}
+.fm-data-tag.model{background:#fff4e8;color:#a06000;border-color:#e7c992;}
+.fm-data-tag.none{background:#f1f1ed;color:#7a7a70;border-color:#d8d8d0;}
+.fm-source-note{font-size:10px;color:var(--muted);line-height:1.7;background:#f7f9f4;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:10px 18px;}
+.fm-top-panel{display:none;background:var(--bg);min-height:100%;}
+.fm-top-card{background:white;border-bottom:1px solid var(--border);padding:14px 18px;}
+.fm-top-title{font-size:15px;font-weight:900;color:var(--text);margin-bottom:4px;}
+.fm-top-sub{font-size:11px;color:var(--muted);line-height:1.7;}
+.fm-dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.fm-dash-cell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 11px;}
+.fm-dash-lbl{font-size:9px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.fm-dash-val{font-size:18px;font-weight:900;color:var(--text);}
+.fm-explain-step{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.fm-explain-step:last-child{border-bottom:none;}
+.fm-explain-num{width:24px;height:24px;border-radius:50%;background:#e8f4e0;color:var(--accent);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fm-explain-body b{font-size:12px;color:var(--text);}
+.fm-explain-body div{font-size:11px;color:var(--muted);line-height:1.7;margin-top:2px;}
 /* 우측 패널 탭 */
 .rp-tabs{display:flex;gap:0;background:white;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;}
 .rp-tab{flex:1;padding:12px 6px;border:none;background:none;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px;}
@@ -270,8 +288,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </div>
   <nav class="fm-nav">
     <button class="fm-nav-item active" onclick="switchNavView('map',this)">실시간 지도</button>
-    <a href="/forecast-explanation" class="fm-nav-item" style="text-decoration:none">가격 예측 설명</a>
-    <a href="/dashboard" class="fm-nav-item" style="text-decoration:none">대시보드</a>
+    <button class="fm-nav-item" onclick="switchNavView('explain',this)">가격 예측 설명</button>
+    <button class="fm-nav-item" onclick="switchNavView('dashboard',this)">대시보드</button>
   </nav>
   <div class="fm-header-right">
     <div class="fm-date-box" id="hdr-date">
@@ -385,6 +403,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <!-- RIGHT PANEL -->
   <aside id="fm-right">
     <div class="fm-rp-scroll" id="right-panel-content">
+      <div id="top-view-panel" class="fm-top-panel"></div>
       <!-- AI 브리핑 패널 (기본 상태) -->
       <div id="right-hint" style="display:flex;flex-direction:column;gap:0;">
         <!-- 브리핑 헤더 -->
@@ -555,11 +574,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-market-section">
           <div class="fm-sec-title">출하 및 시장 동향</div>
           <div class="fm-market-grid">
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">예상 출하량</div><div class="fm-mkt-val" id="rp-shipment">—</div><div class="fm-mkt-sub" id="rp-shipment-sub"></div></div>
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">가락시장 가격</div><div class="fm-mkt-val" id="rp-mkt-price">—</div><div class="fm-mkt-sub" id="rp-mkt-price-sub"></div></div>
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">반입량 (오늘)</div><div class="fm-mkt-val" id="rp-arrival">—</div><div class="fm-mkt-sub" id="rp-arrival-sub"></div></div>
-            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">수입 물량</div><div class="fm-mkt-val" id="rp-import">—</div><div class="fm-mkt-sub" id="rp-import-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">연간 출하/생산량 <span class="fm-data-tag model">모델</span></div><div class="fm-mkt-val" id="rp-shipment">—</div><div class="fm-mkt-sub" id="rp-shipment-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">대표 도매가 <span class="fm-data-tag live">실데이터</span></div><div class="fm-mkt-val" id="rp-mkt-price">—</div><div class="fm-mkt-sub" id="rp-mkt-price-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">일평균 환산량 <span class="fm-data-tag model">추정</span></div><div class="fm-mkt-val" id="rp-arrival">—</div><div class="fm-mkt-sub" id="rp-arrival-sub"></div></div>
+            <div class="fm-mkt-cell"><div class="fm-mkt-lbl">수입/대체 공급 <span class="fm-data-tag none">미연동</span></div><div class="fm-mkt-val" id="rp-import">—</div><div class="fm-mkt-sub" id="rp-import-sub"></div></div>
           </div>
+        </div>
+        <div class="fm-source-note">
+          <b>데이터 검증 기준</b><br>
+          실데이터는 API 또는 캐시 원천값, 모델/추정은 현재 확보된 주산지·가격 데이터를 환산한 값입니다. 미연동 항목은 실제 API가 연결되기 전까지 수치를 만들지 않습니다.
         </div>
 
         </div><!-- /탭2 -->
@@ -887,9 +910,7 @@ function selectItem(k){
   document.getElementById("item-menu").classList.remove("open");
   renderItemMenu();
   renderMiniCards();
-  // 오른쪽 패널 리셋
-  document.getElementById("right-hint").style.display="flex";
-  document.getElementById("right-detail").style.display="none";
+  showMapPanel();
   const tasks=[];
   if(!LIVE_SIGNALS[k]) tasks.push(fetchSignalsByItem(k));
   if(!LIVE_REGIONAL_PRICES[k]) tasks.push(fetchRegionalPrices(k));
@@ -902,19 +923,101 @@ function switchNavView(mode, btn){
   document.querySelectorAll(".fm-nav-item").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
   if(mode==="map"){
+    showMapPanel();
     curMode="price";
-  } else if(mode==="production"){
-    curMode="production";
-  } else if(mode==="risk"){
-    curMode="risk";
-  } else if(mode==="price"){
-    curMode="price";
+  } else if(mode==="explain"){
+    renderExplanationPanel();
+    return;
+  } else if(mode==="dashboard"){
+    renderDashboardPanel();
+    return;
   }
   // 지도 모드 버튼 동기화
   document.querySelectorAll(".fm-map-mode-btn").forEach(b=>{
     b.classList.toggle("active", b.dataset.mode===curMode);
   });
   redrawMap();
+}
+
+function showMapPanel(){
+  const top=document.getElementById("top-view-panel");
+  if(top){top.style.display="none";top.innerHTML="";}
+  document.getElementById("right-hint").style.display="flex";
+  document.getElementById("right-detail").style.display="none";
+}
+
+function showTopPanel(html){
+  const top=document.getElementById("top-view-panel");
+  top.innerHTML=html;
+  top.style.display="block";
+  document.getElementById("right-hint").style.display="none";
+  document.getElementById("right-detail").style.display="none";
+  document.getElementById("right-panel-content").scrollTop=0;
+}
+
+function renderExplanationPanel(){
+  showTopPanel(`
+    <div class="fm-top-card">
+      <div class="fm-top-title">가격 예측 설명</div>
+      <div class="fm-top-sub">현재 FARM MAP 예측은 가격 API, 지역 주산지 데이터, 지역 도매/소매 시세, 위험 신호를 결합해 기간별 예상 방향과 가격을 계산합니다.</div>
+    </div>
+    <div class="fm-top-card">
+      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>기준 가격 선택</b><div>지역 시세가 있으면 지역 도매/소매 실데이터를 우선 사용하고, 없으면 품목 전국 가격 또는 주산지 평균가로 폴백합니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>기간 보정</b><div>1주, 2주, 4주, 2개월, 3개월 버튼에 따라 같은 지역도 예측 등락률을 다르게 계산합니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>위험 신호 결합</b><div>가격 편차, 출하/생산 비중, 기상·시장 위험 신호를 반영합니다. 실데이터가 없는 항목은 모델/추정 배지로 구분합니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">4</div><div class="fm-explain-body"><b>검증 기준</b><div>지도·팝업·오른쪽 패널은 같은 가격 계산 함수에서 값을 가져옵니다. 수입량처럼 API가 아직 연결되지 않은 항목은 숫자를 만들지 않습니다.</div></div></div>
+    </div>
+    <div class="fm-source-note">
+      <b>출처 표기</b><br>
+      <span class="fm-data-tag live">실데이터</span> API/캐시 원천값,
+      <span class="fm-data-tag model">모델</span> 확보된 데이터 기반 산출,
+      <span class="fm-data-tag none">미연동</span> 아직 수치 표시 금지 항목입니다.
+    </div>
+  `);
+}
+
+function renderDashboardPanel(){
+  const rows=Object.entries(ITEMS).map(([k,it])=>{
+    const live=LIVE_ITEMS[k]||{};
+    const price=LIVE_NATIONAL_PRICES[k]||null;
+    const score=live.risk_score||it.risk_score||0;
+    const prob=live.up_prob??it.up_prob??0.5;
+    return {k,it,price,score,prob,level:live.risk_level||it.risk_level||"normal"};
+  }).sort((a,b)=>b.score-a.score);
+  const liveCount=Object.keys(LIVE_ITEMS).length;
+  const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
+  const top=rows[0];
+  const upCount=rows.filter(r=>r.prob>0.6).length;
+  const highCount=rows.filter(r=>r.level==="high"||r.level==="warning").length;
+  const topCards=rows.slice(0,6).map(r=>{
+    const col=r.prob>0.58?"#c02828":r.prob<0.42?"#1a8a1a":"#6a1e9a";
+    const dir=r.prob>0.58?"상승":r.prob<0.42?"하락":"보합";
+    return `<div class="fm-dash-cell" onclick="selectItem('${r.k}')" style="cursor:pointer">
+      <div class="fm-dash-lbl">${r.it.emoji} ${r.it.name}</div>
+      <div class="fm-dash-val">${r.price?Math.round(r.price).toLocaleString()+"원":"—"}</div>
+      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} 확률 ${Math.round(r.prob*100)}% · 위험 ${r.score}</div>
+    </div>`;
+  }).join("");
+  showTopPanel(`
+    <div class="fm-top-card">
+      <div class="fm-top-title">대시보드</div>
+      <div class="fm-top-sub">오늘 수집된 예측·가격·지역 데이터를 요약합니다. 지도에서 품목과 기간을 바꾸면 같은 데이터 기준으로 상세 화면이 갱신됩니다.</div>
+      <div class="fm-dash-grid">
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 품목</div><div class="fm-dash-val">${liveCount||0}개</div><div class="fm-top-sub">signals/today 기준</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${priceCount}개</div><div class="fm-top-sub">map/prices 최신가</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}개</div><div class="fm-top-sub">warning/high 기준</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">상승 우세</div><div class="fm-dash-val">${upCount}개</div><div class="fm-top-sub">상승확률 60% 초과</div></div>
+      </div>
+    </div>
+    <div class="fm-top-card">
+      <div class="fm-sec-title">우선 확인 품목</div>
+      <div class="fm-dash-grid">${topCards}</div>
+    </div>
+    <div class="fm-source-note">
+      <b>현재 최상위 리스크</b><br>
+      ${top?`${top.it.emoji} ${top.it.name}: 위험점수 ${top.score}, 상승확률 ${Math.round(top.prob*100)}%`:"수집된 예측 데이터가 없습니다."}
+    </div>
+  `);
 }
 
 // ── 레이어 상태 ──────────────────────────────────────────────────────────
@@ -1821,13 +1924,17 @@ async function renderPriceChart(item_code){
     let rows=(d.prices||[]).filter(p=>p.price);
     const useRegional=LIVE_REGIONAL_PRICES[item_code];
 
-    // fallback mock
+    // 실제 가격 히스토리가 없으면 임의 차트를 만들지 않는다.
     if(!rows.length){
-      const base=useRegional?.national_avg_wholesale||(CITY_DATA[item_code]?Object.values(CITY_DATA[item_code])[0]?.avg_price||5000:5000);
-      rows=Array.from({length:45},(_,i)=>{
-        const dt=new Date();dt.setDate(dt.getDate()-44+i);
-        return{date:`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`,price:Math.round(base*(0.92+Math.random()*.16))};
-      });
+      if(priceChartInst){priceChartInst.destroy();priceChartInst=null;}
+      const ctx=canvas.getContext("2d");
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.save();
+      ctx.fillStyle="#9aaa8a";
+      ctx.font="12px Noto Sans KR, sans-serif";
+      ctx.fillText("가격 히스토리 API 데이터가 아직 없습니다.",12,32);
+      ctx.restore();
+      return;
     }
 
     // 과거 데이터
@@ -1920,6 +2027,8 @@ async function renderPriceChart(item_code){
 
 // ── 오른쪽 패널: 지역 상세 ────────────────────────────────────────────────
 function showRegionDetail(name,code,d){
+  const topPanel=document.getElementById("top-view-panel");
+  if(topPanel){topPanel.style.display="none";topPanel.innerHTML="";}
   if(!d){
     document.getElementById("right-hint").style.display="flex";
     document.getElementById("right-detail").style.display="none";
@@ -2024,10 +2133,14 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-gauge-lbl").textContent=rs>=70?"높음":rs>=50?"보통":"낮음";
 
   // 리스크 진행바
+  const weatherSig=LIVE_SIGNALS[curItem]?.[d.province_code||PROV_NAME_MAP[d.sido]||d.sido];
+  const weatherScore=weatherSig?.risk_score!=null?weatherSig.risk_score:Math.round(rs*0.70);
+  const cropScore=Math.round(rs*0.55);
+  const marketScore=Math.round(Math.min(100,Math.abs(chgPct)*3+rs*0.35));
   const riskItems=[
-    {label:"🌧 기상 위험",    score:Math.min(100,Math.round(rs*0.85+Math.random()*12))},
-    {label:"🐛 병해충 위험",   score:Math.min(100,Math.round(rs*0.70+Math.random()*15))},
-    {label:"📊 시장 위험",    score:Math.min(100,Math.round(rs*0.60+Math.random()*18))},
+    {label:"🌧 기상 위험",    score:weatherScore, source:weatherSig?"실데이터":"모델"},
+    {label:"🐛 생육 위험",    score:cropScore, source:"모델"},
+    {label:"📊 시장 위험",    score:marketScore, source:priceCtx.rp?"실데이터":"모델"},
   ];
   const rColors={high:"#c02828",warn:"#b86010",mid:"#a07010",ok:"#1a8a1a"};
   document.getElementById("rp-risk-bars").innerHTML=riskItems.map(r=>{
@@ -2035,7 +2148,7 @@ function showRegionDetail(name,code,d){
     const col=rColors[lv];
     const txt={high:"높음",warn:"보통",mid:"중간",ok:"낮음"}[lv];
     return`<div class="fm-risk-bar-row">
-      <div class="fm-risk-bar-info"><span>${r.label}</span><b style="color:${col}">${r.score} <span style="font-size:9px;font-weight:600">${txt}</span></b></div>
+      <div class="fm-risk-bar-info"><span>${r.label} <span class="fm-data-tag ${r.source==="실데이터"?"live":"model"}">${r.source}</span></span><b style="color:${col}">${r.score} <span style="font-size:9px;font-weight:600">${txt}</span></b></div>
       <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
     </div>`;
   }).join("");
@@ -2045,18 +2158,16 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-shipment").textContent=sh>=1000?(sh/1000).toFixed(1)+"천 톤":sh>0?sh+"톤":"—";
   document.getElementById("rp-shipment-sub").className="fm-mkt-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-shipment-sub").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
-  const mktp=pv?Math.round(pv*0.95):0;
-  document.getElementById("rp-mkt-price").textContent=mktp?mktp.toLocaleString()+"원":"—";
+  document.getElementById("rp-mkt-price").textContent=pv?pv.toLocaleString()+"원":"—";
   document.getElementById("rp-mkt-price-sub").className="fm-mkt-sub "+(chgPct?chgPct>0?"up":"down":"neu");
-  document.getElementById("rp-mkt-price-sub").textContent=chgPct?(chgPct>0?"+":"")+chgPct.toFixed(1)+"%":"—";
-  const arrival=sh?Math.max(1,Math.round(sh/365*1.1)):0;
+  document.getElementById("rp-mkt-price-sub").textContent=priceCtx.rp?`${priceCtx.market.name} 기준`:(chgPct?(chgPct>0?"+":"")+chgPct.toFixed(1)+"% 모델":"—");
+  const arrival=sh?Math.max(1,Math.round(sh/365)):0;
   document.getElementById("rp-arrival").textContent=arrival?arrival+"톤":"—";
-  document.getElementById("rp-arrival-sub").className="fm-mkt-sub "+(yoy?"down":"neu");
-  document.getElementById("rp-arrival-sub").textContent=yoy?"-"+Math.abs(yoy*0.7).toFixed(1)+"%":"일평균";
-  const imp=sh?Math.round(sh*0.05):0;
-  document.getElementById("rp-import").textContent=imp?imp+"톤":"—";
+  document.getElementById("rp-arrival-sub").className="fm-mkt-sub neu";
+  document.getElementById("rp-arrival-sub").textContent="연간량 ÷ 365 환산";
+  document.getElementById("rp-import").textContent="미연동";
   document.getElementById("rp-import-sub").className="fm-mkt-sub neu";
-  document.getElementById("rp-import-sub").textContent="수입산 비중";
+  document.getElementById("rp-import-sub").textContent="수입 API 연결 후 표시";
 
   // 기간별 가격 동향 분석
   fetchAndRenderTrend(curItem, curPeriod);
