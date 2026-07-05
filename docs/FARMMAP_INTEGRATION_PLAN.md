@@ -58,7 +58,10 @@ Alias file:
 ## Next Implementation Steps
 
 1. Run `scripts/audit_farmmap_spatial_file.py --input <downloaded-file>`.
+   - CSV, GeoJSON, JSON, DBF, and ZIP-with-DBF are supported.
+   - SHP geometry is not parsed yet, but the DBF attribute table inside a SHP ZIP can be audited directly.
 2. Review detected fields/crops.
+   - DBF field names are often short ASCII names, so use the provider column dictionary when available.
 3. If crop and area fields exist, run a region-summary importer.
 4. Import the summary:
    - local: `python scripts/import_farmmap_crop_region_summary.py --input <summary.json> --replace-source`

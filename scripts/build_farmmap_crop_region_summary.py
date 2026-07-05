@@ -11,8 +11,11 @@ from audit_farmmap_spatial_file import (
     audit_file,
     load_aliases,
     read_csv_rows,
+    read_dbf_rows,
+    read_dbf_stream,
     read_geojson_rows,
 )
+import zipfile
 
 
 def main() -> int:
@@ -30,10 +33,6 @@ def main() -> int:
     args = parser.parse_args()
 
     input_path = Path(args.input)
-    if input_path.suffix.lower() == ".zip":
-        print("ZIP summary building is not supported yet. Extract/convert the FarmMap SHP to CSV or GeoJSON first.", file=sys.stderr)
-        return 2
-
     aliases = load_aliases()
     audit = audit_file(input_path, aliases, sample_rows=1000)
     if audit.get("import_readiness") == "blocked":
@@ -93,6 +92,17 @@ def load_rows(path: Path, sample_rows: int) -> tuple[list[dict[str, Any]], list[
     if path.suffix.lower() in {".geojson", ".json"}:
         rows, fields, _extra = read_geojson_rows(path, limit)
         return rows, fields
+    if path.suffix.lower() == ".dbf":
+        rows, fields, _extra = read_dbf_rows(path, limit)
+        return rows, fields
+    if path.suffix.lower() == ".zip":
+        with zipfile.ZipFile(path) as zf:
+            dbf_names = [name for name in zf.namelist() if name.lower().endswith(".dbf")]
+            if not dbf_names:
+                raise ValueError("ZIP does not contain a DBF attribute table.")
+            with zf.open(dbf_names[0]) as fp:
+                rows, fields, _extra = read_dbf_stream(fp.read(), limit)
+            return rows, fields
     raise ValueError(f"Unsupported file type: {path.suffix}")
 
 

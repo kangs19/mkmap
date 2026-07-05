@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import struct
 import sys
 import zipfile
 from collections import Counter
@@ -60,6 +61,9 @@ def audit_file(path: Path, aliases: dict[str, list[str]], sample_rows: int) -> d
     if suffix in {".geojson", ".json"}:
         rows, fields, extra = read_geojson_rows(path, sample_rows)
         return build_report(path, suffix.lstrip("."), fields, rows, aliases, extra=extra)
+    if suffix == ".dbf":
+        rows, fields, extra = read_dbf_rows(path, sample_rows)
+        return build_report(path, "dbf", fields, rows, aliases, extra=extra)
     if suffix == ".shp":
         return build_report(
             path,
@@ -99,7 +103,18 @@ def audit_zip(path: Path, aliases: dict[str, list[str]], sample_rows: int) -> di
             rows, fields, extra = rows_from_geojson(data, sample_rows)
             extra.update({"entries": names[:50], "sample_entry": geojson_names[0], "entry_count": len(names)})
             return build_report(path, "zip/geojson", fields, rows, aliases, extra=extra)
-        if shp_names or dbf_names:
+        if dbf_names:
+            with zf.open(dbf_names[0]) as fp:
+                rows, fields, extra = read_dbf_stream(fp.read(), sample_rows)
+            extra.update({
+                "entries": names[:50],
+                "sample_entry": dbf_names[0],
+                "entry_count": len(names),
+                "shp_count": len(shp_names),
+                "dbf_count": len(dbf_names),
+            })
+            return build_report(path, "zip/dbf", fields, rows, aliases, extra=extra)
+        if shp_names:
             return build_report(
                 path,
                 "zip/shp",
@@ -149,6 +164,85 @@ def read_csv_stream(fp: Any, sample_rows: int) -> tuple[list[dict[str, Any]], li
 def read_geojson_rows(path: Path, sample_rows: int) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     return rows_from_geojson(data, sample_rows)
+
+
+def read_dbf_rows(path: Path, sample_rows: int) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    return read_dbf_stream(path.read_bytes(), sample_rows)
+
+
+def read_dbf_stream(raw: bytes, sample_rows: int) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+    if len(raw) < 33:
+        return [], [], {"note": "DBF file is too small."}
+
+    record_count = struct.unpack("<I", raw[4:8])[0]
+    header_len = struct.unpack("<H", raw[8:10])[0]
+    record_len = struct.unpack("<H", raw[10:12])[0]
+    fields = []
+    pos = 32
+    while pos + 32 <= len(raw) and raw[pos] != 0x0D:
+        desc = raw[pos:pos + 32]
+        name = decode_dbf_text(desc[:11]).split("\x00", 1)[0].strip()
+        field_type = chr(desc[11])
+        length = desc[16]
+        decimal_count = desc[17]
+        if name:
+            fields.append({
+                "name": name,
+                "type": field_type,
+                "length": length,
+                "decimal_count": decimal_count,
+            })
+        pos += 32
+
+    rows = []
+    max_rows = min(record_count, sample_rows)
+    for idx in range(max_rows):
+        start = header_len + idx * record_len
+        end = start + record_len
+        if end > len(raw):
+            break
+        record = raw[start:end]
+        if not record or record[0:1] == b"*":
+            continue
+        offset = 1
+        row: dict[str, Any] = {}
+        for field in fields:
+            length = int(field["length"])
+            chunk = record[offset:offset + length]
+            offset += length
+            row[str(field["name"])] = decode_dbf_value(chunk, str(field["type"]))
+        rows.append(row)
+
+    return rows, [str(field["name"]) for field in fields], {
+        "dbf_record_count": record_count,
+        "dbf_sample_count": len(rows),
+        "dbf_header_length": header_len,
+        "dbf_record_length": record_len,
+        "dbf_fields": fields,
+    }
+
+
+def decode_dbf_value(raw: bytes, field_type: str) -> Any:
+    text = decode_dbf_text(raw).strip()
+    if not text:
+        return ""
+    if field_type in {"N", "F", "B"}:
+        try:
+            return float(text) if "." in text else int(text)
+        except ValueError:
+            return text
+    if field_type == "L":
+        return text.upper() in {"Y", "T", "1"}
+    return text
+
+
+def decode_dbf_text(raw: bytes) -> str:
+    for encoding in ("utf-8", "cp949", "euc-kr", "latin1"):
+        try:
+            return raw.decode(encoding).rstrip("\x00")
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("latin1", errors="replace").rstrip("\x00")
 
 
 def rows_from_geojson(data: dict[str, Any], sample_rows: int) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:

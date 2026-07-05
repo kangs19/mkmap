@@ -714,3 +714,25 @@ Important caveat:
   - Secure one official FarmMap province source file.
   - If it is SHP/DBF, either convert to CSV/GeoJSON or add direct DBF parsing support.
   - Audit actual fields, build summary JSON, import to production through `/admin/import/farmmap/crop-regions`.
+
+## Session 51 - FarmMap DBF/ZIP Direct Audit Support (2026-07-05)
+
+- Continued the FarmMap sequence so official SHP ZIP files can be handled without requiring QGIS/GDAL for the first field audit.
+- Added a pure-Python DBF attribute reader to `scripts/audit_farmmap_spatial_file.py`:
+  - reads DBF headers, field descriptors, record counts, and sampled records.
+  - supports standalone `.dbf`.
+  - supports `.zip` archives containing `.dbf`, including typical SHP ZIP bundles.
+  - decodes common Korean DBF text encodings using UTF-8, CP949, EUC-KR, then Latin-1 fallback.
+- Updated `scripts/build_farmmap_crop_region_summary.py`:
+  - accepts `.dbf` directly.
+  - accepts `.zip` directly when it contains a `.dbf` attribute table.
+  - can build item/region summaries from SHP ZIP attributes when crop/area/region fields are supplied.
+- Verification:
+  - Generated a temporary DBF ZIP sample with English field names and CP949 Korean values.
+  - Built a FarmMap summary directly from the ZIP.
+  - Confirmed cabbage/onion/radish alias matching: 고랭지배추, 양파, 월동무.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - Backend API tests passed: 31 passed.
+- Important DBF caveat:
+  - DBF field names are limited and often ASCII/abbreviated. If an official source has unclear field names, pass explicit `--crop-field`, `--area-field`, `--sido-field`, and `--sigungu-field`.
+  - If a provider attached an XLSX column dictionary, use that to map DBF field names before import.
