@@ -882,3 +882,34 @@ Important caveat:
   - Add a frontend map layer toggle for FarmMap land-use/capacity.
   - Label it explicitly as `팜맵 농지분류`, not crop acreage.
   - Use land-use totals as a model feature for regional crop-capacity scoring.
+
+## Session 56 - Frontend FarmMap Land-Use Layer (2026-07-05)
+
+- Continued the FarmMap sequence after production import.
+- Added a public UI layer toggle in `index.html`:
+  - left panel label: `팜맵 농지분류`
+  - fetches `GET /api/v1/map/farmmap/landuse-regions`
+  - builds province and city summaries in-browser from API rows.
+- Map behavior:
+  - when the layer is enabled, imported FarmMap provinces/cities are colored by dominant land-use class and area intensity.
+  - currently verified source coverage is Gangwon, Chungbuk, and Jeju only.
+  - non-imported regions remain normal/neutral; the layer must not imply crop-specific production area.
+- Hover/detail behavior:
+  - FarmMap hover cards show official land-use area, parcel count, dominant class, and class chips.
+  - right detail panel now includes `팜맵 농지분류` under the cultivation/market stats area.
+  - detail copy explicitly says `작물별 면적 아님`.
+- Verification:
+  - local smoke suite passed: `python scripts/run_smoke_suite.py --timeout-seconds 300`.
+  - local API after import returned `available:true`, 153 rows, 265,403.6595 ha, `source_type: landuse_only`.
+  - browser verification on `http://127.0.0.1:8001/`:
+    - page loaded with the new toggle.
+    - toggling `팜맵 농지분류` activated the layer and recolored imported regions.
+    - clicking a FarmMap-colored city opened the right detail panel and displayed official FarmMap data, e.g. Chuncheon `6,025 ha`, `65,763` parcels, dominant class `밭`.
+- Local-only verification data:
+  - imported the existing untracked summary JSON files into the local SQLite DB for UI testing.
+  - production DB had already been imported in Session 55.
+- Next work:
+  - deploy this frontend layer to production.
+  - after deploy, verify `https://mk-map.com` toggles the layer against the already-imported production FarmMap data.
+  - add a model-side `crop_capacity_score` that joins crop main-region metadata with FarmMap land-use area, while keeping the UI label source-safe.
+  - consider downloading/auditing Jeonnam, Jeonbuk, Gyeongbuk, Gyeongnam, and Gyeonggi FarmMap sources for broader land-use coverage.

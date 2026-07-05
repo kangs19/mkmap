@@ -367,6 +367,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'price')"><input type="checkbox" checked onchange="handleLayer(this,'price')"> <span>가격 예측</span></div>
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'weather')"><input type="checkbox" checked onchange="handleLayer(this,'weather')"> <span>기상 정보</span></div>
         <div class="fm-layer-item disabled" title="현장 제보 기반 병해충 지도는 베타 준비 중입니다"><input type="checkbox" disabled> <span>병해충 위험</span><em class="fm-beta-tag">BETA</em></div>
+        <div class="fm-layer-item" onclick="toggleLayerRow(event,'farmmap')"><input type="checkbox" onchange="handleLayer(this,'farmmap')"> <span>팜맵 농지분류</span></div>
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
         <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
@@ -580,6 +581,16 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-stat-cell"><div class="fm-stat-lbl">전년 대비</div><div class="fm-stat-val" id="rp-yoy">—</div><div class="fm-stat-sub" id="rp-yoy-sub"></div></div>
               <div class="fm-stat-cell"><div class="fm-stat-lbl">주산지 순위</div><div class="fm-stat-val" id="rp-rank">—</div><div class="fm-stat-sub" id="rp-rank-sub"></div></div>
             </div>
+          </div>
+          <div id="rp-farmmap-section" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#f7fbfa">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div>
+                <div style="font-size:11px;color:var(--muted);font-weight:800">팜맵 농지분류 <span class="fm-data-tag live">공식</span></div>
+                <div id="rp-farmmap-main" style="font-size:18px;font-weight:900;color:var(--text);margin-top:2px">—</div>
+              </div>
+              <div id="rp-farmmap-sub" style="font-size:10px;color:var(--muted);text-align:right;line-height:1.45"></div>
+            </div>
+            <div id="rp-farmmap-classes" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"></div>
           </div>
         </div>
 
@@ -1067,6 +1078,7 @@ function renderDashboardPanel(){
 // ── 레이어 상태 ──────────────────────────────────────────────────────────
 const activeLayers=new Set(["production","price","weather"]);
 let weatherMarkerLayer=null, marketMarkerLayer=null;
+let FARMMAP_LANDUSE=null, FARMMAP_LANDUSE_BY_CODE={}, FARMMAP_LANDUSE_BY_CITY={};
 
 // 주요 도매시장 위치 (위도, 경도, 이름)
 const MARKETS=[
@@ -1115,6 +1127,9 @@ function applyLayer(layer,on,el){
     on ? loadWeatherLayer() : removeWeatherLayer();
   } else if(layer==="market"){
     on ? loadMarketLayer() : removeMarketLayer();
+  } else if(layer==="farmmap"){
+    if(on) loadFarmMapLanduseLayer();
+    else redrawMap();
   } else if(layer==="pest"||layer==="soil"){
     // 미구현 레이어 — 체크 해제 후 안내
     if(on){
@@ -1187,6 +1202,93 @@ function loadMarketLayer(){
 function removeMarketLayer(){
   if(marketMarkerLayer&&map_){map_.removeLayer(marketMarkerLayer);}
   marketMarkerLayer=null;
+}
+const FARMMAP_SIDO_NAME={
+  "KR-42":"\uac15\uc6d0\ud2b9\ubcc4\uc790\uce58\ub3c4",
+  "KR-43":"\ucda9\uccad\ubd81\ub3c4",
+  "KR-49":"\uc81c\uc8fc\ud2b9\ubcc4\uc790\uce58\ub3c4",
+};
+function isFarmMapLayerOn(){return activeLayers.has("farmmap");}
+function farmMapSidoName(sidoCode){return FARMMAP_SIDO_NAME[sidoCode]||SIDO_SHORT[sidoCode]||sidoCode||"";}
+function farmMapKey(sido,sigungu){return `${sido||""}|${sigungu||""}`;}
+async function loadFarmMapLanduseLayer(){
+  try{
+    await fetchFarmMapLanduse();
+    redrawMap();
+    showToast("팜맵 농지분류 레이어를 켰습니다");
+  }catch(e){
+    showToast("팜맵 농지분류 데이터를 불러오지 못했습니다");
+    const input=document.querySelector('input[onchange*="farmmap"]');
+    if(input){input.checked=false;input.closest(".fm-layer-item")?.classList.remove("active");}
+    activeLayers.delete("farmmap");
+  }
+}
+async function fetchFarmMapLanduse(){
+  if(FARMMAP_LANDUSE) return FARMMAP_LANDUSE;
+  const r=await fetch("/api/v1/map/farmmap/landuse-regions");
+  if(!r.ok) throw new Error("farmmap landuse api");
+  const data=await r.json();
+  FARMMAP_LANDUSE=data;
+  FARMMAP_LANDUSE_BY_CODE={};
+  FARMMAP_LANDUSE_BY_CITY={};
+  (data.regions||[]).forEach(row=>{
+    const sido=row.sido||"";
+    const code=Object.keys(FARMMAP_SIDO_NAME).find(k=>FARMMAP_SIDO_NAME[k]===sido);
+    if(code){
+      if(!FARMMAP_LANDUSE_BY_CODE[code]) FARMMAP_LANDUSE_BY_CODE[code]=emptyFarmMapSummary(sido,null);
+      addFarmMapRow(FARMMAP_LANDUSE_BY_CODE[code],row);
+    }
+    if(row.sigungu){
+      const key=farmMapKey(sido,row.sigungu);
+      if(!FARMMAP_LANDUSE_BY_CITY[key]) FARMMAP_LANDUSE_BY_CITY[key]=emptyFarmMapSummary(sido,row.sigungu);
+      addFarmMapRow(FARMMAP_LANDUSE_BY_CITY[key],row);
+    }
+  });
+  Object.values(FARMMAP_LANDUSE_BY_CODE).forEach(finalizeFarmMapSummary);
+  Object.values(FARMMAP_LANDUSE_BY_CITY).forEach(finalizeFarmMapSummary);
+  return data;
+}
+function emptyFarmMapSummary(sido,sigungu){
+  return {sido,sigungu,area_ha:0,parcel_count:0,classes:{},source_type:"landuse_only"};
+}
+function addFarmMapRow(summary,row){
+  const area=Number(row.area_ha)||0;
+  const parcels=Number(row.parcel_count)||0;
+  summary.area_ha+=area;
+  summary.parcel_count+=parcels;
+  summary.classes[row.landuse_class||"기타"]=(summary.classes[row.landuse_class||"기타"]||0)+area;
+}
+function finalizeFarmMapSummary(summary){
+  summary.area_ha=Math.round(summary.area_ha*10000)/10000;
+  summary.top_class=Object.entries(summary.classes).sort((a,b)=>b[1]-a[1])[0]?.[0]||"농지";
+  return summary;
+}
+function farmMapForSidoCode(sidoCode){return FARMMAP_LANDUSE_BY_CODE[sidoCode]||null;}
+function farmMapForCity(sidoCode,cityName){
+  const sido=farmMapSidoName(sidoCode);
+  return FARMMAP_LANDUSE_BY_CITY[farmMapKey(sido,cityName)]||null;
+}
+function farmMapLanduseColor(fm){
+  if(!fm) return "rgba(80,80,60,.16)";
+  const area=Number(fm.area_ha)||0;
+  const base=fm.top_class==="논" ? [54,116,181] : fm.top_class==="시설" ? [196,88,42] : fm.top_class==="과수" ? [144,92,28] : [38,132,116];
+  const alpha=Math.max(.30,Math.min(.82,Math.log10(area+1)/5.2));
+  return `rgba(${base[0]},${base[1]},${base[2]},${alpha})`;
+}
+function farmMapSummaryHtml(fm){
+  if(!fm) return "";
+  const entries=Object.entries(fm.classes||{}).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  return entries.map(([k,v])=>`<span style="display:inline-flex;gap:3px;align-items:center;padding:2px 6px;border-radius:999px;background:white;border:1px solid var(--border);font-size:10px;color:var(--muted)">${k} <b style="color:var(--text)">${Math.round(v).toLocaleString()}ha</b></span>`).join("");
+}
+function makeFarmMapHoverCard(title,fm){
+  if(!fm) return `<div class="fm-pop"><b>${title}</b><br><span style="color:var(--muted)">팜맵 농지분류 데이터 없음</span></div>`;
+  return `<div class="fm-pop">
+    <div style="font-weight:800;margin-bottom:4px">${title}</div>
+    <div style="font-size:12px;color:var(--text)">농지분류 면적 <b>${Math.round(fm.area_ha).toLocaleString()}ha</b></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">필지 ${Math.round(fm.parcel_count||0).toLocaleString()}개 · 대표 ${fm.top_class}</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:7px">${farmMapSummaryHtml(fm)}</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:7px">공식 팜맵 농지분류입니다. 작물별 재배면적이 아닙니다.</div>
+  </div>`;
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
@@ -2194,6 +2296,19 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-rank-sub").textContent="전국 주산지 순위";
 
   // ── 리스크 게이지
+  const fmData=d._farmmapLanduse||farmMapForCity(PROV_NAME_MAP[d.sido]||d.sido,name)||farmMapForSidoCode(PROV_NAME_MAP[d.sido]||d.sido);
+  const fmSection=document.getElementById("rp-farmmap-section");
+  if(fmSection){
+    if(fmData){
+      fmSection.style.display="";
+      document.getElementById("rp-farmmap-main").textContent=`${Math.round(fmData.area_ha||0).toLocaleString()} ha`;
+      document.getElementById("rp-farmmap-sub").innerHTML=`필지 ${Math.round(fmData.parcel_count||0).toLocaleString()}개<br>대표 분류 ${fmData.top_class||"—"}<br>작물별 면적 아님`;
+      document.getElementById("rp-farmmap-classes").innerHTML=farmMapSummaryHtml(fmData);
+    }else{
+      fmSection.style.display="none";
+    }
+  }
+
   const gaugeEl=document.getElementById("rp-gauge");
   if(gaugeEl){
     gaugeEl.className="fm-risk-circle "+(rs>=70?"high":rs>=50?"warn":"ok");
@@ -2340,6 +2455,7 @@ function applyForecast(basePrice,days,localPct=0){
 }
 
 function modeColor(ents, sido){
+  if(isFarmMapLayerOn()) return farmMapLanduseColor(farmMapForSidoCode(sido));
   if(!ents.length) return"rgba(80,80,60,.18)";
   if(curMode==="production"){
     const tot=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
@@ -2372,6 +2488,7 @@ function modeColor(ents, sido){
   return priceColor(periodForecastPct(avg,curPeriod));
 }
 function modeCityColor(d){
+  if(isFarmMapLayerOn()&&d?._farmmapLanduse) return farmMapLanduseColor(d._farmmapLanduse);
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
   if(curMode==="risk")       return d.risk_score!=null?riskColor(d.risk_score):"rgba(80,80,60,.18)";
@@ -2424,6 +2541,8 @@ function drawProvinces(){
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(cd,pfx);
+      const fm=farmMapForSidoCode(sido);
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
       if(!ents.length||!isActiveCropProvince(ents))return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
       return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
@@ -2432,6 +2551,7 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(CITY_DATA[curItem]||{},pfx);
       const pname=f.properties.name||"";
+      const fm=farmMapForSidoCode(sido);
       const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
       const totArea=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
       // production_weight: 소수점 합계(0.20+0.10=0.30)이므로 *100하면 전국비중%로 사용
@@ -2441,6 +2561,7 @@ function drawProvinces(){
       const avgYoy=ents.length?ents.reduce((s,[,d])=>s+(d.shipment_yoy||0),0)/ents.length:0;
       const topCity=ents.length?ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a)):null;
       const provinceActive=ents.length&&isActiveCropProvince(ents);
+      const farmMapActive=isFarmMapLayerOn()&&!!fm;
       const provinceD=ents.length?{
         avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
         price_vs_avg:Math.round(avgChg*10)/10,
@@ -2459,6 +2580,14 @@ function drawProvinces(){
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
         click:()=>{hideMapTooltip();if(provinceActive)zoomProv(f,sido,pname);}
       });
+      if(farmMapActive){
+        layer.on({
+          mouseover:e=>{e.target.setStyle({weight:3,color:"#1a3d66",fillOpacity:.95});showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);},
+          mousemove:e=>moveMapTooltip(e),
+          mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
+          click:()=>{hideMapTooltip();zoomProv(f,sido,pname);}
+        });
+      }
     }
   }).addTo(map_);
 
@@ -2571,16 +2700,34 @@ function drawCities(sido){
     style:f=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=activeCodes.has(code)?cd[code]:null;
+      const fm=farmMapForCity(sido,f.properties[nameProp]||code);
+      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
       return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const name=f.properties[nameProp]||code,d=activeCodes.has(code)?cd[code]:null;
+      const fm=farmMapForCity(sido,name);
+      const detailD=d||(fm?{
+        name,
+        sido,
+        province_code:sido,
+        area_ha:fm.area_ha,
+        shipment_ton:0,
+        shipment_yoy:0,
+        production_pct:0,
+        risk_score:20,
+        risk_level:"normal",
+        avg_price:LIVE_NATIONAL_PRICES[curItem]||0,
+        price_vs_avg:0,
+        _farmmapLanduse:fm,
+      }:null);
       const enterCity=e=>{
         const isSelected=curDetailData?.code===code;
         e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
-        showCityTooltip(name,d,e);
+        if(isFarmMapLayerOn()&&fm)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
+        else showCityTooltip(name,d,e);
       };
       const leaveCity=e=>{
         cityLayer.resetStyle(e.target);
@@ -2589,7 +2736,8 @@ function drawCities(sido){
       const enterCityDom=e=>{
         const isSelected=curDetailData?.code===code;
         layer.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
-        showCityTooltip(name,d,e);
+        if(isFarmMapLayerOn()&&fm)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
+        else showCityTooltip(name,d,e);
       };
       const leaveCityDom=()=>{
         cityLayer.resetStyle(layer);
@@ -2614,8 +2762,8 @@ function drawCities(sido){
             document.getElementById("right-detail").style.display="none";
             updateBackBtn();
           } else {
-            showRegionDetail(name,code,d);
-            if(d||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
+            showRegionDetail(name,code,detailD);
+            if(detailD||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
           }
         },
       });

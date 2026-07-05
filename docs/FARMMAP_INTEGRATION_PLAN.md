@@ -152,6 +152,18 @@ python scripts/import_farmmap_landuse_region_summary.py --input data/farmmap/sum
 python scripts/import_farmmap_landuse_region_summary.py --input data/farmmap/summaries/chungbuk_20251231_landuse_summary.json --replace-source
 ```
 
+## Frontend Layer Status
+
+`index.html` now has a `팜맵 농지분류` map layer toggle. It consumes `/api/v1/map/farmmap/landuse-regions`, colors imported provinces/cities by dominant land-use class and area intensity, and shows official land-use area/parcel counts in hover cards and the right detail panel.
+
+Guardrail: this layer is land-use/cultivation-capacity context only. UI copy must continue to say that it is not crop-specific acreage (`작물별 면적 아님`).
+
+Verified local UI behavior on 2026-07-05:
+
+- API coverage after local import: 153 rows, 265,403.6595 ha, Gangwon/Chungbuk/Jeju.
+- Layer toggle activates and recolors imported regions.
+- Clicking a FarmMap-colored city opens the right detail panel and displays official FarmMap totals.
+
 ## Data Integrity
 
 - If a FarmMap source only has land-use type but no crop, label it as land-use context, not crop area.
