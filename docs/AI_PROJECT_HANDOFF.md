@@ -858,3 +858,27 @@ Important caveat:
   - Import Gangwon, Jeju, and Chungbuk land-use summaries into production after deploy.
   - Wire `/api/v1/map/farmmap/landuse-regions` into the map as a source-labeled land-use/capacity overlay, not a crop acreage layer.
   - Build a crop-capacity score by joining crop main-region metadata with FarmMap land-use area and shipment/market origin data.
+
+## Session 55 - Production FarmMap Land-Use Import (2026-07-05)
+
+- After commit `4ca4061` deployed, verified the production endpoint:
+  - `GET https://mk-map.com/api/v1/map/farmmap/landuse-regions`
+  - initial response was `available:false`, confirming the API was live but empty.
+- Imported local land-use summaries into production through:
+  - `POST https://mk-map.com/admin/import/farmmap/landuse-regions`
+  - protected with `X-Admin-Key`
+- Imported production rows:
+  - Gangwon: 89 rows
+  - Jeju: 9 rows
+  - Chungbuk: 55 rows
+- Production verification:
+  - all imported rows: 153 region/class rows, 265,403.6595 ha, 1,777,688 parcels
+  - Gangwon: 89 rows, 104,853.4072 ha, 736,009 parcels
+  - Jeju: 9 rows, 60,352.3251 ha, 289,379 parcels
+  - Chungbuk: 55 rows, 100,197.9273 ha, 752,300 parcels
+- Encoding note:
+  - PowerShell `Invoke-RestMethod | ConvertTo-Json` displayed Korean response text as mojibake, but Python UTF-8 verification confirmed production DB/API values are stored and returned correctly.
+- Next work:
+  - Add a frontend map layer toggle for FarmMap land-use/capacity.
+  - Label it explicitly as `팜맵 농지분류`, not crop acreage.
+  - Use land-use totals as a model feature for regional crop-capacity scoring.
