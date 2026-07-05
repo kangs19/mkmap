@@ -421,40 +421,45 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <aside id="fm-right">
     <div class="fm-rp-scroll" id="right-panel-content">
       <div id="top-view-panel" class="fm-top-panel"></div>
-      <!-- AI 브리핑 패널 (기본 상태) -->
+      <!-- 시장 체크 패널 (기본 상태) -->
       <div id="right-hint" style="display:flex;flex-direction:column;gap:0;">
-        <!-- 브리핑 헤더 -->
+        <!-- 시장 체크 헤더 -->
         <div style="padding:14px 18px 10px;background:white;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <div style="width:32px;height:32px;background:linear-gradient(135deg,#267a18,#4aab30);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">🤖</div>
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#267a18,#4aab30);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px">📊</div>
             <div>
-              <div style="font-size:13px;font-weight:800;color:var(--text)">오늘의 AI 브리핑</div>
+              <div style="font-size:13px;font-weight:800;color:var(--text)">오늘의 시장 체크</div>
               <div style="font-size:10px;color:var(--muted)" id="brief-date">데이터 로딩 중...</div>
             </div>
             <div style="margin-left:auto" id="brief-status-pill"></div>
           </div>
           <div style="font-size:12px;color:var(--text);line-height:1.7;background:#f7f9f4;border-radius:8px;padding:9px 11px;border-left:3px solid var(--accent)" id="brief-summary">
-            전국 농산물 시장 현황을 분석 중입니다...
+            가격·위험·데이터 상태를 불러오는 중입니다...
           </div>
         </div>
-        <!-- 위험 품목 TOP 리스트 -->
+        <!-- 체크 품목 TOP 리스트 -->
         <div style="padding:12px 18px;background:white;border-bottom:1px solid var(--border);">
-          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">주요 위험 품목</div>
+          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">오늘 볼 체크포인트</div>
           <div id="brief-risk-list" style="display:flex;flex-direction:column;gap:6px">
             <div style="font-size:11px;color:var(--muted)">데이터 로딩 중...</div>
           </div>
         </div>
         <!-- 현재 시세 요약 -->
         <div style="padding:12px 18px;background:white;border-bottom:1px solid var(--border);">
-          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">현재 가락시장 시세</div>
+          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">기준 시세</div>
           <div id="brief-prices" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
             <div style="font-size:11px;color:var(--muted)">로딩 중...</div>
           </div>
         </div>
+        <!-- 데이터 상태 -->
+        <div style="padding:12px 18px;background:white;border-bottom:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">데이터 상태</div>
+          <div id="brief-data-status" style="display:grid;gap:6px"></div>
+        </div>
         <!-- 지도 안내 -->
         <div style="padding:14px 18px;text-align:center;">
           <div style="font-size:28px;margin-bottom:8px;opacity:.3">🗺️</div>
-          <div style="font-size:11px;color:var(--muted);line-height:2">지도에서 지역을 클릭하면<br>상세 가격 예측 정보가 표시됩니다</div>
+          <div style="font-size:11px;color:var(--muted);line-height:2">지도에서 색이 진한 지역은 대표 산지 또는 실측 시장 데이터가 확인된 곳입니다.<br>지역을 클릭하면 가격·재배·시장 근거가 열립니다</div>
         </div>
       </div>
       <!-- 상세 패널 (클릭 후 표시) -->
@@ -1408,12 +1413,12 @@ function setView(type,el){
   redrawMap();
 }
 
-// ── AI 브리핑 기본 패널 렌더 ──────────────────────────────────────────────
+// ── 시장 체크 기본 패널 렌더 ──────────────────────────────────────────────
 function renderDefaultPanel(){
   const now=new Date();
   const dateStr=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
   const elDate=document.getElementById("brief-date");
-  if(elDate) elDate.textContent=`${dateStr} ${LIVE_BASE_DATE?"· AI 분석 완료":"· 데이터 수집 중"}`;
+  if(elDate) elDate.textContent=`${dateStr} ${LIVE_BASE_DATE?"· 예측 기준 "+LIVE_BASE_DATE:"· 데이터 수집 중"}`;
 
   const RL={normal:"정상",caution:"주의",warning:"경고",high:"위험"};
   const RC={normal:"#1a8a1a",caution:"#a07010",warning:"#b86010",high:"#c02828"};
@@ -1434,6 +1439,20 @@ function renderDefaultPanel(){
     };
   }).sort((a,b)=>(b.score??-1)-(a.score??-1));
   const liveRanked=ranked.filter(r=>r.score!=null||r.prob!=null);
+  const priceRanked=Object.entries(LIVE_NATIONAL_PRICES)
+    .map(([k,price])=>({k,it:ITEMS[k],price}))
+    .filter(r=>r.it&&r.price)
+    .sort((a,b)=>b.price-a.price);
+  const representativeRegionCount=Object.values(CITY_DATA[curItem]||{}).filter(isActiveCropCity).length;
+  const cropProvinceCards=Object.entries(SIDO_SHORT).map(([sido,shortName])=>{
+    const regions=activeCropCitiesInSido(curItem,sido);
+    if(!regions.length) return null;
+    const ton=regions.reduce((sum,row)=>sum+(row.shipment_ton||row.production_ton||0),0);
+    const area=regions.reduce((sum,row)=>sum+(row.area_ha||0),0);
+    const yoyRows=regions.filter(row=>row.shipment_yoy!=null);
+    const yoy=yoyRows.length?yoyRows.reduce((sum,row)=>sum+(row.shipment_yoy||0),0)/yoyRows.length:null;
+    return {sido,shortName,regions,ton,area,yoy};
+  }).filter(Boolean).sort((a,b)=>b.ton-a.ton);
 
   // ── 요약 문구 ──
   const topRisk=liveRanked[0];
@@ -1443,8 +1462,11 @@ function renderDefaultPanel(){
   const downItems=liveRanked.filter(r=>r.prob!=null&&r.prob<0.4);
 
   let summary="";
-  if(!hasLive){
-    summary="AI 예측 모델 초기화 중입니다. 전국 농산물 가격 데이터가 곧 표시됩니다.";
+  if(!hasLive&&priceRanked.length){
+    const priceNames=priceRanked.slice(0,3).map(r=>`${r.it.name} ${Math.round(r.price).toLocaleString()}원`).join(" · ");
+    summary=`실시간 예측은 아직 수집 중입니다. 우선 기준 시세가 들어온 품목을 확인하세요: ${priceNames}. 지도에서는 진한 지역을 눌러 대표 산지·시장 근거를 볼 수 있습니다.`;
+  } else if(!hasLive){
+    summary=`예측 데이터 수집 중입니다. 현재 화면은 대표 산지 ${representativeRegionCount}곳과 연결 가능한 가격 API 상태를 먼저 보여줍니다.`;
   } else if(highCount>0){
     const highNames=liveRanked.filter(r=>r.level==="high").map(r=>r.it.name).join("·");
     summary=`🔴 위험 품목 ${highCount}개 감지: ${highNames}. ${topRisk.it.name}의 14일 상승 확률 ${Math.round(topRisk.prob*100)}%로 주산지 모니터링이 필요합니다.`;
@@ -1458,11 +1480,47 @@ function renderDefaultPanel(){
   const elSummary=document.getElementById("brief-summary");
   if(elSummary) elSummary.textContent=summary;
 
-  // ── 위험 품목 TOP 5 (디테일 강화) ──
+  // ── 오늘 봐야 할 품목 TOP 5 (위험/가격 데이터 기반) ──
   const elList=document.getElementById("brief-risk-list");
   if(elList){
     if(!liveRanked.length){
-      elList.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:10px;background:#f8fbf5;border:1px dashed #d6e3c7;border-radius:9px">예측 API에서 검증된 위험/확률 값이 아직 도착하지 않았습니다. 임의 기본값은 표시하지 않습니다.</div>`;
+      if(priceRanked.length){
+        elList.innerHTML=priceRanked.slice(0,5).map(({k,it,price})=>`
+          <div onclick="selectItem('${k}')" style="padding:8px 9px;background:#f8fbf5;border:1px solid #dbe8d4;border-radius:9px;cursor:pointer">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div>
+                <div style="font-size:11px;font-weight:800;color:var(--text)">${it.emoji} ${it.name}</div>
+                <div style="font-size:9px;color:var(--muted);margin-top:2px">예측 수집 전 · 기준 시세 우선 확인</div>
+              </div>
+              <div style="font-size:12px;font-weight:900;color:var(--text)">${Math.round(price).toLocaleString()}원</div>
+            </div>
+          </div>
+        `).join("");
+      }else if(cropProvinceCards.length){
+        const current=ITEMS[curItem]||{emoji:"🌿",name:"선택 품목"};
+        elList.innerHTML=cropProvinceCards.slice(0,4).map(card=>{
+          const topNames=card.regions.slice(0,3).map(row=>row.name).join("·");
+          const tonLabel=card.ton>=10000?(card.ton/10000).toFixed(1)+"만 톤":card.ton>=1000?(card.ton/1000).toFixed(1)+"천 톤":card.ton?Math.round(card.ton)+"톤":"출하량 미확인";
+          const areaLabel=card.area>=10000?(card.area/10000).toFixed(1)+"만 ha":card.area?Math.round(card.area).toLocaleString()+" ha":"면적 미확인";
+          const yoyLabel=card.yoy==null?"전년비 미확인":`${card.yoy>0?"+":""}${card.yoy.toFixed(1)}% 전년비`;
+          const yoyColor=card.yoy==null?"#7a8a6a":card.yoy>0?"#c02828":"#1a8a1a";
+          return`<div onclick="zoomProvinceByCode('${card.sido}')" style="padding:8px 9px;background:#f8fbf5;border:1px solid #dbe8d4;border-radius:9px;cursor:pointer">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div style="min-width:0">
+                <div style="font-size:11px;font-weight:800;color:var(--text)">${current.emoji} ${card.shortName} ${current.name}</div>
+                <div style="font-size:9px;color:var(--muted);margin-top:2px">${topNames}${card.regions.length>3?` 외 ${card.regions.length-3}곳`:""} · 대표 산지</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-size:11px;font-weight:900;color:var(--text)">${tonLabel}</div>
+                <div style="font-size:9px;color:${yoyColor};font-weight:800">${yoyLabel}</div>
+                <div style="font-size:8px;color:#9aaa8a">${areaLabel}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join("");
+      }else{
+        elList.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:10px;background:#f8fbf5;border:1px dashed #d6e3c7;border-radius:9px;line-height:1.55">검증된 위험/확률 값이 아직 도착하지 않았습니다. 임의 순위는 표시하지 않고, 가격 API와 예측 API가 도착하면 자동으로 채웁니다.</div>`;
+      }
     }else{
     elList.innerHTML=liveRanked.slice(0,5).map(({k,it,score,level,prob,surge,vol,region,sig})=>{
       const lv=RL[level]||"정상";
@@ -1532,6 +1590,52 @@ function renderDefaultPanel(){
     } else {
       elPrices.innerHTML=`<div style="font-size:11px;color:var(--muted);grid-column:span 2;padding:8px">시세 데이터 수집 중...</div>`;
     }
+  }
+
+  const elStatus=document.getElementById("brief-data-status");
+  if(elStatus){
+    const statusRows=[
+      {
+        label:"예측 신호",
+        value:liveRanked.length?`${liveRanked.length}개 품목`:(LIVE_BASE_DATE?"기준일 확인":"수집 중"),
+        tone:liveRanked.length?"live":"wait",
+        note:liveRanked.length&&LIVE_BASE_DATE?`${LIVE_BASE_DATE} 기준`:(LIVE_BASE_DATE?"품목별 위험/확률 행 대기":"검증된 값만 표시"),
+      },
+      {
+        label:"기준 시세",
+        value:priceRanked.length?`${priceRanked.length}개 품목`:"수집 중",
+        tone:priceRanked.length?"live":"wait",
+        note:"KAMIS/시장 가격 API",
+      },
+      {
+        label:"지도 산지",
+        value:`${representativeRegionCount}곳`,
+        tone:representativeRegionCount?"model":"wait",
+        note:"대표·검증 산지 기준, 미표시는 출하 없음이 아님",
+      },
+      {
+        label:"지역 시장가",
+        value:LIVE_REGIONAL_PRICES[curItem]?.sido_avg?`${Object.keys(LIVE_REGIONAL_PRICES[curItem].sido_avg).length}개 시도`:"선택 품목 수집 중",
+        tone:LIVE_REGIONAL_PRICES[curItem]?.sido_avg?"live":"wait",
+        note:"도매시장 실측 평균, 없으면 대표 시장 기준",
+      },
+    ];
+    const toneMap={
+      live:["#e8f5e9","#1a8a1a","실데이터"],
+      model:["#f7f9f4","#6a7a5a","대표"],
+      wait:["#f8f8f4","#9aaa8a","대기"],
+    };
+    elStatus.innerHTML=statusRows.map(row=>{
+      const tone=toneMap[row.tone]||toneMap.wait;
+      return`<div style="display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:${tone[0]}">
+        <div style="font-size:10px;font-weight:800;color:var(--text)">${row.label}</div>
+        <div style="min-width:0">
+          <div style="font-size:11px;font-weight:800;color:${tone[1]}">${row.value}</div>
+          <div style="font-size:9px;color:var(--muted);line-height:1.35">${row.note}</div>
+        </div>
+        <span class="fm-data-tag ${row.tone==="live"?"live":row.tone==="model"?"model":"none"}">${tone[2]}</span>
+      </div>`;
+    }).join("");
   }
 }
 
@@ -2789,6 +2893,10 @@ function zoomProv(f,sido,pname){
   map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
   drawCities(sido);
   updateBackBtn();
+}
+function zoomProvinceByCode(sido){
+  const feature=provGeo?.features?.find(f=>getSido(f)===sido);
+  if(feature) zoomProv(feature,sido,feature.properties?.name||SIDO_SHORT[sido]||sido);
 }
 
 function goBack(){
