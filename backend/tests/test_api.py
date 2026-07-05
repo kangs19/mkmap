@@ -13,6 +13,7 @@ from app.models.forecast import Forecast
 from app.models.item import Item
 from app.models.price import DailyPrice
 from app.models.signal import RegionSignal
+from app.models.farmmap import FarmMapLanduseRegion
 
 
 @pytest.fixture
@@ -288,6 +289,35 @@ async def test_farmmap_crop_regions_contract(client):
     assert data["source"] == "farmmap"
     assert "available" in data
     assert "regions" in data
+
+
+@pytest.mark.asyncio
+async def test_farmmap_landuse_regions_contract(client):
+    source_file = "test_farmmap_landuse.json"
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(FarmMapLanduseRegion).where(FarmMapLanduseRegion.source_file == source_file))
+        db.add(FarmMapLanduseRegion(
+            sido="제주특별자치도",
+            sigungu="제주시",
+            landuse_class="밭",
+            parcel_count=12,
+            area_m2=345000.0,
+            area_ha=34.5,
+            source_file=source_file,
+            source="farmmap",
+            confidence="landuse_only",
+        ))
+        await db.commit()
+
+    r = await client.get("/api/v1/map/farmmap/landuse-regions?sido=제주특별자치도")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["available"] is True
+    assert data["source"] == "farmmap"
+    assert data["source_type"] == "landuse_only"
+    assert data["total_area_ha"] >= 34.5
+    assert data["class_totals_ha"]["밭"] >= 34.5
+    assert any(row["source_file"] == source_file for row in data["regions"])
 
 
 @pytest.mark.asyncio

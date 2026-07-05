@@ -98,6 +98,60 @@ python scripts/audit_farmmap_spatial_file.py --input data/farmmap/raw/농림수�
 python scripts/build_farmmap_landuse_region_summary.py --input data/farmmap/raw/농림수산식품교육문화정보원_팜맵공간정보_강원특별자치도_20251231.zip --output data/farmmap/summaries/gangwon_20251231_landuse_summary.json
 ```
 
+## Additional Verified Sources
+
+Verified on 2026-07-05 KST after the Gangwon audit:
+
+| Province | data.go.kr ID | Size | DBF Records | Summary Rows | Total Area ha | Crop Field |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| 제주특별자치도 | `15104491` | 102,333,467 bytes | 289,379 | 9 | 60,352.325070 | none |
+| 충청북도 | `15104484` | 222,109,625 bytes | 752,300 | 55 | 100,197.927280 | none |
+
+Both files have the same land-use attribute structure as Gangwon:
+
+- `CLSF_NM`: land-use class such as `밭`, `논`, `시설`, `과수`, `비경지`
+- `AREA`: parcel/feature area
+- `STDG_ADDR`, `PNU`: legal address and parcel code context
+- no direct crop/item-name field
+
+Local generated outputs:
+
+- `data/farmmap/audits/jeju_20251231_audit.json`
+- `data/farmmap/audits/chungbuk_20251231_audit.json`
+- `data/farmmap/summaries/jeju_20251231_landuse_summary.json`
+- `data/farmmap/summaries/chungbuk_20251231_landuse_summary.json`
+
+Metadata-only verification also succeeded for the remaining configured sources:
+
+| Province | data.go.kr ID | Size | Status |
+| --- | --- | ---: | --- |
+| 전라남도 | `15104487` | 496,131,837 bytes | metadata verified, download/audit pending |
+| 전북특별자치도 | `15104486` | 326,411,942 bytes | metadata verified, download/audit pending |
+| 경상북도 | `15104488` | 466,616,679 bytes | metadata verified, download/audit pending |
+| 경상남도 | `15104489` | 362,772,286 bytes | metadata verified, download/audit pending |
+| 경기도 | `15104483` | 296,000,024 bytes | metadata verified, download/audit pending |
+
+Current conclusion: the official province FarmMap files checked so far are valuable for agricultural land-use, parcel density, and regional cultivation-capacity features. They do not directly solve crop-specific acreage. Crop-specific map coloring should still be driven by KOSIS/main-production-region metadata and crop/weather/market data, then optionally weighted or validated by FarmMap land-use area.
+
+## Backend Land-Use Storage
+
+Implemented storage/API path:
+
+- model: `FarmMapLanduseRegion`
+- table: `farmmap_landuse_regions`
+- importer: `scripts/import_farmmap_landuse_region_summary.py`
+- admin API: `POST /admin/import/farmmap/landuse-regions`
+- public API: `GET /api/v1/map/farmmap/landuse-regions`
+
+The API deliberately uses `source_type: landuse_only`. This is a product guardrail: land-use summaries can support capacity/risk modeling, but must not be displayed as crop-specific production acreage.
+
+Example local import:
+
+```bash
+python scripts/import_farmmap_landuse_region_summary.py --input data/farmmap/summaries/jeju_20251231_landuse_summary.json --replace-source
+python scripts/import_farmmap_landuse_region_summary.py --input data/farmmap/summaries/chungbuk_20251231_landuse_summary.json --replace-source
+```
+
 ## Data Integrity
 
 - If a FarmMap source only has land-use type but no crop, label it as land-use context, not crop area.

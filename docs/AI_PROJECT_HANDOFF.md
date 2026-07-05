@@ -780,3 +780,81 @@ Important caveat:
   - Check whether any province/source variant includes a real crop attribute field.
   - Add a DB model/import path for FarmMap land-use summaries if the UI/model will consume this feature directly.
   - Combine land-use area with existing crop main-region metadata to create a sourced regional crop-capacity feature.
+
+## Session 53 - FarmMap Source Expansion: Jeju And Chungbuk (2026-07-05)
+
+- User requested continued sequential progress.
+- Verified metadata for all configured FarmMap public-source candidates in `config/farmmap_public_sources.json`.
+- Updated `config/farmmap_public_sources.json`:
+  - added `detail_pk` for Jeonnam, Jeju, Jeonbuk, Gyeongbuk, Gyeongnam, Gyeonggi, and Chungbuk.
+  - added verified content lengths for each source.
+  - marked Gangwon, Jeju, and Chungbuk as `verified_downloaded_landuse_only`.
+  - marked the remaining provinces as `verified_metadata_needs_download_audit`.
+- Downloaded and audited two additional priority sources:
+  - Jeju: `농림수산식품교육문화정보원_팜맵공간정보_제주특별자치도_20251231.zip`
+    - data.go.kr ID `15104491`
+    - size 102,333,467 bytes
+    - 2 SHP/DBF bundles
+    - 289,379 DBF records
+    - land-use summary: 9 region/class rows, 60,352.325070 ha
+  - Chungbuk: `농림수산식품교육문화정보원_팜맵공간정보_충청북도_20251231.zip`
+    - data.go.kr ID `15104484`
+    - size 222,109,625 bytes
+    - 11 SHP/DBF bundles
+    - 752,300 DBF records
+    - land-use summary: 55 region/class rows, 100,197.927280 ha
+- Important repeated finding:
+  - Jeju and Chungbuk use the same DBF structure as Gangwon.
+  - Fields include `CLSF_NM`, `CLSF_CD`, `STDG_ADDR`, `PNU`, `AREA`, `SOURCE_NM`, `FLIGHT_YMD`, and `UPDT_YMD`.
+  - No direct crop/item-name field exists.
+  - `CLSF_NM` is land-use classification (`밭`, `논`, `시설`, `과수`, `비경지`), not a crop name.
+- Generated local untracked outputs:
+  - `data/farmmap/audits/jeju_20251231_audit.json`
+  - `data/farmmap/audits/chungbuk_20251231_audit.json`
+  - `data/farmmap/summaries/jeju_20251231_landuse_summary.json`
+  - `data/farmmap/summaries/chungbuk_20251231_landuse_summary.json`
+- Product/data decision strengthened:
+  - The official province FarmMap sources are not crop-specific layers.
+  - Use them as land-use/parcel/cultivation-capacity features.
+  - Keep crop-specific coloring and crop-specific production claims sourced from KOSIS/main production-region data, crop-weather-region metadata, market shipment/origin data, or any future source that actually includes crop attributes.
+- Next work:
+  - Add persistent storage/import/API for `farmmap_landuse_regions`.
+  - Join land-use area with existing crop main-region metadata to produce a source-labeled regional crop-capacity score.
+  - Continue downloading/auditing Jeonnam, Jeonbuk, Gyeongbuk, Gyeongnam, and Gyeonggi when disk/time budget allows.
+
+## Session 54 - FarmMap Land-Use DB And API Path (2026-07-05)
+
+- Continued without waiting for user confirmation.
+- Added persistent backend storage for verified FarmMap land-use summaries:
+  - model/table: `FarmMapLanduseRegion` / `farmmap_landuse_regions`
+  - unique key: `sido + sigungu + landuse_class + source_file`
+  - separate from `FarmMapCropRegion` to prevent land-use area being mistaken for crop-specific area.
+- Added local importer:
+  - `scripts/import_farmmap_landuse_region_summary.py`
+  - accepts summary JSON from `scripts/build_farmmap_landuse_region_summary.py`
+  - supports `--replace-source`
+  - fixed relative path handling so `data/...` paths are resolved from repo root even after the script switches into `backend/`.
+- Also fixed the same relative path issue in:
+  - `scripts/import_farmmap_crop_region_summary.py`
+- Added admin import API:
+  - `POST /admin/import/farmmap/landuse-regions`
+  - protected by `X-Admin-Key`
+  - imports the same land-use summary JSON shape into Railway DB.
+- Added public map API:
+  - `GET /api/v1/map/farmmap/landuse-regions`
+  - optional filters: `sido`, `landuse_class`
+  - returns `source_type: landuse_only`, totals, class totals, area share, and per-region rows.
+- Added API contract test:
+  - `test_farmmap_landuse_regions_contract`
+  - inserts a sample Jeju land-use row and verifies public API totals/class totals.
+- Verification:
+  - Temporary SQLite import test succeeded with Jeju summary:
+    - saved 9 rows
+    - total area 60,352.325070 ha
+    - top row: 제주특별자치도 / 제주시 / 밭 / 23,664.155 ha
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - `python -m pytest tests/test_api.py -v --tb=short` passed: 32 passed.
+- Next work:
+  - Import Gangwon, Jeju, and Chungbuk land-use summaries into production after deploy.
+  - Wire `/api/v1/map/farmmap/landuse-regions` into the map as a source-labeled land-use/capacity overlay, not a crop acreage layer.
+  - Build a crop-capacity score by joining crop main-region metadata with FarmMap land-use area and shipment/market origin data.

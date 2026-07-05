@@ -43,6 +43,40 @@ class FarmMapCropRegion(Base):
     )
 
 
+class FarmMapLanduseRegion(Base):
+    """Aggregated FarmMap land-use context by region.
+
+    Province FarmMap sources checked so far expose land-use classes rather than
+    crop names. Keep this table separate from crop-specific acreage so the UI
+    and model cannot accidentally present land-use area as crop area.
+    """
+
+    __tablename__ = "farmmap_landuse_regions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sido: Mapped[str] = mapped_column(String(30), nullable=False)
+    sigungu: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    landuse_class: Mapped[str] = mapped_column(String(30), nullable=False)
+    parcel_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    area_ha: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_file: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    source: Mapped[str] = mapped_column(String(50), default="farmmap")
+    confidence: Mapped[str] = mapped_column(String(30), default="landuse_only")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "sido",
+            "sigungu",
+            "landuse_class",
+            "source_file",
+            name="uq_farmmap_landuse_region_source",
+        ),
+        Index("ix_farmmap_landuse_regions_region", "sido", "sigungu", "landuse_class"),
+    )
+
+
 class FarmMapSourceFile(Base):
     """Audit record for a FarmMap source file before import."""
 

@@ -60,6 +60,7 @@ PY_COMPILE_TARGETS = [
     "scripts/build_farmmap_crop_region_summary.py",
     "scripts/build_farmmap_landuse_region_summary.py",
     "scripts/import_farmmap_crop_region_summary.py",
+    "scripts/import_farmmap_landuse_region_summary.py",
     "scripts/download_farmmap_source.py",
     "scripts/run_smoke_suite.py",
     "backend/app/main.py",

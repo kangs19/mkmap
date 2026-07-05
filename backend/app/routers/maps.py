@@ -11,7 +11,7 @@ from app.models.price import DailyPrice
 from app.models.production import CropProduction
 from app.timezone import kst_today
 from app.models.regional_price import RegionalMarketPrice
-from app.models.farmmap import FarmMapCropRegion
+from app.models.farmmap import FarmMapCropRegion, FarmMapLanduseRegion
 
 router = APIRouter(tags=["maps"])
 
@@ -347,6 +347,74 @@ async def get_farmmap_crop_regions(
                 "geometry_level": row.geometry_level,
                 "source_file": row.source_file,
                 "source_year": row.source_year,
+                "confidence": row.confidence,
+            }
+            for row in rows
+        ],
+    }
+
+
+@router.get("/api/v1/map/farmmap/landuse-regions")
+async def get_farmmap_landuse_regions(
+    sido: str | None = None,
+    landuse_class: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    conditions = []
+    if sido:
+        conditions.append(FarmMapLanduseRegion.sido == sido)
+    if landuse_class:
+        conditions.append(FarmMapLanduseRegion.landuse_class == landuse_class)
+
+    query = select(FarmMapLanduseRegion)
+    if conditions:
+        query = query.where(and_(*conditions))
+    rows = (await db.execute(
+        query.order_by(FarmMapLanduseRegion.area_ha.desc().nullslast(), FarmMapLanduseRegion.parcel_count.desc().nullslast())
+    )).scalars().all()
+
+    if not rows:
+        return {
+            "available": False,
+            "source": "farmmap",
+            "source_type": "landuse_only",
+            "regions": [],
+            "note": "FarmMap land-use summaries have not been imported yet.",
+        }
+
+    total_area_ha = sum(float(row.area_ha or 0.0) for row in rows)
+    total_parcel_count = sum(int(row.parcel_count or 0) for row in rows)
+    class_totals: dict[str, float] = {}
+    for row in rows:
+        class_totals[row.landuse_class] = class_totals.get(row.landuse_class, 0.0) + float(row.area_ha or 0.0)
+
+    return {
+        "available": True,
+        "source": "farmmap",
+        "source_type": "landuse_only",
+        "sido": sido,
+        "landuse_class": landuse_class,
+        "region_count": len(rows),
+        "total_area_ha": round(total_area_ha, 4) if total_area_ha else None,
+        "total_parcel_count": total_parcel_count or None,
+        "class_totals_ha": {
+            key: round(value, 4)
+            for key, value in sorted(class_totals.items(), key=lambda item: item[1], reverse=True)
+        },
+        "regions": [
+            {
+                "sido": row.sido,
+                "sigungu": row.sigungu,
+                "landuse_class": row.landuse_class,
+                "parcel_count": row.parcel_count,
+                "area_m2": row.area_m2,
+                "area_ha": row.area_ha,
+                "area_share_pct": (
+                    round(float(row.area_ha or 0.0) / total_area_ha * 100.0, 2)
+                    if total_area_ha and row.area_ha is not None
+                    else None
+                ),
+                "source_file": row.source_file,
                 "confidence": row.confidence,
             }
             for row in rows

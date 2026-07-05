@@ -2373,6 +2373,25 @@ class FarmMapCropRegionImportRequest(BaseModel):
     rows: list[FarmMapCropRegionRow]
 
 
+class FarmMapLanduseRegionRow(BaseModel):
+    sido: str
+    sigungu: Optional[str] = None
+    landuse_class: str
+    parcel_count: Optional[int] = None
+    area_m2: Optional[float] = None
+    area_ha: Optional[float] = None
+    source_file: Optional[str] = None
+    source: str = "farmmap"
+
+
+class FarmMapLanduseRegionImportRequest(BaseModel):
+    source_file: str = "unknown"
+    source_rows: int = 0
+    total_area_ha: Optional[float] = None
+    replace_source: bool = True
+    rows: list[FarmMapLanduseRegionRow]
+
+
 @router.post("/import/production")
 async def import_production(
     rows: list[ProductionRow],
@@ -2445,6 +2464,54 @@ async def import_farmmap_crop_regions(
         )
         for row in payload.rows
         if row.item_code and row.sido
+    ]
+    db.add_all(objects)
+    await db.commit()
+    return {
+        "saved": len(objects),
+        "source_file": source_file,
+        "status": "ok",
+    }
+
+
+@router.post("/import/farmmap/landuse-regions")
+async def import_farmmap_landuse_regions(
+    payload: FarmMapLanduseRegionImportRequest,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(check_admin),
+):
+    """Import audited FarmMap land-use summaries into Railway DB."""
+    from sqlalchemy import delete
+    from app.models.farmmap import FarmMapLanduseRegion, FarmMapSourceFile
+
+    source_file = payload.source_file or "unknown"
+    if payload.replace_source:
+        await db.execute(delete(FarmMapLanduseRegion).where(FarmMapLanduseRegion.source_file == source_file))
+        await db.execute(delete(FarmMapSourceFile).where(FarmMapSourceFile.file_name == source_file))
+
+    db.add(FarmMapSourceFile(
+        file_name=source_file,
+        file_format="landuse_summary_json",
+        detected_fields_json=json.dumps(["sido", "sigungu", "landuse_class", "parcel_count", "area_m2", "area_ha"], ensure_ascii=False),
+        detected_crops_json=json.dumps({}, ensure_ascii=False),
+        import_status="imported_landuse_only",
+        notes=f"source_rows={payload.source_rows}, total_area_ha={payload.total_area_ha}",
+    ))
+
+    objects = [
+        FarmMapLanduseRegion(
+            sido=row.sido,
+            sigungu=row.sigungu,
+            landuse_class=row.landuse_class,
+            parcel_count=row.parcel_count,
+            area_m2=row.area_m2,
+            area_ha=row.area_ha,
+            source_file=row.source_file or source_file,
+            source=row.source,
+            confidence="landuse_only",
+        )
+        for row in payload.rows
+        if row.sido and row.landuse_class
     ]
     db.add_all(objects)
     await db.commit()

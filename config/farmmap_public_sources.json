@@ -6,7 +6,7 @@
       "detail_pk": "uddi:4252579a-60c4-45e4-97e8-935cfef0da25",
       "detail_url": "https://www.data.go.kr/data/15104490/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "verified_downloaded",
+      "verification_status": "verified_downloaded_landuse_only",
       "verified_file_name": "\ub18d\ub9bc\uc218\uc0b0\uc2dd\ud488\uad50\uc721\ubb38\ud654\uc815\ubcf4\uc6d0_\ud31c\ub9f5\uacf5\uac04\uc815\ubcf4_\uac15\uc6d0\ud2b9\ubcc4\uc790\uce58\ub3c4_20251231.zip",
       "verified_content_length": 203035902,
       "priority_items": ["cabbage", "radish"]
@@ -14,57 +14,73 @@
     {
       "province": "\uc804\ub77c\ub0a8\ub3c4",
       "data_id": "15104487",
+      "detail_pk": "uddi:853e3a13-aa57-4377-a301-c2bbf8343803",
       "detail_url": "https://www.data.go.kr/data/15104487/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_metadata_needs_download_audit",
+      "verified_content_length": 496131837,
       "priority_items": ["onion", "garlic", "green_onion"]
     },
     {
       "province": "\uc81c\uc8fc\ud2b9\ubcc4\uc790\uce58\ub3c4",
       "data_id": "15104491",
+      "detail_pk": "uddi:27928813-dd67-4beb-a86a-b021cd7a0227",
       "detail_url": "https://www.data.go.kr/data/15104491/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_downloaded_landuse_only",
+      "verified_file_name": "\ub18d\ub9bc\uc218\uc0b0\uc2dd\ud488\uad50\uc721\ubb38\ud654\uc815\ubcf4\uc6d0_\ud31c\ub9f5\uacf5\uac04\uc815\ubcf4_\uc81c\uc8fc\ud2b9\ubcc4\uc790\uce58\ub3c4_20251231.zip",
+      "verified_content_length": 102333467,
       "priority_items": ["radish", "garlic"]
     },
     {
       "province": "\uc804\ubd81\ud2b9\ubcc4\uc790\uce58\ub3c4",
       "data_id": "15104486",
+      "detail_pk": "uddi:1d067e4e-de2c-4522-99ba-8ce5a63b3065",
       "detail_url": "https://www.data.go.kr/data/15104486/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_metadata_needs_download_audit",
+      "verified_content_length": 326411942,
       "priority_items": ["onion", "garlic"]
     },
     {
       "province": "\uacbd\uc0c1\ubd81\ub3c4",
       "data_id": "15104488",
+      "detail_pk": "uddi:009ab226-cf95-440c-84cd-9e4be753c216",
       "detail_url": "https://www.data.go.kr/data/15104488/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_metadata_needs_download_audit",
+      "verified_content_length": 466616679,
       "priority_items": ["garlic", "onion"]
     },
     {
       "province": "\uacbd\uc0c1\ub0a8\ub3c4",
       "data_id": "15104489",
+      "detail_pk": "uddi:c42b4a2a-4232-4175-8bde-eb87ecca6ca4",
       "detail_url": "https://www.data.go.kr/data/15104489/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_metadata_needs_download_audit",
+      "verified_content_length": 362772286,
       "priority_items": ["garlic", "onion", "green_onion"]
     },
     {
       "province": "\uacbd\uae30\ub3c4",
       "data_id": "15104483",
+      "detail_pk": "uddi:fd53df82-00da-49b1-9c2f-a35b7c2822af",
       "detail_url": "https://www.data.go.kr/data/15104483/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_metadata_needs_download_audit",
+      "verified_content_length": 296000024,
       "priority_items": ["green_onion"]
     },
     {
       "province": "\ucda9\uccad\ubd81\ub3c4",
       "data_id": "15104484",
+      "detail_pk": "uddi:946d754c-378b-422a-9b96-c95a1ba423f6",
       "detail_url": "https://www.data.go.kr/data/15104484/fileData.do",
       "standard_date": "2025-12-31",
-      "verification_status": "candidate_needs_download_verification",
+      "verification_status": "verified_downloaded_landuse_only",
+      "verified_file_name": "\ub18d\ub9bc\uc218\uc0b0\uc2dd\ud488\uad50\uc721\ubb38\ud654\uc815\ubcf4\uc6d0_\ud31c\ub9f5\uacf5\uac04\uc815\ubcf4_\ucda9\uccad\ubd81\ub3c4_20251231.zip",
+      "verified_content_length": 222109625,
       "priority_items": ["cabbage", "radish", "garlic"]
     }
   ]
