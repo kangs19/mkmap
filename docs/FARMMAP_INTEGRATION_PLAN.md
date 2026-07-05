@@ -213,6 +213,15 @@ Next model step:
 - Keep the feature columns, but do not promote the candidate artifacts yet.
 - Main improvement path: wider FarmMap coverage plus a region/date-level model instead of only static item-level priors.
 
+Contribution audit:
+
+- Tool: `scripts/audit_farmmap_feature_contribution.py`.
+- Output: `data/model/horizons/price_horizon_model_20260705_farmmap_candidate_farmmap_contribution.json`.
+- Result: FarmMap features are active in all trained candidate horizons.
+- Mean FarmMap contribution share: `0.2220334`.
+- `farmmap_capacity_score_norm` is the main FarmMap driver, especially on 90d and 180d.
+- Product/model implication: FarmMap signal is meaningful, but current item-level static prior is too blunt for automatic promotion. Broader regional FarmMap coverage and region/date feature joins should come before active model replacement.
+
 ## Data Integrity
 
 - If a FarmMap source only has land-use type but no crop, label it as land-use context, not crop area.

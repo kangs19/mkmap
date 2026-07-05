@@ -27,6 +27,7 @@ PY_COMPILE_TARGETS = [
     "scripts/run_meta_pipeline.py",
     "scripts/audit_agromarket_data_availability.py",
     "scripts/audit_price_model_robustness.py",
+    "scripts/audit_farmmap_feature_contribution.py",
     "scripts/audit_price_temporal_item_breakdown.py",
     "scripts/audit_price_horizon_quality.py",
     "scripts/audit_prediction_feature_coverage.py",

@@ -1045,3 +1045,31 @@ Important caveat:
   - add wider FarmMap province coverage to reduce missing flags.
   - try region/date-level training once regional price, weather, shipment-share, and FarmMap rows can be joined directly.
   - add a feature contribution audit for the new FarmMap columns so explanations show whether they are helping or simply adding noise.
+
+## Session 61 - FarmMap Feature Contribution Audit (2026-07-05)
+
+- Added `scripts/audit_farmmap_feature_contribution.py`.
+- Purpose:
+  - checks whether FarmMap feature columns are actually used by trained horizon models.
+  - measures recent-row linear contribution size for each FarmMap feature.
+  - ranks FarmMap contribution against all model features.
+- Added the script to `scripts/run_smoke_suite.py` py-compile targets.
+- Ran contribution audit against:
+  - features: `data/model/price_training_table_20260705.csv`
+  - models: `data/model/horizons`
+  - prefix: `price_horizon_model_20260705_farmmap_candidate`
+  - output: `data/model/horizons/price_horizon_model_20260705_farmmap_candidate_farmmap_contribution.json`
+- Audit result:
+  - audited horizons: 1, 7, 14, 30, 90, 180
+  - 365d model missing, because 365d target rows were unavailable.
+  - FarmMap features were active in all audited horizons.
+  - mean FarmMap contribution share across audited horizons: `0.2220334`.
+- Key observations:
+  - `farmmap_capacity_score_norm` was the strongest FarmMap feature in every audited horizon.
+  - 7d, 90d, and 180d showed `farmmap_capacity_score_norm` as the top-ranked or near-top-ranked feature by recent mean absolute contribution.
+  - 90d FarmMap contribution share: `0.25528875`.
+  - 180d FarmMap contribution share: `0.35926922`.
+- Decision:
+  - contribution is real, not dead code.
+  - do not promote yet, because the candidate model failed champion comparison on direction/MAE gates.
+  - next model work should reduce unstable FarmMap influence by adding better regional coverage and region/date joins rather than static item-level priors only.
