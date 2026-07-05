@@ -95,7 +95,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   position:fixed;display:none;z-index:9999;pointer-events:none;
   background:white;border:1.5px solid #d8e0cc;border-radius:14px;
   box-shadow:0 8px 28px rgba(0,0,0,.2);
-  min-width:270px;max-width:300px;
+  min-width:320px;max-width:390px;
   max-height:calc(100vh - 32px);overflow-y:auto;
   transition:opacity .1s;
 }
@@ -2011,9 +2011,10 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-area-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-area-sub").textContent=yoy?(yoy>0?"▲":"▼")+Math.abs(yoy).toFixed(1)+"% 전년比":"전년 대비 —";
   const _rShare=d.sido?LIVE_SHIPMENT_SHARE[curItem]?.[d.sido]:null;
-  document.getElementById("rp-share").textContent=(_rShare!=null)?_rShare+"%":(d.production_pct?d.production_pct+"%":"—");
+  const _fallbackShare=cropSharePct(d);
+  document.getElementById("rp-share").textContent=(_rShare!=null)?_rShare+"%":(_fallbackShare?_fallbackShare+"%":"—");
   document.getElementById("rp-share-sub").className="fm-stat-sub neu";
-  document.getElementById("rp-share-sub").textContent=(_rShare!=null)?"지역 출하 비중":"전국 생산 비중";
+  document.getElementById("rp-share-sub").textContent=(_rShare!=null)?"지역 출하 비중":"전국 생산 추정";
   document.getElementById("rp-yoy").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
   document.getElementById("rp-yoy-sub").className="fm-stat-sub "+(yoy?yoy>0?"up":"down":"neu");
   document.getElementById("rp-yoy-sub").textContent="출하량 전년 대비";
@@ -2213,6 +2214,19 @@ function isActiveCropProvince(ents){
   const weight=ents.reduce((s,[,d])=>s+(d.production_weight||0),0);
   return weight>=0.05||ton>=50000||area>=1500;
 }
+function cropTotalTon(itemCode=curItem){
+  return Object.values(CITY_DATA[itemCode]||{}).reduce((s,d)=>s+(d.shipment_ton||d.production_ton||0),0);
+}
+function cropSharePctFromTon(ton,itemCode=curItem){
+  const total=cropTotalTon(itemCode);
+  return total&&ton?Math.round(ton/total*100):0;
+}
+function cropSharePct(d,itemCode=curItem){
+  if(!d) return 0;
+  if(d.production_pct) return d.production_pct;
+  if(d.production_weight) return Math.round(d.production_weight*100);
+  return cropSharePctFromTon(d.shipment_ton||d.production_ton||0,itemCode);
+}
 function getSido(f){return PROV_NAME_MAP[f.properties.name||f.properties.name_kor||""]||"";}
 
 function drawProvinces(){
@@ -2247,7 +2261,7 @@ function drawProvinces(){
         shipment_ton:tot,
         shipment_yoy:Math.round(avgYoy*10)/10,
         area_ha:totArea,
-        production_pct:Math.round(pwSum*100), // 전국비중 % (소수→정수%)
+        production_pct:Math.round(pwSum*100)||cropSharePctFromTon(tot), // 전국비중 % (소수→정수%)
         rank:topCity?topCity[1].rank:null,
         risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',
         risk_score:Math.round(Math.abs(avgChg)*3+30),
@@ -2298,7 +2312,7 @@ function makeProvinceSummary(sido){
     shipment_ton:tot,
     shipment_yoy:Math.round(avgYoy*10)/10,
     area_ha:totArea,
-    production_pct:Math.round(pwSum*100),
+    production_pct:Math.round(pwSum*100)||cropSharePctFromTon(tot),
     rank:topCity?topCity[1].rank:null,
     risk_level:avgChg>10?'high':avgChg>5?'warning':avgChg<-10?'caution':'normal',
     risk_score:Math.round(Math.abs(avgChg)*3+30),
@@ -2310,7 +2324,6 @@ function zoomProv(f,sido,pname){
   curProv={f,sido,pname};viewLevel="city";navLevel="province";
   map_.fitBounds(L.geoJSON(f).getBounds(),{padding:[30,30],maxZoom:10});
   drawCities(sido);
-  setTimeout(()=>openRegionPopup(L.geoJSON(f),pname,makeProvinceSummary(sido),sido),120);
   updateBackBtn();
 }
 
@@ -2358,6 +2371,7 @@ function drawCities(sido){
 
   // 시군 hover 카드 공통 함수
   function showCityTooltip(name,d,e){
+    if(!d){hideMapTooltip();return;}
     // 확대(city) 이후에도 상세 팝업 카드를 계속 표시
     showMapTooltip(makeHoverCard(name,d,d?.sido),e);
   }
@@ -2389,7 +2403,6 @@ function drawCities(sido){
             updateBackBtn();
           } else {
             showRegionDetail(name,code,d);
-            openRegionPopup(layer,name,d,d?.sido);
             if(d||curDetailData)map_.fitBounds(layer.getBounds(),{maxZoom:11,padding:[10,10]});
           }
         },
@@ -2408,7 +2421,7 @@ function drawCities(sido){
         mouseover:e=>showCityTooltip(d.name,d,e),
         mousemove:e=>moveMapTooltip(e),
         mouseout:()=>hideMapTooltip(),
-        click:()=>{showRegionDetail(d.name,code,d);openRegionPopup(L.geoJSON(feat),d.name,d,d?.sido);},
+        click:()=>showRegionDetail(d.name,code,d),
       });
       provPinLayer.addLayer(pin);
     }catch(e){}
@@ -2428,16 +2441,6 @@ function hideMapTooltip(){
   document.getElementById('map-tooltip').style.display='none';
 }
 function moveMapTooltip(e){ _positionTooltip(e); }
-
-function openRegionPopup(layer,name,d,sidoKR){
-  if(!map_||!layer) return;
-  const center=layer.getBounds?layer.getBounds().getCenter():layer.getLatLng?.();
-  if(!center) return;
-  L.popup({maxWidth:330,className:"fm-leaf-popup",closeButton:true,autoPan:true})
-    .setLatLng(center)
-    .setContent(makeHoverCard(name,d,sidoKR))
-    .openOn(map_);
-}
 
 function _positionTooltip(e){
   const tip=document.getElementById('map-tooltip');
@@ -2465,6 +2468,30 @@ function getRegionalSidoData(sidoKR){
   if(!rp) return null;
   const name=SIDO_SHORT[sidoKR];
   return rp.sido_avg?.[name]||null;
+}
+function influenceMarketFor(sidoKR,d){
+  const sidoName=SIDO_SHORT[sidoKR]||d?.sido||"";
+  const map={
+    "서울":["가락시장","수도권 중앙 도매 기준"],
+    "경기":["가락시장","수도권 중앙 도매 기준"],
+    "인천":["가락시장","수도권 중앙 도매 기준"],
+    "강원":["강릉시장","강원 산지·영동권 도매 기준"],
+    "충북":["대전오정","중부권 도매 기준"],
+    "충남":["대전오정","중부권 도매 기준"],
+    "대전":["대전오정","중부권 도매 기준"],
+    "세종":["대전오정","중부권 도매 기준"],
+    "전북":["전주시장","전북권 도매 기준"],
+    "전남":["순천시장","전남 산지·남부권 도매 기준"],
+    "광주":["순천시장","전남 산지·남부권 도매 기준"],
+    "경북":["북부시장","대구·경북권 도매 기준"],
+    "대구":["북부시장","대구·경북권 도매 기준"],
+    "경남":["반여시장","부산·경남권 도매 기준"],
+    "부산":["반여시장","부산·경남권 도매 기준"],
+    "울산":["반여시장","부산·경남권 도매 기준"],
+    "제주":["가락시장","제주 출하분 전국 반입 기준"],
+  };
+  const v=map[sidoName]||["가락시장","전국 중앙 도매 기준"];
+  return {name:v[0],basis:v[1]};
 }
 // KAMIS 단위 정규화: 지역 도매가가 전국 평균의 30% 미만이면 kg 단위 가격으로 판단 → item 단위 kg수 곱
 function _normalizeRegionalPrice(raw, itemCode){
@@ -2535,6 +2562,7 @@ function makeHoverCard(name,d,sidoKR){
   const it=ITEMS[curItem]||{emoji:'🌿',name:'작물'};
   const rp=sidoKR?getRegionalSidoData(sidoKR):null;
   const rna=LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale;
+  const market=influenceMarketFor(sidoKR,d);
   if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#9aaa8a;padding:8px 0">산지 데이터 없음</div></div>`;
   const chg=(rp?.vs_national_pct)||(d?.price_vs_avg)||0,sign=chg>0?'+':'';
   const chgCls=chg>10?'up':chg<-10?'down':'flat';
@@ -2550,8 +2578,9 @@ function makeHoverCard(name,d,sidoKR){
   const yoy=d?.shipment_yoy||0;
   // 전국비중: 실제 출하비중(경매 산지) 우선, 없으면 생산비중 폴백
   const realShare=sidoKR?LIVE_SHIPMENT_SHARE[curItem]?.[sidoKR]:null;
-  const pw=(realShare!=null)?realShare+'%':(d?.production_pct?d.production_pct+'%':(d?.production_weight?(d.production_weight*100).toFixed(0)+'%':'—'));
-  const pwLabel=(realShare!=null)?'출하 점유':'생산 점유';
+  const fallbackShare=cropSharePct(d);
+  const pw=(realShare!=null)?realShare+'%':(fallbackShare?fallbackShare+'%':'—');
+  const pwLabel=(realShare!=null)?'출하 점유':'생산 추정';
   const rank=d?.rank?d.rank+'위':'—';
   // 도매/소매 가격 블록 — priceViewMode 반영
   const isWholesale=priceViewMode==="wholesale";
@@ -2584,6 +2613,9 @@ function makeHoverCard(name,d,sidoKR){
           <div style="font-size:13px;font-weight:800;color:#3a4a2a">${secondaryPrice?secondaryPrice.toLocaleString():'—'}원</div>
         </div>
       </div>
+      <div style="margin-top:7px;font-size:10px;color:#5a7a9a;line-height:1.45;word-break:keep-all">
+        영향 시장: <b style="color:#1a3a5c">${market.name}</b> · ${market.basis}
+      </div>
     </div>`:`<div style="background:#f9fbf7;border-radius:8px;padding:9px 11px;margin-bottom:9px">
       <div style="font-size:9px;color:#9aaa8a;font-weight:600;margin-bottom:4px">예상 가격 (${curPeriod}일 후)</div>
       <div style="display:flex;align-items:baseline;gap:8px">
@@ -2591,6 +2623,7 @@ function makeHoverCard(name,d,sidoKR){
         <span style="font-size:12px;font-weight:700" class="rhc-chg ${chgCls}">${sign}${chg}% ${chg>0?'↑':'↓'}</span>
       </div>
       <div style="font-size:9px;color:#9aaa8a;margin-top:2px">현재 평균 ${curPrice.toLocaleString()}원/kg</div>
+      <div style="font-size:10px;color:#6a7a5a;margin-top:5px">영향 시장: <b>${market.name}</b> · ${market.basis}</div>
     </div>`;
 
   // 주요 리스크 바
@@ -2625,7 +2658,8 @@ function makeHoverCard(name,d,sidoKR){
   const cropTags=crops.map((c,i)=>`<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;
     background:${i===0?'#e8f4e0':'#f5f5f0'};color:${i===0?'#267a18':'#6a7a5a'};border:1px solid ${i===0?'#c0dca8':'#e0e0d8'};margin-right:4px">${i===0?it.emoji+' ':''}${c}</span>`).join('');
 
-  const citiesStr=d?._cities?`<div style="font-size:9px;color:#7a9a6a;margin-top:2px">📍 ${d._cities}</div>`:'';
+  const cityNames=d?._cities?d._cities.split('·').filter(Boolean):[];
+  const citiesStr=cityNames.length?`<div style="font-size:9px;color:#7a9a6a;margin-top:2px;line-height:1.35">📍 ${cityNames.slice(0,4).join('·')}${cityNames.length>4?` 외 ${cityNames.length-4}곳`:''}</div>`:'';
 
   return`<div class="rhc">
     <div class="rhc-header">

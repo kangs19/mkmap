@@ -456,6 +456,14 @@ Important caveat:
 - The renewed UI deploys immediately with the code.
 - File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
 - If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.
+# Session 38 - Hover-only map cards and clearer market/share context (2026-07-05 KST)
+
+- User feedback: click drill-down must not leave a fixed popup on the map; hover cards should appear only while hovering. Also requested clearer wholesale/retail market influence, better card sizing, and no blank national-share fields.
+- Removed all `openRegionPopup(...)` click behavior. Map clicks now only update the right detail panel and/or drill into a region. The map information card is hover-only again.
+- Increased hover card width to reduce awkward wrapping and shortened long city lists to the first four names plus `외 N곳`.
+- Added `influenceMarketFor(...)` to show the representative affected wholesale market/market zone in the hover card. This is displayed as an influence/reference market, not as a claim that every regional price comes from one exact market.
+- Added production/share fallback helpers so `전국 비중` can use shipment/production ton share when official production share is absent.
+
 # Session 37 - UI audit hardening after map-region correction (2026-07-05 KST)
 
 - Follow-up after user correctly challenged insufficient verification.
