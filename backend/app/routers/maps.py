@@ -11,6 +11,7 @@ from app.models.price import DailyPrice
 from app.models.production import CropProduction
 from app.timezone import kst_today
 from app.models.regional_price import RegionalMarketPrice
+from app.models.farmmap import FarmMapCropRegion
 
 router = APIRouter(tags=["maps"])
 
@@ -297,6 +298,58 @@ async def get_map_production(
                 "source": r.source,
             }
             for r in rows
+        ],
+    }
+
+
+@router.get("/api/v1/map/farmmap/crop-regions")
+async def get_farmmap_crop_regions(
+    item_code: str = "cabbage",
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(FarmMapCropRegion)
+        .where(FarmMapCropRegion.item_code == item_code)
+        .order_by(FarmMapCropRegion.area_ha.desc().nullslast(), FarmMapCropRegion.farm_count.desc().nullslast())
+    )).scalars().all()
+    if not rows:
+        return {
+            "item_code": item_code,
+            "available": False,
+            "regions": [],
+            "source": "farmmap",
+            "note": "FarmMap source files have not been imported for this item yet.",
+        }
+
+    total_area_ha = sum(float(row.area_ha or 0.0) for row in rows)
+    total_farm_count = sum(int(row.farm_count or 0) for row in rows)
+    return {
+        "item_code": item_code,
+        "available": True,
+        "source": "farmmap",
+        "region_count": len(rows),
+        "total_area_ha": round(total_area_ha, 4) if total_area_ha else None,
+        "total_farm_count": total_farm_count or None,
+        "regions": [
+            {
+                "sido": row.sido,
+                "sigungu": row.sigungu,
+                "region_code": row.region_code,
+                "source_crop_name": row.source_crop_name,
+                "farm_count": row.farm_count,
+                "area_m2": row.area_m2,
+                "area_ha": row.area_ha,
+                "area_share_pct": (
+                    round(float(row.area_ha or 0.0) / total_area_ha * 100.0, 2)
+                    if total_area_ha and row.area_ha is not None
+                    else None
+                ),
+                "geometry_level": row.geometry_level,
+                "source_file": row.source_file,
+                "source_year": row.source_year,
+                "confidence": row.confidence,
+            }
+            for row in rows
         ],
     }
 

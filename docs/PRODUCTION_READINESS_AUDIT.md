@@ -38,7 +38,8 @@ This document is the working checklist for moving MK Map from MVP to a public se
   - marketing/push consent.
   - account deletion and data-retention policy.
 - Import/substitute supply features are not fully wired to verified data.
-- Pest, soil, FarmMap, and some climate-event overlays need real collectors or should stay explicitly beta.
+- Pest, soil, and some climate-event overlays need real collectors or should stay explicitly beta.
+- FarmMap now has storage/API/audit scaffolding, but still needs official source-file import before enabling the public layer.
 - KMA and other public API collectors need scheduled monitoring and retry/error reporting.
 - Production observability should be reviewed:
   - Railway deploy status.
@@ -79,4 +80,5 @@ This document is the working checklist for moving MK Map from MVP to a public se
 3. Add a signup/login entry point in the main UI if it is not visible enough.
 4. Add pipeline status/admin health UI for data freshness.
 5. Replace static representative market fallback with a DB-backed market-influence calculation from agromarket/origin/auction data.
-6. Keep pest, soil, and FarmMap overlays beta until collectors and source labels are complete.
+6. Import one official FarmMap source file through the new audit and summary pipeline.
+7. Keep pest and soil overlays beta until collectors and source labels are complete.

@@ -650,3 +650,43 @@ Important caveat:
   - Reproduced the GitHub Actions commands locally under `backend/`.
   - `python -m pytest tests/test_pipeline.py -v --tb=short` passed: 15 passed.
   - `python -m pytest tests/test_api.py -v --tb=short` passed: 30 passed.
+
+## Session 49 - FarmMap Spatial Crop Integration Foundation (2026-07-05)
+
+- User asked whether FarmMap regional map data can be added crop-by-crop, then requested sequential implementation.
+- Confirmed product direction:
+  - FarmMap SHP/spatial files should become a crop-region layer and prediction feature source.
+  - Raw parcel geometry should not be sent directly to the browser; aggregate/simplify first.
+- Added storage models:
+  - `backend/app/models/farmmap.py`
+  - `FarmMapSourceFile`: audit record for downloaded FarmMap source files.
+  - `FarmMapCropRegion`: normalized `item_code + sido + sigungu` summaries with area, farm count, source file, year, and confidence.
+- Added crop alias mapping:
+  - `config/farmmap_crop_aliases.json`
+  - Covers current MVP crops: cabbage, radish, onion, green_onion, garlic.
+  - Includes seasonal/subtype names such as 고랭지배추, 월동무, 조생양파, 한지형마늘.
+- Added source audit tooling:
+  - `scripts/audit_farmmap_spatial_file.py`
+  - Audits downloaded CSV/GeoJSON/ZIP sources.
+  - Detects crop/area/region candidate fields and current item alias hits.
+  - SHP ZIPs are detected but currently require conversion to CSV/GeoJSON or adding pyshp/GDAL.
+- Added region summary builder:
+  - `scripts/build_farmmap_crop_region_summary.py`
+  - Converts audited CSV/GeoJSON into normalized FarmMap crop-region summary JSON.
+  - Supports explicit field mapping for crop, area, sido, sigungu, region code, source year, and area unit.
+- Added backend map endpoint:
+  - `/api/v1/map/farmmap/crop-regions?item_code=cabbage`
+  - Returns `available:false` until FarmMap files are imported.
+  - When data exists, returns aggregated FarmMap region summaries only, not raw parcel geometry.
+- Added planning doc:
+  - `docs/FARMMAP_INTEGRATION_PLAN.md`
+- Verification:
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - Backend API tests passed: 31 passed, including new FarmMap endpoint contract.
+  - Sample CSV conversion matched cabbage/onion/radish aliases and produced crop-region summary rows.
+- Next work:
+  - Download one official FarmMap SHP/CSV source, preferably a province with known cabbage/radish regions.
+  - Convert SHP to GeoJSON/CSV with QGIS/GDAL or add pyshp support to parse DBF fields directly.
+  - Run `scripts/audit_farmmap_spatial_file.py --input <file>`.
+  - Run `scripts/build_farmmap_crop_region_summary.py` with confirmed field names.
+  - Add DB import from summary JSON into `farmmap_crop_regions`.

@@ -10,6 +10,7 @@ from app.models.meta import ItemMeta
 from app.models.regional_price import RegionalMarketPrice
 from app.models.drought import DroughtIndex
 from app.models.shipment import ShipmentShare
+from app.models.farmmap import FarmMapCropRegion, FarmMapSourceFile
 from app.models.community import User, CommunityComment, FieldReport, PhoneVerification
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "ApiKey", "ApiUsage",
     "CropProduction", "ItemMeta",
     "RegionalMarketPrice", "DroughtIndex", "ShipmentShare",
+    "FarmMapCropRegion", "FarmMapSourceFile",
 ]

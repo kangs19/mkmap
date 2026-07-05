@@ -280,6 +280,17 @@ async def test_map_prices(client, item_code):
 
 
 @pytest.mark.asyncio
+async def test_farmmap_crop_regions_contract(client):
+    r = await client.get("/api/v1/map/farmmap/crop-regions?item_code=cabbage")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["item_code"] == "cabbage"
+    assert data["source"] == "farmmap"
+    assert "available" in data
+    assert "regions" in data
+
+
+@pytest.mark.asyncio
 async def test_report_today(client):
     r = await client.get("/api/v1/report/today")
     assert r.status_code == 200
