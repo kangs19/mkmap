@@ -168,7 +168,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-market-basis b{color:var(--text);}
 .fm-chart-wrap{margin-top:10px;height:120px;position:relative;}
 /* Price forecast mini row */
-.fm-forecast-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:8px;border:1px solid var(--border);border-radius:7px;background:#f8fbf5;overflow:hidden;}
+.fm-forecast-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:0;margin-top:8px;border:1px solid var(--border);border-radius:7px;background:#f8fbf5;overflow:hidden;}
 .fm-fc-cell{background:transparent;border:0;border-right:1px solid var(--border);border-radius:0;padding:4px 4px;text-align:center;min-width:0;}
 .fm-fc-cell:last-child{border-right:none;}
 .fm-fc-lbl{font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:800;white-space:nowrap;}
@@ -799,7 +799,7 @@ const NEWS_BY_ITEM={
 let curItem="cabbage",curMode="price",viewLevel="province",curProv=null,curPeriod=28;
 let map_,mapVectorRenderer,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
-let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
+let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
 let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
@@ -868,6 +868,7 @@ window.onload=async()=>{
   map_=L.map("map",{zoomControl:true,preferCanvas:false,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
   mapVectorRenderer=L.svg({padding:0.5});
   setupMapHoverFallback();
+  ensureExtendedHorizonUi();
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
   // 남한 경계에 딱 맞게
@@ -1439,6 +1440,31 @@ function makeFarmMapHoverCard(title,fm){
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
+PERIOD_LABEL[180]="6M";
+PERIOD_LABEL[365]="1Y";
+PERIOD_ORDER.push(180,365);
+function ensureExtendedHorizonUi(){
+  const group=document.querySelector(".fm-period-group");
+  if(group&&!group.querySelector('[data-period-extra="180"]')){
+    [{d:180,l:"6M"},{d:365,l:"1Y"}].forEach(({d,l})=>{
+      const btn=document.createElement("button");
+      btn.className="fm-period-btn";
+      btn.dataset.periodExtra=String(d);
+      btn.textContent=l;
+      btn.onclick=()=>setPeriod(d,btn);
+      group.appendChild(btn);
+    });
+  }
+  const row=document.querySelector(".fm-forecast-row");
+  if(row&&!document.getElementById("rp-p180")){
+    [{l:"6M",id:"rp-p180",cid:"rp-p180c"},{l:"1Y",id:"rp-p365",cid:"rp-p365c"}].forEach(x=>{
+      const cell=document.createElement("div");
+      cell.className="fm-fc-cell";
+      cell.innerHTML=`<div class="fm-fc-lbl">${x.l}</div><div class="fm-fc-val" id="${x.id}">-</div><div class="fm-fc-chg" id="${x.cid}"></div>`;
+      row.appendChild(cell);
+    });
+  }
+}
 function setPeriod(p,btn){
   curPeriod=p;
   // 버튼 active 동기화
@@ -1769,6 +1795,12 @@ async function fetchLiveData(){
     const dateLabel=LIVE_BASE_DATE?LIVE_BASE_DATE.slice(5).replace("-","."):"오늘";
     setDataStatusPill("live",`AI 예측 ${dateLabel} 기준`);
     renderDefaultPanel();
+    Promise.all(items.map(it=>fetchItemForecast(it.item_code))).then(()=>{
+      renderMiniCards();
+      renderDefaultPanel();
+      redrawMap();
+      if(curDetailData) showRegionDetail(curDetailData.name,curDetailData.code,curDetailData.d);
+    }).catch(()=>{});
   }catch(e){
     console.warn("실데이터 로드 실패:",e.message);
     setDataStatusPill("nodata","연결 실패");
@@ -1792,6 +1824,29 @@ async function fetchReport(){
     const d=await res.json();
     (d.items||[]).forEach(it=>{LIVE_REPORT[it.item_code]=it;});
   }catch(e){}
+}
+async function fetchItemForecast(item_code){
+  if(!item_code||LIVE_HORIZONS[item_code]) return LIVE_HORIZONS[item_code]||null;
+  try{
+    const res=await fetch(`/api/v1/items/${item_code}/forecast`);
+    const payload=res.ok?await res.json():null;
+    let horizons=payload?.forecast?.horizons||{};
+    if(!Object.keys(horizons).length){
+      const allRes=await fetch(`/api/v1/items/${item_code}/forecasts`);
+      if(allRes.ok){
+        const allPayload=await allRes.json();
+        horizons=allPayload?.horizons||{};
+      }
+    }
+    LIVE_HORIZONS[item_code]=horizons;
+    if(LIVE_ITEMS[item_code]){
+      LIVE_ITEMS[item_code].active_horizons=payload?.forecast?.active_horizons||Object.keys(horizons).map(Number).filter(Number.isFinite);
+      LIVE_ITEMS[item_code].horizon_source=payload?.source||"forecast";
+    }
+    return horizons;
+  }catch(e){
+    return null;
+  }
 }
 async function fetchNationalPrice(item_code){
   if(LIVE_NATIONAL_PRICES[item_code]) return;
@@ -2579,6 +2634,8 @@ function showRegionDetail(name,code,d){
   setPfc("rp-p28","rp-p28c",28);
   setPfc("rp-p60","rp-p60c",60);
   setPfc("rp-p90","rp-p90c",90);
+  setPfc("rp-p180","rp-p180c",180);
+  setPfc("rp-p365","rp-p365c",365);
 
   // ── 재배 현황
   document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
@@ -2942,7 +2999,41 @@ function globalForecastPct(days){
   const prob=(upProb-0.5)*46;
   return (prob + dir*6 + surge) * (days/90);
 }
+function horizonModelPct(days,itemCode=curItem){
+  const horizons=LIVE_HORIZONS[itemCode]||{};
+  const rows=Object.entries(horizons)
+    .map(([k,row])=>({days:Number(k),row}))
+    .filter(x=>Number.isFinite(x.days)&&x.row)
+    .sort((a,b)=>a.days-b.days);
+  if(!rows.length) return null;
+  const exact=rows.find(x=>x.days===days);
+  if(exact){
+    const exactPct=horizonRowChangePct(exact.row);
+    if(exactPct!=null) return exactPct;
+  }
+  const lower=[...rows].reverse().find(x=>x.days<days);
+  const upper=rows.find(x=>x.days>days);
+  if(lower&&upper){
+    const lp=horizonRowChangePct(lower.row);
+    const up=horizonRowChangePct(upper.row);
+    if(lp==null||up==null) return null;
+    const t=(days-lower.days)/(upper.days-lower.days);
+    return lp+(up-lp)*t;
+  }
+  return null;
+}
+function horizonRowChangePct(row){
+  if(row?.available===false||row?.data_status==="insufficient_data") return null;
+  const raw=row?.risk_adjusted_change??row?.predicted_change??row?.predicted_next_change;
+  const n=Number(raw);
+  if(Number.isFinite(n)) return n*100;
+  const prob=Number(row?.up_probability??row?.up_probability_14d);
+  if(Number.isFinite(prob)) return (prob-0.5)*30;
+  return null;
+}
 function periodForecastPct(localPct,days){
+  const modelPct=horizonModelPct(days);
+  if(modelPct!=null) return Math.max(-45,Math.min(45,modelPct));
   const local=Number.isFinite(localPct)?localPct:0;
   const shortTerm=local*(days/28);
   const ai=globalForecastPct(days);
@@ -3092,6 +3183,15 @@ function drawProvinces(){
           click:()=>{hideMapTooltip();zoomProv(f,sido,pname);}
         });
       }
+      bindPathDomEvents(layer,{
+        enter:e=>{
+          layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
+          if(farmMapActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
+          else if(provinceActive) showMapTooltip(makeHoverCard(`${pname} (${ents.length}개 시·군)`,provinceD,sido),e);
+        },
+        move:e=>moveMapTooltip(e),
+        leave:()=>{try{provLayer.resetStyle(layer);}catch(err){} hideMapTooltip();}
+      });
     }
   }).addTo(map_);
 
@@ -3313,11 +3413,17 @@ function drawCities(sido){
 function riskLvlText(r){return{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[r]||r;}
 
 // ── 커스텀 툴팁 (position:fixed, 자동 최적 위치) ──────────────────────────
+const FM_TOOLTIP_HANDLERS=new WeakMap();
 function bindMarkerDomEvents(marker,handlers){
-  const bind=()=>{
-    const el=marker.getElement?.();
+  const bind=(attempt=0)=>{
+    const el=marker.getElement?.()||marker._icon||null;
+    if(!el&&attempt<8){
+      setTimeout(()=>bind(attempt+1),50);
+      return;
+    }
     if(!el||el.dataset.fmDomBound==="1") return;
     el.dataset.fmDomBound="1";
+    FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
     const enter=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.enter?.(e);};
     const move=e=>handlers.move?.(e);
@@ -3345,14 +3451,19 @@ function bindMarkerDomEvents(marker,handlers){
     });
   };
   marker.on("add",bind);
-  bind();
+  setTimeout(()=>bind(),0);
 }
 
 function bindPathDomEvents(layer,handlers){
-  const bind=()=>{
-    const el=layer.getElement?.();
+  const bind=(attempt=0)=>{
+    const el=layer.getElement?.()||layer._path||null;
+    if(!el&&attempt<8){
+      setTimeout(()=>bind(attempt+1),50);
+      return;
+    }
     if(!el||el.dataset.fmDomBound==="1") return;
     el.dataset.fmDomBound="1";
+    FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
     const enter=e=>handlers.enter?.(e);
     const move=e=>handlers.move?.(e);
@@ -3380,8 +3491,7 @@ function bindPathDomEvents(layer,handlers){
     });
   };
   layer.on("add",bind);
-  setTimeout(bind,0);
-  bind();
+  setTimeout(()=>bind(),0);
 }
 let __fmHoverPathEl=null;
 function setupMapHoverFallback(){
@@ -3391,21 +3501,22 @@ function setupMapHoverFallback(){
   mapEl.addEventListener("mousemove",e=>{
     const raw=document.elementFromPoint(e.clientX,e.clientY);
     const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
-    const handlers=path?.__fmTooltipHandlers;
+    const handlers=path?FM_TOOLTIP_HANDLERS.get(path):null;
     if(path&&handlers){
       if(__fmHoverPathEl!==path){
-        __fmHoverPathEl?.__fmTooltipHandlers?.leave?.(e);
+        const prevHandlers=__fmHoverPathEl?FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl):null;
+        prevHandlers?.leave?.(e);
         __fmHoverPathEl=path;
         handlers.enter?.(e);
       }
       handlers.move?.(e);
     }else if(__fmHoverPathEl){
-      __fmHoverPathEl.__fmTooltipHandlers?.leave?.(e);
+      FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
       __fmHoverPathEl=null;
     }
   },{passive:true});
   mapEl.addEventListener("mouseleave",e=>{
-    __fmHoverPathEl?.__fmTooltipHandlers?.leave?.(e);
+    if(__fmHoverPathEl) FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
     __fmHoverPathEl=null;
   },{passive:true});
 }
