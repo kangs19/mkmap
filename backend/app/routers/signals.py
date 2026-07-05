@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, func
 from app.database import get_db
 from app.models.item import Item
 from app.models.signal import RegionSignal
@@ -99,15 +99,23 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
     if cached:
         return cached
     today = kst_today()
+    fc_base_date = (await db.execute(
+        select(func.max(Forecast.base_date)).where(Forecast.base_date <= today)
+    )).scalar()
+    sig_base_date = (await db.execute(
+        select(func.max(RegionSignal.date)).where(RegionSignal.date <= today)
+    )).scalar()
+    data_dates = [d for d in [fc_base_date, sig_base_date] if d is not None]
+    base_date = max(data_dates) if data_dates else today
 
     fc_result = await db.execute(
-        select(Forecast).where(Forecast.base_date == today)
+        select(Forecast).where(Forecast.base_date == base_date)
         .order_by(Forecast.up_probability_14d.desc())
     )
     forecasts = {f.item_code: f for f in fc_result.scalars().all()}
 
     sig_result = await db.execute(
-        select(RegionSignal).where(RegionSignal.date == today)
+        select(RegionSignal).where(RegionSignal.date == base_date)
     )
     signals = sig_result.scalars().all()
 
@@ -163,7 +171,7 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
             "hotspot_region": risk.get("hotspot_region"),
         })
 
-    result = {"base_date": str(today), "items": items_out}
+    result = {"base_date": str(base_date), "items": items_out}
     cache.set("signals:today", result, ttl=300)  # 5분 캐시
     return result
 

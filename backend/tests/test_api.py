@@ -4,11 +4,13 @@ pytest로 실행: cd backend && pytest tests/ -v
 """
 import pytest
 import os
-from datetime import date
+from datetime import date, timedelta
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import delete
+from app import cache
 from app.database import AsyncSessionLocal, init_db
 from app.main import app
+from app.timezone import kst_today
 from app.models.forecast import Forecast
 from app.models.item import Item
 from app.models.price import DailyPrice
@@ -48,6 +50,47 @@ async def test_forecast_endpoint(client, item_code):
     r = await client.get(f"/api/v1/items/{item_code}/forecast")
     # 404는 데이터 없는 것(정상), 500은 서버 오류(비정상)
     assert r.status_code in (200, 404)
+
+
+@pytest.mark.asyncio
+async def test_signals_today_uses_latest_forecast_when_today_is_empty(client):
+    item_code = "test_latest_signal_crop"
+    base_date = kst_today() - timedelta(days=1)
+    cache.delete("signals:today")
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionSignal).where(RegionSignal.date == kst_today()))
+        await db.execute(delete(Forecast).where(Forecast.base_date == kst_today()))
+        await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code))
+        await db.execute(delete(Forecast).where(Forecast.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="latest signal crop",
+            category="test",
+            wholesale_unit="1kg",
+            is_active=True,
+        ))
+        db.add(Forecast(
+            item_code=item_code,
+            base_date=base_date,
+            model_version="test_latest_forecast",
+            horizon_days=14,
+            direction_14d="up",
+            up_probability_14d=0.72,
+            surge_probability_14d=0.2,
+            volatility_risk_30d="high",
+            confidence="medium",
+        ))
+        await db.commit()
+
+    r = await client.get("/api/v1/signals/today")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["base_date"] == str(base_date)
+    item = next(x for x in data["items"] if x["item_code"] == item_code)
+    assert item["direction_14d"] == "up"
+    assert item["up_probability_14d"] == 0.72
+    assert item["risk_level"] == "high"
 
 
 @pytest.mark.asyncio
