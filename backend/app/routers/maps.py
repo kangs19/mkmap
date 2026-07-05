@@ -389,21 +389,24 @@ async def get_regional_prices(
     for sido, ws in sido_ws.items():
         ws_avg = round(sum(ws) / len(ws))
         rt_list = sido_rt.get(sido, [])
-        # 실제 소매 데이터 있으면 사용, 없으면 도매가 × 1.35 추정 (KAMIS 기준 소매 마진)
-        rt_avg = round(sum(rt_list) / len(rt_list)) if rt_list else round(ws_avg * 1.35)
-        sido_avg[sido] = {"wholesale": ws_avg, "retail": rt_avg}
+        rt_avg = round(sum(rt_list) / len(rt_list)) if rt_list else None
+        sido_avg[sido] = {
+            "wholesale": ws_avg,
+            "retail": rt_avg,
+            "retail_source": "observed" if rt_avg is not None else "unavailable",
+        }
 
     # 전국 평균 (기준값)
     all_ws = [v for vals in sido_ws.values() for v in vals]
     national_avg_ws = round(sum(all_ws) / len(all_ws)) if all_ws else None
-    all_rt = [s["retail"] for s in sido_avg.values()]
+    all_rt = [s["retail"] for s in sido_avg.values() if s.get("retail") is not None]
     national_avg_rt = round(sum(all_rt) / len(all_rt)) if all_rt else None
 
     # vs_national_pct 추가 (도매 기준), retail_vs_national_pct 추가
     for s in sido_avg.values():
         if national_avg_ws:
             s["vs_national_pct"] = round((s["wholesale"] - national_avg_ws) / national_avg_ws * 100, 1)
-        if national_avg_rt:
+        if national_avg_rt and s.get("retail") is not None:
             s["retail_vs_national_pct"] = round((s["retail"] - national_avg_rt) / national_avg_rt * 100, 1)
 
     base_date = max(r.date for r in rows)

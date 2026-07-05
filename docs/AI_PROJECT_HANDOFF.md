@@ -608,3 +608,27 @@ Important caveat:
 - Verification:
   - Static browser check: 6-column compact strip, no stats risk bars, SVG renderer/preferCanvas false present, no console errors.
   - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+
+## Session 47 - Regional Market Basis And Launch Readiness Sweep (2026-07-05)
+
+- User requested that each selected region clearly show which wholesale market basis is used, and asked for a sweep toward a real public/member-ready release rather than an MVP-only screen.
+- Updated `index.html`:
+  - Price forecast detail now has `rp-market-basis`, showing the selected region label, the market names used, the basis date when available, and whether the market basis is `실측` or fallback `대표`.
+  - `/api/v1/map/regional-prices.markets` rows are grouped by `sido` and attached to each regional price context as `market_names`, `market_count`, and `market_base_date`.
+  - If real market rows exist for the region, the UI shows those market names. If not, it falls back to the representative regional influence market and labels it as `대표` so it is not mistaken for measured data.
+  - Non-functional pest and soil map layer rows are disabled and marked `BETA` instead of appearing as working controls.
+  - The unused notification bell is hidden until a real notification/subscription feature is wired.
+- Updated `backend/app/routers/maps.py`:
+  - Removed the arbitrary retail-price estimate `wholesale * 1.35`.
+  - Regional retail values now appear only when observed retail data exists; otherwise `retail` is `null` and `retail_source` is `unavailable`.
+- Added `docs/PRODUCTION_READINESS_AUDIT.md` for the next operator/agent:
+  - separates currently launchable items from public-launch blockers.
+  - records member/auth readiness, data-source readiness, disabled beta features, and remaining compliance/ops work.
+- Verification:
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
+  - Static browser check found `rp-market-basis`, disabled beta layer rows, hidden notification button, compact forecast horizon labels, and no console errors.
+- Important remaining blockers before broad public marketing:
+  - General member registration/login exists and can be used, but farmer/trader role signup still depends on real phone/SMS verification setup.
+  - Privacy policy, terms, consent text, and deletion/export policy still need final production copy and links.
+  - Import/substitute supply, soil/FarmMap, and pest map overlays remain beta or unconnected.
+  - KMA/API collectors should be monitored after each deploy because external provider failures can still reduce feature completeness.

@@ -71,6 +71,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-layer-item span{font-size:12px;color:var(--muted);cursor:pointer;flex:1;}
 .fm-layer-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
 .fm-layer-item.active span{color:var(--text);font-weight:500;}
+.fm-layer-item.disabled{opacity:.55;cursor:not-allowed;}
+.fm-layer-item.disabled span,.fm-layer-item.disabled input{cursor:not-allowed;}
+.fm-beta-tag{margin-left:auto;font-size:8px;font-weight:900;color:#8a7a50;background:#fff8dc;border:1px solid #eadb9b;border-radius:8px;padding:1px 5px;}
 /* Period buttons */
 .fm-period-group{display:flex;gap:4px;}
 .fm-period-btn{flex:1;padding:7px 0;border-radius:6px;font-size:11px;font-weight:700;
@@ -160,6 +163,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-price-unit{font-size:13px;color:var(--muted);}
 .fm-price-chg{font-size:18px;font-weight:700;}
 .fm-price-chg.up{color:#c02828;}.fm-price-chg.down{color:#1a8a1a;}.fm-price-chg.neu{color:var(--muted);}
+.fm-market-basis{margin-top:5px;font-size:9px;color:var(--muted);line-height:1.45;}
+.fm-market-basis b{color:var(--text);}
 .fm-chart-wrap{margin-top:10px;height:120px;position:relative;}
 /* Price forecast mini row */
 .fm-forecast-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:8px;border:1px solid var(--border);border-radius:7px;background:#f8fbf5;overflow:hidden;}
@@ -313,7 +318,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
       <div class="ds-dot loading"></div>
       <span id="data-status-txt">로딩 중</span>
     </div>
-    <button class="fm-bell" id="bell-btn" onclick="showToast('알림 기능은 준비 중입니다')" title="알림">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
+    <button class="fm-bell" id="bell-btn" title="알림" style="display:none">🔔<sup id="bell-cnt" style="font-size:8px;color:#e05050;display:none">1</sup></button>
     <div id="hdr-auth-wrap" style="display:flex;align-items:center;gap:6px">
       <button class="fm-login-btn" id="hdr-login-btn" onclick="openAuthModal('login')" style="background:white;color:var(--accent);border:1px solid var(--accent)">로그인</button>
       <button class="fm-login-btn" id="hdr-signup-btn" onclick="openAuthModal('signup')">회원가입</button>
@@ -361,9 +366,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'production')"><input type="checkbox" checked onchange="handleLayer(this,'production')"> <span>재배 면적</span></div>
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'price')"><input type="checkbox" checked onchange="handleLayer(this,'price')"> <span>가격 예측</span></div>
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'weather')"><input type="checkbox" checked onchange="handleLayer(this,'weather')"> <span>기상 정보</span></div>
-        <div class="fm-layer-item" onclick="toggleLayerRow(event,'pest')"><input type="checkbox" onchange="handleLayer(this,'pest')"> <span>병해충 위험</span></div>
+        <div class="fm-layer-item disabled" title="현장 제보 기반 병해충 지도는 베타 준비 중입니다"><input type="checkbox" disabled> <span>병해충 위험</span><em class="fm-beta-tag">BETA</em></div>
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
-        <div class="fm-layer-item" onclick="toggleLayerRow(event,'soil')"><input type="checkbox" onchange="handleLayer(this,'soil')"> <span>토양 정보</span></div>
+        <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
     </div>
 
@@ -489,6 +494,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
                 <span class="fm-price-chg" id="rp-chg">—</span>
               </div>
               <div style="font-size:10px;color:var(--muted)">현재 평균가 <b style="color:var(--text)" id="rp-cur-price">—</b></div>
+              <div class="fm-market-basis" id="rp-market-basis">시장 기준 —</div>
             </div>
           </div>
           <div class="fm-chart-wrap">
@@ -1455,6 +1461,20 @@ async function fetchRegionalPrices(item_code){
     if(!res.ok) return;
     const d=await res.json();
     if(d.sido_avg&&Object.keys(d.sido_avg).length>0){
+      const bySido={};
+      (d.markets||[]).forEach(m=>{
+        if(!m.sido) return;
+        if(!bySido[m.sido]) bySido[m.sido]=[];
+        bySido[m.sido].push(m);
+      });
+      Object.entries(bySido).forEach(([sido,markets])=>{
+        const avg=d.sido_avg[sido];
+        if(!avg) return;
+        const names=[...new Set(markets.map(m=>m.market_name).filter(Boolean))];
+        avg.market_names=names.slice(0,3);
+        avg.market_count=names.length;
+        avg.market_base_date=markets.map(m=>m.date).filter(Boolean).sort().slice(-1)[0]||d.base_date||null;
+      });
       LIVE_REGIONAL_PRICES[item_code]=d;
       updateRegionalStatus(item_code);
     }
@@ -2117,6 +2137,12 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-price").textContent=predictedPrice?predictedPrice.toLocaleString()+"원":"—";
   document.getElementById("rp-unit").textContent=pv?it.unit:"";
   document.getElementById("rp-cur-price").textContent=pv?pv.toLocaleString()+"원":"—";
+  const marketBasis=document.getElementById("rp-market-basis");
+  if(marketBasis){
+    const m=priceCtx.market;
+    const date=m.date?` · ${m.date}`:"";
+    marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b> · ${m.basis}${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span>`;
+  }
   const chgEl=document.getElementById("rp-chg");
   if(pv&&mainChg!==0){
     chgEl.textContent=(mainChg>0?"+":"")+mainChg.toFixed(1)+"% "+(mainChg>0?"↑":"↓");
@@ -2213,7 +2239,7 @@ function showRegionDetail(name,code,d){
   document.getElementById("rp-shipment-sub").textContent=yoy?(yoy>0?"+":"")+yoy.toFixed(1)+"%":"—";
   document.getElementById("rp-mkt-price").textContent=pv?pv.toLocaleString()+"원":"—";
   document.getElementById("rp-mkt-price-sub").className="fm-mkt-sub "+(chgPct?chgPct>0?"up":"down":"neu");
-  document.getElementById("rp-mkt-price-sub").textContent=priceCtx.rp?`${priceCtx.market.name} 기준`:(chgPct?(chgPct>0?"+":"")+chgPct.toFixed(1)+"% 모델":"—");
+  document.getElementById("rp-mkt-price-sub").textContent=priceCtx.market?`${priceCtx.market.name} 기준`:(chgPct?(chgPct>0?"+":"")+chgPct.toFixed(1)+"% 모델":"—");
   const arrival=sh?Math.max(1,Math.round(sh/365)):0;
   document.getElementById("rp-arrival").textContent=arrival?arrival+"톤":"—";
   document.getElementById("rp-arrival-sub").className="fm-mkt-sub neu";
@@ -2766,6 +2792,20 @@ function influenceMarketFor(sidoKR,d){
   const v=map[sidoName]||["가락시장","전국 중앙 도매 기준"];
   return {name:v[0],basis:v[1]};
 }
+function marketBasisFor(rawRp,sidoKR,d){
+  const fallback=influenceMarketFor(sidoKR,d);
+  if(rawRp?.market_names?.length){
+    const names=rawRp.market_names.join("·");
+    const more=rawRp.market_count>rawRp.market_names.length?` 외 ${rawRp.market_count-rawRp.market_names.length}곳`:"";
+    return {
+      name:names+more,
+      basis:`${SIDO_SHORT[normalizeSidoCode(sidoKR)]||d?.sido||"지역"} 도매시장 실측 평균`,
+      date:rawRp.market_base_date||LIVE_REGIONAL_PRICES[curItem]?.base_date||null,
+      source:"실측",
+    };
+  }
+  return {...fallback,date:LIVE_REGIONAL_PRICES[curItem]?.base_date||LIVE_BASE_DATE||null,source:"대표"};
+}
 // KAMIS 단위 정규화: 지역 도매가가 전국 평균의 30% 미만이면 kg 단위 가격으로 판단 → item 단위 kg수 곱
 function _normalizeRegionalPrice(raw, itemCode){
   const natW=LIVE_REGIONAL_PRICES[itemCode]?.national_avg_wholesale||LIVE_NATIONAL_PRICES[itemCode]||0;
@@ -2811,7 +2851,7 @@ function getRegionPriceContext(d,sidoKR){
     secondaryPrice,
     nationalAvg:isWholesale?nationalWholesale:retailNat,
     activePct,
-    market:influenceMarketFor(normalizedSido,d),
+    market:marketBasisFor(rawRp,normalizedSido,d),
   };
 }
 
