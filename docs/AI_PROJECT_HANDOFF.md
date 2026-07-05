@@ -570,3 +570,14 @@ Important caveat:
   - city-level production/harvest/rank values still depend on static KOSIS-based `city_agri_data.json`; replace with DB-backed `/api/v1/map/production`.
   - market influence by region is still static/reference-like; compute from agromarket origin/market flow.
   - import/substitute supply, pest/soil/FarmMap features, and fine-grained city weather need new collectors or validation before showing numbers.
+
+## Session 44 - Forecast Panel Density And Risk Placement (2026-07-05)
+
+- User feedback: the horizon price amount cells in the price forecast pane were too large, and crop/market risk signals should be visible inside the price forecast context.
+- Updated `index.html`:
+  - Compacted `.fm-forecast-row` and `.fm-fc-cell` styles: smaller padding, tighter value typography, no inline grid override.
+  - Added a `가격 변동 리스크` block directly under the horizon price cells in the forecast pane.
+  - Reused the same risk calculation/rendered HTML for both the forecast pane and the `재배·시장` tab, so risk values do not drift between sections.
+- Verification:
+  - Browser static check confirmed compact grid CSS (`grid`, 3 columns, 11px values, 5px/6px padding), risk block present, and no console errors.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.

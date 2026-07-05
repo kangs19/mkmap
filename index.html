@@ -162,12 +162,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-price-chg.up{color:#c02828;}.fm-price-chg.down{color:#1a8a1a;}.fm-price-chg.neu{color:var(--muted);}
 .fm-chart-wrap{margin-top:10px;height:120px;position:relative;}
 /* Price forecast mini row */
-.fm-forecast-row{display:flex;gap:8px;margin-top:10px;}
-.fm-fc-cell{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;}
-.fm-fc-lbl{font-size:9px;color:var(--muted);margin-bottom:3px;font-weight:600;}
-.fm-fc-val{font-size:13px;font-weight:800;color:var(--text);}
-.fm-fc-chg{font-size:9px;font-weight:700;margin-top:1px;}
+.fm-forecast-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:8px;}
+.fm-fc-cell{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 6px;text-align:center;min-width:0;}
+.fm-fc-lbl{font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:700;white-space:nowrap;}
+.fm-fc-val{font-size:11px;font-weight:900;color:var(--text);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fm-fc-chg{font-size:8px;font-weight:800;margin-top:1px;line-height:1.15;}
 .fm-fc-chg.up{color:#c02828;}.fm-fc-chg.down{color:#1a8a1a;}
+.fm-forecast-risk{margin-top:9px;padding-top:9px;border-top:1px solid var(--border);}
+.fm-forecast-risk-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.fm-forecast-risk-title{font-size:10px;font-weight:900;color:var(--text);}
+.fm-forecast-risk-summary{font-size:9px;color:var(--muted);font-weight:700;text-align:right;line-height:1.4;}
+.fm-risk-bars-compact .fm-risk-bar-row{margin-bottom:6px;}
+.fm-risk-bars-compact .fm-risk-bar-info{font-size:10px;margin-bottom:3px;}
+.fm-risk-bars-compact .fm-risk-bar-info b{font-size:11px;}
+.fm-risk-bars-compact .fm-risk-bar-track{height:5px;}
 /* 2-column middle section */
 .fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
 .fm-mid-col{flex:1;padding:13px 16px;background:white;}
@@ -489,7 +497,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
             <span style="display:flex;align-items:center;gap:4px;margin-left:8px"><span style="display:inline-block;width:16px;height:2px;background:#e05050;border-radius:1px;opacity:.7"></span>예측</span>
           </div>
           <!-- 기간별 예측 -->
-          <div class="fm-forecast-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+          <div class="fm-forecast-row">
             <div class="fm-fc-cell">
               <div class="fm-fc-lbl">1주 후</div>
               <div class="fm-fc-val" id="rp-p7">—</div>
@@ -520,6 +528,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-fc-val" id="rp-p90">—</div>
               <div class="fm-fc-chg" id="rp-p90c"></div>
             </div>
+          </div>
+          <div class="fm-forecast-risk">
+            <div class="fm-forecast-risk-head">
+              <div class="fm-forecast-risk-title">가격 변동 리스크</div>
+              <div class="fm-forecast-risk-summary" id="rp-forecast-risk-summary">—</div>
+            </div>
+            <div id="rp-forecast-risk-bars" class="fm-risk-bars-compact"></div>
           </div>
         </div>
 
@@ -2176,7 +2191,7 @@ function showRegionDetail(name,code,d){
     {label:"📊 시장 위험",    score:marketScore, source:priceCtx.rp?"실데이터":"모델"},
   ];
   const rColors={high:"#c02828",warn:"#b86010",mid:"#a07010",ok:"#1a8a1a"};
-  document.getElementById("rp-risk-bars").innerHTML=riskItems.map(r=>{
+  const riskRowsHtml=riskItems.map(r=>{
     const lv=r.score>=70?"high":r.score>=50?"warn":r.score>=30?"mid":"ok";
     const col=rColors[lv];
     const txt={high:"높음",warn:"보통",mid:"중간",ok:"낮음"}[lv];
@@ -2185,6 +2200,15 @@ function showRegionDetail(name,code,d){
       <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
     </div>`;
   }).join("");
+  document.getElementById("rp-risk-bars").innerHTML=riskRowsHtml;
+  const topRiskItem=riskItems.slice().sort((a,b)=>b.score-a.score)[0];
+  const riskSummary=document.getElementById("rp-forecast-risk-summary");
+  if(riskSummary){
+    const topTxt=topRiskItem.score>=70?"높음":topRiskItem.score>=50?"보통":topRiskItem.score>=30?"중간":"낮음";
+    riskSummary.textContent=`주요 요인 ${topRiskItem.label.replace(/[^\s가-힣A-Za-z]/g,"").trim()} · ${topRiskItem.score} ${topTxt}`;
+  }
+  const forecastRiskBars=document.getElementById("rp-forecast-risk-bars");
+  if(forecastRiskBars) forecastRiskBars.innerHTML=riskRowsHtml;
 
   // ── 출하·시장 동향
   const sh=d.shipment_ton||0;
