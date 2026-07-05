@@ -579,6 +579,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-fc-chg" id="rp-p90c"></div>
             </div>
           </div>
+          <div id="rp-horizon-policy" class="fm-readable-note" style="display:none;margin-top:8px"></div>
           <div class="fm-forecast-risk">
             <div class="fm-forecast-risk-head">
               <div class="fm-forecast-risk-title">가격 변동 리스크</div>
@@ -828,7 +829,7 @@ const NEWS_BY_ITEM={
 let curItem="cabbage",curMode="price",viewLevel="province",curProv=null,curPeriod=28;
 let map_,mapVectorRenderer,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
-let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={};
+let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={},LIVE_HORIZON_POLICIES={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
 let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
@@ -1068,6 +1069,8 @@ function showTopPanel(html){
 function renderExplanationPanel(){
   const current=ITEMS[curItem]||{emoji:"",name:"품목"};
   const horizons=LIVE_HORIZONS[curItem]||{};
+  const hiddenLong=hiddenHorizonDays(curItem);
+  const longPolicy=horizonPolicyText(curItem);
   const hKeys=Object.keys(horizons).map(Number).filter(Number.isFinite).filter(k=>k<=90).sort((a,b)=>a-b);
   const available=hKeys.filter(k=>{
     const row=horizons[String(k)];
@@ -1091,16 +1094,22 @@ function renderExplanationPanel(){
       <b style="text-align:right;color:${pct>0?"#c02828":pct<0?"#1a8a1a":"var(--muted)"}">${change}</b>
     </div>`;
   }).join("");
-  const summary=blocked.length
+  let summary=blocked.length
     ? `${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 구간은 아직 데이터가 약해서 보조 판단으로만 봅니다.`
     : available.length
       ? "현재 표시되는 예측 구간은 모델값 또는 검증된 보간값을 우선 사용합니다."
       : "아직 기간별 모델 응답이 부족해서 기준 가격과 지역 신호 중심으로 보수적으로 표시합니다.";
-  const explainJudgment=blocked.length
+  let explainJudgment=blocked.length
     ? `${current.name}은 ${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 장기 구간보다 단기 구간 판단을 먼저 보는 편이 안전합니다.`
     : available.length
       ? `${current.name}은 현재 ${available.length}개 기간 판단이 준비되어 가격 방향을 비교할 수 있습니다.`
       : `${current.name}은 아직 기간별 예측 근거가 약해 실측가와 지역 위험 신호를 우선 봐야 합니다.`;
+  if(longPolicy){
+    summary=`${longPolicy} 현재 화면에서는 3개월 이하 구간만 가격 판단에 씁니다.`;
+  }
+  if(hiddenLong.length&&!blocked.length){
+    explainJudgment=`${current.name}은 6개월·1년 숫자 예측보다 1주~3개월 구간의 검증된 가격 방향을 먼저 보는 편이 안전합니다.`;
+  }
   const riskJudgment=live.risk_score>=70
     ? "위험 점수가 높아 가격 변동 가능성을 크게 봅니다."
     : live.risk_score>=50
@@ -1539,6 +1548,19 @@ function farmMapColorMeaning(fm){
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
+function hiddenHorizonDays(itemCode=curItem){
+  const policy=LIVE_HORIZON_POLICIES[itemCode]||{};
+  const explicit=Array.isArray(policy.hidden_horizons)?policy.hidden_horizons:[];
+  const fromLive=Array.isArray(LIVE_ITEMS[itemCode]?.hidden_horizons)?LIVE_ITEMS[itemCode].hidden_horizons:[];
+  const fromRows=Object.keys(LIVE_HORIZONS[itemCode]||{}).map(Number).filter(v=>Number.isFinite(v)&&v>90);
+  return [...new Set([...explicit,...fromLive,...fromRows].map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);
+}
+function horizonPolicyText(itemCode=curItem){
+  const hidden=hiddenHorizonDays(itemCode);
+  if(!hidden.length) return "";
+  const labels=hidden.map(d=>d>=365?"1년":d>=180?"6개월":`${d}일`).join(", ");
+  return `${labels} 장기 예측은 아직 공개 숫자로 쓰지 않습니다. 백테스트와 방향 정확도가 충분히 쌓이면 다시 열겠습니다.`;
+}
 function ensureExtendedHorizonUi(){
   const group=document.querySelector(".fm-period-group");
   group?.querySelectorAll('[data-period-extra="180"],[data-period-extra="365"]').forEach(el=>el.remove());
@@ -1919,8 +1941,14 @@ async function fetchItemForecast(item_code){
       }
     }
     LIVE_HORIZONS[item_code]=horizons;
+    LIVE_HORIZON_POLICIES[item_code]=payload?.forecast?.horizon_policy||{
+      max_public_horizon_days:90,
+      hidden_horizons:(payload?.forecast?.hidden_horizons||[]),
+      reason:"장기 예측은 검증을 통과한 뒤 공개합니다."
+    };
     if(LIVE_ITEMS[item_code]){
       LIVE_ITEMS[item_code].active_horizons=payload?.forecast?.active_horizons||Object.keys(horizons).map(Number).filter(Number.isFinite);
+      LIVE_ITEMS[item_code].hidden_horizons=payload?.forecast?.hidden_horizons||LIVE_HORIZON_POLICIES[item_code].hidden_horizons||[];
       LIVE_ITEMS[item_code].horizon_source=payload?.source||"forecast";
     }
     return horizons;
@@ -2760,6 +2788,12 @@ function showRegionDetail(name,code,d){
   setPfc("rp-p28","rp-p28c",28);
   setPfc("rp-p60","rp-p60c",60);
   setPfc("rp-p90","rp-p90c",90);
+  const policyEl=document.getElementById("rp-horizon-policy");
+  if(policyEl){
+    const text=horizonPolicyText(curItem);
+    policyEl.style.display=text?"block":"none";
+    policyEl.innerHTML=text?`<b>장기 예측 판단</b> ${text}`:"";
+  }
 
   // ── 재배 현황
   document.getElementById("rp-area").textContent=d.area_ha?d.area_ha.toLocaleString()+" ha":"—";
