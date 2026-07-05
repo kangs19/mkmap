@@ -913,3 +913,21 @@ Important caveat:
   - after deploy, verify `https://mk-map.com` toggles the layer against the already-imported production FarmMap data.
   - add a model-side `crop_capacity_score` that joins crop main-region metadata with FarmMap land-use area, while keeping the UI label source-safe.
   - consider downloading/auditing Jeonnam, Jeonbuk, Gyeongbuk, Gyeongnam, and Gyeonggi FarmMap sources for broader land-use coverage.
+
+## Session 57 - FarmMap Frontend Deploy Verification (2026-07-05)
+
+- Committed and pushed frontend layer work:
+  - commit `ed91b25 Add FarmMap landuse frontend layer`
+  - branch `main`
+- GitHub Actions:
+  - run `28737421210`
+  - status completed successfully.
+- Production verification:
+  - `https://mk-map.com/` HTML contains `팜맵 농지분류`, confirming the deployed frontend includes the new layer toggle.
+  - `https://mk-map.com/api/v1/map/farmmap/landuse-regions` returns `available:true`, 153 rows, 265,403.6595 ha, `source_type: landuse_only`.
+- Browser caveat:
+  - Codex in-app browser still reported `ERR_TOO_MANY_REDIRECTS` and referenced the old `mkmapcom.wordpress.com` failed URL even after opening a new tab.
+  - Shell/HTTP checks show the production server itself returns 200, so this appears to be stale browser/site-data behavior in the in-app browser, not a server redirect loop.
+- Next work:
+  - Use a normal browser or cleared-profile browser to visually verify `https://mk-map.com` after deployment.
+  - Continue with `crop_capacity_score` feature generation from FarmMap land-use plus crop main-region metadata.
