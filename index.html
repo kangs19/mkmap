@@ -329,7 +329,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </div>
   <nav class="fm-nav">
     <button class="fm-nav-item active" onclick="switchNavView('map',this)">실시간 지도</button>
-    <button class="fm-nav-item" onclick="switchNavView('explain',this)">가격 예측 설명</button>
+    <button class="fm-nav-item" onclick="switchNavView('explain',this)">예측 판단</button>
     <button class="fm-nav-item" onclick="switchNavView('dashboard',this)">통계</button>
   </nav>
   <div class="fm-header-right">
@@ -1092,10 +1092,20 @@ function renderExplanationPanel(){
     : available.length
       ? "현재 표시되는 예측 구간은 모델값 또는 검증된 보간값을 우선 사용합니다."
       : "아직 기간별 모델 응답이 부족해서 기준 가격과 지역 신호 중심으로 보수적으로 표시합니다.";
+  const explainJudgment=blocked.length
+    ? `${current.name}은 ${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 장기 구간보다 단기 구간 판단을 먼저 보는 편이 안전합니다.`
+    : available.length
+      ? `${current.name}은 현재 ${available.length}개 기간 판단이 준비되어 가격 방향을 비교할 수 있습니다.`
+      : `${current.name}은 아직 기간별 예측 근거가 약해 실측가와 지역 위험 신호를 우선 봐야 합니다.`;
+  const riskJudgment=live.risk_score>=70
+    ? "위험 점수가 높아 가격 변동 가능성을 크게 봅니다."
+    : live.risk_score>=50
+      ? "위험 점수가 중간권이라 단기 변동을 주의해서 봅니다."
+      : "위험 점수는 안정권에 가까워 급격한 변동 가능성은 낮게 봅니다.";
   showTopPanel(`
     <div class="fm-top-card">
-      <div class="fm-top-title">${current.emoji} ${current.name} 가격 예측 설명</div>
-      <div class="fm-readable-note">지금 선택한 작물의 가격을 어디에서 가져오고, 어떤 기간 예측을 믿을 수 있는지 보여줍니다. 작물을 바꿔도 이 설명 화면은 그대로 유지됩니다.</div>
+      <div class="fm-top-title">${current.emoji} ${current.name} 가격 판단</div>
+      <div class="fm-readable-note"><b>현재 판단</b> ${explainJudgment} ${riskJudgment}</div>
       <div class="fm-dash-grid" style="margin-top:10px">
         <div class="fm-dash-cell"><div class="fm-dash-lbl">기준 가격</div><div class="fm-dash-val">${LIVE_NATIONAL_PRICES[curItem]?Math.round(LIVE_NATIONAL_PRICES[curItem]).toLocaleString()+"원":"수집 중"}</div><div class="fm-top-sub">도매 실측 우선</div></div>
         <div class="fm-dash-cell"><div class="fm-dash-lbl">대표 산지</div><div class="fm-dash-val">${regionCount}</div><div class="fm-top-sub">검증 지역</div></div>
@@ -1106,13 +1116,13 @@ function renderExplanationPanel(){
     <div class="fm-top-card">
       <div class="fm-sec-title">기간별 신뢰 상태</div>
       ${horizonRows}
-      <div class="fm-readable-note" style="margin-top:8px">${summary}</div>
+      <div class="fm-readable-note" style="margin-top:8px"><b>판단</b> ${summary}</div>
     </div>
     <div class="fm-top-card">
-      <div class="fm-sec-title">판단 순서</div>
-      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>도매시장 실측가를 먼저 봅니다</b><div>지역 도매가가 있으면 그 값을 기준으로 지도, 팝업, 오른쪽 패널을 맞춥니다.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>기간별 모델값을 확인합니다</b><div>1주, 2주, 1개월, 2~3개월처럼 기간별 모델이 있는 구간만 예측값으로 강하게 표시합니다.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>기상, 출하, 시장 압력을 같이 봅니다</b><div>가격이 오른다는 신호와 내린다는 신호가 섞이면 최종 결론은 더 강한 요인을 중심으로 설명합니다.</div></div></div>
+      <div class="fm-sec-title">AI 총평</div>
+      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>${available.length?`예측 가능 구간 ${available.length}개`:"예측 근거 부족"}</b><div>${explainJudgment}</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>위험 점수 ${live.risk_score!=null?Math.round(live.risk_score):"-"}</b><div>${riskJudgment}</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>지역 근거 ${regionCount}곳</b><div>${regionCount?`${regionCount}개 지역 신호가 있어 지도 판단에 반영합니다.`:"지역 근거가 부족해 전국 평균 중심으로 봅니다."}</div></div></div>
     </div>
   `);
 }
@@ -1152,7 +1162,7 @@ function renderDashboardPanel(){
   showTopPanel(`
     <div class="fm-top-card">
       <div class="fm-top-title">작물 통계</div>
-      <div class="fm-readable-note">오늘 먼저 살펴볼 작물을 고르는 화면입니다. 상승 압력, 위험 점수, 출하 규모, 예측 데이터 준비 상태를 순위로 모았습니다.</div>
+      <div class="fm-readable-note"><b>오늘 판단</b> 위험 50점 이상 품목은 ${highCount}개입니다. 상승률·위험점수·출하규모가 동시에 높은 품목부터 확인하는 편이 좋습니다.</div>
       <div class="fm-dash-grid" style="margin-top:10px">
         <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${Object.keys(LIVE_NATIONAL_PRICES).length}</div><div class="fm-top-sub">품목</div></div>
         <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">위험 50점 이상</div></div>
@@ -1641,7 +1651,7 @@ function renderDefaultPanel(){
     const priceNames=priceRanked.slice(0,3).map(r=>`${r.it.name} ${Math.round(r.price).toLocaleString()}원`).join(" · ");
     summary=`실시간 예측은 아직 수집 중입니다. 우선 기준 시세가 들어온 품목을 확인하세요: ${priceNames}. 지도에서는 진한 지역을 눌러 대표 산지·시장 근거를 볼 수 있습니다.`;
   } else if(!hasLive){
-    summary=`예측 데이터 수집 중입니다. 현재 화면은 대표 산지 ${representativeRegionCount}곳과 연결 가능한 가격 API 상태를 먼저 보여줍니다.`;
+    summary=`현재는 대표 산지 ${representativeRegionCount}곳과 연결 가능한 가격 신호를 기준으로 보수적으로 판단합니다.`;
   } else if(highCount>0){
     const highNames=liveRanked.filter(r=>r.level==="high").map(r=>r.it.name).join("·");
     summary=`🔴 위험 품목 ${highCount}개 감지: ${highNames}. ${topRisk.it.name}의 14일 상승 확률 ${Math.round(topRisk.prob*100)}%로 주산지 모니터링이 필요합니다.`;
@@ -2951,12 +2961,14 @@ function showRegionDetail(name,code,d){
   }
   const riskExplain=document.getElementById("rp-risk-explain");
   if(riskExplain){
-    riskExplain.innerHTML=`<b>점수 해석</b>: 0~100점, 높을수록 선택 기간에 가격이 크게 흔들리거나 공급 스트레스가 커질 가능성이 높다는 뜻입니다.<br><b>산출 기준</b>: 백엔드 지역 위험 신호가 있으면 가격 50% + 기상 35% + 생산/KOSIS 공급 15% 공식을 씁니다. 백엔드 신호가 없는 지도 기본값은 가격지수와 출하 전년비 기반 파생점수입니다. 아래 세부 막대는 같은 종합점수를 실데이터와 파생 지표로 나눈 설명용 값이며, 없는 데이터를 임의 실측값처럼 표시하지 않습니다.`;
+    riskExplain.innerHTML=`<b>현재 판단</b> ${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}`;
   }
 
   // ── 출하·시장 동향
   if(riskExplain){
-    riskExplain.innerHTML=`<div class="fm-risk-overall">${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}<br><b>읽는 법</b>: 0점에 가까우면 안정, 50점을 넘으면 주의, 70점 이상이면 가격 변동 가능성이 큰 상태로 봅니다. 각 막대는 같은 종합점수를 기상, 출하, 시장 요인으로 나누어 왜 그런 점수가 나왔는지 설명합니다.</div>`;
+    const topUnified=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0]||{label:"종합",score:0};
+    const topInfo=riskLevelInfo(topUnified.score);
+    riskExplain.innerHTML=`<div class="fm-risk-overall">${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}<br><b>현재 판단</b> ${topUnified.label} 점수가 ${topUnified.score}점으로 가장 강합니다. ${topInfo.hint}</div>`;
   }
 
   const sh=d.shipment_ton||0;
@@ -3042,7 +3054,7 @@ function buildRiskBreakdown(d,priceCtx,chgPct){
       label:"기상·재해",
       score:weatherScore,
       source:signal?"live":"derived",
-      basis:signal?.summary||"실시간 기상 신호가 없을 때는 종합점수 일부를 설명용으로 배분한 파생값",
+      basis:signal?.summary||"현재 기상 신호는 약하게만 반영합니다",
     },
     {
       icon:"🌱",

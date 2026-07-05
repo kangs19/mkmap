@@ -218,6 +218,66 @@ async def test_forecast_explanation_payload(client):
 
 
 @pytest.mark.asyncio
+async def test_forecast_public_payload_hides_internal_column_factors(client):
+    item_code = "test_column_factor_crop"
+    base_date = date(2026, 3, 5)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code))
+        await db.execute(delete(DailyPrice).where(DailyPrice.item_code == item_code))
+        await db.execute(delete(Forecast).where(Forecast.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="테스트작물",
+            category="test",
+            wholesale_unit="1kg",
+            is_active=True,
+        ))
+        db.add(Forecast(
+            item_code=item_code,
+            base_date=base_date,
+            model_version="lgbm_ensemble_test",
+            horizon_days=14,
+            direction_14d="up",
+            up_probability_14d=0.66,
+            surge_probability_14d=0.11,
+            volatility_risk_30d="medium",
+            bottom_probability=0.34,
+            top_factors=[
+                {"factor": "Column_17", "contribution": 0.88, "direction": "up"},
+                {"factor": "Column_10", "contribution": 0.42, "direction": "down"},
+            ],
+            confidence="medium",
+        ))
+        db.add(DailyPrice(
+            item_code=item_code,
+            date=base_date,
+            market="test",
+            grade="test",
+            wholesale_price=1000,
+            retail_price=1200,
+            avg_year_price=1100,
+            prev_year_price=1050,
+            source="test",
+        ))
+        await db.commit()
+
+    forecast = await client.get(f"/api/v1/items/{item_code}/forecast?target_date={base_date}")
+    assert forecast.status_code == 200
+    factor_names = [factor["factor"] for factor in forecast.json()["top_factors"]]
+    assert "Column_17" not in factor_names
+    assert "공급·출하 압력" in factor_names
+
+    explanation = await client.get(f"/api/v1/items/{item_code}/forecast/explanation?target_date={base_date}")
+    assert explanation.status_code == 200
+    reason_labels = [reason["label"] for reason in explanation.json()["reasons"]]
+    reason_messages = [reason.get("message", "") for reason in explanation.json()["reasons"]]
+    assert "Column_17" not in reason_labels
+    assert "공급·출하 압력" in reason_labels
+    assert any("가격을 올리거나 흔드는 쪽" in message for message in reason_messages)
+
+
+@pytest.mark.asyncio
 async def test_dashboard_cards_payload(client):
     item_code = "test_card_crop"
     base_date = date(2026, 2, 10)

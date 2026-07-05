@@ -69,7 +69,7 @@ class TestExplainEngine:
             {"factor": "w_heat_alert_7d",   "importance": 0.08, "direction": "up"},
         ]
         summary = build_summary_text("cabbage", "up", 0.7, factors, "high")
-        assert "김장철" in summary or "주요 요인" in summary
+        assert "김장" in summary or "주요 요인" in summary
 
     def test_factors_to_display(self):
         factors = [

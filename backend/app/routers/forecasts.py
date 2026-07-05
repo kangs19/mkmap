@@ -15,8 +15,45 @@ from app.services.horizon_forecasts import (
     load_horizon_explanation,
     load_horizon_forecast,
 )
+from app.pipeline.explain import public_factor_label, public_factor_message
 
 router = APIRouter(prefix="/api/v1/items", tags=["forecasts"])
+
+
+def _public_top_factors(top_factors: list | None) -> list[dict]:
+    result: list[dict] = []
+    for factor in top_factors or []:
+        if not isinstance(factor, dict):
+            continue
+        raw_name = str(factor.get("factor") or "")
+        direction = str(factor.get("direction") or "up")
+        try:
+            contribution = float(factor.get("contribution", factor.get("importance", 0)) or 0)
+        except (TypeError, ValueError):
+            contribution = 0.0
+        result.append({
+            "factor": public_factor_label(raw_name),
+            "contribution": contribution,
+            "direction": direction,
+        })
+    return result
+
+
+def _public_factor_reason(factor: dict) -> dict:
+    name = str(factor.get("factor") or "")
+    direction = str(factor.get("direction") or "up")
+    try:
+        contribution = float(factor.get("contribution") or factor.get("importance") or 0.0)
+    except (TypeError, ValueError):
+        contribution = 0.0
+    return {
+        "factor": name,
+        "label": public_factor_label(name),
+        "direction": direction,
+        "direction_label": _direction_label(direction),
+        "contribution": contribution,
+        "message": public_factor_message(name, direction),
+    }
 
 
 @router.get("/{item_code}/forecast", response_model=ForecastResponse)
@@ -37,7 +74,9 @@ async def get_forecast(
 
     horizon_fc = load_horizon_forecast(item_code, target_date)
     if horizon_fc:
-        return ForecastResponse(**horizon_response(item, horizon_fc))
+        payload = horizon_response(item, horizon_fc)
+        payload["top_factors"] = _public_top_factors(payload.get("top_factors"))
+        return ForecastResponse(**payload)
 
     base_date = date.fromisoformat(target_date) if target_date else kst_today()
 
@@ -85,7 +124,7 @@ async def get_forecast(
             "volatility_risk_30d": fc.volatility_risk_30d,
             "bottom_probability": fc.bottom_probability,
         },
-        top_factors=[TopFactor(**f) for f in (fc.top_factors or [])],
+        top_factors=[TopFactor(**f) for f in _public_top_factors(fc.top_factors)],
         national_supply_shock=fc.national_supply_shock,
         confidence=fc.confidence,
         summary=_build_summary(fc, item.item_name, horizon),
@@ -956,7 +995,7 @@ async def get_forecast_explanation(
         .limit(3)
     )
 
-    reasons = [_factor_reason(factor) for factor in (fc.top_factors or [])]
+    reasons = [_public_factor_reason(factor) for factor in (fc.top_factors or [])]
     reasons = [r for r in reasons if r.get("message")]  # 설명 없는 내부 요인은 숨김
     # 모델 요인 뒤에 기간별 상세 설명을 항상 붙여 어르신도 이유를 읽을 수 있게 함
     reasons = reasons + [r for r in static_reasons if r.get("label") not in {x.get("label") for x in reasons}]
