@@ -1094,3 +1094,28 @@ Important caveat:
   - `cd backend; python -m pytest tests/test_api.py -q` passed: 33 tests.
   - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
   - local browser static load had no app runtime errors; API warnings were expected because a static file server does not expose backend `/api` routes.
+
+## Session 63 - Forecast Explanation API Contract (2026-07-05)
+
+- Promoted the trend explanation decision logic from frontend-only behavior into backend API response fields.
+- Updated `backend/app/routers/forecasts.py`:
+  - `/api/v1/items/{item_code}/forecast/explanation` now returns `pressure_summary`.
+  - The same endpoint now returns `reason_groups`, grouped as `상승 압력`, `하락 압력`, and `확인할 변수`.
+  - Added top-level compatibility fields: `direction`, `direction_label`, `up_probability_14d`, and `up_probability_label`.
+  - Static/no-forecast fallback responses now also return the same `pressure_summary` and `reason_groups` shape.
+- Updated `backend/app/services/horizon_forecasts.py`:
+  - horizon-file explanation responses now expose the same contract, so active multi-horizon model files do not bypass the UI explanation structure.
+  - model explanation rows are converted from contribution sign into up/down/neutral reason cards.
+  - mixed pressure is explicitly represented when upward and downward contributions coexist.
+- Updated `index.html`:
+  - trend panel now prefers `data.pressure_summary` and `data.reason_groups` from the backend.
+  - legacy fallback logic remains for older responses.
+- Updated `backend/tests/test_api.py`:
+  - coverage now asserts `pressure_summary` and `reason_groups` exist.
+  - payload test asserts top-level direction/probability compatibility fields.
+- Verification:
+  - `python -m py_compile backend\app\routers\forecasts.py backend\app\services\horizon_forecasts.py` passed.
+  - `cd backend; python -m pytest tests\test_api.py -q` passed: 33 tests.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - local backend at `http://127.0.0.1:8017` returned `pressure_summary` and `reason_groups` for cabbage explanation with status 200.
+  - browser load of the local app had no captured runtime errors.

@@ -160,6 +160,9 @@ used and `global` when the global fallback model was used.
 Korean explanation payload with a headline, model scope label, confidence label,
 confidence reason/factors, forecast probability labels, reason messages, top
 risk regions, and data freshness for price, region signal, and forecast data.
+It also returns `pressure_summary` for the top decision card and
+`reason_groups` for grouped 상승/하락/확인 변수 cards. Clients should prefer
+these backend-provided fields over recomputing the conclusion in the UI.
 
 `GET /forecast-explanation` renders a public Korean page that consumes the
 forecast explanation API and provides a resilient empty state when a selected

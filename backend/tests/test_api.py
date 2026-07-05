@@ -61,6 +61,8 @@ async def test_forecast_explanation_endpoint(client, item_code):
         assert "confidence_reason" in data["model"]
         assert "confidence_factors" in data["model"]
         assert "data_freshness" in data
+        assert "pressure_summary" in data
+        assert "reason_groups" in data
 
 
 @pytest.mark.asyncio
@@ -129,6 +131,11 @@ async def test_forecast_explanation_payload(client):
     assert data["model"]["confidence_reason"]
     assert any(factor["key"] == "price_freshness" for factor in data["model"]["confidence_factors"])
     assert data["forecast"]["direction_label"] == "상승"
+    assert data["direction"] == "up"
+    assert data["up_probability_14d"] == 0.64
+    assert data["pressure_summary"]["direction"] == "up"
+    assert data["pressure_summary"]["up_count"] >= 2
+    assert any(group["direction"] == "up" for group in data["reason_groups"])
     assert data["data_freshness"]["price"]["status"] == "fresh"
     assert data["risk_regions"][0]["region_name"] == "테스트지역"
 

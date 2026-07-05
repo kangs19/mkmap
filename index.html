@@ -1685,7 +1685,7 @@ async function fetchAndRenderTrend(itemCode, days){
   const forecast=data.forecast||{};
   const prob=forecast.up_probability_14d??data.up_probability_14d??null;
   const direction=forecast.direction_14d||data.direction||null;
-  const decision=trendDecisionSummary({direction,prob,reasons,phaseLabel});
+  const decision=data.pressure_summary||trendDecisionSummary({direction,prob,reasons,phaseLabel});
   const probStr=prob!=null?`<span style="font-weight:800;color:${prob>0.55?"#c02828":prob<0.45?"#1a8a1a":"#6a1e9a"}">${Math.round(prob*100)}% 상승 확률</span>`:"";
 
   const dirColors={up:"#c02828",down:"#1a8a1a",neutral:"#6a1e9a"};
@@ -1704,11 +1704,16 @@ async function fetchAndRenderTrend(itemCode, days){
   }
 
   if(reasons.length){
-    const groups=[
+    const groups=(data.reason_groups&&data.reason_groups.length?data.reason_groups.map(g=>({
+      key:g.direction||g.key||"neutral",
+      title:g.title||"",
+      hint:g.hint||"",
+      items:g.items||[],
+    })): [
       {key:"up",title:"상승 압력",hint:"값을 올릴 수 있는 요인"},
       {key:"down",title:"하락 압력",hint:"값을 낮출 수 있는 요인"},
       {key:"neutral",title:"확인할 변수",hint:"방향보다 점검이 필요한 요인"},
-    ].map(g=>({...g,items:reasons.filter(r=>(r.direction||"neutral")===g.key)})).filter(g=>g.items.length);
+    ].map(g=>({...g,items:reasons.filter(r=>(r.direction||"neutral")===g.key)}))).filter(g=>g.items.length);
     html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
     html+=groups.map(g=>{
       const col=dirColors[g.key]||"#6a1e9a";

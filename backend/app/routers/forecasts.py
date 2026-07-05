@@ -902,6 +902,12 @@ async def get_forecast_explanation(
 
     # fc 없을 때 — 작물별 기간별 정적 설명 반환
     if fc is None:
+        pressure_summary = _pressure_summary(
+            direction=None,
+            up_probability=None,
+            reasons=static_reasons,
+            phase_label=phase_label,
+        )
         return {
             "item_code": item_code,
             "item_name": item.item_name,
@@ -929,6 +935,8 @@ async def get_forecast_explanation(
                 "bottom_probability": None,
                 "national_supply_shock": None,
             },
+            "pressure_summary": pressure_summary,
+            "reason_groups": _reason_groups(static_reasons),
             "reasons": static_reasons,
             "risk_regions": [],
             "data_freshness": {
@@ -952,12 +960,24 @@ async def get_forecast_explanation(
     reasons = [r for r in reasons if r.get("message")]  # 설명 없는 내부 요인은 숨김
     # 모델 요인 뒤에 기간별 상세 설명을 항상 붙여 어르신도 이유를 읽을 수 있게 함
     reasons = reasons + [r for r in static_reasons if r.get("label") not in {x.get("label") for x in reasons}]
+    forecast_direction = fc.direction_14d
+    forecast_up_probability = fc.up_probability_14d
+    pressure_summary = _pressure_summary(
+        direction=forecast_direction,
+        up_probability=forecast_up_probability,
+        reasons=reasons,
+        phase_label=phase_label,
+    )
 
     return {
         "item_code": fc.item_code,
         "item_name": item.item_name,
         "base_date": str(fc.base_date),
         "headline": _build_explanation_headline(fc, item.item_name),
+        "direction": forecast_direction,
+        "direction_label": _direction_label(forecast_direction),
+        "up_probability_14d": forecast_up_probability,
+        "up_probability_label": _percent_label(forecast_up_probability),
         "model": {
             "version": fc.model_version,
             "scope": model_scope,
@@ -977,6 +997,8 @@ async def get_forecast_explanation(
             "bottom_probability": fc.bottom_probability,
             "national_supply_shock": fc.national_supply_shock,
         },
+        "pressure_summary": pressure_summary,
+        "reason_groups": _reason_groups(reasons),
         "horizon": horizon,
         "horizon_phase": phase,
         "horizon_phase_label": phase_label,
@@ -1098,6 +1120,105 @@ def _percent_label(value: float | None) -> str:
     if value is None:
         return "정보 없음"
     return f"{round(value * 100)}%"
+
+
+def _reason_groups(reasons: list[dict]) -> list[dict]:
+    labels = {
+        "up": ("상승 압력", "값을 올릴 수 있는 요인"),
+        "down": ("하락 압력", "값을 낮출 수 있는 요인"),
+        "neutral": ("확인할 변수", "방향보다 점검이 필요한 요인"),
+    }
+    groups: list[dict] = []
+    for direction in ("up", "down", "neutral"):
+        items = [
+            reason
+            for reason in reasons
+            if (reason.get("direction") or "neutral") == direction
+        ]
+        if not items:
+            continue
+        title, hint = labels[direction]
+        groups.append({
+            "direction": direction,
+            "title": title,
+            "hint": hint,
+            "count": len(items),
+            "items": items,
+        })
+    return groups
+
+
+def _pressure_summary(
+    direction: str | None,
+    up_probability: float | None,
+    reasons: list[dict],
+    phase_label: str,
+) -> dict:
+    up_count = sum(1 for reason in reasons if reason.get("direction") == "up")
+    down_count = sum(1 for reason in reasons if reason.get("direction") == "down")
+    neutral_count = sum(
+        1 for reason in reasons if (reason.get("direction") or "neutral") == "neutral"
+    )
+    mixed_pressure = up_count > 0 and down_count > 0
+
+    if direction == "up":
+        title = f"결론: {phase_label}에는 상승 쪽을 더 봅니다"
+        body = "모델 확률은 상승 쪽을 가리킵니다. 다만 하락 압력이 함께 있으면 재고, 수입, 출하량 같은 반대 변수를 같이 확인해야 합니다."
+        color = "#c02828"
+        bg = "#fff0f0"
+        summary_direction = "up"
+    elif direction == "down":
+        title = f"결론: {phase_label}에는 하락 쪽을 더 봅니다"
+        body = "모델 확률은 하락 쪽을 가리킵니다. 다만 상승 압력이 함께 있으면 산지 피해나 출하 지연 같은 반대 변수를 같이 확인해야 합니다."
+        color = "#1a8a1a"
+        bg = "#f0fff0"
+        summary_direction = "down"
+    elif direction == "neutral" and up_probability is not None:
+        title = f"결론: {phase_label}에는 보합 가능성이 큽니다"
+        body = "상승과 하락 요인이 비슷하거나 변화폭이 작아, 큰 방향보다 변동 리스크를 봐야 합니다."
+        color = "#6a1e9a"
+        bg = "#f5f0ff"
+        summary_direction = "neutral"
+    elif mixed_pressure:
+        title = f"결론: {phase_label}에는 방향이 엇갈립니다"
+        body = (
+            f"상승 압력 {up_count}개와 하락 압력 {down_count}개가 동시에 있습니다. "
+            "지금은 한쪽 결론보다 재고, 수입, 출하량 중 어느 변수가 먼저 움직이는지가 중요합니다."
+        )
+        color = "#a07010"
+        bg = "#fff9e6"
+        summary_direction = "mixed"
+    elif up_count > down_count:
+        title = f"결론: {phase_label}에는 상승 압력을 먼저 봅니다"
+        body = "다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다."
+        color = "#c02828"
+        bg = "#fff0f0"
+        summary_direction = "up_pressure"
+    elif down_count > up_count:
+        title = f"결론: {phase_label}에는 하락 압력을 먼저 봅니다"
+        body = "다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다."
+        color = "#1a8a1a"
+        bg = "#f0fff0"
+        summary_direction = "down_pressure"
+    else:
+        title = f"결론: {phase_label}에는 추가 데이터가 필요합니다"
+        body = f"참고 요인 {neutral_count}개가 있지만 상승/하락 판단을 낼 만큼의 모델 신호가 부족합니다."
+        color = "#6a1e9a"
+        bg = "#f5f0ff"
+        summary_direction = "insufficient_data"
+
+    return {
+        "direction": summary_direction,
+        "title": title,
+        "body": body,
+        "color": color,
+        "bg": bg,
+        "up_probability": up_probability,
+        "up_count": up_count,
+        "down_count": down_count,
+        "neutral_count": neutral_count,
+        "mixed_pressure": mixed_pressure,
+    }
 
 
 def _josa_eunneun(word: str) -> str:
