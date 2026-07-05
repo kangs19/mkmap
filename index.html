@@ -68,9 +68,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-item-option.sel{background:#e8f4e0;color:var(--accent);font-weight:700;}
 /* Layer checkboxes */
 .fm-layer-item{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;}
-.fm-layer-item label{font-size:12px;color:var(--muted);cursor:pointer;flex:1;}
+.fm-layer-item span{font-size:12px;color:var(--muted);cursor:pointer;flex:1;}
 .fm-layer-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
-.fm-layer-item.active label{color:var(--text);font-weight:500;}
+.fm-layer-item.active span{color:var(--text);font-weight:500;}
 /* Period buttons */
 .fm-period-group{display:flex;gap:4px;}
 .fm-period-btn{flex:1;padding:7px 0;border-radius:6px;font-size:11px;font-weight:700;
@@ -327,12 +327,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="fm-sb-section">
       <div class="fm-sb-label">지도 레이어</div>
       <div id="layer-controls">
-        <label class="fm-layer-item active"><input type="checkbox" checked onchange="handleLayer(this,'production')"> <label>재배 면적</label></label>
-        <label class="fm-layer-item active"><input type="checkbox" checked onchange="handleLayer(this,'price')"> <label>가격 예측</label></label>
-        <label class="fm-layer-item active"><input type="checkbox" checked onchange="handleLayer(this,'weather')"> <label>기상 정보</label></label>
-        <label class="fm-layer-item"><input type="checkbox" onchange="handleLayer(this,'pest')"> <label>병해충 위험</label></label>
-        <label class="fm-layer-item"><input type="checkbox" onchange="handleLayer(this,'market')"> <label>도매시장 위치</label></label>
-        <label class="fm-layer-item"><input type="checkbox" onchange="handleLayer(this,'soil')"> <label>토양 정보</label></label>
+        <div class="fm-layer-item active" onclick="toggleLayerRow(event,'production')"><input type="checkbox" checked onchange="handleLayer(this,'production')"> <span>재배 면적</span></div>
+        <div class="fm-layer-item active" onclick="toggleLayerRow(event,'price')"><input type="checkbox" checked onchange="handleLayer(this,'price')"> <span>가격 예측</span></div>
+        <div class="fm-layer-item active" onclick="toggleLayerRow(event,'weather')"><input type="checkbox" checked onchange="handleLayer(this,'weather')"> <span>기상 정보</span></div>
+        <div class="fm-layer-item" onclick="toggleLayerRow(event,'pest')"><input type="checkbox" onchange="handleLayer(this,'pest')"> <span>병해충 위험</span></div>
+        <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
+        <div class="fm-layer-item" onclick="toggleLayerRow(event,'soil')"><input type="checkbox" onchange="handleLayer(this,'soil')"> <span>토양 정보</span></div>
       </div>
     </div>
 
@@ -931,6 +931,14 @@ function showToast(msg){
 }
 
 // ── 레이어·기간 ───────────────────────────────────────────────────────────
+function toggleLayerRow(event,layer){
+  if(event.target && event.target.tagName==="INPUT") return;
+  const input=event.currentTarget.querySelector("input[type=checkbox]");
+  if(!input) return;
+  input.checked=!input.checked;
+  handleLayer(input,layer);
+}
+
 function handleLayer(el,layer){
   el.closest(".fm-layer-item").classList.toggle("active",el.checked);
   if(el.checked) activeLayers.add(layer); else activeLayers.delete(layer);

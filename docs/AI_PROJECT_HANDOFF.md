@@ -456,3 +456,12 @@ Important caveat:
 - The renewed UI deploys immediately with the code.
 - File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
 - If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.
+# Session 34 - Map-first UI restore and layer control repair (2026-07-05 KST)
+
+- User feedback: the simplified dashboard removed too much of the core product value. The desired product is map-first: left/top controls for crop, period, and map filters; center map with crop/price/market/climate signals; right detail panel with forecast, chart, reason analysis, period analysis, and crop context tabs.
+- Restored `index.html` to the previous map-first FARM MAP dashboard baseline from commit `db4a1dd`, then kept the newer backend/API/model work intact.
+- Deployed commit `be90b56` to restore the production dashboard at `https://mk-map.com` with Leaflet map, left filters, price pins, period controls, right detail tabs, and bottom timeline.
+- Fixed a layer-control bug where clicking the text label such as `도매시장 위치` did not toggle the checkbox. The layer rows now use clickable row containers plus `toggleLayerRow(event, layer)` and `handleLayer(...)`.
+- Local browser verification: `도매시장 위치` toggles from unchecked to checked, marker icons increased from 4 to 12, `2개월` period button becomes active, console errors were empty.
+- Smoke verification: `scripts/run_smoke_suite.py --timeout-seconds 300` passed after the UI repair.
+- Next UI work: split the right panel into clearer tabs for exact forecast amount, chart and price movement reason, period/horizon analysis, crop metadata, market signals, and climate/event overlays. Keep the map as the primary experience; do not replace it with a card-only landing/dashboard.
