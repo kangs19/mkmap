@@ -51,6 +51,15 @@ async def get_forecast(
     fc = fc_result.scalar_one_or_none()
 
     if not fc:
+        fallback_result = await db.execute(
+            select(Forecast).where(
+                Forecast.item_code == item_code,
+                Forecast.horizon_days == horizon,
+            ).order_by(Forecast.base_date.desc(), Forecast.created_at.desc()).limit(1)
+        )
+        fc = fallback_result.scalar_one_or_none()
+
+    if not fc:
         raise HTTPException(status_code=404, detail={
             "error": "forecast_not_found",
             "message": f"'{base_date}' 날짜 horizon={horizon}일 예측 데이터가 없습니다.",
