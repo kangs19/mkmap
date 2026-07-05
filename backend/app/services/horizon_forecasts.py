@@ -10,6 +10,7 @@ from app.config import get_settings
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODEL_DATA_DIR = REPO_ROOT / "data" / "model"
+PUBLIC_MAX_HORIZON_DAYS = 90
 
 
 def load_horizon_forecast(item_code: str, target_date: str | None = None) -> dict[str, Any] | None:
@@ -56,7 +57,9 @@ def load_horizon_explanation(item_code: str, target_date: str | None = None) -> 
 
 
 def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
-    horizons = _normalized_horizons(forecast.get("horizons", {}))
+    raw_horizons = _normalized_horizons(forecast.get("horizons", {}))
+    horizons = _public_horizons(raw_horizons)
+    hidden_horizons = _hidden_horizon_days(raw_horizons, horizons)
     h14 = horizons.get("14")
     primary = _primary_horizon(horizons)
     return {
@@ -72,6 +75,8 @@ def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
             "volatility_risk_30d": _volatility_risk(horizons.get("30")),
             "bottom_probability": _bottom_probability(primary),
             "active_horizons": [int(key) for key in sorted(horizons, key=lambda value: int(value))],
+            "hidden_horizons": hidden_horizons,
+            "horizon_policy": _public_horizon_policy(hidden_horizons),
             "horizons": horizons,
         },
         "top_factors": [],
@@ -83,7 +88,9 @@ def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
 
 
 def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict[str, Any]:
-    horizons = _normalized_horizons(explanation.get("horizons", {}))
+    raw_horizons = _normalized_horizons(explanation.get("horizons", {}))
+    horizons = _public_horizons(raw_horizons)
+    hidden_horizons = _hidden_horizon_days(raw_horizons, horizons)
     confidence = _combined_confidence(horizons)
     model_scope = _combined_model_scope(horizons)
     base_date = str(explanation.get("base_date") or "")
@@ -115,6 +122,8 @@ def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict
             "up_probability_14d": up_probability,
             "up_probability_label": _percent_label(up_probability),
             "active_horizons": [int(key) for key in sorted(horizons, key=lambda value: int(value))],
+            "hidden_horizons": hidden_horizons,
+            "horizon_policy": _public_horizon_policy(hidden_horizons),
             "horizons": horizons,
         },
         "pressure_summary": _pressure_summary(direction, up_probability, reasons, phase_label),
@@ -193,8 +202,51 @@ def _normalized_horizons(raw: Any) -> dict[str, dict[str, Any]]:
     return result
 
 
+def _public_horizons(horizons: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    public: dict[str, dict[str, Any]] = {}
+    for key, row in horizons.items():
+        try:
+            horizon_days = int(key)
+        except (TypeError, ValueError):
+            continue
+        if horizon_days > PUBLIC_MAX_HORIZON_DAYS:
+            continue
+        if row.get("held_out"):
+            continue
+        public[key] = row
+    return public
+
+
+def _hidden_horizon_days(
+    raw_horizons: dict[str, dict[str, Any]],
+    public_horizons: dict[str, dict[str, Any]],
+) -> list[int]:
+    hidden: list[int] = []
+    for key in raw_horizons:
+        if key in public_horizons:
+            continue
+        try:
+            hidden.append(int(key))
+        except (TypeError, ValueError):
+            continue
+    return sorted(hidden)
+
+
+def _public_horizon_policy(hidden_horizons: list[int]) -> dict[str, Any]:
+    return {
+        "max_public_horizon_days": PUBLIC_MAX_HORIZON_DAYS,
+        "hidden_horizons": hidden_horizons,
+        "reason": (
+            "180일/365일 예측은 충분한 기간별 백테스트와 방향 정확도 검증을 통과한 뒤 "
+            "공개 예측에 포함합니다."
+            if hidden_horizons
+            else "공개 가능한 기간 예측만 표시합니다."
+        ),
+    }
+
+
 def _primary_horizon(horizons: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
-    for key in ("30", "90", "180", "365", "1", "14"):
+    for key in ("30", "90", "14", "7", "1"):
         if key in horizons:
             return horizons[key]
     return None
