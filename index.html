@@ -825,6 +825,25 @@
       forecast.item_name = item?.name || forecast.item_name || NAME_BY_CODE[forecast.item_code] || forecast.item_code;
       forecast.forecast = forecast.forecast || {};
       forecast.forecast.horizons = forecast.forecast.horizons || {};
+      if (!Object.keys(forecast.forecast.horizons).length) {
+        const legacyDays = Number(forecast.forecast.horizon_days || 14);
+        const legacyDirection = forecast.forecast.direction || forecast.forecast.direction_14d;
+        const legacyProbability = forecast.forecast.up_probability ?? forecast.forecast.up_probability_14d;
+        if (legacyDirection || legacyProbability !== null && legacyProbability !== undefined) {
+          forecast.forecast.horizons[String(legacyDays)] = {
+            risk_adjusted_direction: legacyDirection === "neutral" ? "stable" : legacyDirection,
+            predicted_direction: legacyDirection === "neutral" ? "stable" : legacyDirection,
+            risk_adjusted_change: null,
+            predicted_change: null,
+            up_probability: legacyProbability,
+            confidence: forecast.confidence,
+            model_scope: forecast.model_scope || "global",
+            source: "db_legacy"
+          };
+          forecast.forecast.active_horizons = [legacyDays];
+          forecast.forecast.held_horizons = [];
+        }
+      }
       forecast.forecast.active_horizons = forecast.forecast.active_horizons || Object.keys(forecast.forecast.horizons).map(Number);
       return forecast;
     }
