@@ -804,6 +804,7 @@ let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
 let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
 let priceViewMode="wholesale"; // "wholesale" | "retail"
+const PRIORITY_ITEMS=["cabbage","onion","garlic","radish","green_onion"];
 let LIVE_NATIONAL_PRICES={}; // {item_code: latestPrice} — 가락시장 최신가
 let curDetailData=null; // {name,code,d} — period 변경 시 재렌더 용
 let CITY_DATA_SOURCE="unloaded";
@@ -861,8 +862,7 @@ window.onload=async()=>{
   renderDefaultPanel();
 
   // 주요 5품목 시세도 백그라운드 로드해서 브리핑 채우기
-  const TOP5=["cabbage","onion","garlic","radish","green_onion"];
-  Promise.allSettled(TOP5.map(k=>fetchNationalPrice(k))).then(()=>renderDefaultPanel());
+  Promise.allSettled(PRIORITY_ITEMS.map(k=>fetchNationalPrice(k))).then(()=>renderDefaultPanel());
 
   // 지도 초기화
   map_=L.map("map",{zoomControl:true,preferCanvas:false,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
@@ -1027,22 +1027,60 @@ function showTopPanel(html){
 }
 
 function renderExplanationPanel(){
+  const current=ITEMS[curItem]||{emoji:"",name:"Item"};
+  const horizons=LIVE_HORIZONS[curItem]||{};
+  const hKeys=Object.keys(horizons).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+  const available=hKeys.filter(k=>{
+    const row=horizons[String(k)];
+    return row&&row.available!==false&&row.data_status!=="insufficient_data";
+  });
+  const blocked=hKeys.filter(k=>!available.includes(k));
+  const regionCount=Object.values(CITY_DATA[curItem]||{}).filter(isActiveCropCity).length;
+  const live=LIVE_ITEMS[curItem]||{};
+  const modelMode=hKeys.length?`horizon models ${available.length}/${hKeys.length}`:"14d fallback";
+  const horizonList=(hKeys.length?hKeys:[7,14,21,28,60,90,180,365]);
+  const horizonRows=horizonList.map(k=>{
+    const row=horizons[String(k)]||null;
+    const pct=horizonModelPct(k);
+    const status=!row?"not deployed":row.available===false||row.data_status==="insufficient_data"?"insufficient":"model";
+    const statusLabel={model:"model",insufficient:"insufficient","not deployed":"not deployed"}[status];
+    const color={model:"#1a8a1a",insufficient:"#b86010","not deployed":"#7a8a6a"}[status];
+    const change=pct==null?"-":`${pct>0?"+":""}${pct.toFixed(1)}%`;
+    return `<div style="display:grid;grid-template-columns:44px 1fr 54px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1e8">
+      <b style="font-size:11px;color:var(--text)">${PERIOD_LABEL[k]||k+"D"}</b>
+      <span style="font-size:10px;color:${color};font-weight:800">${statusLabel}</span>
+      <span style="font-size:11px;color:${pct>0?"#c02828":pct<0?"#1a8a1a":"var(--muted)"};font-weight:900;text-align:right">${change}</span>
+    </div>`;
+  }).join("");
+  const drivers=[
+    {label:"Price", value:LIVE_NATIONAL_PRICES[curItem]?"base price connected":"waiting for base price", tone:LIVE_NATIONAL_PRICES[curItem]?"live":"wait"},
+    {label:"Regions", value:`${regionCount} representative regions`, tone:regionCount?"live":"wait"},
+    {label:"Risk", value:live.risk_score!=null?`${Math.round(live.risk_score)} risk score`:"waiting for signals", tone:live.risk_score!=null?"model":"wait"},
+    {label:"Horizon", value:modelMode, tone:hKeys.length?"live":"model"},
+  ];
+  const driverHtml=drivers.map(d=>`<div class="fm-dash-cell">
+    <div class="fm-dash-lbl">${d.label}</div>
+    <div style="font-size:12px;font-weight:900;color:var(--text);line-height:1.35">${d.value}</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px">${d.tone==="live"?"connected":d.tone==="model"?"model based":"waiting"}</div>
+  </div>`).join("");
   showTopPanel(`
     <div class="fm-top-card">
-      <div class="fm-top-title">가격 예측 설명</div>
-      <div class="fm-top-sub">현재 FARM MAP 예측은 가격 API, 지역 주산지 데이터, 지역 도매/소매 시세, 위험 신호를 결합해 기간별 예상 방향과 가격을 계산합니다.</div>
+      <div class="fm-top-title">${current.emoji} ${current.name} Forecast Engine</div>
+      <div class="fm-top-sub">Shows what data is powering the current forecast, which horizons are usable, and which horizons are still missing or insufficient.</div>
+      <div class="fm-dash-grid" style="margin-top:10px">${driverHtml}</div>
     </div>
     <div class="fm-top-card">
-      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>기준 가격 선택</b><div>지역 시세가 있으면 지역 도매/소매 실데이터를 우선 사용하고, 없으면 품목 전국 가격 또는 주산지 평균가로 폴백합니다.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>기간 보정</b><div>1주, 2주, 4주, 2개월, 3개월 버튼에 따라 같은 지역도 예측 등락률을 다르게 계산합니다.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>위험 신호 결합</b><div>가격 편차, 출하/생산 비중, 기상·시장 위험 신호를 반영합니다. 실데이터가 없는 항목은 모델/추정 배지로 구분합니다.</div></div></div>
-      <div class="fm-explain-step"><div class="fm-explain-num">4</div><div class="fm-explain-body"><b>검증 기준</b><div>지도·팝업·오른쪽 패널은 같은 가격 계산 함수에서 값을 가져옵니다. 수입량처럼 API가 아직 연결되지 않은 항목은 숫자를 만들지 않습니다.</div></div></div>
+      <div class="fm-sec-title">Horizon Status</div>
+      <div style="margin-top:6px">${horizonRows}</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.55;margin-top:8px">
+        ${!hKeys.length?"Horizon model response is not loaded yet. The page is using fallback forecast and region metadata.":blocked.length?`Insufficient horizons: ${blocked.map(k=>PERIOD_LABEL[k]||k+"D").join(", ")}. These should not be treated as firm model outputs.`:"Visible horizons are available through model output or interpolation."}
+      </div>
     </div>
-    <div class="fm-source-note">
-      <b>출처 표기</b><br>
-      <span class="fm-data-tag live">실데이터</span> API/캐시 원천값,
-      <span class="fm-data-tag model">모델</span> 확보된 데이터 기반 산출,
-      <span class="fm-data-tag none">미연동</span> 아직 수치 표시 금지 항목입니다.
+    <div class="fm-top-card">
+      <div class="fm-sec-title">How It Is Calculated</div>
+      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>Base price</b><div>Regional wholesale market price is preferred. If it is missing, the UI falls back to national or representative-market pricing.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>Horizon direction</b><div>When horizon-specific model output exists, it is used first. Otherwise the nearest available horizon and probability are used conservatively.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>Shared basis</b><div>The map, hover popup, and right panel use the same price-context functions so their numbers stay aligned.</div></div></div>
     </div>
   `);
 }
@@ -1051,49 +1089,54 @@ function renderDashboardPanel(){
   const rows=Object.entries(ITEMS).map(([k,it])=>{
     const live=LIVE_ITEMS[k]||{};
     const price=LIVE_NATIONAL_PRICES[k]||null;
+    const horizons=LIVE_HORIZONS[k]||{};
+    const activeH=Object.keys(horizons).filter(h=>horizons[h]?.available!==false&&horizons[h]?.data_status!=="insufficient_data");
     const score=live.risk_score??null;
     const prob=live.up_prob??null;
-    return {k,it,price,score,prob,level:live.risk_level||it.risk_level||"normal"};
-  }).filter(r=>r.price!=null||r.score!=null||r.prob!=null)
+    return {k,it,price,score,prob,level:live.risk_level||it.risk_level||"normal",activeH};
+  }).filter(r=>r.price!=null||r.score!=null||r.prob!=null||r.activeH.length||PRIORITY_ITEMS.includes(r.k))
     .sort((a,b)=>(b.score??-1)-(a.score??-1));
   const liveCount=Object.keys(LIVE_ITEMS).length;
   const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
-  const top=rows[0];
-  const upCount=rows.filter(r=>r.prob!=null&&r.prob>0.6).length;
+  const horizonCount=Object.values(LIVE_HORIZONS).filter(v=>Object.keys(v||{}).length).length;
   const highCount=rows.filter(r=>r.level==="high"||r.level==="warning").length;
+  const top=rows[0];
   const topCards=rows.slice(0,6).map(r=>{
     const col=r.prob==null?"#7a8a6a":r.prob>0.58?"#c02828":r.prob<0.42?"#1a8a1a":"#6a1e9a";
-    const dir=r.prob==null?"예측 수집중":r.prob>0.58?"상승":r.prob<0.42?"하락":"보합";
-    const probText=r.prob==null?"—":`${Math.round(r.prob*100)}%`;
-    const scoreText=r.score==null?"—":Math.round(r.score);
+    const dir=r.prob==null?"waiting":r.prob>0.58?"up bias":r.prob<0.42?"down bias":"stable";
+    const probText=r.prob==null?"-":`${Math.round(r.prob*100)}%`;
+    const scoreText=r.score==null?"-":Math.round(r.score);
+    const priceText=r.price?Math.round(r.price).toLocaleString()+" won":"price pending";
     return `<div class="fm-dash-cell" onclick="selectItem('${r.k}')" style="cursor:pointer">
       <div class="fm-dash-lbl">${r.it.emoji} ${r.it.name}</div>
-      <div class="fm-dash-val">${r.price?Math.round(r.price).toLocaleString()+"원":"—"}</div>
-      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} 확률 ${probText} · 위험 ${scoreText}</div>
+      <div class="fm-dash-val">${priceText}</div>
+      <div style="font-size:10px;color:${col};font-weight:800;margin-top:4px">${dir} ${probText} | risk ${scoreText}</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:3px">horizons ${r.activeH.length}</div>
+    </div>`;
+  }).join("");
+  const actionRows=rows.slice(0,4).map(r=>{
+    const reason=r.level==="high"||r.level==="warning"?"check risk signal first":r.prob==null?"waiting for forecast signal":r.prob>0.6?"watch upside pressure":r.prob<0.4?"watch downside pressure":"check price and region flow";
+    return `<div style="display:grid;grid-template-columns:1fr 76px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #edf1e8">
+      <div><b style="font-size:11px;color:var(--text)">${r.it.emoji} ${r.it.name}</b><div style="font-size:10px;color:var(--muted);margin-top:2px">${reason}</div></div>
+      <button onclick="selectItem('${r.k}')" style="border:1px solid var(--border);background:white;border-radius:7px;padding:5px 7px;font-size:10px;font-weight:800;color:var(--accent);cursor:pointer">map</button>
     </div>`;
   }).join("");
   showTopPanel(`
     <div class="fm-top-card">
-      <div class="fm-top-title">대시보드</div>
-      <div class="fm-top-sub">오늘 수집된 예측·가격·지역 데이터를 요약합니다. 지도에서 품목과 기간을 바꾸면 같은 데이터 기준으로 상세 화면이 갱신됩니다.</div>
+      <div class="fm-top-title">Dashboard</div>
+      <div class="fm-top-sub">A compact work queue for priority items, risk signals, price availability, and horizon-model coverage.</div>
       <div class="fm-dash-grid">
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 품목</div><div class="fm-dash-val">${liveCount||0}개</div><div class="fm-top-sub">signals/today 기준</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${priceCount}개</div><div class="fm-top-sub">map/prices 최신가</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}개</div><div class="fm-top-sub">warning/high 기준</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">상승 우세</div><div class="fm-dash-val">${upCount}개</div><div class="fm-top-sub">상승확률 60% 초과</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">Forecast items</div><div class="fm-dash-val">${liveCount}</div><div class="fm-top-sub">signals/today</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">Price feeds</div><div class="fm-dash-val">${priceCount}</div><div class="fm-top-sub">base prices</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">Horizon models</div><div class="fm-dash-val">${horizonCount}</div><div class="fm-top-sub">forecast APIs</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">Watch items</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">warning/high</div></div>
       </div>
     </div>
-    <div class="fm-top-card">
-      <div class="fm-sec-title">우선 확인 품목</div>
-      <div class="fm-dash-grid">${topCards}</div>
-    </div>
-    <div class="fm-source-note">
-      <b>현재 최상위 리스크</b><br>
-      ${top?`${top.it.emoji} ${top.it.name}: 위험점수 ${top.score==null?"—":Math.round(top.score)}, 상승확률 ${top.prob==null?"—":Math.round(top.prob*100)+"%"}`:"수집된 예측 데이터가 없습니다."}
-    </div>
+    <div class="fm-top-card"><div class="fm-sec-title">Priority Items</div><div class="fm-dash-grid">${topCards||"<div class='fm-top-sub'>No forecast data is loaded yet.</div>"}</div></div>
+    <div class="fm-top-card"><div class="fm-sec-title">Today Actions</div>${actionRows||"<div class='fm-top-sub'>Actions will appear after data loads.</div>"}</div>
+    <div class="fm-source-note"><b>Top risk</b><br>${top?`${top.it.emoji} ${top.it.name}: risk ${top.score==null?"-":Math.round(top.score)}, up probability ${top.prob==null?"-":Math.round(top.prob*100)+"%"}`:"No forecast data is loaded yet."}</div>
   `);
 }
-
 // ── 레이어 상태 ──────────────────────────────────────────────────────────
 const activeLayers=new Set(["price","weather"]);
 let weatherMarkerLayer=null, weatherInfoControl=null, marketMarkerLayer=null;
