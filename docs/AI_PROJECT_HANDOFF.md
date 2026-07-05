@@ -592,3 +592,19 @@ Important caveat:
 - Verification:
   - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.
   - Static browser load reported no console errors.
+
+## Session 46 - City Hover Root Fix And Forecast/Market Rebalance (2026-07-05)
+
+- User clarified that the map hover popup still did not appear inside drilled-in regional maps, and that the price forecast period amounts still occupied too much space.
+- Root issue addressed:
+  - Map was initialized with `preferCanvas:true`, so polygons could render on canvas rather than SVG paths. Previous SVG DOM hover fallback could not reliably work there.
+  - Changed map init to `preferCanvas:false` and added `mapVectorRenderer=L.svg({padding:0.5})`.
+  - Province and city `L.geoJSON` layers now use `renderer:mapVectorRenderer`.
+  - City hover now shows `makeHoverCard()` even for no-data city areas, so hovering does not silently do nothing.
+- UI rebalance:
+  - Forecast horizon amounts changed from button/card-like blocks to a compact 6-column label strip.
+  - Price risk remains in the forecast pane.
+  - `재배·시장` pane now focuses on cultivation stats and shipment/market data; duplicate risk panel removed from that tab.
+- Verification:
+  - Static browser check: 6-column compact strip, no stats risk bars, SVG renderer/preferCanvas false present, no console errors.
+  - `python scripts/run_smoke_suite.py --timeout-seconds 300` passed.

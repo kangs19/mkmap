@@ -162,10 +162,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-price-chg.up{color:#c02828;}.fm-price-chg.down{color:#1a8a1a;}.fm-price-chg.neu{color:var(--muted);}
 .fm-chart-wrap{margin-top:10px;height:120px;position:relative;}
 /* Price forecast mini row */
-.fm-forecast-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:8px;}
-.fm-fc-cell{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 6px;text-align:center;min-width:0;}
-.fm-fc-lbl{font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:700;white-space:nowrap;}
-.fm-fc-val{font-size:11px;font-weight:900;color:var(--text);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fm-forecast-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:8px;border:1px solid var(--border);border-radius:7px;background:#f8fbf5;overflow:hidden;}
+.fm-fc-cell{background:transparent;border:0;border-right:1px solid var(--border);border-radius:0;padding:4px 4px;text-align:center;min-width:0;}
+.fm-fc-cell:last-child{border-right:none;}
+.fm-fc-lbl{font-size:8px;color:var(--muted);margin-bottom:2px;font-weight:800;white-space:nowrap;}
+.fm-fc-val{font-size:10px;font-weight:900;color:var(--text);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .fm-fc-chg{font-size:8px;font-weight:800;margin-top:1px;line-height:1.15;}
 .fm-fc-chg.up{color:#c02828;}.fm-fc-chg.down{color:#1a8a1a;}
 .fm-forecast-risk{margin-top:9px;padding-top:9px;border-top:1px solid var(--border);}
@@ -180,6 +181,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
 .fm-mid-col{flex:1;padding:13px 16px;background:white;}
 .fm-mid-col:first-child{border-right:1px solid var(--border);}
+.fm-mid-row.single .fm-mid-col{border-right:none;}
 /* Cultivation stats */
 .fm-sec-title{font-size:9px;color:var(--dimmed);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;font-weight:700;}
 .fm-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
@@ -562,8 +564,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
             <div style="text-align:right;font-size:10px;color:var(--muted);max-width:140px" id="rp-drought-note"></div>
           </div>
         </div>
-        <!-- 재배 현황 | 리스크 분석 (2단) -->
-        <div class="fm-mid-row">
+        <!-- 재배 현황 -->
+        <div class="fm-mid-row single">
           <div class="fm-mid-col">
             <div class="fm-sec-title">재배 현황</div>
             <div class="fm-stats-grid">
@@ -572,16 +574,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-stat-cell"><div class="fm-stat-lbl">전년 대비</div><div class="fm-stat-val" id="rp-yoy">—</div><div class="fm-stat-sub" id="rp-yoy-sub"></div></div>
               <div class="fm-stat-cell"><div class="fm-stat-lbl">주산지 순위</div><div class="fm-stat-val" id="rp-rank">—</div><div class="fm-stat-sub" id="rp-rank-sub"></div></div>
             </div>
-          </div>
-          <div class="fm-mid-col">
-            <div class="fm-sec-title" style="display:flex;align-items:center;justify-content:space-between">
-              리스크 분석
-              <div class="fm-risk-circle ok" id="rp-gauge" style="width:44px;height:44px">
-                <span class="fm-risk-circle-num" id="rp-gauge-num">—</span>
-                <span class="fm-risk-circle-lbl" id="rp-gauge-lbl">보통</span>
-              </div>
-            </div>
-            <div id="rp-risk-bars"></div>
           </div>
         </div>
 
@@ -772,7 +764,7 @@ const NEWS_BY_ITEM={
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
 let curItem="cabbage",curMode="price",viewLevel="province",curProv=null,curPeriod=28;
-let map_,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
+let map_,mapVectorRenderer,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
 let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
@@ -840,7 +832,8 @@ window.onload=async()=>{
   Promise.allSettled(TOP5.map(k=>fetchNationalPrice(k))).then(()=>renderDefaultPanel());
 
   // 지도 초기화
-  map_=L.map("map",{zoomControl:true,preferCanvas:true,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
+  map_=L.map("map",{zoomControl:true,preferCanvas:false,minZoom:7,maxBounds:[[32.5,125.0],[38.9,130.5]],maxBoundsViscosity:1.0});
+  mapVectorRenderer=L.svg({padding:0.5});
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
   // 남한 경계에 딱 맞게
@@ -2176,9 +2169,11 @@ function showRegionDetail(name,code,d){
 
   // ── 리스크 게이지
   const gaugeEl=document.getElementById("rp-gauge");
-  gaugeEl.className="fm-risk-circle "+(rs>=70?"high":rs>=50?"warn":"ok");
-  document.getElementById("rp-gauge-num").textContent=rs;
-  document.getElementById("rp-gauge-lbl").textContent=rs>=70?"높음":rs>=50?"보통":"낮음";
+  if(gaugeEl){
+    gaugeEl.className="fm-risk-circle "+(rs>=70?"high":rs>=50?"warn":"ok");
+    document.getElementById("rp-gauge-num").textContent=rs;
+    document.getElementById("rp-gauge-lbl").textContent=rs>=70?"높음":rs>=50?"보통":"낮음";
+  }
 
   // 리스크 진행바
   const weatherSig=LIVE_SIGNALS[curItem]?.[d.province_code||PROV_NAME_MAP[d.sido]||d.sido];
@@ -2200,7 +2195,8 @@ function showRegionDetail(name,code,d){
       <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
     </div>`;
   }).join("");
-  document.getElementById("rp-risk-bars").innerHTML=riskRowsHtml;
+  const statsRiskBars=document.getElementById("rp-risk-bars");
+  if(statsRiskBars) statsRiskBars.innerHTML=riskRowsHtml;
   const topRiskItem=riskItems.slice().sort((a,b)=>b.score-a.score)[0];
   const riskSummary=document.getElementById("rp-forecast-risk-summary");
   if(riskSummary){
@@ -2398,6 +2394,7 @@ function drawProvinces(){
   if(provPinLayer)map_.removeLayer(provPinLayer);provPinLayer=L.layerGroup().addTo(map_);
   const cd=CITY_DATA[curItem]||{};
   provLayer=L.geoJSON(provGeo,{
+    renderer:mapVectorRenderer,
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(cd,pfx);
@@ -2540,12 +2537,11 @@ function drawCities(sido){
 
   // 시군 hover 카드 공통 함수
   function showCityTooltip(name,d,e){
-    if(!d){hideMapTooltip();return;}
-    // 확대(city) 이후에도 상세 팝업 카드를 계속 표시
-    showMapTooltip(makeHoverCard(name,d,d?.sido),e);
+    showMapTooltip(makeHoverCard(name,d,d?.sido||sido),e);
   }
 
   cityLayer=L.geoJSON(filtered,{
+    renderer:mapVectorRenderer,
     style:f=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=activeCodes.has(code)?cd[code]:null;
