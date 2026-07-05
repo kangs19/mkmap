@@ -677,6 +677,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 </div>
 
 <script>
+globalThis.__codexErrors=[];
+globalThis.addEventListener("error",e=>{
+  globalThis.__codexErrors.push({type:"error",message:e.message||String(e.error||e),source:e.filename||"",line:e.lineno||0});
+});
+globalThis.addEventListener("unhandledrejection",e=>{
+  globalThis.__codexErrors.push({type:"unhandledrejection",message:String(e.reason?.message||e.reason||"")});
+});
 // ── 데이터 ──────────────────────────────────────────────────────────────────
 const ITEMS={
   cabbage:     {name:"배추",  emoji:"🥬",unit:"10kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.25,volatility:"medium",confidence:"medium",hotspot:"강원도",  risk_level:"normal",risk_score:25,horizon:14},
@@ -803,7 +810,7 @@ window.onload=async()=>{
   }
 
   // city_agri_data.json 로드해서 CITY_DATA에 23개 품목 채우기
-  fetch("/static/city_agri_data.json").then(r=>r.json()).then(raw=>{
+  const cityDataPromise=fetch("/static/city_agri_data.json").then(r=>r.json()).then(raw=>{
     for(const [itemCode, cities] of Object.entries(raw)){
       if(!CITY_DATA[itemCode]) CITY_DATA[itemCode]={};
       for(const [cityCode, d] of Object.entries(cities)){
@@ -829,6 +836,7 @@ window.onload=async()=>{
   Promise.all([
     fetchGeo("skorea_provinces.json"),
     fetchGeo("skorea_municipalities_simple.json"),
+    cityDataPromise,
   ]).then(([p,c])=>{
     provGeo=p;cityGeo=c;
     const s=c.features[0]?.properties||{};

@@ -456,6 +456,13 @@ Important caveat:
 - The renewed UI deploys immediately with the code.
 - File-based horizon forecasts require strict prediction/explanation artifacts under `data/model` or explicit `ACTIVE_PRICE_*_PATH` variables.
 - If artifacts are absent on Railway, the forecast endpoint falls back to DB-backed forecasts.
+# Session 37 - UI audit hardening after map-region correction (2026-07-05 KST)
+
+- Follow-up after user correctly challenged insufficient verification.
+- Added a browser runtime error capture hook (`globalThis.__codexErrors`) so future UI audits can distinguish "no visible issue" from actual runtime errors.
+- Fixed a race condition: `/static/city_agri_data.json` now loads through `cityDataPromise` and is included in the initial GeoJSON `Promise.all(...)` before `drawProvinces()`. Previously the map could render before refreshed production-region data arrived.
+- Re-ran smoke suite after the fix. Production API endpoints checked: `/health`, `/api/v1/signals/today`, `/api/v1/items/cabbage/forecast`, `/api/v1/items/radish/forecast`, `/api/v1/map/weather` all returned HTTP 200.
+
 # Session 36 - Do not color non-producing regions (2026-07-05 KST)
 
 - User feedback: regions without the selected crop must not be colored as if the crop exists there.
