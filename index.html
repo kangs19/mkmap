@@ -104,7 +104,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--dimmed)!important;font-size:9px!important;}
 
 /* 항상표시 지역 핀 */
-.region-pin{background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:none;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;}
+.region-pin{background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:auto;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;cursor:pointer;}
 .rp-name{font-size:11px;font-weight:700;color:#1a2410;white-space:nowrap;}
 .rp-chg{font-size:13px;font-weight:800;line-height:1.3;}
 .rp-chg.up{color:#c02828;}.rp-chg.down{color:#1a8a1a;}.rp-chg.flat{color:#6a1e9a;}
@@ -504,6 +504,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
           </div>
         </div>
 
+        <!-- 기간별 가격 동향 분석 -->
+        <div class="fm-news-section">
+          <div class="fm-sec-title" style="display:flex;align-items:center;gap:8px">
+            기간별 가격 동향 분석
+            <span id="rp-trend-phase" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f5e9;color:#1a8a1a;display:none"></span>
+          </div>
+          <div id="rp-trend-reasons" style="margin-top:6px"></div>
+        </div>
+
         </div><!-- /탭1 -->
 
         <!-- 탭2: 재배·시장 -->
@@ -551,15 +560,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
             <div class="fm-mkt-cell"><div class="fm-mkt-lbl">반입량 (오늘)</div><div class="fm-mkt-val" id="rp-arrival">—</div><div class="fm-mkt-sub" id="rp-arrival-sub"></div></div>
             <div class="fm-mkt-cell"><div class="fm-mkt-lbl">수입 물량</div><div class="fm-mkt-val" id="rp-import">—</div><div class="fm-mkt-sub" id="rp-import-sub"></div></div>
           </div>
-        </div>
-
-        <!-- 기간별 가격 동향 분석 -->
-        <div class="fm-news-section">
-          <div class="fm-sec-title" style="display:flex;align-items:center;gap:8px">
-            기간별 가격 동향 분석
-            <span id="rp-trend-phase" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f5e9;color:#1a8a1a;display:none"></span>
-          </div>
-          <div id="rp-trend-reasons" style="margin-top:6px"></div>
         </div>
 
         </div><!-- /탭2 -->
@@ -2281,8 +2281,14 @@ function drawProvinces(){
       const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
       const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
       const mockD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD,sido),className:'',iconSize:[0,0],iconAnchor:[40,20]})});
-      pin.addTo(provPinLayer).on("click",()=>zoomProv(f,sido,f.properties.name||sido));
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,mockD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+      pin.addTo(provPinLayer);
+      bindMarkerDomEvents(pin,{
+        enter:e=>showMapTooltip(makeHoverCard(`${f.properties.name||sido} (${ents.length}개 시·군)`,mockD,sido),e),
+        move:e=>moveMapTooltip(e),
+        leave:()=>hideMapTooltip(),
+        click:()=>{hideMapTooltip();zoomProv(f,sido,f.properties.name||sido);}
+      });
     }catch(e){}
   });
 }
@@ -2411,14 +2417,14 @@ function drawCities(sido){
     if(!feat)return;
     try{
       const center=L.geoJSON(feat).getBounds().getCenter();
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[0,0],iconAnchor:[40,40]})});
-      pin.on({
-        mouseover:e=>showCityTooltip(d.name,d,e),
-        mousemove:e=>moveMapTooltip(e),
-        mouseout:()=>hideMapTooltip(),
-        click:()=>showRegionDetail(d.name,code,d),
-      });
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[116,64],iconAnchor:[58,32]})});
       provPinLayer.addLayer(pin);
+      bindMarkerDomEvents(pin,{
+        enter:e=>showCityTooltip(d.name,d,e),
+        move:e=>moveMapTooltip(e),
+        leave:()=>hideMapTooltip(),
+        click:()=>{hideMapTooltip();showRegionDetail(d.name,code,d);}
+      });
     }catch(e){}
   });
 }
@@ -2426,6 +2432,39 @@ function drawCities(sido){
 function riskLvlText(r){return{normal:"정상",caution:"주의",warning:"경고",high:"위험"}[r]||r;}
 
 // ── 커스텀 툴팁 (position:fixed, 자동 최적 위치) ──────────────────────────
+function bindMarkerDomEvents(marker,handlers){
+  const bind=()=>{
+    const el=marker.getElement?.();
+    if(!el||el.dataset.fmDomBound==="1") return;
+    el.dataset.fmDomBound="1";
+    const enter=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.enter?.(e);};
+    const move=e=>handlers.move?.(e);
+    const leave=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.leave?.(e);};
+    if(handlers.enter){
+      el.addEventListener("mouseenter",enter);
+      el.addEventListener("mouseover",enter);
+      el.addEventListener("pointerenter",enter);
+      el.addEventListener("pointerover",enter);
+    }
+    if(handlers.move){
+      el.addEventListener("mousemove",move);
+      el.addEventListener("pointermove",move);
+    }
+    if(handlers.leave){
+      el.addEventListener("mouseleave",leave);
+      el.addEventListener("mouseout",leave);
+      el.addEventListener("pointerleave",leave);
+      el.addEventListener("pointerout",leave);
+    }
+    if(handlers.click) el.addEventListener("click",e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      handlers.click(e);
+    });
+  };
+  marker.on("add",bind);
+  bind();
+}
 function showMapTooltip(html, e){
   const tip=document.getElementById('map-tooltip');
   tip.innerHTML=html;

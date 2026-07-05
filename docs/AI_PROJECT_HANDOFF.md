@@ -472,6 +472,19 @@ Important caveat:
   - Province hover for 강원 showed `5,342원/10kg`, matching the province pin.
   - City-level 평창군 pin showed `5,137원/10kg`, and the right panel showed predicted price `5,137원` with current price `5,763원 / 10kg`.
 
+# Session 40 - Move trend analysis into forecast tab and repair drilled-map hover (2026-07-05 KST)
+
+- User feedback: `기간별 가격 동향 분석` belongs inside the price-forecast experience, and hover popups did not appear after drilling into the middle/city map level.
+- Moved the `기간별 가격 동향 분석` section from the `재배·시장` tab into the `가격 예측` tab, directly below the multi-horizon forecast cells.
+- Fixed map pin hit areas:
+  - `.region-pin` now accepts pointer events and uses a pointer cursor.
+  - Province and city Leaflet price pins now use real icon sizes instead of `iconSize:[0,0]`.
+  - Added `bindMarkerDomEvents(...)` to bind `mouseenter/mouseover/pointerover`, move, leave, and click directly to marker DOM elements. This makes hover cards work even when Leaflet marker events are unreliable after drill-down.
+- Local verification:
+  - Smoke suite passed.
+  - Browser inspection confirmed `rp-trend-reasons` now lives under `rp-pane-forecast`.
+  - Province markers render with 110x58 hit areas; city markers render with 116x64 hit areas and direct DOM event binding.
+
 # Session 38 - Hover-only map cards and clearer market/share context (2026-07-05 KST)
 
 - User feedback: click drill-down must not leave a fixed popup on the map; hover cards should appear only while hovering. Also requested clearer wholesale/retail market influence, better card sizing, and no blank national-share fields.
