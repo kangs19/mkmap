@@ -1243,46 +1243,83 @@ function renderDashboardPanel(){
     const regions=cropRegionRows(k);
     const shipment=regions.reduce((a,r)=>a+(Number(r.shipment_ton)||0),0);
     const avgRise=regions.length?regions.reduce((a,r)=>a+(Number(r.price_vs_avg)||0),0)/regions.length:0;
+    const topRegion=regions.slice().sort((a,b)=>(Number(b.shipment_ton||b.production_ton)||0)-(Number(a.shipment_ton||a.production_ton)||0))[0]||null;
+    const topShipment=Number(topRegion?.shipment_ton||topRegion?.production_ton)||0;
+    const concentration=shipment?topShipment/shipment*100:0;
+    const maxGap=regions.length?Math.max(...regions.map(r=>Math.abs(Number(r.price_vs_avg)||0))):0;
+    const forecast28=horizonModelPct(28,k);
+    const forecast90=horizonModelPct(90,k);
     const horizons=LIVE_HORIZONS[k]||{};
-    const activeH=Object.keys(horizons).filter(h=>Number(h)<=90&&isPublicForecastHorizon(horizons[h]));
+    const activeH=Object.keys(horizons).filter(h=>Number(h)<=90&&isPublicForecastHorizon(horizons[h])).map(Number).sort((a,b)=>a-b);
+    const hasMetric=!!price||regions.length>0||Object.keys(live).length>0||Object.keys(horizons).length>0;
+    const score=live.risk_score??(hasMetric?Math.min(100,Math.round(Math.abs(avgRise)*2+concentration*.25+maxGap*.8)):0);
+    const prob=live.up_prob??(forecast28!=null?Math.max(0.05,Math.min(0.95,.5+forecast28/60)):null);
+    const priority=hasMetric?Math.round(Math.abs(avgRise)*1.3 + score*.75 + maxGap*.9 + concentration*.2 + (activeH.length?6:0)):0;
     return {
-      k,it,price,shipment,avgRise,activeH,
-      score:live.risk_score??0,
-      prob:live.up_prob??null,
+      k,it,price,shipment,avgRise,activeH,topRegion,concentration,maxGap,forecast28,forecast90,priority,hasMetric,
+      score,
+      prob,
       level:live.risk_level||it.risk_level||"normal",
     };
   });
   const fmtPrice=v=>v?Math.round(v).toLocaleString()+"원":"수집 중";
-  const rankList=(title,items,valueFn,noteFn,colorFn)=>`
+  const fmtPct=v=>v==null||!Number.isFinite(Number(v))?"-":`${v>0?"+":""}${Number(v).toFixed(1)}%`;
+  const probText=r=>r.prob==null?"확률 수집 중":r.prob>=.57?`상승 ${Math.round(r.prob*100)}%`:r.prob<=.43?`하락 ${Math.round((1-r.prob)*100)}%`:`보합권 ${Math.round(r.prob*100)}%`;
+  const selectRankItem=k=>`selectItem('${k}');switchNavView('map',document.querySelector('.fm-nav-item'))`;
+  const rankList=(title,items,valueFn,noteFn,colorFn,limit=6)=>`
     <div class="fm-top-card">
       <div class="fm-sec-title">${title}</div>
-      ${items.slice(0,6).map((r,i)=>`<div class="fm-stat-rank" onclick="selectItem('${r.k}')" style="cursor:pointer">
+      ${items.length?items.slice(0,limit).map((r,i)=>`<div class="fm-stat-rank" onclick="${selectRankItem(r.k)}" style="cursor:pointer">
         <b>${i+1}위</b>
         <div><b>${r.it.emoji} ${r.it.name}</b><small>${noteFn(r)}</small></div>
         <b style="text-align:right;color:${colorFn?colorFn(r):"var(--text)"}">${valueFn(r)}</b>
-      </div>`).join("")}
+      </div>`).join(""):`<div class="fm-readable-note" style="padding:8px 0;color:var(--muted)">아직 비교 가능한 데이터가 없습니다.</div>`}
     </div>`;
-  const riseRows=rows.slice().sort((a,b)=>b.avgRise-a.avgRise);
-  const riskRows=rows.slice().sort((a,b)=>b.score-a.score);
-  const shipmentRows=rows.slice().sort((a,b)=>b.shipment-a.shipment);
-  const readyRows=rows.slice().sort((a,b)=>b.activeH.length-a.activeH.length);
+  const miniPill=(label,value,color="#267a18")=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:#f7f9f4;border:1px solid var(--border);font-size:11px;font-weight:800;color:${color}"><b style="color:var(--muted);font-weight:700">${label}</b> ${value}</span>`;
+  const metricRows=rows.filter(r=>r.hasMetric);
+  const riseRows=metricRows.filter(r=>Number.isFinite(r.avgRise)).slice().sort((a,b)=>b.avgRise-a.avgRise);
+  const fallRows=metricRows.filter(r=>Number.isFinite(r.avgRise)).slice().sort((a,b)=>a.avgRise-b.avgRise);
+  const riskRows=metricRows.slice().sort((a,b)=>b.score-a.score);
+  const shipmentRows=metricRows.filter(r=>r.shipment>0).slice().sort((a,b)=>b.shipment-a.shipment);
+  const readyRows=metricRows.filter(r=>r.activeH.length||Object.keys(LIVE_HORIZONS[r.k]||{}).length).slice().sort((a,b)=>b.activeH.length-a.activeH.length);
+  const anomalyRows=metricRows.filter(r=>r.maxGap>0).slice().sort((a,b)=>b.maxGap-a.maxGap);
+  const concentrationRows=metricRows.filter(r=>r.concentration>0).slice().sort((a,b)=>b.concentration-a.concentration);
+  const priorityRows=metricRows.slice().sort((a,b)=>b.priority-a.priority);
+  const directionRows=metricRows.filter(r=>r.prob!=null||r.forecast28!=null||r.forecast90!=null).slice().sort((a,b)=>Math.abs((b.prob??.5)-.5)-Math.abs((a.prob??.5)-.5));
   const highCount=riskRows.filter(r=>r.score>=50).length;
   const totalShipment=shipmentRows.reduce((a,r)=>a+r.shipment,0);
+  const topPriority=priorityRows[0];
+  const topJudgment=topPriority
+    ? `${topicName(topPriority.it.name)} 우선점수 ${topPriority.priority}점입니다. ${probText(topPriority)}, 위험 ${Math.round(topPriority.score)}점, 가격 이상폭 ${topPriority.maxGap.toFixed(1)}%라 먼저 확인할 만합니다.`
+    : "아직 비교 가능한 품목 통계를 수집 중입니다. 가격·출하·예측 데이터가 들어오면 우선 확인 품목부터 자동으로 정렬됩니다.";
+  const livePriceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
+  const readyCount=readyRows.filter(r=>r.activeH.length).length;
   showTopPanel(`
     <div class="fm-top-card">
       <div class="fm-top-title">작물 통계</div>
-      <div class="fm-readable-note"><b>오늘 판단</b> 위험 50점 이상 품목은 ${highCount}개입니다. 상승률·위험점수·출하규모가 동시에 높은 품목부터 확인하는 편이 좋습니다.</div>
+      <div class="fm-readable-note"><b>오늘 우선순위</b> ${topJudgment}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
+        ${miniPill("가격",`${livePriceCount}품목`,livePriceCount?"#1a8a1a":"#b86010")}
+        ${miniPill("주의",`${highCount}품목`,highCount?"#b86010":"#1a8a1a")}
+        ${miniPill("예측",`${readyCount}품목`,"#4b5f9b")}
+        ${miniPill("메타",`${shipmentRows.length}품목`,"#267a18")}
+      </div>
       <div class="fm-dash-grid" style="margin-top:10px">
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${Object.keys(LIVE_NATIONAL_PRICES).length}</div><div class="fm-top-sub">품목</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집</div><div class="fm-dash-val">${livePriceCount}</div><div class="fm-top-sub">품목</div></div>
         <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">위험 50점 이상</div></div>
         <div class="fm-dash-cell"><div class="fm-dash-lbl">총 출하 참고량</div><div class="fm-dash-val">${fmtTon(totalShipment)}</div><div class="fm-top-sub">지도 메타 기준</div></div>
-        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 준비</div><div class="fm-dash-val">${readyRows.filter(r=>r.activeH.length).length}</div><div class="fm-top-sub">기간 모델 보유</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">예측 준비</div><div class="fm-dash-val">${readyCount}</div><div class="fm-top-sub">기간 모델 보유</div></div>
       </div>
     </div>
-    ${rankList("상승 압력 순위",riseRows,r=>`${r.avgRise>0?"+":""}${r.avgRise.toFixed(1)}%`,r=>`대표 산지 평균 가격 위치 · 현재가 ${fmtPrice(r.price)}`,r=>r.avgRise>=0?"#c02828":"#1a8a1a")}
-    ${rankList("위험 점수 순위",riskRows,r=>`${Math.round(r.score)}점`,r=>r.score>=70?"가격 변동 가능성이 큰 품목":r.score>=50?"주의해서 볼 품목":"현재는 안정권에 가까운 품목",r=>r.score>=70?"#c02828":r.score>=50?"#b86010":"#1a8a1a")}
-    ${rankList("출하 규모 순위",shipmentRows,r=>fmtTon(r.shipment),r=>`${cropRegionRows(r.k).length}개 대표 산지 합산`,()=>"#2f6f31")}
-    ${rankList("예측 데이터 준비 순위",readyRows,r=>`${r.activeH.length}개`,r=>`사용 가능 기간: ${r.activeH.map(h=>PERIOD_LABEL[h]||h+"일").join(", ")||"수집 중"}`,()=>"#4b5f9b")}
+    ${rankList("오늘 우선 확인",priorityRows,r=>`${r.priority}점`,r=>`${probText(r)} · 위험 ${Math.round(r.score)}점 · 이상폭 ${r.maxGap.toFixed(1)}%`,r=>r.priority>=80?"#c02828":r.priority>=55?"#b86010":"#267a18",5)}
+    ${rankList("상승 압력 순위",riseRows,r=>fmtPct(r.avgRise),r=>`대표 산지 평균 가격 위치 · 현재가 ${fmtPrice(r.price)} · 4주 ${fmtPct(r.forecast28)}`,r=>r.avgRise>=0?"#c02828":"#1a8a1a",5)}
+    ${rankList("하락 압력 순위",fallRows,r=>fmtPct(r.avgRise),r=>`가격 위치가 낮은 품목 · 4주 ${fmtPct(r.forecast28)}`,r=>r.avgRise<0?"#1a8a1a":"#b86010",5)}
+    ${rankList("가격 이상치 순위",anomalyRows,r=>`${r.maxGap.toFixed(1)}%`,r=>`대표 산지 중 전국 평균과 가장 벌어진 폭`,r=>r.maxGap>=20?"#c02828":r.maxGap>=10?"#b86010":"#267a18",5)}
+    ${rankList("위험 점수 순위",riskRows,r=>`${Math.round(r.score)}점`,r=>r.score>=70?"가격 변동 가능성이 큰 품목":r.score>=50?"주의해서 볼 품목":"현재는 안정권에 가까운 품목",r=>r.score>=70?"#c02828":r.score>=50?"#b86010":"#1a8a1a",5)}
+    ${rankList("상승·하락 확률 신호",directionRows,r=>probText(r),r=>`4주 ${fmtPct(r.forecast28)} · 3개월 ${fmtPct(r.forecast90)}`,r=>r.prob==null?"var(--muted)":r.prob>=.57?"#c02828":r.prob<=.43?"#1a8a1a":"#6a1e9a",5)}
+    ${rankList("출하 규모 순위",shipmentRows,r=>fmtTon(r.shipment),r=>`${cropRegionRows(r.k).length}개 대표 산지 합산 · 1위 산지 ${r.topRegion?.name||"-"}`,()=>"#2f6f31",5)}
+    ${rankList("산지 집중도 순위",concentrationRows,r=>`${r.concentration.toFixed(0)}%`,r=>`1위 산지 ${r.topRegion?.name||"-"} 비중 · 높을수록 해당 산지 변수 중요`,r=>r.concentration>=50?"#b86010":"#267a18",5)}
+    ${rankList("예측 데이터 준비 순위",readyRows,r=>`${r.activeH.length}개`,r=>`사용 가능 기간: ${r.activeH.map(h=>PERIOD_LABEL[h]||h+"일").join(", ")||"수집 중"}`,()=>"#4b5f9b",5)}
   `);
 }
 // ── 레이어 상태 ──────────────────────────────────────────────────────────

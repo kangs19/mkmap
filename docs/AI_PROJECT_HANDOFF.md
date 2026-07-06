@@ -1452,3 +1452,40 @@ Production caution:
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
 - Detailed handoff:
   - `docs/AI_SESSION_99_TREND_SIGNAL_COMPACTION.md`
+
+## Session 100 - Dashboard Statistics Panel (2026-07-06)
+
+- Expanded the top `통계` navigation view in `index.html`.
+- Added a judgment-first dashboard with:
+  - today's priority crop,
+  - price data count,
+  - caution item count,
+  - forecast-ready item count,
+  - shipment metadata count.
+- Added rank sections:
+  - today's priority,
+  - upward pressure,
+  - downward pressure,
+  - price anomaly,
+  - risk score,
+  - rise/fall probability signal,
+  - shipment scale,
+  - production concentration,
+  - forecast data readiness.
+- Added derived dashboard metrics:
+  - priority score,
+  - max regional price gap,
+  - top shipment region,
+  - production concentration,
+  - 4-week/3-month forecast change.
+- Hardened empty-data behavior:
+  - rows without usable data are not forced into rankings,
+  - empty sections display `아직 비교 가능한 데이터가 없습니다.`,
+  - top judgment no longer shows misleading `우선점수 0점입니다`,
+  - awkward Korean particle output such as `배추은` was fixed with `topicName`.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - local browser check confirmed the dashboard opens and empty-data fallback behaves correctly.
+- Detailed handoff:
+  - `docs/AI_SESSION_100_DASHBOARD_STATS_PANEL.md`

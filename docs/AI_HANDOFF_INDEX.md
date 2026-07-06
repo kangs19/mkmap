@@ -91,3 +91,6 @@
 - `docs/AI_SESSION_99_TREND_SIGNAL_COMPACTION.md`
   - 2026-07-06 trend signal compaction.
   - Covers repeated trend reason merging, icon summaries, grouped pressure signals, and validation.
+- `docs/AI_SESSION_100_DASHBOARD_STATS_PANEL.md`
+  - 2026-07-06 dashboard statistics panel.
+  - Covers the expanded top `통계` view, priority rankings, anomaly/concentration statistics, no-data handling, and validation.
