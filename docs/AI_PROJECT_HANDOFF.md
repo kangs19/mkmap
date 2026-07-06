@@ -1152,3 +1152,41 @@ Important caveat:
   - `cd backend; python -m pytest tests\test_api.py -q` passed: 33 tests.
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
   - local browser check drilled into cabbage/Chungbuk/Goesan and verified the lower-level hover card appears, remains inside viewport, and no longer shows `0원` for unavailable price.
+
+## Session 81 - All Mapped Item Model Refresh And Backtest (2026-07-06)
+
+- Processed all currently model-ready crops: cabbage, radish, onion, green_onion, garlic.
+- Downloaded fresh KAMIS 730-day price data and Agromarket regional 365-day price data.
+- Audited feature coverage:
+  - price target and market data are usable,
+  - agri weather is usable with backfill,
+  - disaster and forecast APIs are currently context/recent signals rather than full historical drivers,
+  - production/FarmMap signals remain mostly static annual/regional features.
+- Built `data/model/price_training_table_20260706.csv`:
+  - 1,121 rows,
+  - 91 columns,
+  - crop-specific features for cabbage/radish/onion/green_onion/garlic.
+- Ran daily model promotion/backtest for 1, 14, 30, 90, and 180 day horizons.
+- 365-day horizon was rejected because there were zero valid 365-day target rows.
+- The new candidate model was not promoted because it did not consistently beat the existing champion in direction accuracy and MAE.
+- Checked artifact:
+  - `price_horizon_model_20260706_all_items_checked_no365`
+  - strict predictions/explanations generated locally for all 5 mapped crops.
+- Local API check:
+  - active public horizons: 1, 14, 30, 90,
+  - hidden horizon: 180,
+  - forecast endpoints returned 200 for all 5 mapped crops.
+- Updated `backend/app/services/horizon_forecasts.py` so public horizon explanation text is normal Korean instead of mojibake/encoding-corrupted text.
+- Verification:
+  - `python -m py_compile backend\app\services\horizon_forecasts.py` passed.
+  - `$env:PYTHONPATH='backend'; python -m pytest backend\tests\test_horizon_forecasts.py backend\tests\test_api.py -q` passed: 38 tests.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - Local FastAPI check returned 200 for all 5 mapped crops with active horizons 1/14/30/90 and hidden horizon 180.
+- Detailed handoff:
+  - `docs/AI_SESSION_81_ALL_ITEM_MODEL_BACKTEST.md`
+
+Production caution:
+
+- `data/model` and other generated data directories are ignored by Git.
+- A code push alone does not upload local model artifacts.
+- To apply this exact model output in production, rerun the same pipeline on the server or upload/sync the generated artifacts through the production storage path.

@@ -496,3 +496,164 @@ def _resolve_path(raw: str) -> Path:
 def _discover_latest(pattern: str) -> Path | None:
     candidates = sorted(MODEL_DATA_DIR.glob(pattern), key=lambda path: (path.stat().st_mtime, path.name), reverse=True)
     return candidates[0] if candidates else None
+
+
+# Keep these public text helpers at the end so they override older mojibake
+# strings that may still exist above from legacy encoding migrations.
+def _public_horizon_policy(hidden_horizons: list[int]) -> dict[str, Any]:
+    return {
+        "max_public_horizon_days": PUBLIC_MAX_HORIZON_DAYS,
+        "hidden_horizons": hidden_horizons,
+        "reason": (
+            "90일을 초과하는 장기 예측은 충분한 기간별 백테스트와 방향 정확도 검증을 통과한 뒤 공개합니다."
+            if hidden_horizons
+            else "공개 가능한 기간 예측만 표시합니다."
+        ),
+    }
+
+
+def _direction_label(direction: str | None) -> str:
+    return {"up": "상승", "down": "하락", "neutral": "보합"}.get(direction or "", "불확실")
+
+
+def _percent_label(value: Any) -> str:
+    if value is None:
+        return "정보 없음"
+    try:
+        return f"{round(float(value) * 100)}%"
+    except (TypeError, ValueError):
+        return "정보 없음"
+
+
+def _horizon_phase_label(horizon_days: int) -> str:
+    if horizon_days <= 21:
+        return "단기(1~3주)"
+    if horizon_days <= 90:
+        return "중기(1~3개월)"
+    return "장기(3개월 이상)"
+
+
+def _horizon_reasons(horizon: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not horizon:
+        return []
+    rows = []
+    for source_key in ("supporting_reasons", "offsetting_reasons"):
+        raw_rows = horizon.get(source_key, [])
+        if not isinstance(raw_rows, list):
+            continue
+        for row in raw_rows:
+            if not isinstance(row, dict):
+                continue
+            contribution = _float_or_none(row.get("contribution"))
+            direction = "neutral"
+            if contribution is not None and contribution > 0:
+                direction = "up"
+            elif contribution is not None and contribution < 0:
+                direction = "down"
+            label = str(row.get("label") or row.get("feature") or "모델 요인")
+            pct = _float_or_none(row.get("contribution_pct_points"))
+            if pct is not None:
+                message = f"{label}이 예측 등락률에 {pct:+.2f}%p 반영됐습니다."
+            elif row.get("effect"):
+                message = f"{label}은 현재 {row.get('effect')}으로 반영됐습니다."
+            else:
+                message = f"{label}이 모델 판단에 반영됐습니다."
+            rows.append({
+                "factor": str(row.get("feature") or ""),
+                "label": label,
+                "direction": direction,
+                "direction_label": _direction_label(direction),
+                "contribution": contribution,
+                "message": message,
+                "source": source_key,
+            })
+    rows.sort(key=lambda item: abs(float(item.get("contribution") or 0.0)), reverse=True)
+    return rows[:8]
+
+
+def _reason_groups(reasons: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    labels = {
+        "up": ("상승 압력", "값을 올릴 수 있는 요인"),
+        "down": ("하락 압력", "값을 낮출 수 있는 요인"),
+        "neutral": ("확인할 변수", "방향보다 점검이 필요한 요인"),
+    }
+    groups = []
+    for direction in ("up", "down", "neutral"):
+        items = [reason for reason in reasons if (reason.get("direction") or "neutral") == direction]
+        if not items:
+            continue
+        title, hint = labels[direction]
+        groups.append({
+            "direction": direction,
+            "title": title,
+            "hint": hint,
+            "count": len(items),
+            "items": items,
+        })
+    return groups
+
+
+def _pressure_summary(
+    direction: str | None,
+    up_probability: Any,
+    reasons: list[dict[str, Any]],
+    phase_label: str,
+) -> dict[str, Any]:
+    up_count = sum(1 for reason in reasons if reason.get("direction") == "up")
+    down_count = sum(1 for reason in reasons if reason.get("direction") == "down")
+    neutral_count = sum(1 for reason in reasons if (reason.get("direction") or "neutral") == "neutral")
+    mixed_pressure = up_count > 0 and down_count > 0
+
+    if direction == "up":
+        title = f"결론: {phase_label}에는 상승 쪽을 더 봅니다"
+        body = "모델 확률은 상승 쪽을 가리킵니다. 다만 하락 압력도 함께 있으면 반대 변수도 같이 확인해야 합니다."
+        color, bg, summary_direction = "#c02828", "#fff0f0", "up"
+    elif direction == "down":
+        title = f"결론: {phase_label}에는 하락 쪽을 더 봅니다"
+        body = "모델 확률은 하락 쪽을 가리킵니다. 다만 상승 압력도 함께 있으면 반대 변수도 같이 확인해야 합니다."
+        color, bg, summary_direction = "#1a8a1a", "#f0fff0", "down"
+    elif direction == "neutral" and up_probability is not None:
+        title = f"결론: {phase_label}에는 보합 가능성이 큽니다"
+        body = "상승과 하락 요인이 비슷하거나 변동폭이 작아, 방향보다 변동 리스크를 먼저 봐야 합니다."
+        color, bg, summary_direction = "#6a1e9a", "#f5f0ff", "neutral"
+    elif mixed_pressure:
+        title = f"결론: {phase_label}에는 방향이 엇갈립니다"
+        body = f"상승 압력 {up_count}개와 하락 압력 {down_count}개가 동시에 있습니다. 어느 변수가 먼저 움직이는지가 중요합니다."
+        color, bg, summary_direction = "#a07010", "#fff9e6", "mixed"
+    elif up_count > down_count:
+        title = f"결론: {phase_label}에는 상승 압력이 먼저 보입니다"
+        body = "다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다."
+        color, bg, summary_direction = "#c02828", "#fff0f0", "up_pressure"
+    elif down_count > up_count:
+        title = f"결론: {phase_label}에는 하락 압력이 먼저 보입니다"
+        body = "다만 확률 데이터가 부족해 예측값이 아니라 요인 분석으로만 표시합니다."
+        color, bg, summary_direction = "#1a8a1a", "#f0fff0", "down_pressure"
+    else:
+        title = f"결론: {phase_label}에는 추가 데이터가 필요합니다"
+        body = f"참고 요인 {neutral_count}개가 있지만 상승/하락 판단을 낼 만큼 모델 신호가 충분하지 않습니다."
+        color, bg, summary_direction = "#6a1e9a", "#f5f0ff", "insufficient_data"
+
+    return {
+        "direction": summary_direction,
+        "title": title,
+        "body": body,
+        "color": color,
+        "bg": bg,
+        "up_probability": _float_or_none(up_probability),
+        "up_count": up_count,
+        "down_count": down_count,
+        "neutral_count": neutral_count,
+        "mixed_pressure": mixed_pressure,
+    }
+
+
+def _summary(item_name: str, horizons: dict[str, dict[str, Any]]) -> str:
+    if not horizons:
+        return f"{item_name}: 공개 가능한 기간 예측이 아직 없습니다."
+    parts = []
+    for key in sorted(horizons, key=lambda value: int(value)):
+        row = horizons[key]
+        direction = _direction_label(_backend_direction(row.get("risk_adjusted_direction") or row.get("predicted_direction")))
+        change = float(row.get("risk_adjusted_change") or row.get("predicted_change") or 0.0) * 100.0
+        parts.append(f"{key}일 {direction} {change:+.1f}%")
+    return f"{item_name} 예측 판단: " + ", ".join(parts)

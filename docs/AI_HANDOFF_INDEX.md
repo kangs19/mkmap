@@ -32,3 +32,8 @@
 - 하지만 운영 DB에는 2026-07-01 예측/신호 데이터가 아직 들어가지 않아 공개 API의 예측 결과가 비어 있다.
 - 원격 admin pipeline 실행에는 Railway `ADMIN_KEY`가 필요하다. 로컬 `.env`에는 현재 `ADMIN_KEY`가 없다.
 
+## Latest Model/Data Session
+
+- `docs/AI_SESSION_81_ALL_ITEM_MODEL_BACKTEST.md`
+  - 2026-07-06 all currently mapped crops model/data refresh.
+  - Covers data collection, feature coverage, crop-specific features, model training/backtest, promotion result, public horizon policy, production application notes, and next work.
