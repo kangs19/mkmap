@@ -4459,14 +4459,34 @@ function bindMarkerDomEvents(marker,handlers){
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
     if(handlers.html) el.setAttribute?.("data-fm-tooltip-html",handlers.html);
-    el.querySelectorAll?.(".region-pin").forEach(child=>{
-      FM_TOOLTIP_HANDLERS.set(child,handlers);
-      child.__fmTooltipHandlers=handlers;
-      if(handlers.html) child.setAttribute("data-fm-tooltip-html",handlers.html);
-    });
+    const markerTargets=[el,...(el.matches?.(".region-pin")?[]:[]),...(el.querySelectorAll?.(".region-pin")||[])];
     const enter=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.enter?.(e);};
     const move=e=>handlers.move?.(e);
     const leave=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.leave?.(e);};
+    markerTargets.forEach(target=>{
+      FM_TOOLTIP_HANDLERS.set(target,handlers);
+      target.__fmTooltipHandlers=handlers;
+      if(handlers.html) target.setAttribute?.("data-fm-tooltip-html",handlers.html);
+      if(target!==el&&target.dataset?.fmRichMarkerBound!=="1"){
+        if(target.dataset) target.dataset.fmRichMarkerBound="1";
+        if(handlers.enter){
+          target.addEventListener("mouseenter",enter);
+          target.addEventListener("mouseover",enter);
+          target.addEventListener("pointerenter",enter);
+          target.addEventListener("pointerover",enter);
+        }
+        if(handlers.move){
+          target.addEventListener("mousemove",move);
+          target.addEventListener("pointermove",move);
+        }
+        if(handlers.leave){
+          target.addEventListener("mouseleave",leave);
+          target.addEventListener("mouseout",leave);
+          target.addEventListener("pointerleave",leave);
+          target.addEventListener("pointerout",leave);
+        }
+      }
+    });
     if(handlers.enter){
       el.addEventListener("mouseenter",enter);
       el.addEventListener("mouseover",enter);
