@@ -3891,6 +3891,8 @@ function drawCities(sido){
         price_vs_avg:0,
         _farmmapLanduse:fm,
       }:null);
+      const detailPriceCtx=detailD?getRegionPriceContext(detailD,detailD.sido||sido):null;
+      const detailPathPrice=detailPriceCtx?.currentPrice||detailD?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
       const enterCity=e=>{
         const isSelected=curDetailData?.code===code;
         e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
@@ -3938,7 +3940,7 @@ function drawCities(sido){
       layer.on("add",()=>{try{layer.bringToFront();}catch(e){}});
       bindPathDomEvents(layer,{
         title: detailD
-          ? `${name} ${ITEMS[curItem]?.name||"작물"} · ${detailD.avg_price?Math.round(detailD.avg_price).toLocaleString()+"원":"가격 수집 중"}`
+          ? `${name} ${ITEMS[curItem]?.name||"작물"} · ${detailPathPrice?Math.round(detailPathPrice).toLocaleString()+"원":"가격 수집 중"}`
           : `${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:enterCityDom,
         move:e=>moveMapTooltip(e),
