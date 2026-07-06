@@ -4247,9 +4247,10 @@ function makePinHtml(name,d,sidoKR){
   const rp=ctx.rp;
   const isCurrent=(curPeriod<=7);
   const unit=ctx.unit;
+  const pinTitle=(text)=>String(text||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   if(isHorizonBlocked(curItem,curPeriod)){
     const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
-    return`<div class="region-pin">
+    return`<div class="region-pin" title="${pinTitle(`${name} ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`)}">
       <div class="rp-name">${name}</div>
       <div class="rp-price" style="color:#9a6a20">${price?price.toLocaleString()+"원":"가격 수집 중"}</div>
       <div class="rp-chg flat">검증 대기</div>
@@ -4268,14 +4269,14 @@ function makePinHtml(name,d,sidoKR){
     const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
     const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     const bottomColor=isCurrent?pctColor:fctColor;
-    return`<div class="region-pin">
+    return`<div class="region-pin" title="${pinTitle(`${name} ${mainLabel} ${pm.toLocaleString()}원/${unit} · ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`)}">
       <div class="rp-name">${name}</div>
       <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${pm.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
       <div style="font-size:9px;font-weight:600;color:#7a8a6a;line-height:1.3">${subLabel} ${ps.toLocaleString()}원</div>
       <div style="font-size:9px;font-weight:700;color:${bottomColor}">${bottomStr}</div>
     </div>`;
   }
-  if(!d)return`<div class="region-pin"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
+  if(!d)return`<div class="region-pin" title="${pinTitle(`${name} · 대표 산지 검증 데이터 부족`)}"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
   const chg=d.price_vs_avg||0;
   const sign=chg>0?'+':'';
   const cls=chg>5?'up':chg<-5?'down':'flat';
@@ -4285,7 +4286,7 @@ function makePinHtml(name,d,sidoKR){
   const fctPct=periodForecastPct(chg,curPeriod);
   const modeLabel=ctx.primaryShort;
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
-  return`<div class="region-pin">
+  return`<div class="region-pin" title="${pinTitle(`${name} ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`)}">
     <div class="rp-name">${name}</div>
     ${predP?`<div class="rp-price">${modeLabel} ${predP.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>`:''}
     <div class="rp-chg ${cls}">${fctStr}</div>
