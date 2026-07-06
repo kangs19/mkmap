@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 96
+
+See `docs/AI_SESSION_96_PRICE_LABEL_CONSISTENCY.md`.
+
+Latest result:
+
+- Tightened price labels across map pins, SVG path titles, and the right detail panel.
+- Forecast-adjusted pin values now say `예측 도매가` or `예측 소매가`.
+- SVG path fallback titles now say `현재` or `현재 평균`.
+- Right detail panel now labels the base line as `현재 도매가` or `현재 소매가`.
+- Local smoke suite passed.
+
 ## Latest Update - 2026-07-06 Session 95
 
 See `docs/AI_SESSION_95_MAP_TOOLTIP_FALLBACK.md`.

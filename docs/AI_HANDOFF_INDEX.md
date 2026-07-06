@@ -79,3 +79,6 @@
 - `docs/AI_SESSION_95_MAP_TOOLTIP_FALLBACK.md`
   - 2026-07-06 map tooltip fallback.
   - Covers CSS-only pin hover tooltips and native SVG path titles for launch-safe hover information.
+- `docs/AI_SESSION_96_PRICE_LABEL_CONSISTENCY.md`
+  - 2026-07-06 price label consistency.
+  - Covers current-vs-forecast labeling across map pins, SVG path titles, and the right detail panel.

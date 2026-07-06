@@ -621,7 +621,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
                 <span class="fm-price-unit" id="rp-unit">원/kg</span>
                 <span class="fm-price-chg" id="rp-chg">—</span>
               </div>
-              <div style="font-size:10px;color:var(--muted)">현재 평균가 <b style="color:var(--text)" id="rp-cur-price">—</b></div>
+              <div style="font-size:10px;color:var(--muted)">현재 <span id="rp-cur-price-label">평균가</span> <b style="color:var(--text)" id="rp-cur-price">—</b></div>
               <div class="fm-market-basis" id="rp-market-basis">시장 기준 —</div>
             </div>
           </div>
@@ -2919,6 +2919,7 @@ function showRegionDetail(name,code,d){
   const predictedPrice=pv?Math.round(pv*(1+mainChg/100)):null;
   document.getElementById("rp-price").textContent=predictedPrice?predictedPrice.toLocaleString()+"원":"—";
   document.getElementById("rp-unit").textContent=pv?it.unit:"";
+  document.getElementById("rp-cur-price-label").textContent=priceCtx.primaryLabel||"평균가";
   document.getElementById("rp-cur-price").textContent=pv?pv.toLocaleString()+"원":"—";
   const marketBasis=document.getElementById("rp-market-basis");
   if(marketBasis){
@@ -3739,7 +3740,7 @@ function drawProvinces(){
       }
       bindPathDomEvents(layer,{
         title: provinceActive
-          ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시군 · 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
+          ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시군 · 현재 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
           : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:e=>{
           layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
@@ -3940,7 +3941,7 @@ function drawCities(sido){
       layer.on("add",()=>{try{layer.bringToFront();}catch(e){}});
       bindPathDomEvents(layer,{
         title: detailD
-          ? `${name} ${ITEMS[curItem]?.name||"작물"} · ${detailPathPrice?Math.round(detailPathPrice).toLocaleString()+"원":"가격 수집 중"}`
+          ? `${name} ${ITEMS[curItem]?.name||"작물"} · 현재 ${detailPathPrice?Math.round(detailPathPrice).toLocaleString()+"원":"가격 수집 중"}`
           : `${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:enterCityDom,
         move:e=>moveMapTooltip(e),
@@ -4278,7 +4279,7 @@ function makePinHtml(name,d,sidoKR){
   const pinTitle=(text)=>String(text||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   if(isHorizonBlocked(curItem,curPeriod)){
     const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
-    const title=pinTitle(`${name} ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`);
+    const title=pinTitle(`${name} 현재 ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`);
     return`<div class="region-pin" title="${title}" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div class="rp-price" style="color:#9a6a20">${price?price.toLocaleString()+"원":"가격 수집 중"}</div>
@@ -4298,7 +4299,7 @@ function makePinHtml(name,d,sidoKR){
     const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
     const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     const bottomColor=isCurrent?pctColor:fctColor;
-    const title=pinTitle(`${name} ${mainLabel} ${pm.toLocaleString()}원/${unit} · ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`);
+    const title=pinTitle(`${name} 예측 ${mainLabel} ${pm.toLocaleString()}원/${unit} · 예측 ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`);
     return`<div class="region-pin" title="${title}" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${pm.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
@@ -4319,7 +4320,7 @@ function makePinHtml(name,d,sidoKR){
   const fctPct=periodForecastPct(chg,curPeriod);
   const modeLabel=ctx.primaryShort;
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
-  const title=pinTitle(`${name} ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`);
+    const title=pinTitle(`${name} 예측 ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`);
   return`<div class="region-pin" title="${title}" data-tooltip="${title}">
     <div class="rp-name">${name}</div>
     ${predP?`<div class="rp-price">${modeLabel} ${predP.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>`:''}
