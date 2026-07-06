@@ -5490,6 +5490,15 @@ function fmRiskPlain(score){
   if(n>=30) return {label:"보통", color:"#6a1e9a", sentence:"큰 위험은 아니지만 가격 흐름은 계속 확인하는 편이 좋습니다."};
   return {label:"안정", color:"#1a8a1a", sentence:"지금 신호만 보면 급한 가격 변동 가능성은 낮습니다."};
 }
+function fmHasBatchim(word){
+  const s=String(word||"");
+  if(!s) return false;
+  const code=s.charCodeAt(s.length-1);
+  return code>=0xac00&&code<=0xd7a3?((code-0xac00)%28)!==0:false;
+}
+function fmJosa(word, withBatchim, withoutBatchim){
+  return `${word}${fmHasBatchim(word)?withBatchim:withoutBatchim}`;
+}
 function fmDirectionPlain(pct){
   const n=Number(pct);
   if(!Number.isFinite(n)) return {label:"판단 보류", color:"var(--muted)", sentence:"아직 이 기간의 예측값이 부족합니다."};
@@ -5545,7 +5554,7 @@ function renderExplanationPanel(){
       : avgYoy<-5?"출하량이 전년보다 줄어 공급 부족 부담이 있습니다."
       : "출하량은 전년과 큰 차이가 없어 가격 판단은 시세 흐름을 더 봐야 합니다."
     : "출하 변화 데이터는 아직 충분하지 않습니다.";
-  const judgment=`${item.name}은 ${mainRow.periodLabel} 기준으로 <b style="color:${mainRow.color}">${mainRow.label}</b>입니다. ${mainRow.sentence} ${supplyLine}`;
+  const judgment=`${fmJosa(item.name,"은","는")} ${mainRow.periodLabel} 기준으로 <b style="color:${mainRow.color}">${mainRow.label}</b>입니다. ${mainRow.sentence} ${supplyLine}`;
   const readableRows=periodRows.map(r=>`<div class="fm-stat-rank" style="grid-template-columns:64px 1fr 82px;min-height:52px">
     <b style="font-size:14px">${r.periodLabel}</b>
     <div><b style="font-size:14px;color:${r.color}">${r.label==="검증 대기"?"검증 대기":r.label}</b><small style="font-size:12px;line-height:1.45">${r.blocked?horizonBlockedMessage(curItem,r.days):r.sentence}</small></div>
@@ -5600,7 +5609,7 @@ function renderDashboardPanel(){
   const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
   const totalShipment=byShipment.reduce((s,r)=>s+r.shipment,0);
   const summary=top
-    ? `${top.it.name}을 먼저 보세요. 가격 주의도는 <b style="color:${topRisk.color}">${Math.round(top.score)}점(${topRisk.label})</b>이고, 대표 산지 가격 위치는 ${fmFmtPct(top.avgRise)}입니다.`
+    ? `${fmJosa(top.it.name,"을","를")} 먼저 보세요. 가격 주의도는 <b style="color:${topRisk.color}">${Math.round(top.score)}점(${topRisk.label})</b>이고, 대표 산지 가격 위치는 ${fmFmtPct(top.avgRise)}입니다.`
     : "아직 비교 가능한 통계가 충분하지 않습니다. 가격과 산지 데이터가 들어오면 자동으로 정렬됩니다.";
   showTopPanel(`
     <div class="fm-top-card">
