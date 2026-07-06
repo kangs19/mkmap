@@ -155,7 +155,7 @@ def check_sitemap_legal_urls(base_url: str, timeout_seconds: int) -> dict[str, A
 def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, Any]:
     required = [
         ("leaflet_css", "static/vendor/leaflet/leaflet.css", 10_000, ".leaflet-container"),
-        ("leaflet_js", "static/vendor/leaflet/leaflet.js", 100_000, "L.Map"),
+        ("leaflet_js", "static/vendor/leaflet/leaflet.js", 100_000, "Leaflet 1.9.4"),
         ("chart_js", "static/vendor/chartjs/chart.umd.min.js", 100_000, "Chart"),
         ("leaflet_marker", "static/vendor/leaflet/images/marker-icon.png", 1_000, None),
         ("provinces", "static/skorea_provinces.json", 100_000, '"FeatureCollection"'),
