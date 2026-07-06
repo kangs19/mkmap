@@ -952,6 +952,7 @@ const SIDO_CENTER={
   "KR-45":[35.7175,127.1530],"KR-46":[34.8679,126.9910],"KR-47":[36.4919,128.8889],"KR-48":[35.4606,128.2132],
   "KR-49":[33.4996,126.5312],
 };
+const STATIC_SHAPE_OVERLAY_ID="fm-static-shape-overlay";
 function staticMapPoint(lat,lng){
   const x=Math.max(5,Math.min(95,((lng-125.6)/(130.2-125.6))*100));
   const y=Math.max(5,Math.min(95,((38.7-lat)/(38.7-33.0))*100));
@@ -1037,15 +1038,64 @@ function geoFeatureToSvgPath(feature,width,height){
   if(g.type==="MultiPolygon") return (g.coordinates||[]).flatMap(poly=>(poly||[]).map(convertRing)).join(" ");
   return "";
 }
+function renderEmergencyProvinceAreaOverlay(reason=""){
+  const mapEl=document.getElementById("map");
+  if(!mapEl) return;
+  document.getElementById("fm-static-map-overlay")?.remove();
+  document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
+  const width=mapEl.clientWidth||1;
+  const height=mapEl.clientHeight||1;
+  const overlay=document.createElement("div");
+  overlay.id=STATIC_SHAPE_OVERLAY_ID;
+  overlay.style.cssText="position:absolute;inset:0;z-index:645;pointer-events:none;";
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("width",String(width));
+  svg.setAttribute("height",String(height));
+  svg.setAttribute("viewBox",`0 0 ${width} ${height}`);
+  svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;";
+  const labels=document.createElement("div");
+  labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
+  Object.entries(SIDO_CENTER).forEach(([sido,center])=>{
+    const pct=staticMapPoint(center[0],center[1]);
+    const x=(pct.x/100)*width;
+    const y=(pct.y/100)*height;
+    const rx=Math.max(34,Math.min(86,width*.055));
+    const ry=Math.max(30,Math.min(78,height*.06));
+    const name=SIDO_SHORT[sido]||sido;
+    const rp=getRegionalSidoData(name);
+    const price=Math.round(Number(rp?.wholesale||rp?.retail||LIVE_NATIONAL_PRICES[curItem]||0));
+    const pctVal=periodForecastPct(Number(rp?.vs_national_pct||0),curPeriod);
+    const fill=regionalPriceColor(sido)||priceColor(pctVal)||"rgba(130,50,210,.56)";
+    const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d",`M${x-rx},${y} C${x-rx*.85},${y-ry} ${x-rx*.2},${y-ry*1.15} ${x},${y-ry} C${x+rx*.95},${y-ry*.7} ${x+rx},${y-ry*.1} ${x+rx*.75},${y} C${x+rx*.8},${y+ry*.8} ${x+rx*.15},${y+ry*1.05} ${x},${y+ry} C${x-rx*.95},${y+ry*.65} ${x-rx},${y+ry*.15} ${x-rx},${y} Z`);
+    path.setAttribute("fill",fill);
+    path.setAttribute("stroke","rgba(0,0,0,.45)");
+    path.setAttribute("stroke-width","2.2");
+    path.setAttribute("class","fm-static-shape-path leaflet-interactive");
+    path.style.pointerEvents="auto";
+    svg.appendChild(path);
+    const label=document.createElement("button");
+    label.type="button";
+    label.className="fm-static-shape-label";
+    const sign=pctVal>0?"+":"";
+    label.style.cssText=`position:absolute;left:${Math.round(x)}px;top:${Math.round(y)}px;transform:translate(-50%,-50%);min-width:86px;max-width:112px;padding:9px 10px;border:1px solid #d9ded0;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 3px 12px rgba(0,0,0,.22);pointer-events:auto;font-size:12px;line-height:1.25;text-align:center;font-weight:900;color:#1a2410;`;
+    label.innerHTML=`<div>${name}</div><div style="font-size:11px">도 ${price?price.toLocaleString():"확인중"}원</div><div style="font-size:11px;color:${pctVal>=0?'#c02828':'#1a8a1a'}">${pctVal!=null?`${sign}${pctVal.toFixed(1)}% 예측`:"예측 확인"}</div>`;
+    labels.appendChild(label);
+  });
+  overlay.appendChild(svg);
+  overlay.appendChild(labels);
+  mapEl.appendChild(overlay);
+  if(reason) console.warn("[map] emergency province area overlay rendered:",reason);
+}
 function renderStaticProvinceShapeOverlay(geo,reason=""){
   try{
     const mapEl=document.getElementById("map");
     if(!mapEl||!map_) return;
     const features=Array.isArray(geo?.features)?geo.features:[];
     document.getElementById("fm-static-map-overlay")?.remove();
-    document.getElementById("fm-static-shape-overlay")?.remove();
+    document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
     const overlay=document.createElement("div");
-    overlay.id="fm-static-shape-overlay";
+    overlay.id=STATIC_SHAPE_OVERLAY_ID;
     overlay.style.cssText="position:absolute;inset:0;z-index:645;pointer-events:none;";
     const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
     svg.setAttribute("width",String(mapEl.clientWidth||1));
@@ -1153,11 +1203,11 @@ function renderStaticProvinceShapeOverlay(geo,reason=""){
     if(reason) console.warn("[map] static province shape overlay rendered:",reason,rendered);
   }catch(err){
     console.warn("[map] static province shape overlay failed",err);
-    renderStaticMapOverlay(reason||"shape_overlay_failed");
+    renderEmergencyProvinceAreaOverlay(reason||"shape_overlay_failed");
   }
 }
 function rerenderStaticProvinceShapeOverlay(){
-  if(document.getElementById("fm-static-shape-overlay")&&provGeo){
+  if(document.getElementById(STATIC_SHAPE_OVERLAY_ID)&&provGeo){
     renderStaticProvinceShapeOverlay(provGeo,"map_view_changed");
   }
 }
@@ -4193,7 +4243,7 @@ function drawProvinces(){
   });
   if(document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length){
     document.getElementById("fm-static-map-overlay")?.remove();
-    document.getElementById("fm-static-shape-overlay")?.remove();
+    document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
   }else{
     renderStaticProvinceShapeOverlay(provGeo,"province_render_empty");
   }
