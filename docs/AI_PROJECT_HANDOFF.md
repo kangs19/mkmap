@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 109
+
+See `docs/AI_SESSION_109_LAUNCH_READINESS_CHECKER.md`.
+
+Latest result:
+
+- Added a public launch-readiness checker: `scripts/verify_launch_readiness.py`.
+- It verifies production health, app shell, legal pages, sitemap, signup terms gate, Korean login error, weather, signals, dashboard cards, and item forecast APIs.
+- Rebuilt `/privacy` and `/terms` HTML as readable Korean UTF-8 launch-draft documents.
+- Added the new script to the smoke-suite py_compile target list.
+- Initial production run passed 10/11 before the local legal-page rewrite; rerun after deployment should pass all checks.
+
 ## Latest Update - 2026-07-06 Session 108
 
 See `docs/AI_SESSION_108_LEGAL_PAGES_AND_SIGNUP_CONSENT.md`.

@@ -118,3 +118,6 @@
 - `docs/AI_SESSION_108_LEGAL_PAGES_AND_SIGNUP_CONSENT.md`
   - 2026-07-06 legal pages and signup consent.
   - Covers `/privacy`, `/terms`, sitemap links, frontend legal links, and signup consent validation.
+- `docs/AI_SESSION_109_LAUNCH_READINESS_CHECKER.md`
+  - 2026-07-06 launch readiness checker.
+  - Covers public production checks for health, app shell, legal pages, auth gates, weather, signals, dashboard cards, and item forecast APIs.

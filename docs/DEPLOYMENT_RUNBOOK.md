@@ -76,6 +76,7 @@ Production:
 curl https://mk-map.com/health
 curl https://mk-map.com/api/v1/dashboard/cards
 curl https://mk-map.com/api/v1/alerts/high-risk
+python scripts\verify_launch_readiness.py --base-url https://mk-map.com --timeout-seconds 20
 ```
 
 Admin endpoints require `X-Admin-Key`.
