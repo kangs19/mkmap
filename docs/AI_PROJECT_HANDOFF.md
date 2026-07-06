@@ -36,6 +36,18 @@ Latest result:
 - `scripts/run_daily_model_promotion.py` now creates an item readiness report and passes it into warn/strict prediction generation.
 - Against the 20-crop Agromarket candidate, public-available horizons are limited to the better-mapped original crops and specific passing horizons.
 
+## Latest Update - 2026-07-06 Session 86
+
+See `docs/AI_SESSION_86_READINESS_UX_COPY.md`.
+
+Latest result:
+
+- Backend forecast and explanation responses now include a compact public `readiness` summary.
+- Hidden horizons now carry user-facing Korean messages instead of only technical hold reasons.
+- Frontend stores `forecast.readiness` and uses it for prediction-publication copy.
+- Held periods are shown as `검증 대기`, with judgment text explaining why they are not public forecasts.
+- The prediction explanation panel was browser-checked through localhost and the bad particle `배추은` was fixed to `배추는`.
+
 마지막 업데이트: 2026-07-02 KST (세션13)
 
 ## 프로젝트 목적

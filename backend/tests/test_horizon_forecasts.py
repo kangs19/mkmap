@@ -7,7 +7,8 @@ def _item():
     return SimpleNamespace(item_code="cabbage", item_name="배추")
 
 
-def _horizon(days: int, change: float, *, held_out: bool = False):
+def _horizon(days: int, change: float, *, held_out: bool = False, readiness_reasons=None):
+    readiness_reasons = readiness_reasons or []
     return {
         "horizon_days": days,
         "risk_adjusted_direction": "up" if change >= 0 else "down",
@@ -17,6 +18,15 @@ def _horizon(days: int, change: float, *, held_out: bool = False):
         "confidence": "high",
         "model_scope": "item",
         "held_out": held_out,
+        "available": not held_out,
+        "readiness_status": "hold" if held_out else "candidate",
+        "readiness_reasons": readiness_reasons,
+        "readiness_gate": {
+            "item_status": "candidate",
+            "item_score": 75,
+            "horizon_status": "hold" if held_out else "candidate",
+            "horizon_reasons": readiness_reasons,
+        },
         "supporting_reasons": [
             {
                 "feature": "price_lag",
@@ -40,7 +50,7 @@ def test_horizon_response_hides_long_or_held_periods_from_public_payload():
             "90": _horizon(90, 0.12),
             "180": _horizon(180, 0.20),
             "365": _horizon(365, -0.10),
-            "7": _horizon(7, 0.02, held_out=True),
+            "7": _horizon(7, 0.02, held_out=True, readiness_reasons=["low_backtest_direction"]),
         },
     }
 
@@ -49,6 +59,9 @@ def test_horizon_response_hides_long_or_held_periods_from_public_payload():
     assert response["forecast"]["active_horizons"] == [14, 30, 90]
     assert sorted(response["forecast"]["horizons"]) == ["14", "30", "90"]
     assert response["forecast"]["hidden_horizons"] == [7, 180, 365]
+    assert response["forecast"]["readiness"]["active_horizons"] == [14, 30, 90]
+    assert response["forecast"]["readiness"]["hidden_details"][0]["horizon_days"] == 7
+    assert "방향" in response["forecast"]["readiness"]["hidden_details"][0]["message"]
     assert response["forecast"]["bottom_probability"] == 0.4
     assert "180d" not in response["summary"]
     assert "365d" not in response["summary"]
@@ -74,4 +87,5 @@ def test_horizon_explanation_response_uses_public_horizons_only():
     assert sorted(response["forecast"]["horizons"]) == ["14", "90"]
     assert sorted(response["reasons_by_horizon"]) == ["14", "90"]
     assert response["forecast"]["hidden_horizons"] == [180, 365]
+    assert response["readiness"]["message"]
     assert response["direction"] == "up"

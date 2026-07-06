@@ -49,3 +49,6 @@
 - `docs/AI_SESSION_85_READINESS_PREDICTION_FILTER.md`
   - 2026-07-06 readiness-based prediction filtering.
   - Covers wiring item/horizon readiness into prediction and explanation artifacts, daily promotion integration, and public filtering behavior.
+- `docs/AI_SESSION_86_READINESS_UX_COPY.md`
+  - 2026-07-06 readiness UX copy and API summary.
+  - Covers public readiness messages, backend response summaries, frontend held-horizon copy, and browser verification.

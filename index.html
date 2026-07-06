@@ -829,7 +829,7 @@ const NEWS_BY_ITEM={
 let curItem="cabbage",curMode="price",viewLevel="province",curProv=null,curPeriod=28;
 let map_,mapVectorRenderer,provLayer,cityLayer,provPinLayer,provGeo,cityGeo,codeProp="code",nameProp="name";
 let priceChartInst=null;
-let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={},LIVE_HORIZON_POLICIES={};
+let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={},LIVE_HORIZON_POLICIES={},LIVE_HORIZON_READINESS={};
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
 let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
@@ -1066,8 +1066,16 @@ function showTopPanel(html){
   document.getElementById("right-panel-content").scrollTop=0;
 }
 
+function topicName(name){
+  if(!name) return "이 품목은";
+  const last=name.charCodeAt(name.length-1);
+  const hasBatchim=last>=0xac00&&last<=0xd7a3?((last-0xac00)%28)!==0:false;
+  return `${name}${hasBatchim?"은":"는"}`;
+}
+
 function renderExplanationPanel(){
   const current=ITEMS[curItem]||{emoji:"",name:"품목"};
+  const currentTopic=topicName(current.name);
   const horizons=LIVE_HORIZONS[curItem]||{};
   const hiddenLong=hiddenHorizonDays(curItem);
   const longPolicy=horizonPolicyText(curItem);
@@ -1084,10 +1092,11 @@ function renderExplanationPanel(){
   const horizonRows=horizonList.map(k=>{
     const row=horizons[String(k)]||null;
     const pct=horizonModelPct(k);
-    const status=!row?"대기":row.available===false||row.data_status==="insufficient_data"?"데이터 부족":"사용";
-    const color=status==="사용"?"#1a8a1a":status==="데이터 부족"?"#b86010":"#7a8a6a";
+    const blocked=row&&(row.available===false||row.held_out||row.data_status==="insufficient_data");
+    const status=!row?"대기":blocked?"검증 대기":"공개 가능";
+    const color=status==="공개 가능"?"#1a8a1a":status==="검증 대기"?"#b86010":"#7a8a6a";
     const change=pct==null?"-":`${pct>0?"+":""}${pct.toFixed(1)}%`;
-    const note=status==="사용"?"모델값 반영":status==="데이터 부족"?"현재 확률 판단 제외":"가까운 기간값 보조";
+    const note=status==="공개 가능"?"공개 판단에 사용":status==="검증 대기"?horizonBlockedMessage(curItem,k):"모델 응답 대기";
     return `<div class="fm-stat-rank">
       <b>${PERIOD_LABEL[k]||k+"일"}</b>
       <div><b style="color:${color}">${status}</b><small>${note}</small></div>
@@ -1100,15 +1109,15 @@ function renderExplanationPanel(){
       ? "현재 표시되는 예측 구간은 모델값 또는 검증된 보간값을 우선 사용합니다."
       : "아직 기간별 모델 응답이 부족해서 기준 가격과 지역 신호 중심으로 보수적으로 표시합니다.";
   let explainJudgment=blocked.length
-    ? `${current.name}은 ${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 장기 구간보다 단기 구간 판단을 먼저 보는 편이 안전합니다.`
+    ? `${currentTopic} ${blocked.map(k=>PERIOD_LABEL[k]||k+"일").join(", ")} 장기 구간보다 단기 구간 판단을 먼저 보는 편이 안전합니다.`
     : available.length
-      ? `${current.name}은 현재 ${available.length}개 기간 판단이 준비되어 가격 방향을 비교할 수 있습니다.`
-      : `${current.name}은 아직 기간별 예측 근거가 약해 실측가와 지역 위험 신호를 우선 봐야 합니다.`;
+      ? `${currentTopic} 현재 ${available.length}개 기간 판단이 준비되어 가격 방향을 비교할 수 있습니다.`
+      : `${currentTopic} 아직 기간별 예측 근거가 약해 실측가와 지역 위험 신호를 우선 봐야 합니다.`;
   if(longPolicy){
     summary=`${longPolicy} 현재 화면에서는 3개월 이하 구간만 가격 판단에 씁니다.`;
   }
   if(hiddenLong.length&&!blocked.length){
-    explainJudgment=`${current.name}은 6개월·1년 숫자 예측보다 1주~3개월 구간의 검증된 가격 방향을 먼저 보는 편이 안전합니다.`;
+    explainJudgment=`${currentTopic} 6개월·1년 숫자 예측보다 1주~3개월 구간의 검증된 가격 방향을 먼저 보는 편이 안전합니다.`;
   }
   const riskJudgment=live.risk_score>=70
     ? "위험 점수가 높아 가격 변동 가능성을 크게 봅니다."
@@ -1552,14 +1561,33 @@ function hiddenHorizonDays(itemCode=curItem){
   const policy=LIVE_HORIZON_POLICIES[itemCode]||{};
   const explicit=Array.isArray(policy.hidden_horizons)?policy.hidden_horizons:[];
   const fromLive=Array.isArray(LIVE_ITEMS[itemCode]?.hidden_horizons)?LIVE_ITEMS[itemCode].hidden_horizons:[];
-  const fromRows=Object.keys(LIVE_HORIZONS[itemCode]||{}).map(Number).filter(v=>Number.isFinite(v)&&v>90);
+  const fromRows=Object.entries(LIVE_HORIZONS[itemCode]||{})
+    .filter(([,row])=>row?.held_out||row?.available===false)
+    .map(([day])=>Number(day))
+    .filter(Number.isFinite);
   return [...new Set([...explicit,...fromLive,...fromRows].map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);
 }
+function readinessDetail(itemCode,days){
+  const readiness=LIVE_HORIZON_READINESS[itemCode]||{};
+  const details=Array.isArray(readiness.hidden_details)?readiness.hidden_details:[];
+  return details.find(d=>Number(d.horizon_days)===Number(days))||null;
+}
+function horizonBlockedMessage(itemCode,days){
+  const detail=readinessDetail(itemCode,days);
+  if(detail?.message) return detail.message;
+  const row=(LIVE_HORIZONS[itemCode]||{})[String(days)]||{};
+  const reasons=[...(row.readiness_reasons||[]),...(row.hold_reasons||[])];
+  if(reasons.includes("target_history_short")) return `${PERIOD_LABEL[days]||days+"일"}은 학습에 쓸 과거 가격 구간이 아직 짧아 공개 예측에서 제외했습니다.`;
+  if(reasons.includes("low_backtest_direction")) return `${PERIOD_LABEL[days]||days+"일"}은 과거 검증에서 상승·하락 방향이 불안정해 공개 예측에서 제외했습니다.`;
+  return `${PERIOD_LABEL[days]||days+"일"}은 검증 기준을 통과하면 다시 열겠습니다.`;
+}
 function horizonPolicyText(itemCode=curItem){
+  const readiness=LIVE_HORIZON_READINESS[itemCode]||{};
+  if(readiness.message) return readiness.message;
   const hidden=hiddenHorizonDays(itemCode);
   if(!hidden.length) return "";
   const labels=hidden.map(d=>d>=365?"1년":d>=180?"6개월":`${d}일`).join(", ");
-  return `${labels} 장기 예측은 아직 공개 숫자로 쓰지 않습니다. 백테스트와 방향 정확도가 충분히 쌓이면 다시 열겠습니다.`;
+  return `${labels} 예측은 아직 공개 숫자로 쓰지 않습니다. 백테스트와 데이터량이 충분히 쌓이면 다시 열겠습니다.`;
 }
 function ensureExtendedHorizonUi(){
   const group=document.querySelector(".fm-period-group");
@@ -1941,10 +1969,11 @@ async function fetchItemForecast(item_code){
       }
     }
     LIVE_HORIZONS[item_code]=horizons;
+    LIVE_HORIZON_READINESS[item_code]=payload?.forecast?.readiness||payload?.readiness||{};
     LIVE_HORIZON_POLICIES[item_code]=payload?.forecast?.horizon_policy||{
       max_public_horizon_days:90,
       hidden_horizons:(payload?.forecast?.hidden_horizons||[]),
-      reason:"장기 예측은 검증을 통과한 뒤 공개합니다."
+      reason:"검증을 통과한 기간 예측만 공개합니다."
     };
     if(LIVE_ITEMS[item_code]){
       LIVE_ITEMS[item_code].active_horizons=payload?.forecast?.active_horizons||Object.keys(horizons).map(Number).filter(Number.isFinite);
@@ -2792,7 +2821,7 @@ function showRegionDetail(name,code,d){
   if(policyEl){
     const text=horizonPolicyText(curItem);
     policyEl.style.display=text?"block":"none";
-    policyEl.innerHTML=text?`<b>장기 예측 판단</b> ${text}`:"";
+    policyEl.innerHTML=text?`<b>예측 공개 판단</b> ${text}`:"";
   }
 
   // ── 재배 현황

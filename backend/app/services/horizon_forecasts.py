@@ -60,6 +60,7 @@ def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
     raw_horizons = _normalized_horizons(forecast.get("horizons", {}))
     horizons = _public_horizons(raw_horizons)
     hidden_horizons = _hidden_horizon_days(raw_horizons, horizons)
+    readiness = _readiness_summary(raw_horizons, horizons, hidden_horizons, forecast)
     h14 = horizons.get("14")
     primary = _primary_horizon(horizons)
     return {
@@ -78,11 +79,13 @@ def horizon_response(item: Any, forecast: dict[str, Any]) -> dict[str, Any]:
             "hidden_horizons": hidden_horizons,
             "horizon_policy": _public_horizon_policy(hidden_horizons),
             "horizons": horizons,
+            "readiness": readiness,
         },
         "top_factors": [],
         "national_supply_shock": None,
         "confidence": _combined_confidence(horizons),
         "summary": _summary(getattr(item, "item_name", None) or str(forecast.get("item_code") or ""), horizons),
+        "readiness": readiness,
         "source": "horizon_file",
     }
 
@@ -91,6 +94,7 @@ def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict
     raw_horizons = _normalized_horizons(explanation.get("horizons", {}))
     horizons = _public_horizons(raw_horizons)
     hidden_horizons = _hidden_horizon_days(raw_horizons, horizons)
+    readiness = _readiness_summary(raw_horizons, horizons, hidden_horizons, explanation)
     confidence = _combined_confidence(horizons)
     model_scope = _combined_model_scope(horizons)
     base_date = str(explanation.get("base_date") or "")
@@ -125,6 +129,7 @@ def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict
             "hidden_horizons": hidden_horizons,
             "horizon_policy": _public_horizon_policy(hidden_horizons),
             "horizons": horizons,
+            "readiness": readiness,
         },
         "pressure_summary": _pressure_summary(direction, up_probability, reasons, phase_label),
         "reason_groups": _reason_groups(reasons),
@@ -140,6 +145,7 @@ def horizon_explanation_response(item: Any, explanation: dict[str, Any]) -> dict
             if isinstance(row, dict)
         },
         "held_horizons": explanation.get("held_horizons", []),
+        "readiness": readiness,
         "data_freshness": {
             "price": {"status": "unknown", "latest_date": base_date or None},
             "region_signal": {"status": "unknown", "latest_date": None},
@@ -230,6 +236,111 @@ def _hidden_horizon_days(
         except (TypeError, ValueError):
             continue
     return sorted(hidden)
+
+
+def _readiness_summary(
+    raw_horizons: dict[str, dict[str, Any]],
+    public_horizons: dict[str, dict[str, Any]],
+    hidden_horizons: list[int],
+    source: dict[str, Any],
+) -> dict[str, Any]:
+    hidden_details = []
+    for day in hidden_horizons:
+        row = raw_horizons.get(str(day), {})
+        reasons = _horizon_hidden_reasons(day, row)
+        hidden_details.append(
+            {
+                "horizon_days": day,
+                "label": _horizon_label(day),
+                "status": str(row.get("readiness_status") or "held"),
+                "reasons": reasons,
+                "message": _readiness_message(day, reasons),
+            }
+        )
+    item_status = str(source.get("readiness_status") or _combined_item_readiness(raw_horizons))
+    item_score = source.get("readiness_score")
+    active_days = [int(key) for key in sorted(public_horizons, key=lambda value: int(value))]
+    return {
+        "status": "ready" if active_days else "not_ready",
+        "item_status": item_status,
+        "item_score": item_score,
+        "active_horizons": active_days,
+        "hidden_horizons": hidden_horizons,
+        "hidden_details": hidden_details,
+        "message": _readiness_overall_message(active_days, hidden_details),
+    }
+
+
+def _combined_item_readiness(horizons: dict[str, dict[str, Any]]) -> str:
+    statuses = {str(row.get("readiness_gate", {}).get("item_status") or "") for row in horizons.values()}
+    statuses.discard("")
+    if "candidate" in statuses:
+        return "candidate"
+    if "watch" in statuses:
+        return "watch"
+    if "hold" in statuses:
+        return "hold"
+    return "unchecked"
+
+
+def _horizon_hidden_reasons(horizon_days: int, row: dict[str, Any]) -> list[str]:
+    reasons = []
+    readiness_reasons = row.get("readiness_reasons") if isinstance(row.get("readiness_reasons"), list) else []
+    hold_reasons = row.get("hold_reasons") if isinstance(row.get("hold_reasons"), list) else []
+    gate = row.get("readiness_gate") if isinstance(row.get("readiness_gate"), dict) else {}
+    gate_reasons = gate.get("horizon_reasons") if isinstance(gate.get("horizon_reasons"), list) else []
+    reasons.extend(str(reason) for reason in [*readiness_reasons, *hold_reasons, *gate_reasons] if reason)
+    if horizon_days > PUBLIC_MAX_HORIZON_DAYS:
+        reasons.append("long_horizon_policy")
+    if row.get("held_out") and not reasons:
+        reasons.append("readiness_hold")
+    return sorted(set(reasons))
+
+
+def _readiness_message(horizon_days: int, reasons: list[str]) -> str:
+    label = _horizon_label(horizon_days)
+    if "target_history_short" in reasons:
+        return f"{label}은 학습에 쓸 과거 가격 구간이 아직 짧아 공개 예측에서 제외했습니다."
+    if "low_backtest_direction" in reasons:
+        return f"{label}은 과거 검증에서 상승·하락 방향이 불안정해 공개 예측에서 제외했습니다."
+    if "backtest_sample_short" in reasons or "missing_backtest" in reasons:
+        return f"{label}은 검증 표본이 부족해 아직 참고용으로도 조심해야 합니다."
+    if "long_horizon_policy" in reasons:
+        return f"{label} 장기 예측은 충분한 검증이 쌓인 뒤 공개합니다."
+    return f"{label}은 데이터 검증이 더 필요해 공개 예측에서 제외했습니다."
+
+
+def _readiness_overall_message(active_days: list[int], hidden_details: list[dict[str, Any]]) -> str:
+    if active_days:
+        labels = ", ".join(_horizon_label(day) for day in active_days)
+        if hidden_details:
+            return f"현재 공개 가능한 예측 기간은 {labels}입니다. 나머지는 검증 기준을 통과하면 다시 열겠습니다."
+        return f"현재 {labels} 예측을 공개 판단에 사용할 수 있습니다."
+    if hidden_details:
+        return "현재 이 품목은 공개 예측에 쓰기에는 검증이 부족합니다. 실측 가격과 지역 정보 위주로 확인하세요."
+    return "현재 공개 가능한 기간 예측이 아직 없습니다."
+
+
+def _horizon_label(horizon_days: int) -> str:
+    if horizon_days == 1:
+        return "1일"
+    if horizon_days == 7:
+        return "1주"
+    if horizon_days == 14:
+        return "2주"
+    if horizon_days == 21:
+        return "3주"
+    if horizon_days == 28 or horizon_days == 30:
+        return "1개월"
+    if horizon_days == 60:
+        return "2개월"
+    if horizon_days == 90:
+        return "3개월"
+    if horizon_days == 180:
+        return "6개월"
+    if horizon_days == 365:
+        return "1년"
+    return f"{horizon_days}일"
 
 
 def _public_horizon_policy(hidden_horizons: list[int]) -> dict[str, Any]:
@@ -505,7 +616,7 @@ def _public_horizon_policy(hidden_horizons: list[int]) -> dict[str, Any]:
         "max_public_horizon_days": PUBLIC_MAX_HORIZON_DAYS,
         "hidden_horizons": hidden_horizons,
         "reason": (
-            "90일을 초과하는 장기 예측은 충분한 기간별 백테스트와 방향 정확도 검증을 통과한 뒤 공개합니다."
+            "일부 기간은 과거 검증에서 방향성이나 데이터량이 부족해 공개 예측에서 제외했습니다."
             if hidden_horizons
             else "공개 가능한 기간 예측만 표시합니다."
         ),
@@ -655,5 +766,5 @@ def _summary(item_name: str, horizons: dict[str, dict[str, Any]]) -> str:
         row = horizons[key]
         direction = _direction_label(_backend_direction(row.get("risk_adjusted_direction") or row.get("predicted_direction")))
         change = float(row.get("risk_adjusted_change") or row.get("predicted_change") or 0.0) * 100.0
-        parts.append(f"{key}일 {direction} {change:+.1f}%")
+        parts.append(f"{_horizon_label(int(key))} {direction} {change:+.1f}%")
     return f"{item_name} 예측 판단: " + ", ".join(parts)
