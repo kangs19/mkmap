@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FARM MAP - Price Risk Signal Engine</title>
+<title>MK-MAP 농산물 가격 예측</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -367,6 +367,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   #loading{top:0;left:0;right:0;bottom:auto;height:56vh;min-height:390px;}
   #map-tooltip{min-width:280px;max-width:calc(100vw - 24px);}
   #auth-modal>div{width:min(92vw,380px)!important;margin:0 12px;}
+  #am-email,#am-pw,#am-nick,#am-role,#am-phone,#am-phone-code{
+    min-height:44px!important;
+    font-size:15px!important;
+  }
+  #am-primary,#am-phone-send,#am-phone-check{
+    min-height:44px!important;
+    font-size:14px!important;
+  }
+  #am-msg,#am-phone-msg{font-size:13px!important;line-height:1.5;}
 }
 
 @media (max-width: 560px){

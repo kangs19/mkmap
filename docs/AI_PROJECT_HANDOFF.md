@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 93
+
+See `docs/AI_SESSION_93_AUTH_MOBILE_POLISH.md`.
+
+Latest result:
+
+- Checked the auth modal on a 390 x 844 mobile viewport after the auth API QA.
+- The modal fit without horizontal overflow, but mobile auth fields were slightly small for older users.
+- Increased mobile auth inputs, selects, and buttons to 44 px minimum height.
+- Enlarged mobile auth helper/error message text.
+- Changed the browser tab title from English to `MK-MAP 농산물 가격 예측`.
+- Local mobile browser QA confirmed no overflow and no console errors.
+
 ## Latest Update - 2026-07-06 Session 92
 
 See `docs/AI_SESSION_92_AUTH_BETA_QA.md`.

@@ -70,3 +70,6 @@
 - `docs/AI_SESSION_92_AUTH_BETA_QA.md`
   - 2026-07-06 auth beta QA.
   - Covers public Korean auth error messages, safe no-SMS validation checks, and next launch QA slices.
+- `docs/AI_SESSION_93_AUTH_MOBILE_POLISH.md`
+  - 2026-07-06 auth mobile polish.
+  - Covers mobile auth touch target sizing, Korean browser title, and local mobile browser verification.
