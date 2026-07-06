@@ -4084,6 +4084,7 @@ function setupMapHoverFallback(){
   ["mousemove","pointermove","mouseover","pointerover"].forEach(type=>{
     mapEl.addEventListener(type,handleHoverMove,{passive:true});
     document.addEventListener(type,handleHoverMove,{capture:true,passive:true});
+    document.addEventListener(type,handleHoverMove,{passive:true});
   });
   mapEl.addEventListener("mouseleave",e=>{
     if(__fmHoverPathEl) (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers)?.leave?.(e);
