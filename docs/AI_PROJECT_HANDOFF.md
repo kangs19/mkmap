@@ -1,5 +1,15 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 105
+
+See `docs/AI_SESSION_105_LEAFLET_HOVER_FALLBACK.md`.
+
+Latest result:
+
+- Added a Leaflet-native tooltip fallback to province/city map paths and crop pins.
+- This keeps the existing custom hover popup, but gives the map engine its own hover card when DOM/title fallback is not visible to the user.
+- Local whitespace and smoke validation passed.
+
 ## Latest Update - 2026-07-06 Session 104
 
 See `docs/AI_SESSION_104_WEATHER_MARKET_TAB.md`.

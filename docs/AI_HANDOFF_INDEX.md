@@ -106,3 +106,6 @@
 - `docs/AI_SESSION_104_WEATHER_MARKET_TAB.md`
   - 2026-07-06 weather judgment in cultivation/market tab.
   - Covers the new selected-region cultivation/shipment weather card, shared weather fallback reuse, and validation.
+- `docs/AI_SESSION_105_LEAFLET_HOVER_FALLBACK.md`
+  - 2026-07-06 Leaflet hover tooltip fallback.
+  - Covers province/city path and pin Leaflet-native tooltip binding for map hover reliability.

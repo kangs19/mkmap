@@ -106,6 +106,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 #map{flex:1;min-width:0;}
 .leaflet-container{background:#e8e4dc;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
+.fm-hover-leaflet-tooltip{font-size:12px!important;line-height:1.55!important;max-width:300px!important;white-space:normal!important;}
+.fm-native-tip-title{font-weight:900;color:#17210f;margin-bottom:3px;}
+.fm-native-tip-line{font-weight:700;color:#4d5c40;}
 .fm-leaf-popup .leaflet-popup-content-wrapper{border-radius:10px;border:1px solid var(--border);box-shadow:0 10px 28px rgba(25,40,15,.18);}
 .fm-leaf-popup .leaflet-popup-content{margin:0;width:300px!important;}
 .fm-leaf-popup .leaflet-popup-tip{border:1px solid var(--border);}
@@ -3734,6 +3737,10 @@ function drawProvinces(){
         risk_score:Math.round(Math.abs(avgChg)*3+30),
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
+      const provinceTooltipTitle=provinceActive
+        ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시·군 · 현재 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
+        : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`;
+      bindLayerHoverTooltip(layer,provinceTooltipTitle);
       layer.on({
         mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);},
         mousemove:e=>moveMapTooltip(e),
@@ -3775,6 +3782,7 @@ function drawProvinces(){
       const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
       const pinD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
       const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+      bindLayerHoverTooltip(pin,`${SIDO_SHORT[sido]||sido} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${pinD?.avg_price?Math.round(pinD.avg_price).toLocaleString()+"원":"가격 수집 중"}`);
       pin.addTo(provPinLayer);
       bindMarkerDomEvents(pin,{
         enter:e=>showMapTooltip(makeHoverCard(`${f.properties.name||sido} (${ents.length}개 시·군)`,pinD,sido),e),
@@ -3904,6 +3912,10 @@ function drawCities(sido){
       }:null);
       const detailPriceCtx=detailD?getRegionPriceContext(detailD,detailD.sido||sido):null;
       const detailPathPrice=detailPriceCtx?.currentPrice||detailD?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
+      const cityTooltipTitle=detailD
+        ? `${name} ${ITEMS[curItem]?.name||"작물"} · 현재 ${detailPathPrice?Math.round(detailPathPrice).toLocaleString()+"원":"가격 수집 중"}`
+        : `${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`;
+      bindLayerHoverTooltip(layer,cityTooltipTitle);
       const enterCity=e=>{
         const isSelected=curDetailData?.code===code;
         e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
@@ -3979,6 +3991,7 @@ function drawCities(sido){
     try{
       const center=L.geoJSON(feat).getBounds().getCenter();
       const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[116,64],iconAnchor:[58,32]})});
+      bindLayerHoverTooltip(pin,`${d.name} ${ITEMS[curItem]?.name||"작물"} · 현재 ${d.avg_price?Math.round(d.avg_price).toLocaleString()+"원":"가격 수집 중"}`);
       provPinLayer.addLayer(pin);
       bindMarkerDomEvents(pin,{
         enter:e=>showCityTooltip(d.name,d,e),
@@ -4125,6 +4138,24 @@ function fallbackTooltipHandlersFor(el){
     move:e=>moveMapTooltip(e),
     leave:()=>hideMapTooltip(),
   };
+}
+function mapLeafletTooltipHtml(title){
+  const safe=String(title||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+  const parts=safe.split(/[·\n]/).map(s=>s.trim()).filter(Boolean);
+  const head=parts.shift()||"지역 정보";
+  return `<div class="fm-native-tip-title">${head}</div>${parts.map(p=>`<div class="fm-native-tip-line">${p}</div>`).join("")}`;
+}
+function bindLayerHoverTooltip(layer,title){
+  if(!layer?.bindTooltip||!title) return;
+  try{
+    layer.unbindTooltip?.();
+    layer.bindTooltip(mapLeafletTooltipHtml(title),{
+      sticky:true,
+      direction:"auto",
+      opacity:1,
+      className:"fm-hover-leaflet-tooltip",
+    });
+  }catch(err){}
 }
 function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
