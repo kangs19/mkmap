@@ -85,3 +85,6 @@
 - `docs/AI_SESSION_97_MARKET_PANEL_CLEANUP.md`
   - 2026-07-06 cultivation and market panel cleanup.
   - Covers duplicate right-panel render cleanup, judgment-first market copy, validation, and follow-up QA.
+- `docs/AI_SESSION_98_RISK_JUDGMENT_COPY.md`
+  - 2026-07-06 risk judgment copy cleanup.
+  - Covers readable risk text, duplicate risk function cleanup, current-state judgment wording, and validation.

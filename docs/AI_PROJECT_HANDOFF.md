@@ -1412,3 +1412,21 @@ Production caution:
   - follow-up should manually or fully Playwright-check the detail panel after deploy.
 - Detailed handoff:
   - `docs/AI_SESSION_97_MARKET_PANEL_CLEANUP.md`
+
+## Session 98 - Risk Judgment Copy Cleanup (2026-07-06)
+
+- Cleaned the `가격 예측` tab's `가격 변동 리스크` section in `index.html`.
+- Increased the risk explanation area from tiny 9px inline text to readable 13px text.
+- Removed duplicate risk rendering code in `showRegionDetail`.
+- Removed duplicate definitions of `riskLevelInfo`, `buildRiskBreakdown`, and `riskBarsHtml`.
+- Strengthened risk copy so it now explains the current state:
+  - weather/disaster score explains harvest/logistics delay pressure,
+  - shipment/growth score explains supply shortage or stability pressure,
+  - market/price score explains regional price stress or normality.
+- The total risk summary now identifies the strongest cause and mentions low-scoring factors that reduce the overall risk.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+  - `rg` confirmed only one canonical risk function set remains.
+- Detailed handoff:
+  - `docs/AI_SESSION_98_RISK_JUDGMENT_COPY.md`

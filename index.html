@@ -672,7 +672,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               <div class="fm-forecast-risk-summary" id="rp-forecast-risk-summary">—</div>
             </div>
             <div id="rp-forecast-risk-bars" class="fm-risk-bars-compact"></div>
-            <div id="rp-risk-explain" style="font-size:9px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f8faf5;border:1px solid var(--border);border-radius:7px;padding:7px 8px"></div>
+            <div id="rp-risk-explain" style="font-size:13px;color:var(--text);line-height:1.65;margin-top:8px"></div>
           </div>
         </div>
 
@@ -3102,36 +3102,9 @@ function showRegionDetail(name,code,d){
     document.getElementById("rp-gauge-lbl").textContent=rs>=70?"높음":rs>=50?"보통":"낮음";
   }
 
-  // 리스크 진행바
-  const weatherSig=LIVE_SIGNALS[curItem]?.[d.province_code||PROV_NAME_MAP[d.sido]||d.sido];
-  const weatherScore=weatherSig?.risk_score!=null?weatherSig.risk_score:Math.round(rs*0.70);
-  const cropScore=Math.round(rs*0.55);
-  const marketScore=Math.round(Math.min(100,Math.abs(chgPct)*3+rs*0.35));
-  const riskItems=[
-    {label:"🌧 기상 위험",    score:weatherScore, source:weatherSig?"실데이터":"모델"},
-    {label:"🐛 생육 위험",    score:cropScore, source:"모델"},
-    {label:"📊 시장 위험",    score:marketScore, source:priceCtx.rp?"실데이터":"모델"},
-  ];
-  const rColors={high:"#c02828",warn:"#b86010",mid:"#a07010",ok:"#1a8a1a"};
-  const riskRowsHtml=riskItems.map(r=>{
-    const lv=r.score>=70?"high":r.score>=50?"warn":r.score>=30?"mid":"ok";
-    const col=rColors[lv];
-    const txt={high:"높음",warn:"보통",mid:"중간",ok:"낮음"}[lv];
-    return`<div class="fm-risk-bar-row">
-      <div class="fm-risk-bar-info"><span>${r.label} <span class="fm-data-tag ${r.source==="실데이터"?"live":"model"}">${r.source}</span></span><b style="color:${col}">${r.score} <span style="font-size:9px;font-weight:600">${txt}</span></b></div>
-      <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${col}"></div></div>
-    </div>`;
-  }).join("");
   const statsRiskBars=document.getElementById("rp-risk-bars");
-  if(statsRiskBars) statsRiskBars.innerHTML=riskRowsHtml;
-  const topRiskItem=riskItems.slice().sort((a,b)=>b.score-a.score)[0];
   const riskSummary=document.getElementById("rp-forecast-risk-summary");
-  if(riskSummary){
-    const topTxt=topRiskItem.score>=70?"높음":topRiskItem.score>=50?"보통":topRiskItem.score>=30?"중간":"낮음";
-    riskSummary.textContent=`주요 요인 ${topRiskItem.label.replace(/[^\s가-힣A-Za-z]/g,"").trim()} · ${topRiskItem.score} ${topTxt}`;
-  }
   const forecastRiskBars=document.getElementById("rp-forecast-risk-bars");
-  if(forecastRiskBars) forecastRiskBars.innerHTML=riskRowsHtml;
   const unifiedRisk=buildRiskBreakdown(d,priceCtx,chgPct);
   const unifiedRiskHtml=riskBarsHtml(unifiedRisk.rows,{compact:true,showBasis:true});
   if(gaugeEl){
@@ -3142,25 +3115,15 @@ function showRegionDetail(name,code,d){
   if(statsRiskBars) statsRiskBars.innerHTML=unifiedRiskHtml;
   if(forecastRiskBars) forecastRiskBars.innerHTML=unifiedRiskHtml;
   if(riskSummary){
-    const topUnified=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0];
-    const topInfo=riskLevelInfo(topUnified.score);
-    riskSummary.textContent=`종합 ${unifiedRisk.total}(${unifiedRisk.level.label}) · 주요 ${topUnified.label} ${topUnified.score}(${topInfo.label})`;
-  }
-  if(riskSummary){
     const topUnifiedClean=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0];
     const topInfoClean=riskLevelInfo(topUnifiedClean.score);
     riskSummary.textContent=`종합 ${unifiedRisk.total}점(${unifiedRisk.level.label}) · 주된 원인 ${topUnifiedClean.label} ${topUnifiedClean.score}점(${topInfoClean.label})`;
   }
   const riskExplain=document.getElementById("rp-risk-explain");
   if(riskExplain){
-    riskExplain.innerHTML=`<b>현재 판단</b> ${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}`;
-  }
-
-  // ── 출하·시장 동향
-  if(riskExplain){
     const topUnified=unifiedRisk.rows.slice().sort((a,b)=>b.score-a.score)[0]||{label:"종합",score:0};
     const topInfo=riskLevelInfo(topUnified.score);
-    riskExplain.innerHTML=`<div class="fm-risk-overall">${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}<br><b>현재 판단</b> ${topUnified.label} 점수가 ${topUnified.score}점으로 가장 강합니다. ${topInfo.hint}</div>`;
+    riskExplain.innerHTML=`<div class="fm-risk-overall"><b>현재 판단</b><br>${riskOverallComment(unifiedRisk.total,unifiedRisk.rows)}<br>${topUnified.label} 점수가 ${topUnified.score}점으로 가장 강합니다. ${topInfo.hint}</div>`;
   }
 
   const sh=d.shipment_ton||0;
@@ -3217,67 +3180,6 @@ function riskColor(s){
 }
 function riskLevelInfo(score){
   const s=Number(score)||0;
-  if(s>=70) return {key:"high",label:"높음",color:"#c02828",hint:"가격 급변 또는 공급 차질 가능성이 커서 우선 확인이 필요합니다."};
-  if(s>=50) return {key:"warn",label:"주의",color:"#b86010",hint:"변동 가능성이 있어 산지와 시장 흐름을 같이 확인해야 합니다."};
-  if(s>=30) return {key:"mid",label:"관찰",color:"#a07010",hint:"일부 변동 신호가 있어 모니터링 대상입니다."};
-  return {key:"ok",label:"낮음",color:"#1a8a1a",hint:"현재 확인된 위험 신호가 약합니다."};
-}
-function riskSourceTag(source){
-  if(source==="live") return `<span class="fm-data-tag live">실데이터</span>`;
-  if(source==="derived") return `<span class="fm-data-tag model">파생</span>`;
-  return `<span class="fm-data-tag model">추정</span>`;
-}
-function buildRiskBreakdown(d,priceCtx,chgPct){
-  const total=Math.max(0,Math.min(100,Math.round(Number(d?.risk_score)||0)));
-  const regionKey=d?.province_code||PROV_NAME_MAP[d?.sido]||d?.sido;
-  const signal=LIVE_SIGNALS[curItem]?.[regionKey]||LIVE_SIGNALS[curItem]?.[d?.code];
-  const marketChange=Math.abs(Number(chgPct)||0);
-  const weatherScore=signal?.risk_score!=null
-    ? Math.max(0,Math.min(100,Math.round(signal.risk_score)))
-    : Math.round(total*0.35);
-  const cropScore=Math.max(0,Math.min(100,Math.round(
-    Math.abs(Number(d?.shipment_yoy)||0)*1.5 + Math.max(0,100-(Number(d?.harvest_rate)||85))*0.6 + total*0.15
-  )));
-  const marketScore=Math.max(0,Math.min(100,Math.round(
-    marketChange*3 + Math.abs(Number(d?.price_vs_avg)||0)*1.2 + total*0.25
-  )));
-  const rows=[
-    {
-      icon:"🌧",
-      label:"기상·재해",
-      score:weatherScore,
-      source:signal?"live":"derived",
-      basis:signal?.summary||"현재 기상 신호는 약하게만 반영합니다",
-    },
-    {
-      icon:"🌱",
-      label:"출하·생육",
-      score:cropScore,
-      source:"derived",
-      basis:"출하 전년비, 수확 진행률, 산지 비중으로 계산한 공급 스트레스",
-    },
-    {
-      icon:"📊",
-      label:"시장·가격",
-      score:marketScore,
-      source:priceCtx?.rp?"live":"derived",
-      basis:priceCtx?.rp?"지역 도매/소매 실측가와 전국 평균 차이 기반":"예상 변동률과 가격지수 차이 기반",
-    },
-  ];
-  return {total,level:riskLevelInfo(total),rows};
-}
-function riskBarsHtml(rows,{compact=false,showBasis=false}={}){
-  return rows.map(r=>{
-    const info=riskLevelInfo(r.score);
-    return`<div class="fm-risk-bar-row">
-      <div class="fm-risk-bar-info"><span>${r.icon} ${r.label} ${riskSourceTag(r.source)}</span><b style="color:${info.color}">${r.score} <span style="font-size:9px;font-weight:600">${info.label}</span></b></div>
-      <div class="fm-risk-bar-track"><div class="fm-risk-bar-fill" style="width:${r.score}%;background:${info.color}"></div></div>
-      ${showBasis?`<div style="font-size:${compact?"8px":"9px"};color:var(--muted);line-height:1.45;margin-top:3px">${r.basis}</div>`:""}
-    </div>`;
-  }).join("");
-}
-function riskLevelInfo(score){
-  const s=Number(score)||0;
   if(s>=70) return {key:"high",label:"높음",color:"#c02828",hint:"가격이 크게 움직일 수 있어 오늘 먼저 확인해야 합니다."};
   if(s>=50) return {key:"warn",label:"주의",color:"#b86010",hint:"가격 변동 신호가 있어 출하와 시장 흐름을 같이 봐야 합니다."};
   if(s>=30) return {key:"mid",label:"보통",color:"#a07010",hint:"일부 변동 신호가 있지만 당장 강한 경보 수준은 아닙니다."};
@@ -3291,23 +3193,28 @@ function riskSourceTag(source){
 function riskJudgment(row){
   const s=Number(row.score)||0;
   if(row.key==="weather"){
-    if(s>=70) return "기상 또는 재해 신호가 강해서 산지 작업과 출하 지연 가능성을 크게 반영했습니다.";
-    if(s>=50) return "기상 신호가 보통 이상이라 단기 가격 변동 요인으로 남아 있습니다.";
-    return "현재 기상 요인은 가격을 크게 흔드는 주된 원인으로 보이지 않습니다.";
+    if(s>=70) return "현재 산지 기상·재해 신호가 강합니다. 수확 작업 지연이나 물류 차질이 생기면 단기 가격이 위로 튈 수 있는 상태입니다.";
+    if(s>=50) return "기상 신호가 주의권입니다. 당장 강한 경보는 아니지만 비·폭염·특보가 이어지면 출하 일정이 흔들릴 수 있습니다.";
+    if(s>=30) return "기상 요인은 관찰 단계입니다. 가격을 단독으로 밀어 올릴 정도는 아니지만 다른 공급 요인과 겹치면 영향이 커질 수 있습니다.";
+    return "기상 요인은 낮게 잡혔습니다. 지금 점수만 보면 가격 변동의 주된 원인으로 보기 어렵습니다.";
   }
   if(row.key==="crop"){
-    if(s>=70) return "출하량 감소나 생육 부담이 커서 공급 쪽 압력이 강하게 계산됐습니다.";
-    if(s>=50) return "출하와 생육 지표가 평소보다 불안정해서 주의 점수로 반영했습니다.";
-    return "출하와 생육 지표는 큰 부족 신호보다 안정 쪽에 가깝습니다.";
+    if(s>=70) return "출하·생육 압력이 큽니다. 전년 대비 출하 흐름이나 수확 진행률이 불안정해 공급 부족 쪽으로 해석됩니다.";
+    if(s>=50) return "출하·생육은 주의 단계입니다. 물량이 빠르게 줄거나 수확 진행이 늦어질 가능성을 가격에 반영했습니다.";
+    if(s>=30) return "출하·생육은 관찰 단계입니다. 뚜렷한 부족 신호보다는 약한 공급 부담이 있는 상태입니다.";
+    return "출하·생육 지표는 안정 쪽입니다. 현재 점수에서는 공급 부족 압력이 크지 않습니다.";
   }
-  if(s>=70) return "현재 가격이 평소나 전국 기준에서 크게 벗어나 시장 스트레스가 높게 잡혔습니다.";
-  if(s>=50) return "가격 차이가 있어 시장 흐름을 확인해야 하지만 극단값 수준은 아닙니다.";
-  return "시장 가격 차이는 크지 않아 가격 요인은 낮게 반영됐습니다.";
+  if(s>=70) return "시장 가격 압력이 높습니다. 지역 도매가나 예측 변동률이 평소 범위에서 크게 벗어나 가격 급등락 가능성을 키웁니다.";
+  if(s>=50) return "시장 가격은 주의 단계입니다. 기준 시장과 전국 평균의 차이가 있어 실제 거래 흐름을 확인해야 합니다.";
+  if(s>=30) return "시장 가격은 관찰 단계입니다. 가격 차이는 있지만 아직 강한 이상치로 보기는 어렵습니다.";
+  return "시장 가격 압력은 낮습니다. 현재 가격 차이만으로 큰 변동을 예상하기는 어렵습니다.";
 }
 function riskOverallComment(total,rows){
   const info=riskLevelInfo(total);
   const top=rows.slice().sort((a,b)=>b.score-a.score)[0];
-  return `종합 ${total}점, ${info.label} 단계입니다. 가장 큰 원인은 ${top.label} ${top.score}점이며, ${riskJudgment(top)}`;
+  const lowRows=rows.filter(r=>(Number(r.score)||0)<30).map(r=>r.label).join("·");
+  const balancing=lowRows?` 반대로 ${lowRows}은 낮아 전체 판단을 일부 눌러주고 있습니다.`:"";
+  return `종합 ${total}점, ${info.label} 단계입니다. 가장 큰 원인은 ${top.label} ${top.score}점입니다. ${riskJudgment(top)}${balancing}`;
 }
 function buildRiskBreakdown(d,priceCtx,chgPct){
   const total=Math.max(0,Math.min(100,Math.round(Number(d?.risk_score)||0)));
