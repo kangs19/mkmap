@@ -100,3 +100,6 @@
 - `docs/AI_SESSION_102_WEATHER_DETAIL_JUDGMENT.md`
   - 2026-07-06 weather detail judgment.
   - Covers selected-region weather judgment cards, shared weather cache, crop-aware weather interpretation, and validation.
+- `docs/AI_SESSION_103_MAP_HOVER_TITLE_FALLBACK.md`
+  - 2026-07-06 map hover title fallback.
+  - Covers final title/data-tooltip based custom popup fallback for SVG map regions and markers.

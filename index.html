@@ -4051,9 +4051,36 @@ function findHoverTargetAtPoint(x,y){
   const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
   for(const raw of els){
     const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
-    if(path&&FM_TOOLTIP_HANDLERS.has(path)) return path;
+    if(path&&(FM_TOOLTIP_HANDLERS.has(path)||path.__fmTooltipHandlers||mapFallbackTitle(path))) return path;
   }
   return null;
+}
+function mapFallbackTitle(el){
+  if(!el) return "";
+  return el.getAttribute?.("data-tooltip")
+    || el.getAttribute?.("title")
+    || el.querySelector?.("title")?.textContent
+    || el.getAttribute?.("aria-label")
+    || "";
+}
+function mapFallbackTooltipHtml(title){
+  const safe=String(title||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+  const parts=safe.split(/[·\n]/).map(s=>s.trim()).filter(Boolean);
+  const head=parts.shift()||"지역 정보";
+  return `<div class="rhc">
+    <div class="rhc-header"><div class="rhc-title">${head}</div><span class="rhc-badge normal">지도 정보</span></div>
+    ${parts.length?`<div style="font-size:12px;color:#1a2410;line-height:1.65">${parts.map(p=>`<div>${p}</div>`).join("")}</div>`:""}
+    <div class="rhc-hint">클릭하면 가능한 지역은 상세 정보로 이동합니다</div>
+  </div>`;
+}
+function fallbackTooltipHandlersFor(el){
+  const title=mapFallbackTitle(el);
+  if(!title) return null;
+  return {
+    enter:e=>showMapTooltip(mapFallbackTooltipHtml(title),e),
+    move:e=>moveMapTooltip(e),
+    leave:()=>hideMapTooltip(),
+  };
 }
 function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
@@ -4062,7 +4089,7 @@ function setupMapHoverFallback(){
   const handleHoverMove=e=>{
     if(!mapEl.contains(e.target)) return;
     const path=findHoverTargetAtPoint(e.clientX,e.clientY);
-    const handlers=path?(FM_TOOLTIP_HANDLERS.get(path)||path.__fmTooltipHandlers):null;
+    const handlers=path?(FM_TOOLTIP_HANDLERS.get(path)||path.__fmTooltipHandlers||fallbackTooltipHandlersFor(path)):null;
     if(path&&handlers){
       if(__fmHoverPathEl!==path){
         const prevHandlers=__fmHoverPathEl?(FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers):null;
@@ -4072,7 +4099,7 @@ function setupMapHoverFallback(){
       }
       handlers.move?.(e);
     }else if(__fmHoverPathEl){
-      (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers)?.leave?.(e);
+      (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers||fallbackTooltipHandlersFor(__fmHoverPathEl))?.leave?.(e);
       __fmHoverPathEl=null;
     }
   };
@@ -4082,7 +4109,7 @@ function setupMapHoverFallback(){
     document.addEventListener(type,handleHoverMove,{passive:true});
   });
   mapEl.addEventListener("mouseleave",e=>{
-    if(__fmHoverPathEl) (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers)?.leave?.(e);
+    if(__fmHoverPathEl) (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers||fallbackTooltipHandlersFor(__fmHoverPathEl))?.leave?.(e);
     __fmHoverPathEl=null;
   },{passive:true});
 }

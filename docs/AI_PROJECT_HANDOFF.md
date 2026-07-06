@@ -1551,3 +1551,22 @@ Production caution:
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
 - Detailed handoff:
   - `docs/AI_SESSION_102_WEATHER_DETAIL_JUDGMENT.md`
+
+## Session 103 - Map Hover Title Fallback (2026-07-06)
+
+- Addressed persistent map hover popup failures in `index.html`.
+- Production inspection showed:
+  - `.leaflet-interactive` SVG paths had title text,
+  - `data-fm-dom-bound="1"` was present,
+  - but the rich tooltip handler was not reliably available.
+- Added title/data-tooltip based fallback helpers:
+  - `mapFallbackTitle`,
+  - `mapFallbackTooltipHtml`,
+  - `fallbackTooltipHandlersFor`.
+- `findHoverTargetAtPoint` now accepts title-only SVG/marker targets.
+- `setupMapHoverFallback` now uses rich handlers when available, otherwise builds a simple custom popup from the element title.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_103_MAP_HOVER_TITLE_FALLBACK.md`
