@@ -52,3 +52,6 @@
 - `docs/AI_SESSION_86_READINESS_UX_COPY.md`
   - 2026-07-06 readiness UX copy and API summary.
   - Covers public readiness messages, backend response summaries, frontend held-horizon copy, and browser verification.
+- `docs/AI_SESSION_87_PERIOD_READINESS_BUTTONS.md`
+  - 2026-07-06 period readiness controls.
+  - Covers blocked period buttons, public readiness notices, held-horizon forecast cells, and validation.

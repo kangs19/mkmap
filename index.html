@@ -94,6 +94,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .15s;}
 .fm-period-btn:hover{border-color:var(--accent);color:var(--accent);background:#f0f8e8;}
 .fm-period-btn.active{background:var(--accent);border-color:var(--accent);color:white;}
+.fm-period-btn.blocked{border-style:dashed;background:#f7f4ec;color:#9a6a20;cursor:not-allowed;}
+.fm-period-btn.blocked:hover{border-color:#d7b978;color:#9a6a20;background:#fff8e8;}
+.fm-period-btn.blocked.active{background:#b88724;border-color:#b88724;color:white;}
 /* Legend */
 .fm-legend-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
 .fm-legend-sw{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
@@ -412,12 +415,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="fm-sb-section">
       <div class="fm-sb-label">예측 기간</div>
       <div class="fm-period-group" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-        <button class="fm-period-btn" onclick="setPeriod(7,this)">1주</button>
-        <button class="fm-period-btn" onclick="setPeriod(14,this)">2주</button>
-        <button class="fm-period-btn" onclick="setPeriod(21,this)">3주</button>
-        <button class="fm-period-btn active" onclick="setPeriod(28,this)">4주</button>
-        <button class="fm-period-btn" onclick="setPeriod(60,this)">2개월</button>
-        <button class="fm-period-btn" onclick="setPeriod(90,this)">3개월</button>
+        <button class="fm-period-btn" data-period="7" onclick="setPeriod(7,this)">1주</button>
+        <button class="fm-period-btn" data-period="14" onclick="setPeriod(14,this)">2주</button>
+        <button class="fm-period-btn" data-period="21" onclick="setPeriod(21,this)">3주</button>
+        <button class="fm-period-btn active" data-period="28" onclick="setPeriod(28,this)">4주</button>
+        <button class="fm-period-btn" data-period="60" onclick="setPeriod(60,this)">2개월</button>
+        <button class="fm-period-btn" data-period="90" onclick="setPeriod(90,this)">3개월</button>
       </div>
     </div>
 
@@ -1007,6 +1010,7 @@ function renderMiniCards(){
 // ── 품목 선택 ─────────────────────────────────────────────────────────────
 function selectItem(k){
   curItem=k;
+  updatePeriodButtons(k);
   document.getElementById("item-menu").classList.remove("open");
   renderItemMenu();
   renderMiniCards();
@@ -1557,6 +1561,10 @@ function farmMapColorMeaning(fm){
 }
 const PERIOD_LABEL={7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"};
 const PERIOD_ORDER=[7,14,21,28,60,90];
+const PERIOD_READINESS_HORIZON={7:14,14:14,21:30,28:30,60:90,90:90};
+function readinessHorizonDays(days){
+  return PERIOD_READINESS_HORIZON[Number(days)]||Number(days);
+}
 function hiddenHorizonDays(itemCode=curItem){
   const policy=LIVE_HORIZON_POLICIES[itemCode]||{};
   const explicit=Array.isArray(policy.hidden_horizons)?policy.hidden_horizons:[];
@@ -1573,13 +1581,49 @@ function readinessDetail(itemCode,days){
   return details.find(d=>Number(d.horizon_days)===Number(days))||null;
 }
 function horizonBlockedMessage(itemCode,days){
-  const detail=readinessDetail(itemCode,days);
+  const horizonDays=readinessHorizonDays(days);
+  const detail=readinessDetail(itemCode,horizonDays);
   if(detail?.message) return detail.message;
-  const row=(LIVE_HORIZONS[itemCode]||{})[String(days)]||{};
+  const row=(LIVE_HORIZONS[itemCode]||{})[String(horizonDays)]||{};
   const reasons=[...(row.readiness_reasons||[]),...(row.hold_reasons||[])];
   if(reasons.includes("target_history_short")) return `${PERIOD_LABEL[days]||days+"일"}은 학습에 쓸 과거 가격 구간이 아직 짧아 공개 예측에서 제외했습니다.`;
   if(reasons.includes("low_backtest_direction")) return `${PERIOD_LABEL[days]||days+"일"}은 과거 검증에서 상승·하락 방향이 불안정해 공개 예측에서 제외했습니다.`;
   return `${PERIOD_LABEL[days]||days+"일"}은 검증 기준을 통과하면 다시 열겠습니다.`;
+}
+function isHorizonBlocked(itemCode,days){
+  const horizons=LIVE_HORIZONS[itemCode]||{};
+  const horizonDays=readinessHorizonDays(days);
+  const row=horizons[String(horizonDays)];
+  if(row) return row.held_out||row.available===false||row.data_status==="insufficient_data";
+  const numericRows=Object.entries(horizons)
+    .map(([k,r])=>({days:Number(k),row:r}))
+    .filter(x=>Number.isFinite(x.days)&&x.row)
+    .sort((a,b)=>a.days-b.days);
+  const nearest=numericRows
+    .map(x=>({days:x.days,diff:Math.abs(x.days-horizonDays)}))
+    .sort((a,b)=>a.diff-b.diff||a.days-b.days)[0];
+  if(nearest) return isHorizonBlocked(itemCode,nearest.days);
+  return false;
+}
+function updatePeriodButtons(itemCode=curItem){
+  let firstOpen=null;
+  document.querySelectorAll(".fm-period-btn").forEach(btn=>{
+    const days=Number(btn.dataset.period);
+    if(!Number.isFinite(days)) return;
+    const blocked=isHorizonBlocked(itemCode,days);
+    if(!blocked&&firstOpen==null) firstOpen=days;
+    btn.classList.toggle("blocked",blocked);
+    btn.setAttribute("aria-disabled",blocked?"true":"false");
+    btn.title=blocked?horizonBlockedMessage(itemCode,days):`${PERIOD_LABEL[days]||days+"일"} 예측을 지도와 상세에 반영합니다.`;
+  });
+  if(itemCode===curItem&&isHorizonBlocked(itemCode,curPeriod)&&firstOpen!=null){
+    curPeriod=firstOpen;
+    document.querySelectorAll(".fm-period-btn").forEach(btn=>{
+      btn.classList.toggle("active",Number(btn.dataset.period)===curPeriod);
+    });
+    const badge=document.getElementById("rp-horizon-badge");
+    if(badge) badge.textContent=`${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 후`;
+  }
 }
 function horizonPolicyText(itemCode=curItem){
   const readiness=LIVE_HORIZON_READINESS[itemCode]||{};
@@ -1596,6 +1640,16 @@ function ensureExtendedHorizonUi(){
   document.getElementById("rp-p365")?.closest(".fm-fc-cell")?.remove();
 }
 function setPeriod(p,btn){
+  if(isHorizonBlocked(curItem,p)){
+    const msg=horizonBlockedMessage(curItem,p);
+    const policyEl=document.getElementById("rp-horizon-policy");
+    if(policyEl){
+      policyEl.style.display="block";
+      policyEl.innerHTML=`<b>예측 공개 판단</b> ${msg}`;
+    }
+    updatePeriodButtons();
+    return;
+  }
   curPeriod=p;
   // 버튼 active 동기화
   document.querySelectorAll(".fm-period-btn").forEach(b=>b.classList.remove("active"));
@@ -1617,6 +1671,7 @@ function setPeriod(p,btn){
     document.getElementById("tl-fill").style.width=pct+"%";
     document.getElementById("tl-thumb").style.left=pct+"%";
   }
+  updatePeriodButtons();
 }
 
 // ── 타임라인 ──────────────────────────────────────────────────────────────
@@ -1980,6 +2035,7 @@ async function fetchItemForecast(item_code){
       LIVE_ITEMS[item_code].hidden_horizons=payload?.forecast?.hidden_horizons||LIVE_HORIZON_POLICIES[item_code].hidden_horizons||[];
       LIVE_ITEMS[item_code].horizon_source=payload?.source||"forecast";
     }
+    if(item_code===curItem) updatePeriodButtons(item_code);
     return horizons;
   }catch(e){
     return null;
@@ -2795,6 +2851,20 @@ function showRegionDetail(name,code,d){
 
   // 기간별 예측 6셀 (1주/2주/3주/4주/2개월/3개월)
   const setPfc=(id,cid,days)=>{
+    const cell=document.getElementById(id).closest(".fm-fc-cell");
+    const blocked=isHorizonBlocked(curItem,days);
+    if(cell){
+      cell.style.borderColor=days===curPeriod?"var(--accent)":"var(--border)";
+      cell.title=blocked?horizonBlockedMessage(curItem,days):"";
+      cell.style.opacity=blocked ? .72 : 1;
+    }
+    if(blocked){
+      document.getElementById(id).textContent="검증 대기";
+      const cel=document.getElementById(cid);
+      cel.textContent="공개 제외";
+      cel.className="fm-fc-chg neu";
+      return;
+    }
     if(!pv){
       document.getElementById(id).textContent="—";
       const cel=document.getElementById(cid);cel.textContent="";cel.className="fm-fc-chg";
@@ -2808,7 +2878,6 @@ function showRegionDetail(name,code,d){
     cel.textContent=(c>0?"+":"")+c+"%";
     cel.className="fm-fc-chg "+(pct>0?"up":"down");
     // 현재 선택 기간이면 하이라이트
-    const cell=document.getElementById(id).closest(".fm-fc-cell");
     if(cell) cell.style.borderColor=days===curPeriod?"var(--accent)":"var(--border)";
   };
   setPfc("rp-p7","rp-p7c",7);

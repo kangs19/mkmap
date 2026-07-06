@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 87
+
+See `docs/AI_SESSION_87_PERIOD_READINESS_BUTTONS.md`.
+
+Latest result:
+
+- Forecast period buttons now check item/horizon readiness before changing the active period.
+- Blocked periods are shown with a dashed warning style, an accessibility disabled state, and a readiness reason.
+- Clicking a blocked period keeps the current public forecast view and shows the public judgment message instead of generating a number.
+- The compact forecast row now shows `검증 대기` and `공개 제외` for held-out periods.
+- Local validation passed with the smoke suite and backend forecast/API tests.
+
 ## Latest Update - 2026-07-06 Session 83
 
 See `docs/AI_SESSION_83_AGROMARKET_20ITEMS.md`.
