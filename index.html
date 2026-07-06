@@ -912,7 +912,7 @@ const ITEMS={
   radish:      {name:"무",   emoji:"🌿",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.18,volatility:"medium",confidence:"medium",hotspot:"제주도",  risk_level:"normal",risk_score:20,horizon:14},
   onion:       {name:"양파", emoji:"🧅",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.30,volatility:"medium",confidence:"medium",hotspot:"경상남도",risk_level:"normal",risk_score:30,horizon:14},
   green_onion: {name:"대파", emoji:"🌱",unit:"1kg",  unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.25,volatility:"medium",confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:25,horizon:14},
-  garlic:      {name:"마늘", emoji:"🧄",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
+  garlic:      {name:"마늘", emoji:"🧄",unit:"10kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.15,volatility:"low",   confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
   potato:      {name:"감자", emoji:"🥔",unit:"20kg", unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"강원도",  risk_level:"normal",risk_score:20,horizon:14},
   sweet_potato:{name:"고구마",emoji:"🍠",unit:"20kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"전라남도",risk_level:"normal",risk_score:20,horizon:14},
   pepper:      {name:"건고추",emoji:"🌶️",unit:"30kg",unitkg:"kg",direction:"neutral",up_prob:.50,surge_prob:.20,volatility:"medium",confidence:"medium",hotspot:"경상북도",risk_level:"normal",risk_score:20,horizon:14},
@@ -2599,7 +2599,11 @@ async function fetchNationalPrice(item_code){
     if(!res.ok) return;
     const d=await res.json();
     const rows=(d.prices||[]).filter(p=>p.price>0);
-    if(rows.length) LIVE_NATIONAL_PRICES[item_code]=rows[rows.length-1].price;
+    if(rows.length){
+      const latest=Number(rows[rows.length-1].price);
+      const regionalAvg=Number(LIVE_REGIONAL_PRICES[item_code]?.national_avg_wholesale||0);
+      LIVE_NATIONAL_PRICES[item_code]=regionalAvg&&latest/regionalAvg>8?regionalAvg:latest;
+    }
   }catch(e){}
 }
 function medianNumber(values){
@@ -2669,6 +2673,11 @@ async function fetchRegionalPrices(item_code){
         avg.market_base_date=markets.map(m=>m.date).filter(Boolean).sort().slice(-1)[0]||d.base_date||null;
       });
       LIVE_REGIONAL_PRICES[item_code]=d;
+      const regionalAvg=Number(d.national_avg_wholesale||0);
+      const national=Number(LIVE_NATIONAL_PRICES[item_code]||0);
+      if(regionalAvg&&(!national||national/regionalAvg>8)){
+        LIVE_NATIONAL_PRICES[item_code]=regionalAvg;
+      }
       updateRegionalStatus(item_code);
     }
   }catch(e){console.warn("지역 시세 로드 실패:",e.message);}
@@ -3722,6 +3731,19 @@ function priceColor(pct){
   if(pct>=-20)return"rgba(0,100,210,.72)";
   return"rgba(0,40,160,.78)";
 }
+function currentWholesaleGapPct(itemCode,sido){
+  const sidoName=SIDO_SHORT[sido]||sido;
+  const rp=LIVE_REGIONAL_PRICES[itemCode];
+  const sd=sidoName&&rp?.sido_avg?rp.sido_avg[sidoName]:null;
+  if(!sd) return null;
+  const ws=_normalizeRegionalPrice(sd.wholesale,itemCode);
+  const nat=rp.national_avg_wholesale;
+  if(Number.isFinite(Number(ws))&&Number.isFinite(Number(nat))&&Number(nat)>0){
+    return (Number(ws)-Number(nat))/Number(nat)*100;
+  }
+  const pct=Number(sd.vs_national_pct);
+  return Number.isFinite(pct)?pct:null;
+}
 function riskColor(s){
   if(s>=70)return"rgba(200,30,30,.6)";
   if(s>=50)return"rgba(220,100,0,.55)";
@@ -3884,12 +3906,8 @@ function getRetailNatAvg(item_code){
   return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
 }
 function regionalPriceColor(sido){
-  const sidoName=SIDO_SHORT[sido];
-  const rp=LIVE_REGIONAL_PRICES[curItem];
-  if(!rp||!sidoName||!rp.sido_avg) return null;
-  const sd=rp.sido_avg[sidoName];
-  if(!sd) return null;
-  return priceColor(periodForecastPct(sd.vs_national_pct||0,curPeriod));
+  const pct=currentWholesaleGapPct(curItem,sido);
+  return pct==null?null:priceColor(pct);
 }
 // 기간 스케일 계수 (28일=1.0 기준, 90일=2.5)
 function periodScale(){return Math.max(0.3,Math.min(3.0,curPeriod/28));}
@@ -3975,19 +3993,19 @@ function modeColor(ents, sido){
       if(sd){
         const ws=_normalizeRegionalPrice(sd.wholesale,curItem);
         const natW=rpData.national_avg_wholesale;
-        if(ws&&natW) return priceColor(periodForecastPct((ws-natW)/natW*100,curPeriod));
-        return priceColor(periodForecastPct(sd.vs_national_pct||0,curPeriod));
+        if(ws&&natW) return priceColor((ws-natW)/natW*100);
+        return priceColor(Number(sd.vs_national_pct||0));
       }
     }
   }
   const avg=ents.reduce((s,[,d])=>s+(d.price_vs_avg||0),0)/ents.length;
-  return priceColor(periodForecastPct(avg,curPeriod));
+  return priceColor(avg);
 }
 function modeCityColor(d){
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
   if(curMode==="risk")       return d.risk_score!=null?riskColor(d.risk_score):"rgba(80,80,60,.18)";
-  return priceColor(periodForecastPct(d.price_vs_avg||0,curPeriod));
+  return priceColor(d.price_vs_avg||0);
 }
 function cropCityMetric(d){
   return {
@@ -4808,8 +4826,11 @@ function getRegionPriceContext(d,sidoKR){
   const nationalWholesale=LIVE_REGIONAL_PRICES[curItem]?.national_avg_wholesale||LIVE_NATIONAL_PRICES[curItem]||0;
   const primaryPrice=rp?(isWholesale?rp.wholesale:rp.retail):0;
   const secondaryPrice=rp?(isWholesale?rp.retail:rp.wholesale):0;
+  const wholesaleGap=rp&&nationalWholesale&&rp.wholesale
+    ? (rp.wholesale-nationalWholesale)/nationalWholesale*100
+    : Number(rp?.vs_national_pct||0);
   const activePct=rp
-    ? (isWholesale?(rp.vs_national_pct||0):(retailNat&&rp.retail?(rp.retail-retailNat)/retailNat*100:(rp.vs_national_pct||0)))
+    ? (isWholesale?wholesaleGap:(retailNat&&rp.retail?(rp.retail-retailNat)/retailNat*100:wholesaleGap))
     : (d?.price_vs_avg||0);
   const fallback=d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||nationalWholesale||0;
   return {
