@@ -162,12 +162,12 @@ class LoginIn(BaseModel):
 
 
 class PhoneSendIn(BaseModel):
-    phone: str = Field(min_length=9, max_length=20)
+    phone: str
 
 
 class PhoneVerifyIn(BaseModel):
-    phone: str = Field(min_length=9, max_length=20)
-    code: str = Field(min_length=4, max_length=6)
+    phone: str
+    code: str
 
 
 # ── 엔드포인트 ───────────────────────────────────────────
@@ -235,7 +235,7 @@ async def login(body: LoginIn, db: AsyncSession = Depends(get_db)):
 async def me(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
     if not user:
-        raise HTTPException(status_code=401, detail={"error": "login_required"})
+        raise HTTPException(status_code=401, detail={"error": "login_required", "message": "로그인이 필요합니다."})
     return {"user": _user_out(user)}
 
 
@@ -243,7 +243,7 @@ async def me(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/phone/send")
 async def phone_send(body: PhoneSendIn, db: AsyncSession = Depends(get_db)):
     phone = _norm_phone(body.phone)
-    if len(phone) < 9:
+    if len(phone) < 9 or len(phone) > 20:
         raise HTTPException(status_code=400, detail={"error": "invalid_phone", "message": "올바른 휴대폰 번호를 입력해 주세요."})
 
     now = datetime.utcnow()
@@ -284,6 +284,11 @@ async def phone_send(body: PhoneSendIn, db: AsyncSession = Depends(get_db)):
 @router.post("/phone/verify")
 async def phone_verify(body: PhoneVerifyIn, db: AsyncSession = Depends(get_db)):
     phone = _norm_phone(body.phone)
+    code = body.code.strip()
+    if len(phone) < 9 or len(phone) > 20:
+        raise HTTPException(status_code=400, detail={"error": "invalid_phone", "message": "올바른 휴대폰 번호를 입력해 주세요."})
+    if len(code) < 4 or len(code) > 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail={"error": "invalid_code", "message": "인증번호를 다시 확인해 주세요."})
     now = datetime.utcnow()
     pv = (await db.execute(
         select(PhoneVerification)
@@ -299,7 +304,7 @@ async def phone_verify(body: PhoneVerifyIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=429, detail={"error": "too_many", "message": "시도 횟수를 초과했습니다. 다시 요청해 주세요."})
 
     pv.attempts += 1
-    if hashlib.sha256(body.code.encode()).hexdigest() != pv.code_hash:
+    if hashlib.sha256(code.encode()).hexdigest() != pv.code_hash:
         await db.commit()
         raise HTTPException(status_code=400, detail={"error": "wrong_code", "message": "인증번호가 일치하지 않습니다."})
 

@@ -67,3 +67,6 @@
 - `docs/AI_SESSION_91_MOBILE_BETA_QA.md`
   - 2026-07-06 mobile beta QA.
   - Covers responsive layout fixes, mobile browser checks, and small-screen launch-readiness notes.
+- `docs/AI_SESSION_92_AUTH_BETA_QA.md`
+  - 2026-07-06 auth beta QA.
+  - Covers public Korean auth error messages, safe no-SMS validation checks, and next launch QA slices.

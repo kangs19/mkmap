@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 92
+
+See `docs/AI_SESSION_92_AUTH_BETA_QA.md`.
+
+Latest result:
+
+- Continued beta launch QA with member/auth error flows.
+- Production invalid login, invalid email, farmer-without-phone, and invalid phone cases were checked without triggering real SMS sending.
+- Phone/SMS validation now returns Korean public messages instead of FastAPI/Pydantic English validation text.
+- `/api/v1/auth/me` now includes a Korean `로그인이 필요합니다.` message for frontend display.
+- Added backend regression coverage for public Korean auth messages.
+- Local validation passed with the smoke suite and backend API tests.
+
 ## Latest Update - 2026-07-06 Session 91
 
 See `docs/AI_SESSION_91_MOBILE_BETA_QA.md`.

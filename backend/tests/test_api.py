@@ -53,6 +53,38 @@ async def test_forecast_endpoint(client, item_code):
 
 
 @pytest.mark.asyncio
+async def test_auth_error_messages_are_public_korean(client):
+    login = await client.post("/api/v1/auth/login", json={
+        "email": "missing-auth-qa@example.com",
+        "password": "wrong-password",
+    })
+    assert login.status_code == 401
+    assert login.json()["detail"]["message"] == "이메일 또는 비밀번호가 올바르지 않습니다."
+
+    me = await client.get("/api/v1/auth/me")
+    assert me.status_code == 401
+    assert me.json()["detail"]["message"] == "로그인이 필요합니다."
+
+    farmer = await client.post("/api/v1/auth/register", json={
+        "email": "farmer-no-phone-auth-qa@example.com",
+        "password": "12345678",
+        "nickname": "농가QA",
+        "role": "farmer",
+    })
+    assert farmer.status_code == 400
+    assert farmer.json()["detail"]["error"] == "phone_required"
+    assert farmer.json()["detail"]["message"] == "농부·유통인 회원은 휴대폰 인증이 필요합니다."
+
+    phone = await client.post("/api/v1/auth/phone/send", json={"phone": "123"})
+    assert phone.status_code == 400
+    assert phone.json()["detail"]["message"] == "올바른 휴대폰 번호를 입력해 주세요."
+
+    verify = await client.post("/api/v1/auth/phone/verify", json={"phone": "123", "code": "12ab"})
+    assert verify.status_code == 400
+    assert verify.json()["detail"]["message"] == "올바른 휴대폰 번호를 입력해 주세요."
+
+
+@pytest.mark.asyncio
 async def test_signals_today_uses_latest_forecast_when_today_is_empty(client):
     item_code = "test_latest_signal_crop"
     base_date = kst_today() - timedelta(days=1)
