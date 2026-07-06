@@ -4323,7 +4323,7 @@ function drawProvinces(){
         : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`;
       bindLayerHoverTooltip(layer,provinceTooltipTitle);
       layer.on({
-        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);},
+        mouseover:e=>{e.target.setStyle({weight:3,color:provinceActive?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:provinceActive?0.95:0.35});showMapTooltip(provinceActive?makeMapPricePinHoverHtml(`${pname} (${ents.length}개 시·군)`,provinceD,sido):mapFallbackTooltipHtml(`${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 데이터 검증 데이터 부족`),e);},
         mousemove:e=>moveMapTooltip(e),
         mouseout:e=>{provLayer.resetStyle(e.target);hideMapTooltip();},
         click:()=>{hideMapTooltip();if(provinceActive)zoomProv(f,sido,pname);}
@@ -4340,10 +4340,13 @@ function drawProvinces(){
         title: provinceActive
           ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시군 · 현재 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
           : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
+        html: provinceActive
+          ? makeMapPricePinHoverHtml(`${pname} (${ents.length}개 시·군)`,provinceD,sido)
+          : mapFallbackTooltipHtml(`${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`),
         enter:e=>{
           layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
           if(farmMapActive&&!provinceActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
-          else showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);
+          else showMapTooltip(provinceActive?makeMapPricePinHoverHtml(`${pname} (${ents.length}개 시·군)`,provinceD,sido):mapFallbackTooltipHtml(`${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 데이터 검증 데이터 부족`),e);
         },
         move:e=>moveMapTooltip(e),
         leave:()=>{try{provLayer.resetStyle(layer);}catch(err){} hideMapTooltip();},
@@ -4488,7 +4491,8 @@ function drawCities(sido){
 
   // 시군 hover 카드 공통 함수
   function showCityTooltip(name,d,e){
-    showMapTooltip(makeHoverCard(name,d,d?.sido||sido),e);
+    if(d) showMapTooltip(makeMapPricePinHoverHtml(name,d,d?.province_code||PROV_NAME_MAP[d?.sido]||sido),e);
+    else showMapTooltip(mapFallbackTooltipHtml(`${name} · ${ITEMS[curItem]?.name||"작물"} 대표 데이터 검증 데이터 부족`),e);
   }
 
   cityLayer=L.geoJSON(filtered,{
@@ -4574,6 +4578,9 @@ function drawCities(sido){
         title: detailD
           ? `${name} ${ITEMS[curItem]?.name||"작물"} · 현재 ${detailPathPrice?Math.round(detailPathPrice).toLocaleString()+"원":"가격 수집 중"}`
           : `${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
+        html: detailD
+          ? makeMapPricePinHoverHtml(name,detailD,detailD?.province_code||PROV_NAME_MAP[detailD?.sido]||sido)
+          : mapFallbackTooltipHtml(`${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`),
         enter:enterCityDom,
         move:e=>moveMapTooltip(e),
         leave:leaveCityDom,
@@ -4599,7 +4606,7 @@ function drawCities(sido){
     if(!feat)return;
     try{
       const center=L.geoJSON(feat).getBounds().getCenter();
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[116,64],iconAnchor:[58,32]})});
+      const pin=L.marker(center,{icon:L.divIcon({html:makeMapPricePinHtml(d.name,d,PROV_NAME_MAP[d.sido]||d.sido),className:'',iconSize:[118,66],iconAnchor:[59,33]})});
       bindLayerHoverTooltip(pin,`${d.name} ${ITEMS[curItem]?.name||"작물"} · 현재 ${d.avg_price?Math.round(d.avg_price).toLocaleString()+"원":"가격 수집 중"}`);
       provPinLayer.addLayer(pin);
       bindMarkerDomEvents(pin,{
