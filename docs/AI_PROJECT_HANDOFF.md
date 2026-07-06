@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 112
+
+See `docs/AI_SESSION_112_PRICE_MAP_FORECAST_VISIBILITY.md`.
+
+Latest result:
+
+- Investigated the user's report that price prediction was not clearly represented on the map.
+- Hardened `/api/v1/map/regional-prices` to repair UTF-8 Korean mojibake for `sido` and `market_name`.
+- Added a regression test so regional price API keys map to Korean frontend region names.
+- Added a `regional_prices` launch-readiness check; production now passes 13/13.
+- Hardened price pin rendering so missing forecast/retail values cannot stop map pins from rendering.
+- Improved the sidebar status text to show how many crop-producing regions are reflected in the price forecast map.
+
 ## Latest Update - 2026-07-06 Session 111
 
 See `docs/AI_SESSION_111_PUBLIC_PROMOTION_QA_COPY.md`.

@@ -128,3 +128,6 @@
 - `docs/AI_SESSION_111_PUBLIC_PROMOTION_QA_COPY.md`
   - 2026-07-06 public promotion QA copy.
   - Covers unknown item-code frontend guard, removal of sample/beta launch copy, legal terms polish, browser hover QA, and the remaining `www` domain risk.
+- `docs/AI_SESSION_112_PRICE_MAP_FORECAST_VISIBILITY.md`
+  - 2026-07-06 price map forecast visibility.
+  - Covers regional price API Korean key repair, launch readiness regional-price check, safer price pin rendering, and clearer map price status copy.

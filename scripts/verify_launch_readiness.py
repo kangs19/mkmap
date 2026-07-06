@@ -43,6 +43,7 @@ def main() -> int:
         check_today_signals(base_url, args.timeout_seconds),
         check_dashboard_cards(base_url, args.timeout_seconds),
         check_item_forecast(base_url, args.item, args.timeout_seconds),
+        check_regional_prices(base_url, args.item, args.timeout_seconds),
     ]
     warnings = collect_warnings(args.base_url.rstrip("/"), args.timeout_seconds)
     failed = [check for check in checks if not check["ok"]]
@@ -317,6 +318,38 @@ def check_item_forecast(base_url: str, item: str, timeout_seconds: int) -> dict[
         http_status=response["http_status"],
         details={"item": item, "base_date": payload.get("base_date") or payload.get("date")},
     )
+
+
+def check_regional_prices(base_url: str, item: str, timeout_seconds: int) -> dict[str, Any]:
+    path = f"api/v1/map/regional-prices?item_code={item}"
+    response = fetch_json(base_url, path, timeout_seconds)
+    if not response["ok"]:
+        return make_check("regional_prices", "/" + path, False, response["status"], response=response)
+
+    payload = response["payload"]
+    sido_avg = payload.get("sido_avg") if isinstance(payload, dict) else None
+    keys = list(sido_avg.keys()) if isinstance(sido_avg, dict) else []
+    mojibake_keys = [key for key in keys if looks_like_utf8_mojibake(key)]
+    map_sido_keys = {"서울", "부산", "대구", "인천", "광주", "대전", "울산", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"}
+    matched_keys = sorted(set(keys) & map_sido_keys)
+    ok = bool(keys) and not mojibake_keys and bool(matched_keys)
+    return make_check(
+        "regional_prices",
+        "/" + path,
+        ok,
+        "ok" if ok else "mojibake_keys" if mojibake_keys else "missing_map_keys",
+        http_status=response["http_status"],
+        details={
+            "base_date": payload.get("base_date") if isinstance(payload, dict) else None,
+            "sido_count": len(keys),
+            "matched_map_keys": matched_keys,
+            "mojibake_keys": mojibake_keys,
+        },
+    )
+
+
+def looks_like_utf8_mojibake(text: str) -> bool:
+    return any(fragment in text for fragment in ("ì", "ê", "ë", "í", "Â", "Ã", "\ufffd"))
 
 
 def check_text_contains(

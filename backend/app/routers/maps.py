@@ -692,6 +692,22 @@ def _unit_kg_from_text(text: str | None) -> int:
     return max(1, int(match.group(1)))
 
 
+def _repair_utf8_mojibake(value: str | None) -> str | None:
+    """Repair UTF-8 Korean text that was previously decoded as latin-1."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    # Typical broken Korean looks like ê°ì, ìì¸, etc.
+    if not any(ch in value for ch in ("ì", "ê", "ë", "í", "Â", "Ã")):
+        return value
+    try:
+        repaired = value.encode("latin1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return value
+    return repaired if repaired else value
+
+
 def _clean_regional_price_outliers(sido_avg: dict, *, item_code: str, unit_kg: int) -> dict:
     """Normalize one-off regional unit mixups before API consumers see them."""
     for field in ("wholesale", "retail"):
@@ -759,18 +775,20 @@ async def get_regional_prices(
     sido_rt: dict[str, list] = defaultdict(list)
     market_list = []
     for r in rows:
+        market_name = _repair_utf8_mojibake(r.market_name) or r.market_name
+        sido = _repair_utf8_mojibake(r.sido) or r.sido
         market_list.append({
             "market_code":      r.market_code,
-            "market_name":      r.market_name,
-            "sido":             r.sido,
+            "market_name":      market_name,
+            "sido":             sido,
             "date":             str(r.date),
             "wholesale_price":  r.wholesale_price,
             "retail_price":     r.retail_price,
         })
         if r.wholesale_price:
-            sido_ws[r.sido].append(r.wholesale_price)
+            sido_ws[sido].append(r.wholesale_price)
         if r.retail_price:
-            sido_rt[r.sido].append(r.retail_price)
+            sido_rt[sido].append(r.retail_price)
 
     sido_avg = {}
     for sido, ws in sido_ws.items():

@@ -2401,7 +2401,14 @@ function updateRegionalStatus(item_code){
   const rp=LIVE_REGIONAL_PRICES[item_code];
   if(!rp){el.textContent="지역 시세: 수집 중...";return;}
   const n=Object.keys(rp.sido_avg||{}).length;
-  el.textContent=`${rp.base_date||""} 기준 ${n}개 지역 실시세`;
+  const activeSidos=new Set(
+    Object.values(CITY_DATA[item_code]||{})
+      .filter(isActiveCropCity)
+      .map(d=>PROV_NAME_MAP[d.sido]||d.sido)
+      .filter(Boolean)
+  );
+  const pricedActive=[...activeSidos].filter(sido=>rp.sido_avg?.[sido]);
+  el.textContent=`${rp.base_date||""} 기준 ${n}개 지역 도매가 · 가격예측 지도 ${pricedActive.length}/${activeSidos.size||0}개 산지 반영`;
 }
 function togglePriceViewMode(){
   priceViewMode="wholesale";
@@ -4395,6 +4402,7 @@ function makePinHtml(name,d,sidoKR){
   const rp=ctx.rp;
   const isCurrent=(curPeriod<=7);
   const unit=ctx.unit;
+  const fmtPrice=(value)=>Number.isFinite(Number(value))?Math.round(Number(value)).toLocaleString()+"원":"가격 수집 중";
   const pinTitle=(text)=>String(text||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   if(isHorizonBlocked(curItem,curPeriod)){
     const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
@@ -4416,13 +4424,13 @@ function makePinHtml(name,d,sidoKR){
     const pctColor=activePct>5?'#c02828':activePct<-5?'#1a8a1a':'#6a1e9a';
     const fctPct=periodForecastPct(activePct,curPeriod);
     const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
-    const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
+    const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):(fctPct==null?'예측 확인 중':((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측'));
     const bottomColor=isCurrent?pctColor:fctColor;
-    const title=pinTitle(`${name} 예측 ${mainLabel} ${pm.toLocaleString()}원/${unit} · 예측 ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`);
+    const title=pinTitle(`${name} 예측 ${mainLabel} ${fmtPrice(pm)}/${unit} · 예측 ${subLabel} ${fmtPrice(ps)} · ${bottomStr}`);
     return`<div class="region-pin" title="${title}" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
-      <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${pm.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
-      <div style="font-size:9px;font-weight:600;color:#7a8a6a;line-height:1.3">${subLabel} ${ps.toLocaleString()}원</div>
+      <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${fmtPrice(pm)}<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
+      <div style="font-size:9px;font-weight:600;color:#7a8a6a;line-height:1.3">${subLabel} ${fmtPrice(ps)}</div>
       <div style="font-size:9px;font-weight:700;color:${bottomColor}">${bottomStr}</div>
     </div>`;
   }

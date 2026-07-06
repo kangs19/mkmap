@@ -229,6 +229,44 @@ async def test_regional_price_endpoint_normalizes_garlic_unit_outlier(client):
 
 
 @pytest.mark.asyncio
+async def test_regional_price_endpoint_repairs_korean_mojibake(client):
+    item_code = "cabbage"
+    base_date = date(2026, 7, 3)
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionalMarketPrice).where(RegionalMarketPrice.item_code == item_code))
+        db.add_all([
+            RegionalMarketPrice(
+                item_code=item_code,
+                date=base_date,
+                market_code="320201",
+                market_name="원주".encode("utf-8").decode("latin1"),
+                sido="강원".encode("utf-8").decode("latin1"),
+                wholesale_price=566,
+                retail_price=764,
+            ),
+            RegionalMarketPrice(
+                item_code=item_code,
+                date=base_date,
+                market_code="110001",
+                market_name="서울가락".encode("utf-8").decode("latin1"),
+                sido="서울".encode("utf-8").decode("latin1"),
+                wholesale_price=300,
+                retail_price=405,
+            ),
+        ])
+        await db.commit()
+
+    r = await client.get(f"/api/v1/map/regional-prices?item_code={item_code}")
+    assert r.status_code == 200
+    data = r.json()
+    assert "강원" in data["sido_avg"]
+    assert "서울" in data["sido_avg"]
+    assert "ê°ì" not in data["sido_avg"]
+    assert data["markets"][0]["sido"] in {"강원", "서울"}
+    assert any(m["market_name"] == "원주" for m in data["markets"])
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("item_code", ["cabbage", "radish", "onion", "green_onion", "garlic"])
 async def test_forecast_explanation_endpoint(client, item_code):
     r = await client.get(f"/api/v1/items/{item_code}/forecast/explanation")
