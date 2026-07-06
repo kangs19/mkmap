@@ -1207,7 +1207,6 @@ window.onload=async()=>{
     map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
     setTimeout(()=>map_.invalidateSize(),120);
     document.getElementById("loading").style.display="none";
-    renderStaticMapOverlay("initial_price_summary");
   }catch(e){
     document.getElementById("loading").innerHTML=`<div style="text-align:center;padding:18px"><div style="font-size:28px;margin-bottom:10px">!</div><div style="font-size:14px;color:#1a2410;font-weight:900">지도를 여는 중 문제가 생겼습니다</div><div style="font-size:12px;color:#6a7a5a;margin-top:6px">${e.message||e}</div></div>`;
     return;
@@ -1268,7 +1267,12 @@ window.onload=async()=>{
   const geoFallbackTimer=setTimeout(()=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
     if(!visibleCropLayer&&map_){
-      renderStaticMapOverlay("geojson_load_timeout");
+      fetchGeo("skorea_provinces_light.json")
+        .then(g=>{
+          provGeo=g;
+          renderStaticProvinceShapeOverlay(g,"geojson_load_timeout");
+        })
+        .catch(()=>renderStaticMapOverlay("geojson_load_timeout"));
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
   },4500);
