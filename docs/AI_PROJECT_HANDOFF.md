@@ -8,9 +8,12 @@ Latest result:
 
 - Responded to repeated user report that map hover popups still did not appear.
 - Added a stronger delegated document-level hover fallback for Leaflet SVG regions and marker pins.
-- SVG paths now carry `data-fm-tooltip-html` fallback content.
+- SVG paths and marker pins now carry `data-fm-tooltip-html`/`data-tooltip` fallback content without browser-native `title`.
 - CSS now forces pointer events on Leaflet interactive paths and marker icons.
-- Local browser QA confirmed `#map-tooltip` appears when hovering both a province SVG region and a crop pin.
+- Removed duplicate native tooltip paths: browser `title`, SVG `<title>`, Leaflet `bindTooltip`, and the old black CSS pseudo tooltip for region pins.
+- Price/production map layer toggles now force a regional-price refresh and redraw, so the `가격 예측` layer does not disappear after switching filters.
+- Local browser QA confirmed `#map-tooltip` appears when hovering a crop pin, with no Leaflet tooltip or native title left on crop map layers.
+- Local FastAPI browser QA confirmed `재배 면적 -> 가격 예측 -> 팜맵 on/off` keeps crop regions and price pins visible.
 - Added the delegated hover fallback fragment to launch readiness checks.
 
 ## Latest Update - 2026-07-06 Session 113

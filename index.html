@@ -119,7 +119,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic'
   position:fixed;display:none;z-index:9999;pointer-events:none;
   background:white;border:1.5px solid #d8e0cc;border-radius:14px;
   box-shadow:0 8px 28px rgba(0,0,0,.2);
-  min-width:320px;max-width:390px;
+  width:min(390px, calc(100vw - 24px));
+  min-width:min(320px, calc(100vw - 24px));max-width:390px;
   max-height:calc(100vh - 32px);overflow-y:auto;
   transition:opacity .1s;
 }
@@ -141,13 +142,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic'
   content:"";position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);
   border:6px solid transparent;border-top-color:#1a2410;z-index:10000;pointer-events:none;
 }
+.region-pin[data-tooltip]:hover::after,.region-pin[data-tooltip]:hover::before{display:none!important;}
 .rp-name{font-size:11px;font-weight:700;color:#1a2410;white-space:nowrap;}
 .rp-chg{font-size:13px;font-weight:800;line-height:1.3;}
 .rp-chg.up{color:#c02828;}.rp-chg.down{color:#1a8a1a;}.rp-chg.flat{color:#6a1e9a;}
 .rp-price{font-size:10px;color:#6a7a5a;}
 
 /* 호버 카드 내부 */
-.rhc{padding:13px 15px;font-family:'Noto Sans KR',sans-serif;}
+.rhc{padding:13px 15px;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;width:100%;min-width:0;word-break:keep-all;overflow-wrap:break-word;}
 .rhc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .rhc-title{font-size:14px;font-weight:800;color:#1a2410;}
 .rhc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
@@ -1413,6 +1415,7 @@ function handleLayer(el,layer){
     const other=layer==="price"?"production":"price";
     const otherInput=document.querySelector(`input[onchange*="${other}"]`);
     if(el.checked){
+      curMode=layer==="production"?"production":"price";
       activeLayers.delete(other);
       if(otherInput){
         otherInput.checked=false;
@@ -1420,6 +1423,7 @@ function handleLayer(el,layer){
       }
     }else if(!activeLayers.has(other)){
       el.checked=true;
+      activeLayers.add(layer);
     }
   }
   el.closest(".fm-layer-item").classList.toggle("active",el.checked);
@@ -1430,7 +1434,16 @@ function handleLayer(el,layer){
 function applyLayer(layer,on,el){
   if(layer==="production"||layer==="price"){
     curMode=activeLayers.has("production")?"production":"price";
-    redrawMap();
+    if(!activeLayers.has("production")&&!activeLayers.has("price")){
+      activeLayers.add("price");
+      curMode="price";
+      const priceInput=document.querySelector(`input[onchange*="price"]`);
+      if(priceInput){
+        priceInput.checked=true;
+        priceInput.closest(".fm-layer-item")?.classList.add("active");
+      }
+    }
+    fetchRegionalPrices(curItem).finally(()=>redrawMap());
   } else if(layer==="weather"){
     on ? loadWeatherLayer() : removeWeatherLayer();
   } else if(layer==="market"){
@@ -4126,15 +4139,11 @@ function bindPathDomEvents(layer,handlers){
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
     if(handlers.title){
-      el.setAttribute("title",handlers.title);
+      el.removeAttribute("title");
       el.setAttribute("aria-label",handlers.title);
       el.setAttribute("data-tooltip",handlers.title);
       el.setAttribute("data-fm-tooltip-html",mapFallbackTooltipHtml(handlers.title));
-      if(!el.querySelector?.("title")){
-        const titleEl=document.createElementNS("http://www.w3.org/2000/svg","title");
-        titleEl.textContent=handlers.title;
-        el.appendChild(titleEl);
-      }
+      el.querySelectorAll?.("title").forEach(titleEl=>titleEl.remove());
     }
     const enter=e=>handlers.enter?.(e);
     const move=e=>handlers.move?.(e);
@@ -4169,7 +4178,7 @@ let __fmDelegatedHoverEl=null;
 function findHoverTargetAtPoint(x,y){
   const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
   for(const raw of els){
-    const path=raw?.closest?.(".leaflet-marker-icon,.leaflet-interactive");
+    const path=raw?.closest?.(".region-pin,.leaflet-marker-icon,.leaflet-interactive");
     if(path&&(FM_TOOLTIP_HANDLERS.has(path)||path.__fmTooltipHandlers||mapFallbackTitle(path))) return path;
   }
   return null;
@@ -4177,8 +4186,6 @@ function findHoverTargetAtPoint(x,y){
 function mapFallbackTitle(el){
   if(!el) return "";
   return el.getAttribute?.("data-tooltip")
-    || el.getAttribute?.("title")
-    || el.querySelector?.("title")?.textContent
     || el.getAttribute?.("aria-label")
     || "";
 }
@@ -4208,16 +4215,33 @@ function mapLeafletTooltipHtml(title){
   return `<div class="fm-native-tip-title">${head}</div>${parts.map(p=>`<div class="fm-native-tip-line">${p}</div>`).join("")}`;
 }
 function bindLayerHoverTooltip(layer,title){
-  if(!layer?.bindTooltip||!title) return;
-  try{
-    layer.unbindTooltip?.();
-    layer.bindTooltip(mapLeafletTooltipHtml(title),{
-      sticky:true,
-      direction:"auto",
-      opacity:1,
-      className:"fm-hover-leaflet-tooltip",
-    });
-  }catch(err){}
+  if(!layer||!title) return;
+  const bind=(attempt=0)=>{
+    const el=layer.getElement?.()||layer._path||layer._icon||null;
+    if(!el&&attempt<8){
+      setTimeout(()=>bind(attempt+1),50);
+      return;
+    }
+    try{layer.unbindTooltip?.();}catch(err){}
+    if(!el) return;
+    el.removeAttribute?.("title");
+    el.setAttribute?.("aria-label",title);
+    el.setAttribute?.("data-tooltip",title);
+    el.setAttribute?.("data-fm-tooltip-html",mapFallbackTooltipHtml(title));
+    el.querySelectorAll?.("title").forEach(titleEl=>titleEl.remove());
+    const targets=[el,...(el.querySelectorAll?.(".region-pin")||[])];
+    for(const target of targets){
+      if(target.dataset?.fmDirectTooltipBound==="1") continue;
+      if(target.dataset) target.dataset.fmDirectTooltipBound="1";
+      target.addEventListener?.("mouseenter",e=>showMapTooltip(target.getAttribute("data-fm-tooltip-html")||mapFallbackTooltipHtml(target.getAttribute("data-tooltip")||title),e),{passive:true});
+      target.addEventListener?.("mouseover",e=>showMapTooltip(target.getAttribute("data-fm-tooltip-html")||mapFallbackTooltipHtml(target.getAttribute("data-tooltip")||title),e),{passive:true});
+      target.addEventListener?.("mousemove",e=>moveMapTooltip(e),{passive:true});
+      target.addEventListener?.("mouseleave",()=>hideMapTooltip(),{passive:true});
+      target.addEventListener?.("mouseout",()=>hideMapTooltip(),{passive:true});
+    }
+  };
+  layer.on?.("add",bind);
+  setTimeout(()=>bind(),0);
 }
 function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
@@ -4268,11 +4292,11 @@ function setupMapHoverFallback(){
     hideMapTooltip();
     },{passive:true});
   document.addEventListener("mouseover",e=>{
-    const path=e.target?.closest?.("#map .leaflet-marker-icon,#map .leaflet-interactive");
+    const path=e.target?.closest?.("#map .region-pin,#map .leaflet-marker-icon,#map .leaflet-interactive");
     if(path) forceShowFromElement(path,e);
   },{capture:true,passive:true});
   document.addEventListener("mousemove",e=>{
-    const path=e.target?.closest?.("#map .leaflet-marker-icon,#map .leaflet-interactive");
+    const path=e.target?.closest?.("#map .region-pin,#map .leaflet-marker-icon,#map .leaflet-interactive");
     if(path) forceShowFromElement(path,e);
   },{capture:true,passive:true});
 }
@@ -4437,7 +4461,7 @@ function makePinHtml(name,d,sidoKR){
   if(isHorizonBlocked(curItem,curPeriod)){
     const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
     const title=pinTitle(`${name} 현재 ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`);
-    return`<div class="region-pin" title="${title}" data-tooltip="${title}">
+    return`<div class="region-pin" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div class="rp-price" style="color:#9a6a20">${price?price.toLocaleString()+"원":"가격 수집 중"}</div>
       <div class="rp-chg flat">검증 대기</div>
@@ -4457,7 +4481,7 @@ function makePinHtml(name,d,sidoKR){
     const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):(fctPct==null?'예측 확인 중':((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측'));
     const bottomColor=isCurrent?pctColor:fctColor;
     const title=pinTitle(`${name} 예측 ${mainLabel} ${fmtPrice(pm)}/${unit} · 예측 ${subLabel} ${fmtPrice(ps)} · ${bottomStr}`);
-    return`<div class="region-pin" title="${title}" data-tooltip="${title}">
+    return`<div class="region-pin" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${fmtPrice(pm)}<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
       <div style="font-size:9px;font-weight:600;color:#7a8a6a;line-height:1.3">${subLabel} ${fmtPrice(ps)}</div>
@@ -4466,7 +4490,7 @@ function makePinHtml(name,d,sidoKR){
   }
   if(!d){
     const title=pinTitle(`${name} · 대표 산지 검증 데이터 부족`);
-    return`<div class="region-pin" title="${title}" data-tooltip="${title}"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
+    return`<div class="region-pin" data-tooltip="${title}"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
   }
   const chg=d.price_vs_avg||0;
   const sign=chg>0?'+':'';
@@ -4478,7 +4502,7 @@ function makePinHtml(name,d,sidoKR){
   const modeLabel=ctx.primaryShort;
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     const title=pinTitle(`${name} 예측 ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`);
-  return`<div class="region-pin" title="${title}" data-tooltip="${title}">
+  return`<div class="region-pin" data-tooltip="${title}">
     <div class="rp-name">${name}</div>
     ${predP?`<div class="rp-price">${modeLabel} ${predP.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>`:''}
     <div class="rp-chg ${cls}">${fctStr}</div>
