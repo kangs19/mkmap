@@ -1040,7 +1040,8 @@ function geoFeatureToSvgPath(feature,width,height){
 function renderStaticProvinceShapeOverlay(geo,reason=""){
   try{
     const mapEl=document.getElementById("map");
-    if(!mapEl||!geo?.features?.length||!map_) return;
+    if(!mapEl||!map_) return;
+    const features=Array.isArray(geo?.features)?geo.features:[];
     document.getElementById("fm-static-map-overlay")?.remove();
     document.getElementById("fm-static-shape-overlay")?.remove();
     const overlay=document.createElement("div");
@@ -1057,7 +1058,7 @@ function renderStaticProvinceShapeOverlay(geo,reason=""){
     const height=mapEl.clientHeight||1;
     let rendered=0;
     const sidoOrder=Object.keys(SIDO_CENTER);
-    geo.features.forEach((f,idx)=>{
+    features.forEach((f,idx)=>{
       try{
         const sido=getSido(f)||sidoOrder[idx]||"";
         if(!sido) return;
@@ -1321,7 +1322,7 @@ window.onload=async()=>{
           provGeo=g;
           renderStaticProvinceShapeOverlay(g,"geojson_load_timeout");
         })
-        .catch(()=>renderStaticMapOverlay("geojson_load_timeout"));
+        .catch(()=>renderStaticProvinceShapeOverlay({type:"FeatureCollection",features:[]},"geojson_load_timeout_no_geo"));
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
   },4500);
