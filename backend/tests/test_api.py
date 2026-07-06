@@ -65,6 +65,16 @@ async def test_auth_error_messages_are_public_korean(client):
     assert me.status_code == 401
     assert me.json()["detail"]["message"] == "로그인이 필요합니다."
 
+    no_terms = await client.post("/api/v1/auth/register", json={
+        "email": "terms-missing-auth-qa@example.com",
+        "password": "12345678",
+        "nickname": "약관QA",
+        "role": "general",
+    })
+    assert no_terms.status_code == 400
+    assert no_terms.json()["detail"]["error"] == "terms_required"
+    assert no_terms.json()["detail"]["message"] == "이용약관과 개인정보처리방침에 동의해 주세요."
+
     farmer = await client.post("/api/v1/auth/register", json={
         "email": "farmer-no-phone-auth-qa@example.com",
         "password": "12345678",
