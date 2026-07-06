@@ -1022,6 +1022,29 @@ function provinceStaticDatum(sido){
   };
   return {ents,rp,d};
 }
+function activeSidoSummaries(itemCode=curItem){
+  const rows=Object.entries(CITY_DATA[itemCode]||{});
+  const grouped={};
+  rows.forEach(([code,d])=>{
+    const sido=d?.province_code||SIDO_BY_PREFIX[String(code).substring(0,2)]||"";
+    if(!sido) return;
+    const ton=Number(d.shipment_ton||d.production_ton||0);
+    const area=Number(d.area_ha||0);
+    const weight=Number(d.production_weight||0);
+    const pct=Number(d.production_pct||0);
+    const rank=Number(d.rank||999);
+    if(!(weight>=0.02||pct>=2||rank<=10||ton>=12000||area>=250)) return;
+    if(!grouped[sido]) grouped[sido]={sido,rows:[],ton:0,area:0,weight:0,priceSum:0,priceCount:0,chgSum:0,chgCount:0};
+    const g=grouped[sido];
+    g.rows.push([code,d]);
+    g.ton+=ton;
+    g.area+=area;
+    g.weight+=weight;
+    if(Number(d.avg_price)>0){g.priceSum+=Number(d.avg_price);g.priceCount+=1;}
+    if(Number.isFinite(Number(d.price_vs_avg))){g.chgSum+=Number(d.price_vs_avg);g.chgCount+=1;}
+  });
+  return Object.values(grouped).filter(g=>g.weight>=0.02||g.ton>=12000||g.area>=250||g.rows.length);
+}
 function geoFeatureToSvgPath(feature,width,height){
   if(!feature?.geometry) return "";
   const convertRing=(ring)=>{
@@ -1057,33 +1080,44 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
     const labels=document.createElement("div");
     labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
     let rendered=0;
-    Object.entries(SIDO_CENTER).forEach(([sido,center],idx)=>{
+    const summaries=activeSidoSummaries(curItem);
+    summaries.forEach((summary,idx)=>{
       try{
-      const {ents,rp,d}=provinceStaticDatum(sido);
-      if(!ents.length||!isActiveCropProvince(ents)) return;
+      const sido=summary.sido;
+      const center=SIDO_CENTER[sido];
+      if(!center) return;
+      const rp=getRegionalSidoData(SIDO_SHORT[sido]||sido);
       const pct=staticMapPoint(center[0],center[1]);
       const x=(pct.x/100)*width;
       const y=(pct.y/100)*height;
-      const rx=Math.max(34,Math.min(86,width*.055));
-      const ry=Math.max(30,Math.min(78,height*.06));
+      const sizeBoost=Math.min(22,Math.max(0,summary.weight*40+summary.rows.length*2));
+      const rx=Math.max(44,Math.min(96,width*.06+sizeBoost));
+      const ry=Math.max(34,Math.min(82,height*.062+sizeBoost*.5));
       const name=SIDO_SHORT[sido]||sido;
       const itemName=ITEMS[curItem]?.name||"작물";
       const unit=ITEMS[curItem]?.unit||"";
-      const wholesale=Math.round(Number(d?.avg_price||rp?.wholesale||LIVE_NATIONAL_PRICES[curItem]||0));
+      const localPrice=summary.priceCount?summary.priceSum/summary.priceCount:0;
+      const wholesale=Math.round(Number(localPrice||rp?.wholesale||LIVE_NATIONAL_PRICES[curItem]||0));
       const retail=Math.round(Number(rp?.retail||0));
-      const forecastPct=periodForecastPct(Number(d?.price_vs_avg||rp?.vs_national_pct||0),curPeriod);
+      const localPct=summary.chgCount?summary.chgSum/summary.chgCount:Number(rp?.vs_national_pct||0);
+      const forecastPct=periodForecastPct(Number(localPct||0),curPeriod);
       const sign=forecastPct>0?"+":"";
       const forecastColor=forecastPct>=0?"#c02828":"#1a8a1a";
-      const fill=forecastPct>=20?"rgba(210,38,28,.74)"
+      const priceFill=forecastPct>=20?"rgba(210,38,28,.74)"
         :forecastPct>=10?"rgba(224,122,18,.70)"
         :forecastPct<=-20?"rgba(0,82,180,.72)"
         :forecastPct<=-10?"rgba(20,124,194,.70)"
         :"rgba(88,170,86,.70)";
+      const areaFill=summary.area>=30000?"rgba(26,122,24,.78)"
+        :summary.area>=10000?"rgba(70,155,55,.72)"
+        :summary.area>=3000?"rgba(124,184,82,.68)"
+        :"rgba(176,204,110,.62)";
+      const fill=isProductionLayerOn()?areaFill:priceFill;
       const priceText=wholesale?`도 ${wholesale.toLocaleString()}원${unit?`/${unit}`:""}`:"도매가 확인중";
       const retailText=retail?`소 ${retail.toLocaleString()}원`:"";
       const forecastText=Number.isFinite(forecastPct)?`${sign}${forecastPct.toFixed(1)}% 예측`:"예측 확인중";
       const periodText=({7:"1주",14:"2주",21:"3주",28:"4주",60:"2개월",90:"3개월"}[Number(curPeriod)]||`${curPeriod}일`);
-      const html=`<div class="rhc"><div class="rhc-header"><div class="rhc-title">${name} ${itemName}</div><span class="rhc-badge normal">가격 예측</span></div><div style="font-size:13px;line-height:1.65"><b>도매가</b> ${wholesale?wholesale.toLocaleString()+"원":"확인중"}${unit?` / ${unit}`:""}<br>${retail?`<b>소매가</b> ${retail.toLocaleString()}원<br>`:""}<b>${periodText}</b> ${forecastText}<br>${ents.length}개 산지 데이터를 기준으로 표시합니다.</div></div>`;
+      const html=`<div class="rhc"><div class="rhc-header"><div class="rhc-title">${name} ${itemName}</div><span class="rhc-badge normal">가격 예측</span></div><div style="font-size:13px;line-height:1.65"><b>도매가</b> ${wholesale?wholesale.toLocaleString()+"원":"확인중"}${unit?` / ${unit}`:""}<br>${retail?`<b>소매가</b> ${retail.toLocaleString()}원<br>`:""}<b>${periodText}</b> ${forecastText}<br>${summary.rows.length}개 산지, ${Math.round(summary.area).toLocaleString()}ha 기준으로 표시합니다.</div></div>`;
       const path=document.createElementNS("http://www.w3.org/2000/svg","path");
       path.setAttribute("d",`M${x-rx},${y} C${x-rx*.85},${y-ry} ${x-rx*.2},${y-ry*1.15} ${x},${y-ry} C${x+rx*.95},${y-ry*.7} ${x+rx},${y-ry*.1} ${x+rx*.75},${y} C${x+rx*.8},${y+ry*.8} ${x+rx*.15},${y+ry*1.05} ${x},${y+ry} C${x-rx*.95},${y+ry*.65} ${x-rx},${y+ry*.15} ${x-rx},${y} Z`);
       path.setAttribute("fill",fill);
@@ -1100,7 +1134,9 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
       label.type="button";
       label.className="fm-static-shape-label";
       label.style.cssText=`position:absolute;left:${Math.round(x)}px;top:${Math.round(y)}px;transform:translate(-50%,-50%);min-width:94px;max-width:128px;padding:9px 10px;border:1px solid #d9ded0;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 3px 12px rgba(0,0,0,.22);pointer-events:auto;font-size:12px;line-height:1.25;text-align:center;font-weight:900;color:#1a2410;`;
-      label.innerHTML=`<div>${name}</div><div style="font-size:11px">${priceText}</div>${retailText?`<div style="font-size:11px;color:#626b56">${retailText}</div>`:""}<div style="font-size:11px;color:${forecastColor}">${forecastText}</div>`;
+      label.innerHTML=isPriceLayerOn()
+        ? `<div>${name}</div><div style="font-size:11px">${priceText}</div>${retailText?`<div style="font-size:11px;color:#626b56">${retailText}</div>`:""}<div style="font-size:11px;color:${forecastColor}">${forecastText}</div>`
+        : `<div>${name}</div><div style="font-size:11px">${Math.round(summary.area).toLocaleString()}ha</div><div style="font-size:11px;color:#267a18">${summary.rows.length}개 산지</div>`;
       label.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
       label.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
       label.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
@@ -1705,6 +1741,8 @@ const activeLayers=new Set(["price","weather"]);
 let weatherMarkerLayer=null, weatherInfoControl=null, marketMarkerLayer=null;
 let FARMMAP_LANDUSE=null, FARMMAP_LANDUSE_BY_CODE={}, FARMMAP_LANDUSE_BY_CITY={};
 let FARMMAP_CAPACITY={}, FARMMAP_CAPACITY_BY_CODE={};
+function isPriceLayerOn(){return activeLayers.has("price");}
+function isProductionLayerOn(){return activeLayers.has("production");}
 
 // 주요 도매시장 위치 (위도, 경도, 이름)
 const MARKETS=[
@@ -1739,15 +1777,7 @@ function toggleLayerRow(event,layer){
 function handleLayer(el,layer){
   if(layer==="production"||layer==="price"){
     const other=layer==="price"?"production":"price";
-    const otherInput=document.querySelector(`input[onchange*="${other}"]`);
-    if(el.checked){
-      curMode=layer==="production"?"production":"price";
-      activeLayers.delete(other);
-      if(otherInput){
-        otherInput.checked=false;
-        otherInput.closest(".fm-layer-item")?.classList.remove("active");
-      }
-    }else if(!activeLayers.has(other)){
+    if(!el.checked&&!activeLayers.has(other)){
       el.checked=true;
       activeLayers.add(layer);
     }
@@ -1759,7 +1789,7 @@ function handleLayer(el,layer){
 
 function applyLayer(layer,on,el){
   if(layer==="production"||layer==="price"){
-    curMode=activeLayers.has("production")?"production":"price";
+    curMode=activeLayers.has("production")&&!activeLayers.has("price")?"production":"price";
     if(!activeLayers.has("production")&&!activeLayers.has("price")){
       activeLayers.add("price");
       curMode="price";
@@ -4194,8 +4224,8 @@ function drawProvinces(){
       const active=ents.length&&isActiveCropProvince(ents);
       if(!active&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
       if(!active)return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
-      const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
-      return{fillColor:rpColor||modeColor(ents,sido),weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
+      const fillColor=isProductionLayerOn()?prodColor(ents.reduce((s,[,d])=>s+(d.area_ha||0),0)):(regionalPriceColor(sido)||modeColor(ents,sido));
+      return{fillColor,weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -4260,6 +4290,7 @@ function drawProvinces(){
 
   // 도별 compact 핀 라벨
   provGeo.features.forEach(f=>{
+    if(!isPriceLayerOn()) return;
     const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
     const ents=cropEntriesForPrefix(cd,pfx);
     if(!ents.length||!isActiveCropProvince(ents))return;
