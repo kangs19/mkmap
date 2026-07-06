@@ -6,6 +6,7 @@ Date: 2026-07-06 KST
 
 - Added `scripts/verify_launch_readiness.py`.
 - The script checks launch-critical public pages and APIs without admin credentials or secrets.
+- The script also reports non-blocking warnings, currently including `https://www.mk-map.com` readiness.
 - Rebuilt `legal/privacy.html` and `legal/terms.html` as readable Korean UTF-8 pages.
 - Added the new checker to `scripts/run_smoke_suite.py` py_compile targets.
 
@@ -18,6 +19,11 @@ Date: 2026-07-06 KST
 - `POST /api/v1/auth/register` without `terms_accepted` returns `terms_required` before account creation.
 - Invalid login returns HTTP 401 with Korean-facing message text.
 - `/api/v1/map/weather`, `/api/v1/signals/today`, `/api/v1/dashboard/cards`, and `/api/v1/items/cabbage/forecast` are populated.
+
+## Non-Blocking Warnings
+
+- `www_domain`: `https://www.mk-map.com` currently has a certificate/domain mismatch. The main domain `https://mk-map.com` is healthy, but users who type `www.mk-map.com` may see a browser warning.
+- Fix by adding `www.mk-map.com` as a Railway custom domain and pointing DNS to Railway, or by configuring a proper HTTPS redirect from `www` to the apex domain.
 
 ## Commands
 
@@ -44,7 +50,7 @@ python scripts\verify_launch_readiness.py --base-url https://mk-map.com --json-o
 - Initial production run passed 10/11 checks.
 - The only failure was that `/terms` did not contain the Korean service name `팜맵`.
 - Fixed locally by rebuilding both legal pages in readable Korean.
-- After deploy, rerun the production launch check. Expected result: 11/11.
+- After deploy, rerun the production launch check. Expected result: 11/11 with a non-blocking `www_domain` warning until the `www` domain is configured.
 
 ## Notes For Next Agent
 

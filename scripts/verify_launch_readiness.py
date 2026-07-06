@@ -6,7 +6,7 @@ import sys
 import uuid
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 
@@ -43,6 +43,7 @@ def main() -> int:
         check_dashboard_cards(base_url, args.timeout_seconds),
         check_item_forecast(base_url, args.item, args.timeout_seconds),
     ]
+    warnings = collect_warnings(args.base_url.rstrip("/"), args.timeout_seconds)
     failed = [check for check in checks if not check["ok"]]
     output = {
         "ok": not failed,
@@ -53,6 +54,7 @@ def main() -> int:
             "failed_checks": len(failed),
         },
         "failed": [{"name": check["name"], "status": check["status"]} for check in failed],
+        "warnings": warnings,
         "checks": checks,
         "next_action": next_action(failed),
     }
@@ -390,6 +392,25 @@ def next_action(failed: list[dict[str, Any]]) -> str:
     return "Inspect failed check details before the next deploy."
 
 
+def collect_warnings(base_url: str, timeout_seconds: int) -> list[dict[str, Any]]:
+    parsed = urlparse(base_url)
+    if parsed.hostname != "mk-map.com":
+        return []
+
+    www_url = urlunparse((parsed.scheme or "https", "www.mk-map.com", "/", "", "", ""))
+    response = fetch_text(www_url, "", timeout_seconds)
+    if response["ok"]:
+        return []
+    return [
+        {
+            "name": "www_domain",
+            "status": response["status"],
+            "message": "https://www.mk-map.com is not launch-ready. Add a Railway custom domain and DNS/CNAME redirect if users may type www.",
+            "details": response,
+        }
+    ]
+
+
 def print_human_summary(output: dict[str, Any]) -> None:
     status = "PASS" if output["ok"] else "FAIL"
     summary = output["summary"]
@@ -403,6 +424,10 @@ def print_human_summary(output: dict[str, Any]) -> None:
         print("- failed checks:")
         for failed in output["failed"]:
             print(f"  - {failed['name']}: {failed['status']}")
+    if output["warnings"]:
+        print("- warnings:")
+        for warning in output["warnings"]:
+            print(f"  - {warning['name']}: {warning['status']}")
     print(f"- next_action={output['next_action']}")
     print()
 

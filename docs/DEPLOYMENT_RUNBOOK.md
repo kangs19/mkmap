@@ -81,6 +81,10 @@ python scripts\verify_launch_readiness.py --base-url https://mk-map.com --timeou
 
 Admin endpoints require `X-Admin-Key`.
 
+Launch warning to resolve before wider public signup:
+
+- `https://www.mk-map.com` is not currently configured with a matching certificate. Add `www.mk-map.com` as a Railway custom domain and point DNS/CNAME to Railway, or configure an HTTPS redirect to `https://mk-map.com`.
+
 ## Known Provider Notes
 
 - KMA weather alert may return provider-side `DB_ERROR`; retry diagnostics after the provider clears it.
