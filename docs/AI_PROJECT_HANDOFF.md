@@ -12,6 +12,18 @@ Latest result:
 - The candidate was not promoted. All horizons kept the existing checked baseline because temporal backtest stability was weaker than the baseline.
 - Public production should keep the current checked baseline active. The 20-crop candidate outputs are experimental until KOSIS, KMA, FarmMap, and per-item reliability coverage are verified.
 
+## Latest Update - 2026-07-06 Session 84
+
+See `docs/AI_SESSION_84_ITEM_READINESS_GATE.md`.
+
+Latest result:
+
+- Added `scripts/audit_item_forecast_readiness.py`.
+- The script combines metadata flags, feature cache coverage, training target rows, and per-item horizon backtest metrics.
+- On the 20-crop Agromarket candidate model, 5 items were marked `candidate`: `cabbage`, `garlic`, `green_onion`, `onion`, `radish`.
+- The 15 newly added crops were marked `hold` because their KOSIS/KMA/FarmMap/context coverage is not verified enough for trusted public forecasts.
+- The next production step is to use this readiness report to filter public forecast artifacts by item and horizon.
+
 마지막 업데이트: 2026-07-02 KST (세션13)
 
 ## 프로젝트 목적

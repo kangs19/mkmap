@@ -43,3 +43,6 @@
 - `docs/AI_SESSION_83_AGROMARKET_20ITEMS.md`
   - 2026-07-06 Agromarket regional price collection for 20 crops.
   - Covers KAMIS audit alias handling, Agromarket regional data collection, 20-crop model rerun, promotion result, and why the candidate is still experimental.
+- `docs/AI_SESSION_84_ITEM_READINESS_GATE.md`
+  - 2026-07-06 item-level forecast readiness gate.
+  - Covers the new readiness audit script, item/horizon scoring, 20-crop candidate results, and next integration work for public artifact filtering.
