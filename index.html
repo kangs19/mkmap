@@ -4040,6 +4040,10 @@ function isActiveCropCity(d){
 function cropEntriesForPrefix(cd,pfx){
   return Object.entries(cd).filter(([c,d])=>c.startsWith(pfx)&&isActiveCropCity(d));
 }
+function cropEntriesForSido(cd,sido){
+  const pfx=SIDO_PREFIX[sido]||"";
+  return Object.entries(cd).filter(([c,d])=>(d?.province_code===sido||c.startsWith(pfx))&&isActiveCropCity(d));
+}
 function isActiveCropProvince(ents){
   const ton=ents.reduce((s,[,d])=>s+(d.shipment_ton||d.production_ton||0),0);
   const area=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
@@ -4198,7 +4202,7 @@ function drawProvinces(){
     renderer:mapVectorRenderer,
     style:f=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-      const ents=cropEntriesForPrefix(cd,pfx);
+      const ents=cropEntriesForSido(cd,sido);
       const fm=farmMapForSidoCode(sido);
       const active=ents.length&&isActiveCropProvince(ents);
       if(!active&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
@@ -4211,7 +4215,7 @@ function drawProvinces(){
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-      const ents=cropEntriesForPrefix(CITY_DATA[curItem]||{},pfx);
+      const ents=cropEntriesForSido(CITY_DATA[curItem]||{},sido);
       const pname=f.properties.name||"";
       const fm=farmMapForSidoCode(sido);
       const tot=ents.reduce((s,[,d])=>s+(d.shipment_ton||0),0);
@@ -4275,7 +4279,7 @@ function drawProvinces(){
   const pinnedSidos=new Set();
   provGeo.features.forEach(f=>{
     const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
-    const ents=cropEntriesForPrefix(cd,pfx);
+    const ents=cropEntriesForSido(cd,sido);
     if(!activeLayers.has("price"))return;
     if(!ents.length||!isActiveCropProvince(ents))return;
     try{
@@ -4297,7 +4301,7 @@ function drawProvinces(){
   if(activeLayers.has("price")){
     Object.entries(SIDO_CENTER).forEach(([sido,center])=>{
       if(pinnedSidos.has(sido)) return;
-      const ents=cropEntriesForPrefix(cd,SIDO_PREFIX[sido]||"");
+      const ents=cropEntriesForSido(cd,sido);
       if(!ents.length||!isActiveCropProvince(ents)) return;
       try{
         const pinD=provinceDatumForSido(sido,ents);
