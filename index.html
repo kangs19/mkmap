@@ -1144,7 +1144,7 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
       labels.appendChild(label);
       rendered+=1;
       }catch(regionErr){
-        console.warn("[map] emergency province region skipped",sido,regionErr);
+        console.warn("[map] emergency province region skipped",summary?.sido||idx,regionErr);
       }
     });
     if(!rendered){
