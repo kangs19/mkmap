@@ -4191,6 +4191,42 @@ function drawProvinceFallbackMap(reason=""){
   if(reason) console.warn("[map] province fallback rendered:",reason);
 }
 
+function renderDirectProvincePricePins(cd){
+  if(!map_||!provPinLayer||!activeLayers.has("price")) return;
+  const grouped=new Map();
+  Object.entries(cd||{}).forEach(([code,d])=>{
+    const sido=d?.province_code||PROV_NAME_MAP[d?.sido]||"";
+    if(!sido||!isActiveCropCity(d)) return;
+    if(!grouped.has(sido)) grouped.set(sido,[]);
+    grouped.get(sido).push([code,d]);
+  });
+  grouped.forEach((ents,sido)=>{
+    if(!ents.length||!isActiveCropProvince(ents)) return;
+    try{
+      const feature=provGeo?.features?.find(f=>getSido(f)===sido);
+      const center=feature?L.geoJSON(feature).getBounds().getCenter():SIDO_CENTER[sido];
+      if(!center) return;
+      const pinD=provinceDatumForSido(sido,ents)||provinceDatumFromEntries(ents);
+      if(!pinD) return;
+      if(!pinD.avg_price){
+        const avg=ents.reduce((s,[,d])=>s+(Number(d.avg_price)||0),0)/ents.length;
+        pinD.avg_price=Math.round(avg||LIVE_NATIONAL_PRICES[curItem]||0);
+      }
+      const name=SIDO_SHORT[sido]||sido;
+      const title=`${name} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${pinD.avg_price?Math.round(pinD.avg_price).toLocaleString()+"원":"가격 수집 중"}`;
+      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(name,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+      bindLayerHoverTooltip(pin,title);
+      pin.addTo(provPinLayer);
+      bindMarkerDomEvents(pin,{
+        enter:e=>showMapTooltip(makeHoverCard(`${name} (${ents.length}개 시·군)`,pinD,sido),e),
+        move:e=>moveMapTooltip(e),
+        leave:()=>hideMapTooltip(),
+        click:()=>{hideMapTooltip();zoomProvinceByCode(sido);}
+      });
+    }catch(e){console.warn("[map] direct province price pin skipped",sido,e);}
+  });
+}
+
 function drawProvinces(){
   document.getElementById("fm-static-map-overlay")?.remove();
   document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
@@ -4319,6 +4355,8 @@ function drawProvinces(){
       }catch(e){console.warn("[map] fallback province pin skipped",sido,e);}
     });
   }
+  if(provPinLayer) provPinLayer.clearLayers();
+  renderDirectProvincePricePins(cd);
   document.getElementById("fm-static-map-overlay")?.remove();
   document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
 }
