@@ -1364,19 +1364,6 @@ window.onload=async()=>{
 
   const provinceGeoPromise=fetchGeo("skorea_provinces_light.json");
   const cityGeoPromise=fetchGeo("skorea_municipalities_simple.json");
-  const geoFallbackTimer=setTimeout(()=>{
-    const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
-    if(!visibleCropLayer&&map_){
-      renderEmergencyProvinceAreaOverlay("geojson_load_timeout_immediate");
-      provinceGeoPromise
-        .then(g=>{
-          provGeo=g;
-          renderStaticProvinceShapeOverlay(g,"geojson_load_timeout");
-        })
-        .catch(()=>renderStaticProvinceShapeOverlay({type:"FeatureCollection",features:[]},"geojson_load_timeout_no_geo"));
-      showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
-    }
-  },4500);
   Promise.all([
     provinceGeoPromise,
     cityGeoPromise,
@@ -1389,11 +1376,11 @@ window.onload=async()=>{
     try{
       drawProvinces();
     }catch(err){
-      renderStaticProvinceShapeOverlay(p,err.message||err);
-      showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB80C\uB354\uB9C1\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
+      console.error("[map] province render failed",err);
+      drawProvinceFallbackMap(err.message||err);
+      showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB80C\uB354\uB9C1\uC744 \uB2E4\uC2DC \uC2DC\uB3C4\uD569\uB2C8\uB2E4.");
     }
   }).catch(e=>{
-    clearTimeout(geoFallbackTimer);
     drawProvinceFallbackMap(e.message||e);
     showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD574 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
   });
@@ -2159,9 +2146,9 @@ function isHorizonBlocked(itemCode,days){
     .filter(x=>Number.isFinite(x.days)&&x.row)
     .sort((a,b)=>a.days-b.days);
   const nearest=numericRows
-    .map(x=>({days:x.days,diff:Math.abs(x.days-horizonDays)}))
+    .map(x=>({days:x.days,row:x.row,diff:Math.abs(x.days-horizonDays)}))
     .sort((a,b)=>a.diff-b.diff||a.days-b.days)[0];
-  if(nearest) return isHorizonBlocked(itemCode,nearest.days);
+  if(nearest?.row) return !isPublicForecastHorizon(nearest.row);
   return false;
 }
 function updatePeriodButtons(itemCode=curItem){
@@ -4136,6 +4123,8 @@ function drawProvinceFallbackMap(reason=""){
 }
 
 function drawProvinces(){
+  document.getElementById("fm-static-map-overlay")?.remove();
+  document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
   if(provLayer)map_.removeLayer(provLayer);
   if(cityLayer)map_.removeLayer(cityLayer);cityLayer=null;
   if(provPinLayer)map_.removeLayer(provPinLayer);provPinLayer=L.layerGroup().addTo(map_);
@@ -4148,7 +4137,7 @@ function drawProvinces(){
       const fm=farmMapForSidoCode(sido);
       const active=ents.length&&isActiveCropProvince(ents);
       if(!active&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
-      if(!active)return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
+      if(!active)return{fillColor:"transparent",weight:0,color:"transparent",fillOpacity:0,opacity:0,interactive:false};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
       return{fillColor:rpColor||modeColor(ents,sido),weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
     },
@@ -4234,12 +4223,8 @@ function drawProvinces(){
       });
     }catch(e){}
   });
-  if(document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length){
-    document.getElementById("fm-static-map-overlay")?.remove();
-    document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
-  }else{
-    renderStaticProvinceShapeOverlay(provGeo,"province_render_empty");
-  }
+  document.getElementById("fm-static-map-overlay")?.remove();
+  document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
 }
 
 // 탐색 단계: "national" → "province" → "city"
