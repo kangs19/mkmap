@@ -1394,7 +1394,7 @@ window.onload=async()=>{
   const cityGeoPromise=fetchGeo("skorea_municipalities_simple.json");
   const geoFallbackTimer=setTimeout(()=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
-    if(!visibleCropLayer&&map_){
+    if(!visibleCropLayer){
       renderEmergencyProvinceAreaOverlay("geojson_load_timeout_immediate");
       provinceGeoPromise
         .then(g=>{
@@ -1422,7 +1422,7 @@ window.onload=async()=>{
     }
   }).catch(e=>{
     clearTimeout(geoFallbackTimer);
-    drawProvinceFallbackMap(e.message||e);
+    renderEmergencyProvinceAreaOverlay(e.message||e);
     showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD574 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
   });
 };
