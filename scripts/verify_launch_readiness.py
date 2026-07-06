@@ -160,6 +160,7 @@ def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, An
         ("leaflet_js", "static/vendor/leaflet/leaflet.js", 100_000, "Leaflet 1.9.4"),
         ("chart_js", "static/vendor/chartjs/chart.umd.min.js", 100_000, "Chart"),
         ("leaflet_marker", "static/vendor/leaflet/images/marker-icon.png", 1_000, None),
+        ("provinces_light", "static/skorea_provinces_light.json", 100_000, '"FeatureCollection"'),
         ("provinces", "static/skorea_provinces.json", 100_000, '"FeatureCollection"'),
         ("municipalities", "static/skorea_municipalities_simple.json", 100_000, '"FeatureCollection"'),
         ("city_agri_data", "static/city_agri_data.json", 1_000, "cabbage"),

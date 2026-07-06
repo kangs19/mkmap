@@ -1096,7 +1096,7 @@ window.onload=async()=>{
   });
 
   Promise.all([
-    fetchGeo("skorea_provinces.json"),
+    fetchGeo("skorea_provinces_light.json"),
     fetchGeo("skorea_municipalities_simple.json"),
     cityDataPromise,
   ]).then(([p,c])=>{
