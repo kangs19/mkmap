@@ -38,6 +38,13 @@ The original static overlay also depended on richer map helper functions. If any
   - 4 price pins rendered,
   - first visible pin contained price prediction text,
   - moving the mouse over the pin displayed `#map-tooltip`.
+- Follow-up fix after production refresh:
+  - the static overlay was briefly visible, then disappeared because the readiness check counted `.fm-static-map-bubble` as a real `.region-pin`,
+  - the readiness selector now excludes `.fm-static-map-bubble`,
+  - if real Leaflet paths or non-static pins are still absent after `drawProvinces()`, `renderStaticMapOverlay("province_render_empty")` is called again.
+- Local FastAPI browser QA on `http://127.0.0.1:8108/` after the follow-up fix:
+  - after a 9 second wait, the map still had 17 paths and 4 real pins,
+  - hover popup displayed correctly on a visible price pin.
 - `python scripts\run_smoke_suite.py --timeout-seconds 120` passed.
 
 ## Next Check
@@ -49,4 +56,3 @@ After deployment, verify production with a fresh cache-busting URL:
   - `#fm-static-map-overlay .fm-static-map-bubble` exists quickly, or
   - real Leaflet province paths/pins exist.
 - Confirm hovering a visible map region or price pin displays `#map-tooltip`.
-

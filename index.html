@@ -1161,7 +1161,7 @@ window.onload=async()=>{
   });
 
   const geoFallbackTimer=setTimeout(()=>{
-    const visibleCropLayer=document.querySelectorAll("#map .region-pin,#map .leaflet-overlay-pane path.leaflet-interactive").length;
+    const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
     if(!visibleCropLayer&&map_){
       renderStaticMapOverlay("geojson_load_timeout");
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
@@ -4027,8 +4027,10 @@ function drawProvinces(){
       });
     }catch(e){}
   });
-  if(document.querySelectorAll("#map .region-pin,#map .leaflet-overlay-pane path.leaflet-interactive").length){
+  if(document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length){
     document.getElementById("fm-static-map-overlay")?.remove();
+  }else{
+    renderStaticMapOverlay("province_render_empty");
   }
 }
 
