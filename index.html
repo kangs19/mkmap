@@ -4272,6 +4272,7 @@ function drawProvinces(){
   }).addTo(map_);
 
   // 도별 compact 핀 라벨
+  const pinnedSidos=new Set();
   provGeo.features.forEach(f=>{
     const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
     const ents=cropEntriesForPrefix(cd,pfx);
@@ -4284,6 +4285,7 @@ function drawProvinces(){
       const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
       bindLayerHoverTooltip(pin,`${SIDO_SHORT[sido]||sido} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${pinD?.avg_price?Math.round(pinD.avg_price).toLocaleString()+"원":"가격 수집 중"}`);
       pin.addTo(provPinLayer);
+      pinnedSidos.add(sido);
       bindMarkerDomEvents(pin,{
         enter:e=>showMapTooltip(makeHoverCard(`${f.properties.name||sido} (${ents.length}개 시·군)`,pinD,sido),e),
         move:e=>moveMapTooltip(e),
@@ -4292,6 +4294,27 @@ function drawProvinces(){
       });
     }catch(e){console.warn("[map] province pin skipped",sido,e);}
   });
+  if(activeLayers.has("price")){
+    Object.entries(SIDO_CENTER).forEach(([sido,center])=>{
+      if(pinnedSidos.has(sido)) return;
+      const ents=cropEntriesForPrefix(cd,SIDO_PREFIX[sido]||"");
+      if(!ents.length||!isActiveCropProvince(ents)) return;
+      try{
+        const pinD=provinceDatumForSido(sido,ents);
+        if(!pinD?.avg_price) return;
+        const name=SIDO_SHORT[sido]||sido;
+        const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(name,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+        bindLayerHoverTooltip(pin,`${name} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${Math.round(pinD.avg_price).toLocaleString()}원`);
+        pin.addTo(provPinLayer);
+        bindMarkerDomEvents(pin,{
+          enter:e=>showMapTooltip(makeHoverCard(`${name} (${ents.length}개 시·군)`,pinD,sido),e),
+          move:e=>moveMapTooltip(e),
+          leave:()=>hideMapTooltip(),
+          click:()=>{hideMapTooltip();zoomProvinceByCode(sido);}
+        });
+      }catch(e){console.warn("[map] fallback province pin skipped",sido,e);}
+    });
+  }
   document.getElementById("fm-static-map-overlay")?.remove();
   document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
 }
