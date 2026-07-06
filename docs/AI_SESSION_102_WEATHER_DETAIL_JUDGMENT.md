@@ -30,6 +30,10 @@ Connect the improved map weather layer to the right-side detail panel so weather
   - precipitation,
   - humidity,
   - crop/price interpretation text.
+- Production API compatibility:
+  - the weather endpoint may return crop weather rows such as `kma_cabbage` instead of province rows such as `KR-42`,
+  - detail panels now fall back to `kma_${item_code}` for the selected crop,
+  - map weather markers place these crop-weather rows near the crop's representative production region.
 - Weather judgment considers crop metadata:
   - if shipment YoY is already negative, weather deterioration is described as a stronger upside price pressure,
   - if harvest rate is low, bad weather is described as a possible shipment-delay pressure,
@@ -44,7 +48,8 @@ Connect the improved map weather layer to the right-side detail panel so weather
 
 - After production deploy, manually select a mapped region and verify:
   - the `가격 예측` tab shows the weather judgment card,
-  - the region maps to the correct `province_code`,
+  - province weather rows map by `province_code` when available,
+  - crop weather rows such as `kma_cabbage` still appear via item fallback,
   - the copy is understandable and not just a raw API value.
 - Future refinement:
   - add the same weather judgment into `재배·시장` when weather is more relevant to cultivation than price.

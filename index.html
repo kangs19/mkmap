@@ -1445,7 +1445,29 @@ function weatherState(reg){
 }
 function weatherForDetailRegion(d={}){
   const code=d.province_code||PROV_NAME_MAP[d.sido]||d.sido;
-  return code?LIVE_WEATHER_BY_REGION[code]||null:null;
+  if(code&&LIVE_WEATHER_BY_REGION[code]) return LIVE_WEATHER_BY_REGION[code];
+  return LIVE_WEATHER_BY_REGION[`kma_${curItem}`]||LIVE_WEATHER_BY_REGION[curItem]||null;
+}
+function weatherRegionLabel(reg,name=""){
+  const raw=reg?.region_name||"";
+  const itemKey=raw in ITEMS?raw:null;
+  if(itemKey) return `${ITEMS[itemKey].name} 주산지`;
+  if(String(reg?.region_code||"").startsWith("kma_")){
+    const k=String(reg.region_code).replace(/^kma_/,"");
+    if(ITEMS[k]) return `${ITEMS[k].name} 주산지`;
+  }
+  return raw||name||"지역";
+}
+function weatherPositionForRegion(reg,regionPos){
+  if(regionPos[reg.region_code]) return regionPos[reg.region_code];
+  const code=String(reg.region_code||"");
+  if(code.startsWith("kma_")){
+    const itemCode=code.replace(/^kma_/,"");
+    const rows=cropRegionRows(itemCode);
+    const top=rows[0];
+    if(top?.province_code&&regionPos[top.province_code]) return regionPos[top.province_code];
+  }
+  return null;
 }
 function regionWeatherPriceJudgment(reg,d={}){
   if(!reg) return "지역 기상 데이터가 아직 없어 가격 판단에는 기상 요인을 보수적으로만 반영합니다.";
@@ -1483,8 +1505,8 @@ function renderRegionWeatherJudgment(d={},name=""){
   const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"평년대비 -";
   box.style.display="flex";
   box.innerHTML=`<div class="fm-weather-judgment-icon" style="background:${wx.bg};border-color:${wx.color};color:${wx.color}">${wx.icon}</div>
-    <div class="fm-weather-judgment-body">
-      <div class="fm-weather-judgment-title">${reg.region_name||name||"지역"} 기상 판단 <span style="color:${wx.color}">${wx.label}</span></div>
+      <div class="fm-weather-judgment-body">
+        <div class="fm-weather-judgment-title">${weatherRegionLabel(reg,name)} 기상 판단 <span style="color:${wx.color}">${wx.label}</span></div>
       <div class="fm-weather-judgment-meta">기온 ${reg.avg_temp??"-"}℃ · ${anomStr} · 강수 ${reg.precipitation??0}mm · 습도 ${reg.humidity??"-"}%</div>
       <div class="fm-weather-judgment-text">${regionWeatherPriceJudgment(reg,d)}</div>
     </div>`;
@@ -1511,19 +1533,20 @@ async function loadWeatherLayer(){
     const baseDate=d.base_date||"최신";
     weatherMarkerLayer=L.layerGroup();
     (d.regions||[]).forEach(reg=>{
-      const pos=REGION_POS[reg.region_code];
+      const pos=weatherPositionForRegion(reg,REGION_POS);
       if(!pos||reg.avg_temp==null) return;
       const anom=reg.temp_anomaly;
       const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"";
       const wx=weatherState(reg);
+      const label=weatherRegionLabel(reg);
       const icon=L.divIcon({
         html:`<div class="fm-weather-marker" style="background:${wx.bg};border-color:${wx.color};color:${wx.color}">
-          <span class="fm-weather-marker-icon">${wx.icon}</span><span>${reg.region_name?.slice(0,2)||""}</span><b>${Number(reg.avg_temp).toFixed(1)}℃</b>${anomStr?`<small>${anomStr}</small>`:""}
+          <span class="fm-weather-marker-icon">${wx.icon}</span><span>${label.slice(0,3)}</span><b>${Number(reg.avg_temp).toFixed(1)}℃</b>${anomStr?`<small>${anomStr}</small>`:""}
         </div>`,
         className:"",iconSize:[86,34],iconAnchor:[43,17]
       });
       L.marker(pos,{icon}).bindTooltip(
-        `<b>${reg.region_name}</b> · ${baseDate} 기준<br>상태: ${wx.label}<br>평균기온: ${reg.avg_temp}℃${anomStr?` (평년대비 ${anomStr})`:""}<br>강수: ${reg.precipitation??0}mm · 습도: ${reg.humidity??"-"}%<br>${wx.judge}`,
+        `<b>${label}</b> · ${baseDate} 기준<br>상태: ${wx.label}<br>평균기온: ${reg.avg_temp}℃${anomStr?` (평년대비 ${anomStr})`:""}<br>강수: ${reg.precipitation??0}mm · 습도: ${reg.humidity??"-"}%<br>${wx.judge}`,
         {direction:"top",offset:[0,-5]}
       ).addTo(weatherMarkerLayer);
     });

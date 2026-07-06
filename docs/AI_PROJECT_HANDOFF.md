@@ -1530,6 +1530,8 @@ Production caution:
 - `updateHeaderWeather` and `loadWeatherLayer` now share the same weather API cache.
 - Added selected-region weather interpretation helpers:
   - `weatherForDetailRegion`,
+  - `weatherRegionLabel`,
+  - `weatherPositionForRegion`,
   - `regionWeatherPriceJudgment`,
   - `renderRegionWeatherJudgment`.
 - The selected region panel now shows:
@@ -1540,6 +1542,10 @@ Production caution:
   - humidity,
   - a crop/price judgment sentence.
 - Weather judgment considers shipment YoY and harvest rate so it can say whether bad weather is likely to increase price pressure, delay shipment, or remain limited.
+- Important production compatibility:
+  - `/api/v1/map/weather` can return rows like `kma_cabbage` rather than province codes,
+  - detail panel matching falls back to `kma_${curItem}`,
+  - map weather markers place crop-weather rows near that crop's representative production province.
 - Verification:
   - `git diff --check` passed.
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
