@@ -222,6 +222,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-month-cell.peak .fm-month-label{color:#1f6f14;}
 .fm-month-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--muted);line-height:1.4;}
 .fm-month-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;vertical-align:-1px;}
+.fm-weather-marker{border:2px solid;border-radius:12px;padding:5px 8px;font-size:12px;font-weight:900;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;gap:4px;line-height:1;}
+.fm-weather-marker-icon{font-size:15px;line-height:1;}
+.fm-weather-marker small{font-size:10px;color:#667;font-weight:800;}
 /* 2-column middle section */
 .fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
 .fm-mid-col{flex:1;padding:13px 16px;background:white;}
@@ -483,7 +486,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
         <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
-      <div style="font-size:10px;color:var(--text);line-height:1.45;margin-top:7px">현재 판단은 가격 색상을 기본으로 봅니다. 팜맵을 켜면 농지분류가 우선 보이고, 작물 산지와 겹치는 곳은 굵은 점선 테두리로 표시합니다.</div>
+      <div style="font-size:10px;color:var(--text);line-height:1.45;margin-top:7px">가격 색상을 기본으로 봅니다. 기상 정보는 지도 위 배지로 겹쳐 표시되며, 비·고온·저온 신호가 있으면 수확과 물류 판단에 함께 봅니다.</div>
       <div id="farmmap-layer-note" style="display:none;font-size:10px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f7fbfa;border:1px solid var(--border);border-radius:8px;padding:8px 9px">
         <b style="color:var(--text)">팜맵 범례</b>
         <div class="fm-legend-row"><div class="fm-legend-sw" style="background:#267a74"></div><span class="fm-legend-lbl">밭 중심 농지</span></div>
@@ -1401,93 +1404,64 @@ function applyLayer(layer,on,el){
   }
 }
 
+function weatherRegionPosition(){
+  return {
+    "KR-11":[37.56,126.97],"KR-41":[37.41,127.52],"KR-42":[37.88,128.41],
+    "KR-43":[36.63,127.49],"KR-44":[36.65,126.67],"KR-45":[35.82,127.15],
+    "KR-46":[34.82,126.99],"KR-47":[36.45,128.73],"KR-48":[35.46,128.29],
+    "KR-49":[33.49,126.53],"KR-26":[35.11,129.04],"KR-27":[35.87,128.60],
+    "KR-28":[37.46,126.71],"KR-29":[35.16,126.85],"KR-30":[36.35,127.38],
+    "KR-31":[35.54,129.31],"KR-36":[36.48,127.29],
+  };
+}
+function weatherState(reg){
+  const precip=Number(reg.precipitation)||0;
+  const temp=Number(reg.avg_temp);
+  const anom=Number(reg.temp_anomaly);
+  if(reg.heavy_rain_alert||precip>=20) return {icon:"🌧",label:"비",color:"#2166ac",bg:"#eaf3ff",judge:"강수로 수확·운송 일정이 늦어질 수 있습니다."};
+  if(reg.cold_alert||temp<=0) return {icon:"❄",label:"한파",color:"#3a6ea5",bg:"#edf6ff",judge:"저온 피해와 작업 지연을 확인해야 합니다."};
+  if(reg.heat_alert||temp>=30) return {icon:"🔥",label:"폭염",color:"#c02828",bg:"#fff0ed",judge:"고온 스트레스와 품질 저하 가능성을 봅니다."};
+  if(Number.isFinite(anom)&&anom<=-3) return {icon:"☁",label:"저온",color:"#4f75a8",bg:"#f1f6ff",judge:"평년보다 낮은 기온으로 생육 지연 가능성이 있습니다."};
+  if(Number.isFinite(anom)&&anom>=3) return {icon:"☀",label:"고온",color:"#b86010",bg:"#fff7e8",judge:"평년보다 높은 기온이 생육 속도와 품질에 영향을 줄 수 있습니다."};
+  return {icon:"🌤",label:"보통",color:"#2e6b2e",bg:"#eef8ee",judge:"현재 기상은 가격 변동의 주된 압력으로 보이지 않습니다."};
+}
+function weatherSummary(regions=[]){
+  const valid=regions.filter(r=>r&&r.avg_temp!=null);
+  if(!valid.length) return "기상 데이터 수집 중";
+  const states=valid.map(weatherState);
+  const rain=states.filter(s=>s.label==="비").length;
+  const heat=states.filter(s=>s.label==="폭염"||s.label==="고온").length;
+  const cold=states.filter(s=>s.label==="한파"||s.label==="저온").length;
+  const avg=valid.reduce((s,r)=>s+Number(r.avg_temp||0),0)/valid.length;
+  const parts=[];
+  if(rain) parts.push(`강수 ${rain}곳`);
+  if(heat) parts.push(`고온 ${heat}곳`);
+  if(cold) parts.push(`저온 ${cold}곳`);
+  return parts.length?`${parts.join(" · ")} · 평균 ${avg.toFixed(1)}℃`:`특이 기상 낮음 · 평균 ${avg.toFixed(1)}℃`;
+}
 async function loadWeatherLayer(){
   removeWeatherLayer();
   try{
     const r=await fetch("/api/v1/map/weather");
     if(!r.ok) throw new Error("no weather");
     const d=await r.json();
-    // region_code (KR-41 형식) → 지도 중심 좌표
-    const REGION_POS={
-      "KR-11":[37.56,126.97],"KR-41":[37.41,127.52],"KR-42":[37.88,128.41],
-      "KR-43":[36.63,127.49],"KR-44":[36.65,126.67],"KR-45":[35.82,127.15],
-      "KR-46":[34.82,126.99],"KR-47":[36.45,128.73],"KR-48":[35.46,128.29],
-      "KR-49":[33.49,126.53],"KR-26":[35.11,129.04],"KR-27":[35.87,128.60],
-      "KR-28":[37.46,126.71],"KR-29":[35.16,126.85],"KR-30":[36.35,127.38],
-      "KR-31":[35.54,129.31],"KR-36":[36.48,127.29],
-    };
-    weatherMarkerLayer=L.layerGroup();
-    (d.regions||[]).forEach(reg=>{
-      const pos=REGION_POS[reg.region_code];
-      if(!pos||reg.avg_temp==null) return;
-      const anom=reg.temp_anomaly;
-      const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"";
-      const alert=reg.heat_alert?"🌡️":reg.cold_alert?"🥶":reg.heavy_rain_alert?"🌧️":"";
-      const color=anom>=3?"#e05050":anom<=-3?"#4488cc":"#444";
-      const icon=L.divIcon({
-        html:`<div style="background:white;border:1.5px solid ${color};border-radius:8px;padding:3px 6px;font-size:10px;font-weight:700;color:${color};white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.15)">${alert}${reg.region_name?.slice(0,2)||""} ${reg.avg_temp.toFixed(1)}℃ <span style="font-size:9px;color:#888">${anomStr}</span></div>`,
-        className:"",iconSize:[0,0],iconAnchor:[-4,-10]
-      });
-      L.marker(pos,{icon}).bindTooltip(
-        `<b>${reg.region_name}</b><br>평균기온: ${reg.avg_temp}℃ (평년比 ${anomStr})<br>강수: ${reg.precipitation??0}mm<br>습도: ${reg.humidity??"-"}%`,
-        {direction:"top",offset:[0,-5]}
-      ).addTo(weatherMarkerLayer);
-    });
-    if(map_) weatherMarkerLayer.addTo(map_);
-  }catch(e){
-    showToast("날씨 데이터를 불러오지 못했습니다");
-    document.querySelector('input[onchange*="weather"]').checked=false;
-    activeLayers.delete("weather");
-  }
-}
-function removeWeatherLayer(){
-  if(weatherMarkerLayer&&map_){map_.removeLayer(weatherMarkerLayer);}
-  weatherMarkerLayer=null;
-}
-
-// Improved weather layer. The previous declaration is kept for history, but this later
-// declaration is the one the page uses.
-async function loadWeatherLayer(){
-  removeWeatherLayer();
-  try{
-    const r=await fetch("/api/v1/map/weather");
-    if(!r.ok) throw new Error("no weather");
-    const d=await r.json();
-    const REGION_POS={
-      "KR-11":[37.56,126.97],"KR-41":[37.41,127.52],"KR-42":[37.88,128.41],
-      "KR-43":[36.63,127.49],"KR-44":[36.65,126.67],"KR-45":[35.82,127.15],
-      "KR-46":[34.82,126.99],"KR-47":[36.45,128.73],"KR-48":[35.46,128.29],
-      "KR-49":[33.49,126.53],"KR-26":[35.11,129.04],"KR-27":[35.87,128.60],
-      "KR-28":[37.46,126.71],"KR-29":[35.16,126.85],"KR-30":[36.35,127.38],
-      "KR-31":[35.54,129.31],"KR-36":[36.48,127.29],
-    };
+    const REGION_POS=weatherRegionPosition();
     const baseDate=d.base_date||"최신";
-    const weatherIconFor=reg=>{
-      const precip=Number(reg.precipitation)||0;
-      const temp=Number(reg.avg_temp);
-      const anom=Number(reg.temp_anomaly);
-      if(reg.heavy_rain_alert||precip>=20) return {icon:"🌧",label:"비",color:"#2166ac",bg:"#eaf3ff"};
-      if(reg.cold_alert||temp<=0) return {icon:"❄️",label:"한파",color:"#3a6ea5",bg:"#edf6ff"};
-      if(reg.heat_alert||temp>=30) return {icon:"🔥",label:"폭염",color:"#c02828",bg:"#fff0ed"};
-      if(Number.isFinite(anom)&&anom<=-3) return {icon:"☁️",label:"저온",color:"#4f75a8",bg:"#f1f6ff"};
-      if(Number.isFinite(anom)&&anom>=3) return {icon:"☀️",label:"고온",color:"#b86010",bg:"#fff7e8"};
-      return {icon:"🌤",label:"보통",color:"#2e6b2e",bg:"#eef8ee"};
-    };
     weatherMarkerLayer=L.layerGroup();
     (d.regions||[]).forEach(reg=>{
       const pos=REGION_POS[reg.region_code];
       if(!pos||reg.avg_temp==null) return;
       const anom=reg.temp_anomaly;
       const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"";
-      const wx=weatherIconFor(reg);
+      const wx=weatherState(reg);
       const icon=L.divIcon({
-        html:`<div style="background:${wx.bg};border:2px solid ${wx.color};border-radius:11px;padding:5px 8px;font-size:11px;font-weight:900;color:${wx.color};white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;gap:4px">
-          <span style="font-size:14px">${wx.icon}</span><span>${reg.region_name?.slice(0,2)||""}</span><span>${Number(reg.avg_temp).toFixed(1)}℃</span>${anomStr?`<span style="font-size:9px;color:#667">${anomStr}</span>`:""}
+        html:`<div class="fm-weather-marker" style="background:${wx.bg};border-color:${wx.color};color:${wx.color}">
+          <span class="fm-weather-marker-icon">${wx.icon}</span><span>${reg.region_name?.slice(0,2)||""}</span><b>${Number(reg.avg_temp).toFixed(1)}℃</b>${anomStr?`<small>${anomStr}</small>`:""}
         </div>`,
-        className:"",iconSize:[0,0],iconAnchor:[-10,-12]
+        className:"",iconSize:[86,34],iconAnchor:[43,17]
       });
       L.marker(pos,{icon}).bindTooltip(
-        `<b>${reg.region_name}</b> · ${baseDate} 기준<br>상태: ${wx.label}<br>평균기온: ${reg.avg_temp}℃${anomStr?` (평년대비 ${anomStr})`:""}<br>강수: ${reg.precipitation??0}mm<br>습도: ${reg.humidity??"-"}%`,
+        `<b>${reg.region_name}</b> · ${baseDate} 기준<br>상태: ${wx.label}<br>평균기온: ${reg.avg_temp}℃${anomStr?` (평년대비 ${anomStr})`:""}<br>강수: ${reg.precipitation??0}mm · 습도: ${reg.humidity??"-"}%<br>${wx.judge}`,
         {direction:"top",offset:[0,-5]}
       ).addTo(weatherMarkerLayer);
     });
@@ -1495,8 +1469,8 @@ async function loadWeatherLayer(){
     weatherInfoControl=L.control({position:"bottomleft"});
     weatherInfoControl.onAdd=function(){
       const div=L.DomUtil.create("div","");
-      div.style.cssText="background:rgba(255,255,255,.94);border:1px solid #d8e0cc;border-radius:9px;padding:7px 9px;font-size:10px;color:#4f5f42;line-height:1.55;box-shadow:0 2px 10px rgba(0,0,0,.12);max-width:210px";
-      div.innerHTML=`<b style="color:#1a2410">기상 정보</b> · ${baseDate} 기준<br>지역별 최신 저장 기상값입니다. 아이콘은 강수·폭염·한파·기온편차로 분류합니다.`;
+      div.style.cssText="background:rgba(255,255,255,.95);border:1px solid #d8e0cc;border-radius:9px;padding:8px 10px;font-size:11px;color:#4f5f42;line-height:1.55;box-shadow:0 2px 10px rgba(0,0,0,.12);max-width:240px";
+      div.innerHTML=`<b style="color:#1a2410">기상 판단</b> · ${baseDate} 기준<br>${weatherSummary(d.regions||[])}<br><span style="color:#6a7a5a">🌧 비 · 🔥 고온 · ❄ 저온 · 🌤 보통</span>`;
       return div;
     };
     weatherInfoControl.addTo(map_);

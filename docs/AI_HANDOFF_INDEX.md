@@ -94,3 +94,6 @@
 - `docs/AI_SESSION_100_DASHBOARD_STATS_PANEL.md`
   - 2026-07-06 dashboard statistics panel.
   - Covers the expanded top `통계` view, priority rankings, anomaly/concentration statistics, no-data handling, and validation.
+- `docs/AI_SESSION_101_WEATHER_LAYER_VISIBILITY.md`
+  - 2026-07-06 weather layer visibility.
+  - Covers weather badge markers, weather state judgment, map legend summary, duplicate function cleanup, and validation.

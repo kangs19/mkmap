@@ -1489,3 +1489,32 @@ Production caution:
   - local browser check confirmed the dashboard opens and empty-data fallback behaves correctly.
 - Detailed handoff:
   - `docs/AI_SESSION_100_DASHBOARD_STATS_PANEL.md`
+
+## Session 101 - Weather Layer Visibility (2026-07-06)
+
+- Improved the map `기상 정보` layer in `index.html`.
+- Removed the duplicate earlier `loadWeatherLayer` / `removeWeatherLayer` definitions.
+- Added a canonical weather layer flow:
+  - `weatherRegionPosition`,
+  - `weatherState`,
+  - `weatherSummary`,
+  - `loadWeatherLayer`,
+  - `removeWeatherLayer`.
+- Weather markers are now larger badge-style overlays that show:
+  - icon,
+  - region short name,
+  - average temperature,
+  - temperature anomaly.
+- Weather states now include judgment text for:
+  - heavy rain,
+  - cold wave / low temperature,
+  - heat wave / high temperature,
+  - normal weather.
+- Tooltips now explain how the weather state can affect harvest, logistics, crop quality, or price pressure.
+- The bottom-left map legend now shows a compact weather judgment summary rather than a generic API explanation.
+- The left sidebar copy now explains how to interpret weather badges over the price-color map.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_101_WEATHER_LAYER_VISIBILITY.md`
