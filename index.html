@@ -1086,7 +1086,7 @@ function renderExplanationPanel(){
   const hKeys=Object.keys(horizons).map(Number).filter(Number.isFinite).filter(k=>k<=90).sort((a,b)=>a-b);
   const available=hKeys.filter(k=>{
     const row=horizons[String(k)];
-    return row&&row.available!==false&&row.data_status!=="insufficient_data";
+    return isPublicForecastHorizon(row);
   });
   const blocked=hKeys.filter(k=>!available.includes(k));
   const regionCount=Object.values(CITY_DATA[curItem]||{}).filter(isActiveCropCity).length;
@@ -1096,7 +1096,7 @@ function renderExplanationPanel(){
   const horizonRows=horizonList.map(k=>{
     const row=horizons[String(k)]||null;
     const pct=horizonModelPct(k);
-    const blocked=row&&(row.available===false||row.held_out||row.data_status==="insufficient_data");
+    const blocked=row&&!isPublicForecastHorizon(row);
     const status=!row?"대기":blocked?"검증 대기":"공개 가능";
     const color=status==="공개 가능"?"#1a8a1a":status==="검증 대기"?"#b86010":"#7a8a6a";
     const change=pct==null?"-":`${pct>0?"+":""}${pct.toFixed(1)}%`;
@@ -1161,7 +1161,7 @@ function renderDashboardPanel(){
     const shipment=regions.reduce((a,r)=>a+(Number(r.shipment_ton)||0),0);
     const avgRise=regions.length?regions.reduce((a,r)=>a+(Number(r.price_vs_avg)||0),0)/regions.length:0;
     const horizons=LIVE_HORIZONS[k]||{};
-    const activeH=Object.keys(horizons).filter(h=>Number(h)<=90&&horizons[h]?.available!==false&&horizons[h]?.data_status!=="insufficient_data");
+    const activeH=Object.keys(horizons).filter(h=>Number(h)<=90&&isPublicForecastHorizon(horizons[h]));
     return {
       k,it,price,shipment,avgRise,activeH,
       score:live.risk_score??0,
@@ -1565,12 +1565,15 @@ const PERIOD_READINESS_HORIZON={7:14,14:14,21:30,28:30,60:90,90:90};
 function readinessHorizonDays(days){
   return PERIOD_READINESS_HORIZON[Number(days)]||Number(days);
 }
+function isPublicForecastHorizon(row){
+  return !!row&&row.held_out!==true&&row.available!==false&&row.data_status!=="insufficient_data";
+}
 function hiddenHorizonDays(itemCode=curItem){
   const policy=LIVE_HORIZON_POLICIES[itemCode]||{};
   const explicit=Array.isArray(policy.hidden_horizons)?policy.hidden_horizons:[];
   const fromLive=Array.isArray(LIVE_ITEMS[itemCode]?.hidden_horizons)?LIVE_ITEMS[itemCode].hidden_horizons:[];
   const fromRows=Object.entries(LIVE_HORIZONS[itemCode]||{})
-    .filter(([,row])=>row?.held_out||row?.available===false)
+    .filter(([,row])=>row&&!isPublicForecastHorizon(row))
     .map(([day])=>Number(day))
     .filter(Number.isFinite);
   return [...new Set([...explicit,...fromLive,...fromRows].map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);
@@ -1594,7 +1597,7 @@ function isHorizonBlocked(itemCode,days){
   const horizons=LIVE_HORIZONS[itemCode]||{};
   const horizonDays=readinessHorizonDays(days);
   const row=horizons[String(horizonDays)];
-  if(row) return row.held_out||row.available===false||row.data_status==="insufficient_data";
+  if(row) return !isPublicForecastHorizon(row);
   const numericRows=Object.entries(horizons)
     .map(([k,r])=>({days:Number(k),row:r}))
     .filter(x=>Number.isFinite(x.days)&&x.row)
@@ -3487,7 +3490,7 @@ function horizonModelPct(days,itemCode=curItem){
   return null;
 }
 function horizonRowChangePct(row){
-  if(row?.available===false||row?.data_status==="insufficient_data") return null;
+  if(!isPublicForecastHorizon(row)) return null;
   const raw=row?.risk_adjusted_change??row?.predicted_change??row?.predicted_next_change;
   const n=Number(raw);
   if(Number.isFinite(n)) return n*100;

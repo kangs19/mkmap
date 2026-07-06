@@ -1,5 +1,16 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 89
+
+See `docs/AI_SESSION_89_READINESS_COUNT_CONSISTENCY.md`.
+
+Latest result:
+
+- Added a shared frontend predicate for public forecast horizons.
+- Top explanation panel, statistics panel, hidden horizon list, blocked period checks, and horizon percentage calculation now use the same public-readiness logic.
+- Horizons with `held_out: true` no longer count as available in top-level forecast readiness counts.
+- Local validation passed with whitespace check, smoke suite, and backend forecast/API tests.
+
 ## Latest Update - 2026-07-06 Session 88
 
 See `docs/AI_SESSION_88_MAP_READINESS_SURFACES.md`.
