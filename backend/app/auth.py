@@ -23,6 +23,7 @@ PUBLIC_PATHS = {
     "/admin/ui",  # 관리자 HTML UI (API 호출은 X-Admin-Key로 별도 보호)
     "/docs", "/openapi.json", "/redoc", "/health",
     "/map_standalone.html", "/index.html",
+    "/privacy", "/privacy.html", "/terms", "/terms.html",
     "/sitemap.xml", "/robots.txt",
 }
 # /admin/ 은 X-Admin-Key로 자체 보호 — API키 미들웨어는 통과시킴
