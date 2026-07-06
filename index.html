@@ -1009,6 +1009,110 @@ function renderStaticMapOverlay(reason=""){
     console.warn("[map] static overlay failed",err);
   }
 }
+function provinceStaticDatum(sido){
+  const ents=cropEntriesForPrefix(CITY_DATA[curItem]||{},SIDO_PREFIX[sido]||"");
+  const rp=getRegionalSidoData(SIDO_SHORT[sido]||sido);
+  const d=ents.length&&isActiveCropProvince(ents)?provinceDatumFromEntries(ents):{
+    avg_price:Math.round(Number(rp?.wholesale||rp?.retail||LIVE_NATIONAL_PRICES[curItem]||0)),
+    price_vs_avg:Math.round(Number(rp?.vs_national_pct||0)*10)/10,
+    risk_level:Math.abs(Number(rp?.vs_national_pct||0))>20?'high':Math.abs(Number(rp?.vs_national_pct||0))>10?'warning':'normal',
+    risk_score:Math.round(Math.abs(Number(rp?.vs_national_pct||0))*3+25),
+    _cities:"지역 도매가 기준",
+  };
+  return {ents,rp,d};
+}
+function geoFeatureToSvgPath(feature){
+  if(!map_||!feature?.geometry) return "";
+  const convertRing=(ring)=>{
+    if(!Array.isArray(ring)||!ring.length) return "";
+    return ring.map((coord,idx)=>{
+      const pt=map_.latLngToContainerPoint([coord[1],coord[0]]);
+      return `${idx?"L":"M"}${Math.round(pt.x*10)/10},${Math.round(pt.y*10)/10}`;
+    }).join(" ")+" Z";
+  };
+  const g=feature.geometry;
+  if(g.type==="Polygon") return (g.coordinates||[]).map(convertRing).join(" ");
+  if(g.type==="MultiPolygon") return (g.coordinates||[]).flatMap(poly=>(poly||[]).map(convertRing)).join(" ");
+  return "";
+}
+function renderStaticProvinceShapeOverlay(geo,reason=""){
+  try{
+    const mapEl=document.getElementById("map");
+    if(!mapEl||!geo?.features?.length||!map_) return;
+    document.getElementById("fm-static-map-overlay")?.remove();
+    document.getElementById("fm-static-shape-overlay")?.remove();
+    const overlay=document.createElement("div");
+    overlay.id="fm-static-shape-overlay";
+    overlay.style.cssText="position:absolute;inset:0;z-index:645;pointer-events:none;";
+    const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    svg.setAttribute("width",String(mapEl.clientWidth||1));
+    svg.setAttribute("height",String(mapEl.clientHeight||1));
+    svg.setAttribute("viewBox",`0 0 ${mapEl.clientWidth||1} ${mapEl.clientHeight||1}`);
+    svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;";
+    const labels=document.createElement("div");
+    labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
+    let rendered=0;
+    geo.features.forEach(f=>{
+      const sido=getSido(f);
+      if(!sido) return;
+      const pathD=geoFeatureToSvgPath(f);
+      if(!pathD) return;
+      const {ents,d}=provinceStaticDatum(sido);
+      const name=SIDO_SHORT[sido]||sido;
+      const active=ents.length&&isActiveCropProvince(ents);
+      const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null)||modeColor(ents,sido)||"rgba(130,50,210,.56)";
+      const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d",pathD);
+      path.setAttribute("fill",fill);
+      path.setAttribute("stroke",active?"rgba(0,0,0,.48)":"rgba(80,80,60,.25)");
+      path.setAttribute("stroke-width",active?"2.4":"1.2");
+      path.setAttribute("stroke-linejoin","round");
+      path.setAttribute("class","fm-static-shape-path leaflet-interactive");
+      path.style.pointerEvents="auto";
+      const html=makeHoverCard(active?`${name} (${ents.length}개 산지)`:name,d,sido);
+      path.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
+      path.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
+      path.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
+      path.addEventListener("click",e=>{showMapTooltip(html,e);},{passive:true});
+      svg.appendChild(path);
+      if(active||d?.avg_price){
+        const center=SIDO_CENTER[sido];
+        if(center){
+          const pt=map_.latLngToContainerPoint(center);
+          const label=document.createElement("button");
+          label.type="button";
+          label.className="fm-static-shape-label";
+          const pct=periodForecastPct(d?.price_vs_avg||0,curPeriod);
+          const sign=pct>0?"+":"";
+          label.style.cssText=`position:absolute;left:${Math.round(pt.x)}px;top:${Math.round(pt.y)}px;transform:translate(-50%,-50%);min-width:86px;max-width:112px;padding:9px 10px;border:1px solid #d9ded0;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 3px 12px rgba(0,0,0,.22);pointer-events:auto;font-size:12px;line-height:1.25;text-align:center;font-weight:900;color:#1a2410;`;
+          label.innerHTML=`<div>${name}</div><div style="font-size:11px">도 ${Math.round(d?.avg_price||0).toLocaleString()}원</div><div style="font-size:11px;color:${pct>=0?'#c02828':'#1a8a1a'}">${pct!=null?`${sign}${pct.toFixed(1)}% 예측`:"예측 확인"}</div>`;
+          label.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
+          label.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
+          label.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
+          label.addEventListener("click",e=>showMapTooltip(html,e),{passive:true});
+          labels.appendChild(label);
+        }
+      }
+      rendered+=1;
+    });
+    overlay.appendChild(svg);
+    overlay.appendChild(labels);
+    mapEl.appendChild(overlay);
+    if(rendered){
+      map_.off("zoomend moveend resize",rerenderStaticProvinceShapeOverlay);
+      map_.on("zoomend moveend resize",rerenderStaticProvinceShapeOverlay);
+    }
+    if(reason) console.warn("[map] static province shape overlay rendered:",reason,rendered);
+  }catch(err){
+    console.warn("[map] static province shape overlay failed",err);
+    renderStaticMapOverlay(reason||"shape_overlay_failed");
+  }
+}
+function rerenderStaticProvinceShapeOverlay(){
+  if(document.getElementById("fm-static-shape-overlay")&&provGeo){
+    renderStaticProvinceShapeOverlay(provGeo,"map_view_changed");
+  }
+}
 const GEO="/static/";
 const GEO_CDN="https://cdn.jsdelivr.net/gh/kangs19/mkmap@main/map_viewer/static/";
 const NEWS_BY_ITEM={
@@ -1180,7 +1284,7 @@ window.onload=async()=>{
     try{
       drawProvinces();
     }catch(err){
-      drawProvinceFallbackMap(err.message||err);
+      renderStaticProvinceShapeOverlay(p,err.message||err);
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB80C\uB354\uB9C1\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
   }).catch(e=>{
@@ -4035,8 +4139,9 @@ function drawProvinces(){
   });
   if(document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length){
     document.getElementById("fm-static-map-overlay")?.remove();
+    document.getElementById("fm-static-shape-overlay")?.remove();
   }else{
-    renderStaticMapOverlay("province_render_empty");
+    renderStaticProvinceShapeOverlay(provGeo,"province_render_empty");
   }
 }
 

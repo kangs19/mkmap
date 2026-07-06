@@ -50,6 +50,10 @@ The original static overlay also depended on richer map helper functions. If any
   - `getSido()` now resolves province identity from the stable numeric province `code` first,
   - name-based lookup remains only as a fallback,
   - local browser QA confirmed the filled province paths render again with 17 interactive paths, 4 real price label pins, and no static round overlay.
+- Added a direct SVG province-shape fallback:
+  - when production Leaflet still reports 0 province paths, the app renders province polygons directly from the loaded GeoJSON coordinates,
+  - this fallback uses filled administrative areas plus white price labels, not round bubble markers,
+  - hover/click still use the custom `#map-tooltip` path.
 - `python scripts\run_smoke_suite.py --timeout-seconds 120` passed.
 
 ## Next Check
