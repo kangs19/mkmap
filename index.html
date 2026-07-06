@@ -3821,12 +3821,26 @@ function drawProvinceFallbackMap(reason=""){
   let activeCount=0;
   Object.entries(SIDO_CENTER).forEach(([sido,center])=>{
     const ents=cropEntriesForPrefix(cd,SIDO_PREFIX[sido]||"");
-    if(!ents.length||!isActiveCropProvince(ents)) return;
+    const provinceActive=ents.length&&isActiveCropProvince(ents);
+    const rp=getRegionalSidoData(SIDO_SHORT[sido]||sido);
+    if(!provinceActive&&!rp) return;
     activeCount+=1;
-    const d=provinceDatumFromEntries(ents);
+    const d=provinceActive?provinceDatumFromEntries(ents):{
+      avg_price:Math.round(Number(rp.wholesale||rp.retail||0)),
+      price_vs_avg:Math.round(Number(rp.vs_national_pct||0)*10)/10,
+      shipment_ton:0,
+      shipment_yoy:0,
+      area_ha:0,
+      production_pct:0,
+      rank:null,
+      risk_level:Math.abs(Number(rp.vs_national_pct||0))>20?'high':Math.abs(Number(rp.vs_national_pct||0))>10?'warning':'normal',
+      risk_score:Math.round(Math.abs(Number(rp.vs_national_pct||0))*3+25),
+      _cities:"지역 도매가 기준",
+      _topCity:null,
+    };
     const name=SIDO_SHORT[sido]||sido;
-    const fill=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):modeColor(ents,sido);
-    const radius=Math.max(22000,Math.min(72000,26000+ents.length*6500+(d.production_pct||0)*900));
+    const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):(provinceActive?modeColor(ents,sido):regionalPriceColor(sido)))||"#6fb86a";
+    const radius=provinceActive?Math.max(22000,Math.min(72000,26000+ents.length*6500+(d.production_pct||0)*900)):34000;
     const circle=L.circle(center,{
       radius,
       color:"rgba(0,0,0,.38)",
@@ -3836,8 +3850,8 @@ function drawProvinceFallbackMap(reason=""){
       renderer:mapVectorRenderer,
       dashArray:"6 3",
     }).addTo(provLayer);
-    const html=makeHoverCard(`${name} (${ents.length}개 산지)`,d,sido);
-    const title=`${name} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 산지 · 현재 평균 ${d?.avg_price?d.avg_price.toLocaleString()+"원":"가격 수집 중"}`;
+    const html=makeHoverCard(provinceActive?`${name} (${ents.length}개 산지)`:name,d,sido);
+    const title=`${name} ${ITEMS[curItem]?.name||"작물"} · ${provinceActive?`${ents.length}개 산지`:"지역 도매가"} · 현재 평균 ${d?.avg_price?d.avg_price.toLocaleString()+"원":"가격 수집 중"}`;
     bindLayerHoverTooltip(circle,title);
     circle.on({
       mouseover:e=>{circle.setStyle({weight:3.5,color:"#1a3d66",fillOpacity:.94});showMapTooltip(html,e);},
