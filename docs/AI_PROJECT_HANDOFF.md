@@ -1,5 +1,16 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 106
+
+See `docs/AI_SESSION_106_DEFAULT_PANEL_READABILITY.md`.
+
+Latest result:
+
+- Improved the default right-side briefing panel shown before a region is selected.
+- Increased small card text, section labels, status rows, and price values for older-user readability.
+- Reworded default-panel cards toward practical judgment: what to check first, which direction to watch, and which region/price signal matters.
+- Local whitespace and smoke validation passed.
+
 ## Latest Update - 2026-07-06 Session 105
 
 See `docs/AI_SESSION_105_LEAFLET_HOVER_FALLBACK.md`.

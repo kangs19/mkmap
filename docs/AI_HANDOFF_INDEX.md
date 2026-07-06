@@ -109,3 +109,6 @@
 - `docs/AI_SESSION_105_LEAFLET_HOVER_FALLBACK.md`
   - 2026-07-06 Leaflet hover tooltip fallback.
   - Covers province/city path and pin Leaflet-native tooltip binding for map hover reliability.
+- `docs/AI_SESSION_106_DEFAULT_PANEL_READABILITY.md`
+  - 2026-07-06 default panel readability.
+  - Covers larger right-panel briefing cards and judgment-first copy before a region is selected.
