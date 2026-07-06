@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 91
+
+See `docs/AI_SESSION_91_MOBILE_BETA_QA.md`.
+
+Latest result:
+
+- Added responsive CSS for mobile/tablet launch readiness.
+- The app now stacks map, filters, and right detail panel vertically on small screens.
+- Mobile touch targets for nav, period buttons, checkboxes, tabs, and auth buttons were enlarged.
+- Auth modal now fits inside phone-width screens.
+- Browser QA at 390 x 844 showed no horizontal overflow and no console errors.
+- Local validation passed with whitespace check, smoke suite, and backend API/horizon tests.
+
 ## Latest Update - 2026-07-06 Session 90
 
 See `docs/AI_SESSION_90_BETA_QA_REGION_ENCODING.md`.

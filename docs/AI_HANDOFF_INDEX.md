@@ -64,3 +64,6 @@
 - `docs/AI_SESSION_90_BETA_QA_REGION_ENCODING.md`
   - 2026-07-06 beta QA region encoding.
   - Covers live beta user-flow checks and public API region-name mojibake sanitization.
+- `docs/AI_SESSION_91_MOBILE_BETA_QA.md`
+  - 2026-07-06 mobile beta QA.
+  - Covers responsive layout fixes, mobile browser checks, and small-screen launch-readiness notes.

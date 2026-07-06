@@ -320,6 +320,69 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 /* No-data notice in mini-cards */
 .mc-nodata-notice{padding:10px 8px;background:#fff8f0;border:1px solid #f4c890;border-radius:8px;margin-top:6px;font-size:10px;color:#b86010;line-height:1.6;}
+
+@media (max-width: 980px){
+  html,body{height:auto;min-height:100%;overflow:auto;}
+  #fm-header{height:auto;min-height:58px;flex-wrap:wrap;padding:10px 12px;gap:8px;position:sticky;top:0;}
+  .fm-logo{font-size:15px;}
+  .fm-nav{order:3;width:100%;margin-left:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;}
+  .fm-nav-item{font-size:13px;padding:10px 6px;min-height:42px;}
+  .fm-header-right{margin-left:0;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .fm-date-box,.fm-weather-box,#data-status-pill{min-height:34px;justify-content:center;font-size:11px;}
+  .fm-weather-box{border:1px solid var(--border);border-radius:7px;background:var(--bg);}
+  #hdr-auth-wrap,#hdr-user-wrap{grid-column:1/3;justify-content:stretch!important;display:grid!important;grid-template-columns:1fr 1fr;gap:6px;}
+  #hdr-auth-wrap[style*="none"],#hdr-user-wrap[style*="none"]{display:none!important;}
+  .fm-login-btn{min-height:40px;font-size:13px;padding:8px 10px;}
+  #fm-main{height:auto;min-height:0;display:flex;flex-direction:column;overflow:visible;}
+  #map{order:1;flex:0 0 56vh;min-height:390px;width:100%;}
+  #fm-left{order:2;width:100%;max-height:none;border-right:none;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:block;overflow:visible;}
+  .fm-sb-section{padding:12px 14px;}
+  .fm-sb-label{font-size:11px;margin-bottom:9px;}
+  .fm-item-dropdown{min-height:44px;}
+  .fm-item-dropdown-val,.fm-item-option,.fm-layer-item span{font-size:14px;}
+  .fm-layer-item{min-height:38px;padding:7px 0;}
+  .fm-layer-item input[type=checkbox]{width:18px;height:18px;}
+  .fm-period-group{gap:6px!important;}
+  .fm-period-btn{min-height:42px;font-size:13px;padding:8px 0;}
+  .fm-legend-row{min-height:30px;}
+  .fm-legend-lbl{font-size:12px;}
+  #fm-right{order:3;width:100%;min-height:620px;border-left:none;border-top:1px solid var(--border);}
+  .fm-rp-scroll{overflow:visible;}
+  .rp-tab{font-size:14px;min-height:46px;}
+  .fm-region-hd{padding:14px 14px;}
+  .fm-price-card,.fm-market-section,.fm-top-card,.fm-news-section{padding:14px;}
+  .fm-price-val{font-size:34px;}
+  .fm-price-card-label,.fm-forecast-risk-title{font-size:12px;}
+  .fm-market-basis,.fm-fc-lbl,.fm-fc-chg{font-size:11px;}
+  .fm-fc-val{font-size:13px;}
+  .fm-forecast-row{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .fm-fc-cell{min-height:58px;padding:8px 4px;}
+  .fm-mid-row{display:block;}
+  .fm-mid-col{border-right:none!important;border-bottom:1px solid var(--border);}
+  .fm-market-grid,.fm-dash-grid,.fm-market-insight-grid{grid-template-columns:1fr 1fr;}
+  .fm-readable-note,.fm-risk-judgment,.fm-risk-overall,.fm-market-insight-note,.fm-top-sub{font-size:14px;}
+  .fm-stat-rank{grid-template-columns:36px 1fr 76px;font-size:13px;}
+  .fm-hint{min-height:420px;height:auto;}
+  #fm-timeline{height:auto;min-height:58px;position:sticky;bottom:0;z-index:800;padding:8px 12px;}
+  #loading{top:0;left:0;right:0;bottom:auto;height:56vh;min-height:390px;}
+  #map-tooltip{min-width:280px;max-width:calc(100vw - 24px);}
+  #auth-modal>div{width:min(92vw,380px)!important;margin:0 12px;}
+}
+
+@media (max-width: 560px){
+  .fm-header-right{grid-template-columns:1fr;}
+  #hdr-auth-wrap,#hdr-user-wrap{grid-column:1;grid-template-columns:1fr 1fr;}
+  #data-status-pill{grid-column:1;}
+  #map{flex-basis:52vh;min-height:340px;}
+  #loading{height:52vh;min-height:340px;}
+  .fm-market-grid,.fm-dash-grid,.fm-market-insight-grid,.fm-stats-grid{grid-template-columns:1fr;}
+  .fm-forecast-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .fm-month-bars{gap:2px;}
+  .fm-month-label{font-size:8px;}
+  .region-pin{min-width:78px;padding:6px 8px;}
+  .rp-name{font-size:12px;}
+  .rp-chg{font-size:13px;}
+}
 </style>
 </head>
 <body>
