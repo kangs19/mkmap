@@ -5468,6 +5468,157 @@ function renderDashboardPanel(){
     ${rank("가격이 내려간 쪽",byFall,r=>`${r.avgRise>0?"+":""}${r.avgRise.toFixed(1)}%`,r=>"전국 평균 대비 낮은 산지가 많습니다.",r=>r.avgRise<0?"#1a8a1a":"#c02828")}
   `);
 }
+function fmFmtWon(v){
+  const n=Number(v);
+  return Number.isFinite(n)&&n>0?Math.round(n).toLocaleString()+"원":"수집 중";
+}
+function fmFmtPct(v){
+  const n=Number(v);
+  return Number.isFinite(n)?`${n>0?"+":""}${n.toFixed(1)}%`:"확인 중";
+}
+function fmFmtTon2(v){
+  const n=Number(v);
+  if(!Number.isFinite(n)||n<=0) return "확인 중";
+  if(n>=10000) return `${Math.round(n/10000).toLocaleString()}만 톤`;
+  return `${Math.round(n).toLocaleString()}톤`;
+}
+function fmRiskPlain(score){
+  const n=Number(score);
+  if(!Number.isFinite(n)) return {label:"확인 중", color:"var(--muted)", sentence:"아직 위험 점수가 충분히 쌓이지 않았습니다."};
+  if(n>=70) return {label:"위험", color:"#c02828", sentence:"가격이 크게 움직일 수 있어 오늘 바로 확인해야 합니다."};
+  if(n>=50) return {label:"주의", color:"#b86010", sentence:"가격이나 출하 흐름이 흔들릴 수 있어 며칠간 지켜봐야 합니다."};
+  if(n>=30) return {label:"보통", color:"#6a1e9a", sentence:"큰 위험은 아니지만 가격 흐름은 계속 확인하는 편이 좋습니다."};
+  return {label:"안정", color:"#1a8a1a", sentence:"지금 신호만 보면 급한 가격 변동 가능성은 낮습니다."};
+}
+function fmDirectionPlain(pct){
+  const n=Number(pct);
+  if(!Number.isFinite(n)) return {label:"판단 보류", color:"var(--muted)", sentence:"아직 이 기간의 예측값이 부족합니다."};
+  if(n>=8) return {label:"상승 강함", color:"#c02828", sentence:"현재보다 오를 가능성을 크게 봅니다."};
+  if(n>=3) return {label:"상승 가능", color:"#c02828", sentence:"현재보다 조금 오를 가능성이 있습니다."};
+  if(n<=-8) return {label:"하락 강함", color:"#1a8a1a", sentence:"현재보다 내릴 가능성을 크게 봅니다."};
+  if(n<=-3) return {label:"하락 가능", color:"#1a8a1a", sentence:"현재보다 조금 내릴 가능성이 있습니다."};
+  return {label:"보합", color:"#6a1e9a", sentence:"현재 가격 근처에서 움직일 가능성이 큽니다."};
+}
+function fmDecisionCard(title, body, tone="green"){
+  const color=tone==="red"?"#c02828":tone==="orange"?"#b86010":tone==="blue"?"#4b5f9b":"#267a18";
+  return `<div class="fm-readable-note" style="border-left:4px solid ${color};font-size:14px;line-height:1.65">
+    <b style="font-size:15px;color:${color}">${title}</b><br>${body}
+  </div>`;
+}
+function fmSelectMapItem(itemCode){
+  selectItem(itemCode);
+  const mapBtn=document.querySelector(".fm-nav-item");
+  if(mapBtn) switchNavView("map",mapBtn);
+}
+function fmSimpleRank(title, rows, valueFn, noteFn, colorFn){
+  return `<div class="fm-top-card">
+    <div class="fm-sec-title" style="font-size:15px">${title}</div>
+    ${rows.length?rows.slice(0,6).map((r,i)=>`<div class="fm-stat-rank" onclick="fmSelectMapItem('${r.k}')" style="cursor:pointer;grid-template-columns:34px 1fr 88px;min-height:52px">
+      <b style="font-size:14px">${i+1}위</b>
+      <div><b style="font-size:14px">${r.it.emoji} ${r.it.name}</b><small style="font-size:12px;line-height:1.45">${noteFn(r)}</small></div>
+      <b style="text-align:right;color:${colorFn(r)};font-size:14px">${valueFn(r)}</b>
+    </div>`).join(""):`<div class="fm-readable-note">아직 비교할 데이터가 충분하지 않습니다.</div>`}
+  </div>`;
+}
+function renderExplanationPanel(){
+  const item=ITEMS[curItem]||{emoji:"",name:"작물",unit:""};
+  const live=LIVE_ITEMS[curItem]||{};
+  const regions=Object.values(CITY_DATA[curItem]||{}).filter(isActiveCropCity);
+  const regionCount=regions.length;
+  const basePrice=LIVE_NATIONAL_PRICES[curItem]||0;
+  const risk=fmRiskPlain(live.risk_score);
+  const periods=[7,14,21,28,60,90];
+  const periodRows=periods.map(days=>{
+    const pct=horizonModelPct(days);
+    const blocked=isHorizonBlocked(curItem,days);
+    const periodLabel=PERIOD_LABEL[days]||`${days}일`;
+    const dir=blocked?{label:"검증 대기",color:"#b86010",sentence:"아직 공개 판단으로 쓰지 않습니다."}:fmDirectionPlain(pct);
+    return {days,periodLabel,pct,blocked,...dir};
+  });
+  const openRows=periodRows.filter(r=>!r.blocked&&Number.isFinite(Number(r.pct)));
+  const mainRow=openRows.find(r=>r.days===curPeriod)||openRows[0]||periodRows[0];
+  const mainTone=mainRow.color==="#c02828"?"red":mainRow.color==="#b86010"?"orange":mainRow.color==="#4b5f9b"?"blue":"green";
+  const totalShipment=regions.reduce((s,d)=>s+(Number(d.shipment_ton||d.production_ton)||0),0);
+  const avgYoy=regions.length?regions.reduce((s,d)=>s+(Number(d.shipment_yoy)||0),0)/regions.length:null;
+  const supplyLine=Number.isFinite(avgYoy)
+    ? avgYoy>8?"출하량은 전년보다 늘어난 편이라 가격 상승을 일부 눌러줄 수 있습니다."
+      : avgYoy<-5?"출하량이 전년보다 줄어 공급 부족 부담이 있습니다."
+      : "출하량은 전년과 큰 차이가 없어 가격 판단은 시세 흐름을 더 봐야 합니다."
+    : "출하 변화 데이터는 아직 충분하지 않습니다.";
+  const judgment=`${item.name}은 ${mainRow.periodLabel} 기준으로 <b style="color:${mainRow.color}">${mainRow.label}</b>입니다. ${mainRow.sentence} ${supplyLine}`;
+  const readableRows=periodRows.map(r=>`<div class="fm-stat-rank" style="grid-template-columns:64px 1fr 82px;min-height:52px">
+    <b style="font-size:14px">${r.periodLabel}</b>
+    <div><b style="font-size:14px;color:${r.color}">${r.label==="검증 대기"?"검증 대기":r.label}</b><small style="font-size:12px;line-height:1.45">${r.blocked?horizonBlockedMessage(curItem,r.days):r.sentence}</small></div>
+    <b style="text-align:right;color:${r.color};font-size:14px">${r.blocked?"보류":fmFmtPct(r.pct)}</b>
+  </div>`).join("");
+  showTopPanel(`
+    <div class="fm-top-card">
+      <div class="fm-top-title" style="font-size:19px">${item.emoji} ${item.name} 예측 판단</div>
+      ${fmDecisionCard("지금 한 줄 판단", judgment, mainTone)}
+      <div class="fm-dash-grid" style="margin-top:10px">
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">현재 도매 기준가</div><div class="fm-dash-val">${fmFmtWon(basePrice)}</div><div class="fm-top-sub">${item.unit||""} 기준</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">대표 산지</div><div class="fm-dash-val">${regionCount}</div><div class="fm-top-sub">지도에 표시되는 지역</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">확인 출하량</div><div class="fm-dash-val">${fmFmtTon2(totalShipment)}</div><div class="fm-top-sub">대표 산지 합계</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 주의도</div><div class="fm-dash-val" style="color:${risk.color}">${risk.label}</div><div class="fm-top-sub">${Number.isFinite(Number(live.risk_score))?Math.round(live.risk_score)+"점":"점수 수집 중"}</div></div>
+      </div>
+    </div>
+    <div class="fm-top-card">
+      <div class="fm-sec-title" style="font-size:15px">기간별로 보면</div>
+      ${readableRows}
+      ${fmDecisionCard("읽는 법", "빨간색은 오를 가능성, 초록색은 내릴 가능성, 보라색은 보합입니다. ‘검증 대기’는 아직 고객에게 확정 예측처럼 보여주면 안 되는 구간입니다.", "blue")}
+    </div>
+    <div class="fm-top-card">
+      <div class="fm-sec-title" style="font-size:15px">왜 이렇게 판단하나요?</div>
+      <div class="fm-explain-step"><div class="fm-explain-num">1</div><div class="fm-explain-body"><b>가격 방향</b><div>기간별 모델값으로 현재보다 오를지, 내릴지, 비슷할지를 먼저 봅니다.</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">2</div><div class="fm-explain-body"><b>출하 흐름</b><div>${supplyLine}</div></div></div>
+      <div class="fm-explain-step"><div class="fm-explain-num">3</div><div class="fm-explain-body"><b>주의도</b><div>${risk.sentence}</div></div></div>
+    </div>
+  `);
+}
+function renderDashboardPanel(){
+  const rows=Object.entries(ITEMS).map(([k,it])=>{
+    const live=LIVE_ITEMS[k]||{};
+    const price=LIVE_NATIONAL_PRICES[k]||0;
+    const regions=cropRegionRows(k);
+    const shipment=regions.reduce((a,r)=>a+(Number(r.shipment_ton||r.production_ton)||0),0);
+    const avgRise=regions.length?regions.reduce((a,r)=>a+(Number(r.price_vs_avg)||0),0)/regions.length:0;
+    const forecast28=horizonModelPct(28,k);
+    const score=Number(live.risk_score??Math.min(100,Math.round(Math.abs(avgRise)*2+(shipment?20:0))));
+    const topRegion=regions.slice().sort((a,b)=>(Number(b.shipment_ton||b.production_ton)||0)-(Number(a.shipment_ton||a.production_ton)||0))[0];
+    const priority=Math.round(score+Math.abs(avgRise)*1.5+(forecast28?Math.abs(forecast28):0));
+    return {k,it,live,price,regions,shipment,avgRise,forecast28,score,topRegion,priority};
+  });
+  const withData=rows.filter(r=>r.price||r.regions.length||r.shipment||Number.isFinite(r.forecast28));
+  const byPriority=withData.slice().sort((a,b)=>b.priority-a.priority);
+  const byRisk=withData.slice().sort((a,b)=>b.score-a.score);
+  const byShipment=withData.filter(r=>r.shipment).sort((a,b)=>b.shipment-a.shipment);
+  const byRise=withData.filter(r=>Number.isFinite(r.avgRise)).sort((a,b)=>b.avgRise-a.avgRise);
+  const byFall=withData.filter(r=>Number.isFinite(r.avgRise)).sort((a,b)=>a.avgRise-b.avgRise);
+  const top=byPriority[0];
+  const topRisk=top?fmRiskPlain(top.score):null;
+  const highCount=byRisk.filter(r=>r.score>=50).length;
+  const priceCount=Object.keys(LIVE_NATIONAL_PRICES).length;
+  const totalShipment=byShipment.reduce((s,r)=>s+r.shipment,0);
+  const summary=top
+    ? `${top.it.name}을 먼저 보세요. 가격 주의도는 <b style="color:${topRisk.color}">${Math.round(top.score)}점(${topRisk.label})</b>이고, 대표 산지 가격 위치는 ${fmFmtPct(top.avgRise)}입니다.`
+    : "아직 비교 가능한 통계가 충분하지 않습니다. 가격과 산지 데이터가 들어오면 자동으로 정렬됩니다.";
+  showTopPanel(`
+    <div class="fm-top-card">
+      <div class="fm-top-title" style="font-size:19px">오늘 볼 통계</div>
+      ${fmDecisionCard("먼저 볼 것", summary, topRisk?.color==="#c02828"?"red":topRisk?.color==="#b86010"?"orange":"green")}
+      <div class="fm-dash-grid" style="margin-top:10px">
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">가격 수집 품목</div><div class="fm-dash-val">${priceCount}</div><div class="fm-top-sub">현재 시세 있음</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">주의 품목</div><div class="fm-dash-val">${highCount}</div><div class="fm-top-sub">50점 이상</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">출하 자료</div><div class="fm-dash-val">${byShipment.length}</div><div class="fm-top-sub">품목</div></div>
+        <div class="fm-dash-cell"><div class="fm-dash-lbl">확인 출하량</div><div class="fm-dash-val">${fmFmtTon2(totalShipment)}</div><div class="fm-top-sub">대표 산지 합계</div></div>
+      </div>
+    </div>
+    ${fmSimpleRank("1. 지금 먼저 확인할 품목", byPriority, r=>`${r.priority}점`, r=>`주의도 ${Math.round(r.score)}점 · 가격 위치 ${fmFmtPct(r.avgRise)} · ${r.topRegion?.name||"대표 산지 확인 중"}`, r=>fmRiskPlain(r.score).color)}
+    ${fmSimpleRank("2. 오를 압력이 큰 품목", byRise, r=>fmFmtPct(r.avgRise), r=>`대표 산지 평균이 전국 기준보다 높게 움직입니다. 4주 예측 ${fmFmtPct(r.forecast28)}`, r=>r.avgRise>=0?"#c02828":"#1a8a1a")}
+    ${fmSimpleRank("3. 내릴 압력이 큰 품목", byFall, r=>fmFmtPct(r.avgRise), r=>`대표 산지 평균이 전국 기준보다 낮게 움직입니다. 4주 예측 ${fmFmtPct(r.forecast28)}`, r=>r.avgRise<0?"#1a8a1a":"#c02828")}
+    ${fmSimpleRank("4. 출하 규모가 큰 품목", byShipment, r=>fmFmtTon2(r.shipment), r=>`${r.regions.length}개 대표 산지 기준 · 가장 큰 산지 ${r.topRegion?.name||"확인 중"}`, r=>"#267a18")}
+  `);
+}
 </script>
 </body>
 </html>
