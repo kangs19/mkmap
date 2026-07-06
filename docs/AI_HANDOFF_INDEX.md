@@ -37,3 +37,6 @@
 - `docs/AI_SESSION_81_ALL_ITEM_MODEL_BACKTEST.md`
   - 2026-07-06 all currently mapped crops model/data refresh.
   - Covers data collection, feature coverage, crop-specific features, model training/backtest, promotion result, public horizon policy, production application notes, and next work.
+- `docs/AI_SESSION_82_ITEM_EXPANSION_20.md`
+  - 2026-07-06 candidate expansion from 5 to 20 metadata items.
+  - Covers KAMIS candidate audit, generated draft metadata, 20-item KAMIS collection, 20-item model backtest, promotion failure reasons, and next data-enrichment work.

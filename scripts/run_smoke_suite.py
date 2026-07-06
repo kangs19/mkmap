@@ -31,6 +31,8 @@ PY_COMPILE_TARGETS = [
     "scripts/audit_price_temporal_item_breakdown.py",
     "scripts/audit_price_horizon_quality.py",
     "scripts/audit_prediction_feature_coverage.py",
+    "scripts/audit_kamis_candidate_items.py",
+    "scripts/generate_candidate_item_metadata.py",
     "scripts/collect_agromarket_auction_features.py",
     "scripts/collect_agromarket_price_features.py",
     "scripts/collect_agromarket_supply_context_features.py",

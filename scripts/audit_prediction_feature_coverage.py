@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
@@ -9,7 +10,9 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic"]
+sys.path.insert(0, str(REPO_ROOT))
+
+from mkmap_meta.registry import default_registry
 
 FEATURE_GROUPS = {
     "price_target": ["kamis_price", "agromarket_retail_price"],
@@ -32,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit cached feature coverage for prediction engines.")
     parser.add_argument("--start", default="2024-08-01")
     parser.add_argument("--end", default="2026-07-01")
-    parser.add_argument("--items", nargs="*", default=DEFAULT_ITEMS)
+    parser.add_argument("--items", nargs="*", default=None, help="Defaults to all metadata registry items.")
     parser.add_argument("--output", default=None)
     return parser.parse_args()
 
@@ -41,13 +44,14 @@ def main() -> int:
     args = parse_args()
     start = date.fromisoformat(args.start)
     end = date.fromisoformat(args.end)
+    item_codes = args.items or sorted(default_registry().all_items())
     features_root = REPO_ROOT / "data" / "features"
     diagnostics_root = REPO_ROOT / "data" / "diagnostics"
 
     payload = {
         "ok": True,
         "range": {"start": start.isoformat(), "end": end.isoformat()},
-        "items": args.items,
+        "items": item_codes,
         "cache_root": str(features_root),
         "groups": {},
         "engine_readiness": {},
@@ -56,7 +60,7 @@ def main() -> int:
     }
 
     for group_name, prefixes in FEATURE_GROUPS.items():
-        group = _audit_group(features_root, start, end, args.items, prefixes)
+        group = _audit_group(features_root, start, end, item_codes, prefixes)
         payload["groups"][group_name] = group
         payload["engine_readiness"][group_name] = _readiness(group_name, group)
 

@@ -1190,3 +1190,30 @@ Production caution:
 - `data/model` and other generated data directories are ignored by Git.
 - A code push alone does not upload local model artifacts.
 - To apply this exact model output in production, rerun the same pipeline on the server or upload/sync the generated artifacts through the production storage path.
+
+## Session 82 - Candidate Item Expansion To 20 Crops (2026-07-06)
+
+- Added KAMIS candidate audit tooling and draft metadata generation tooling.
+- Expanded metadata registry from 5 items to 20 items by adding draft metadata for:
+  - apple, carrot, chamoe, cucumber, fresh_pepper, lettuce, pear, pepper, perilla, potato, sesame, spinach, sweet_potato, tomato, watermelon.
+- Ran KAMIS 365-day collection for all 20 registry items:
+  - all 20 succeeded with no API errors.
+- Built 20-item training table:
+  - `data/model/price_training_table_20260706.csv`
+  - 4,336 rows, 91 columns.
+- Trained/backtested 20-item candidate horizons 1/14/30/90/180.
+- Candidate model was not promoted:
+  - all horizons stayed on the 5-item checked baseline champion because the 20-item candidate failed direction/MAE promotion gates.
+  - strict quality held 1/14/30/90 because of `temporal_high_risk`.
+  - 180 generated predictions but remains public-hidden by policy.
+- Added `--artifact-label` to `scripts/run_daily_model_promotion.py`; future experiments should use a non-daily label to avoid overwriting daily latest files.
+- Verification:
+  - `$env:PYTHONPATH='backend'; python -m pytest backend\tests\test_horizon_forecasts.py backend\tests\test_api.py -q` passed: 38 tests.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_82_ITEM_EXPANSION_20.md`
+
+Production caution:
+
+- The 15 new metadata items are draft/model-candidate items, not public production-approved forecast items.
+- They have KAMIS price data, but KMA/KOSIS/FarmMap/Agromarket context still needs verification before public prediction confidence is acceptable.

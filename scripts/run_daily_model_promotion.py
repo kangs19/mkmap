@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-history", type=int, default=14)
     parser.add_argument("--skip-train", action="store_true", help="Use existing candidate artifacts.")
     parser.add_argument("--skip-robustness", action="store_true", help="Skip temporal robustness reports.")
+    parser.add_argument(
+        "--artifact-label",
+        default="daily",
+        help="Prediction/explanation artifact label. Use a non-daily label for experiments to avoid clobbering daily latest files.",
+    )
     parser.add_argument("--output", default=None, help="Run summary JSON path.")
     return parser.parse_args()
 
@@ -179,10 +184,11 @@ def main() -> int:
 
     prediction_quality_path = warn_quality_path or quality_path
     strict_quality_path = hold_quality_path or quality_path
-    warn_predictions = REPO_ROOT / "data" / "model" / f"latest_price_horizon_predictions_{date_tag}_daily_warn_candidates.json"
-    strict_predictions = REPO_ROOT / "data" / "model" / f"latest_price_horizon_predictions_{date_tag}_daily_strict_candidates.json"
-    warn_explanations = REPO_ROOT / "data" / "model" / f"latest_price_horizon_explanations_{date_tag}_daily_warn_candidates.json"
-    strict_explanations = REPO_ROOT / "data" / "model" / f"latest_price_horizon_explanations_{date_tag}_daily_strict_candidates.json"
+    artifact_label = _safe_artifact_label(args.artifact_label)
+    warn_predictions = REPO_ROOT / "data" / "model" / f"latest_price_horizon_predictions_{date_tag}_{artifact_label}_warn_candidates.json"
+    strict_predictions = REPO_ROOT / "data" / "model" / f"latest_price_horizon_predictions_{date_tag}_{artifact_label}_strict_candidates.json"
+    warn_explanations = REPO_ROOT / "data" / "model" / f"latest_price_horizon_explanations_{date_tag}_{artifact_label}_warn_candidates.json"
+    strict_explanations = REPO_ROOT / "data" / "model" / f"latest_price_horizon_explanations_{date_tag}_{artifact_label}_strict_candidates.json"
 
     ok &= _run_step(
         steps,
@@ -232,6 +238,11 @@ def main() -> int:
 
 def _parse_horizons(raw: str) -> list[int]:
     return [int(part.strip()) for part in raw.split(",") if part.strip()]
+
+
+def _safe_artifact_label(raw: str) -> str:
+    label = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in raw.strip())
+    return label or "daily"
 
 
 def _run_step(

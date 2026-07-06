@@ -1,0 +1,150 @@
+{
+  "item_code": "pear",
+  "item_name": "배",
+  "category": "과일류",
+  "aliases": [],
+  "external_mappings": {
+    "kamis_price": {
+      "mapping_status": "candidate_verified_recent_price",
+      "itemcategorycode": "400",
+      "itemcode": "412",
+      "productrankcode": "04",
+      "variants": [
+        {
+          "kindcode": "01",
+          "kind_name": "신고",
+          "primary": true
+        }
+      ],
+      "product_classes": [
+        "01",
+        "02"
+      ],
+      "notes": "Generated from KAMIS codebook and live recent-price audit. Confirm variety choice before production promotion."
+    },
+    "kma_crop_weather": {
+      "mapping_status": "candidate_regions_only",
+      "candidate_regions": [
+        "충청남도"
+      ],
+      "notes": "KMA crop-weather PA_CROP_SPE_ID and AREA_ID are not verified yet for this generated item."
+    }
+  },
+  "crop_profile": {
+    "storage_type": "storage",
+    "cultivation_type": [
+      "open_field",
+      "stored"
+    ],
+    "growth_calendar": {
+      "flowering": [
+        4,
+        5
+      ],
+      "fruit_growth": [
+        6,
+        7,
+        8
+      ]
+    },
+    "harvest_calendar": {
+      "main": [
+        9,
+        10
+      ]
+    },
+    "demand_events": [],
+    "substitute_items": []
+  },
+  "production_profile": {
+    "region_strategy": "manual_weighted",
+    "manual_regions": [
+      {
+        "region_code": "44",
+        "region_name": "충청남도",
+        "base_weight": 0.5,
+        "notes": "UI hotspot based seed region. Replace with KOSIS/FarmMap production shares after source verification."
+      }
+    ]
+  },
+  "market_profile": {
+    "price_volatility": "medium",
+    "price_lag_days": 7,
+    "market_sensitivity": {
+      "retail_price": 0.3,
+      "wholesale_price": 0.45,
+      "settlement_volume": 0.25
+    }
+  },
+  "weather_profile": {
+    "sensitivity": {
+      "heat": 0.6,
+      "cold": 0.7,
+      "heavy_rain": 0.65,
+      "drought": 0.45,
+      "wind": 0.75,
+      "sunshine": 0.6
+    },
+    "critical_windows": [
+      {
+        "name": "fruit_quality",
+        "months": [
+          4,
+          5,
+          8,
+          9
+        ],
+        "risk_factors": [
+          "cold",
+          "wind",
+          "heavy_rain",
+          "sunshine"
+        ]
+      }
+    ]
+  },
+  "event_profile": {
+    "enabled_events": [
+      "weather_alert",
+      "impact_forecast",
+      "typhoon",
+      "midterm_forecast"
+    ],
+    "event_weights": {
+      "weather_alert": 0.3,
+      "impact_forecast": 0.2,
+      "typhoon": 0.25,
+      "midterm_forecast": 0.25
+    }
+  },
+  "feature_engine_profile": {
+    "engine_set": [
+      "item_meta",
+      "production_region",
+      "price_market",
+      "agri_weather",
+      "disaster_event",
+      "forecast_context",
+      "risk_signal"
+    ],
+    "feature_overrides": {
+      "risk_signal": {
+        "market_pressure_weight": 0.4,
+        "weather_pressure_weight": 0.25,
+        "event_pressure_weight": 0.15
+      }
+    }
+  },
+  "source_coverage": {
+    "kamis": true,
+    "kosis": false,
+    "data_go_kr": [
+      "at_regional_price",
+      "weather_alert",
+      "impact_forecast",
+      "typhoon",
+      "midterm_forecast"
+    ],
+    "manual_review_required": true
+  }
+}
