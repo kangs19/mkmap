@@ -2466,22 +2466,18 @@ async function fetchAndRenderTrend(itemCode, days){
             </div>
           </div>`).join("")}
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-        ${g.items.map(r=>{
-      const col=dirColors[r.direction]||"#6a1e9a";
-      const icon=r.direction==="up"?"↑":r.direction==="down"?"↓":"→";
-      const body=r.description||r.message||"";
-      return`<div style="background:white;border:1px solid ${col}18;border-radius:7px;padding:7px 9px">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap">
-          <span style="font-size:15px;font-weight:900;color:${col}">${icon}</span>
-          <span style="font-size:13px;font-weight:900;color:var(--text)">${trendReasonIcon(r)} ${r.label||""}</span>
-          ${r.count>1?`<span style="font-size:10px;font-weight:900;color:${col};background:${bg};border-radius:10px;padding:2px 6px">${r.count}개 묶음</span>`:""}
-          ${r.direction_label?`<span style="font-size:11px;font-weight:800;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
+        <div style="background:white;border:1px solid ${col}18;border-radius:7px;padding:8px 9px;font-size:13px;color:var(--text);line-height:1.65;font-weight:700">
+          ${trendGroupJudgment(g)}
         </div>
-        <div style="font-size:12px;color:var(--text);line-height:1.6">${body}</div>
-      </div>`;
-        }).join("")}
-        </div>
+        <details style="margin-top:6px;background:white;border:1px solid ${col}18;border-radius:7px;padding:7px 9px">
+          <summary style="cursor:pointer;font-size:12px;font-weight:900;color:${col}">근거 ${g.items.length}개 보기</summary>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px">
+            ${g.items.map(r=>`<div style="font-size:12px;color:var(--text);line-height:1.55;border-top:1px solid ${col}14;padding-top:5px">
+              <b>${trendReasonIcon(r)} ${r.label||"요인"}</b>${r.count>1?` <span style="color:${col};font-weight:900">(${r.count}개 묶음)</span>`:""}<br>
+              <span style="color:var(--muted)">${r.description||r.message||trendReasonShortText(r)}</span>
+            </div>`).join("")}
+          </div>
+        </details>
       </div>`;
     }).join("");
     html+=`</div>`;
@@ -2517,6 +2513,19 @@ function trendReasonShortText(reason={}){
   const text=(reason.description||reason.message||"").replace(/\s+/g," ").trim();
   if(!text) return reason.direction_label||"판단 요인";
   return text.length>34?text.slice(0,34)+"...":text;
+}
+function trendGroupJudgment(group={}){
+  const items=group.items||[];
+  const labels=items.map(r=>r.label).filter(Boolean).slice(0,3);
+  const subject=labels.length?labels.join("·"):"확인 요인";
+  const more=items.length>3?` 외 ${items.length-3}개`:"";
+  if(group.key==="up"){
+    return `${subject}${more} 때문에 값이 오를 수 있는 쪽을 먼저 봅니다. 다만 아래 하락 요인이 함께 있으면 상승폭은 줄어들 수 있습니다.`;
+  }
+  if(group.key==="down"){
+    return `${subject}${more} 때문에 값이 내려갈 수 있는 쪽을 함께 봅니다. 상승 요인이 더 강하면 하락 신호는 방어 요인으로만 반영합니다.`;
+  }
+  return `${subject}${more}은 방향을 단정하기보다 가격이 흔들릴 수 있는 변수로 봅니다. 같은 기간의 상승·하락 압력과 같이 판단합니다.`;
 }
 function trendReasonDedupKey(reason={}){
   const label=(reason.label||"").replace(/\s+/g," ").trim();

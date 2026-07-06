@@ -1,5 +1,16 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 107
+
+See `docs/AI_SESSION_107_TREND_REASON_COMPACT_DETAILS.md`.
+
+Latest result:
+
+- Compact trend analysis further: grouped reason cards now show one practical judgment line first.
+- Full repeated reason text is moved into a collapsible `근거 N개 보기` block.
+- This reduces the machine-like list feel in `기간별 가격 동향 분석` while preserving traceability.
+- Local whitespace and smoke validation passed.
+
 ## Latest Update - 2026-07-06 Session 106
 
 See `docs/AI_SESSION_106_DEFAULT_PANEL_READABILITY.md`.

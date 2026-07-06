@@ -112,3 +112,6 @@
 - `docs/AI_SESSION_106_DEFAULT_PANEL_READABILITY.md`
   - 2026-07-06 default panel readability.
   - Covers larger right-panel briefing cards and judgment-first copy before a region is selected.
+- `docs/AI_SESSION_107_TREND_REASON_COMPACT_DETAILS.md`
+  - 2026-07-06 trend reason compact details.
+  - Covers compact trend group judgments and collapsible detailed reasons in the selected-region forecast tab.
