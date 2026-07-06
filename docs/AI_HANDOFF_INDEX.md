@@ -76,3 +76,6 @@
 - `docs/AI_SESSION_94_MAP_HOVER_QA.md`
   - 2026-07-06 map hover QA.
   - Covers stale map DOM hover binding, tooltip rebind behavior, and production drilldown verification plan.
+- `docs/AI_SESSION_95_MAP_TOOLTIP_FALLBACK.md`
+  - 2026-07-06 map tooltip fallback.
+  - Covers CSS-only pin hover tooltips and native SVG path titles for launch-safe hover information.

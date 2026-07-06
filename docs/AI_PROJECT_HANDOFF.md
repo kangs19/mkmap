@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 95
+
+See `docs/AI_SESSION_95_MAP_TOOLTIP_FALLBACK.md`.
+
+Latest result:
+
+- Added a simpler fallback for map hover information.
+- Region pins now have both browser-native `title` and CSS-only `data-tooltip` hover content.
+- SVG map paths now receive `title`, `aria-label`, and an SVG `<title>` child when DOM hover handlers bind.
+- Local browser QA confirmed SVG path fallback title exists and console errors were empty.
+- Production follow-up should confirm visible pins carry `data-tooltip` after deploy.
+
 ## Latest Update - 2026-07-06 Session 94
 
 See `docs/AI_SESSION_94_MAP_HOVER_QA.md`.

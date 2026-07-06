@@ -124,8 +124,19 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:var(--dimmed)!important;font-size:9px!important;}
 
 /* 항상표시 지역 핀 */
-.region-pin{background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:auto;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;cursor:pointer;}
+.region-pin{position:relative;background:rgba(255,255,255,.93);border:1.5px solid rgba(0,0,0,.14);border-radius:9px;padding:5px 9px;pointer-events:auto;box-shadow:0 2px 9px rgba(0,0,0,.2);text-align:center;min-width:72px;cursor:pointer;}
 .region-pin *{pointer-events:none;}
+.region-pin[data-tooltip]:hover::after{
+  content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 8px);
+  transform:translateX(-50%);width:max-content;max-width:280px;white-space:normal;
+  background:#1a2410;color:white;border-radius:9px;padding:8px 10px;
+  font-size:12px;font-weight:700;line-height:1.45;box-shadow:0 6px 18px rgba(0,0,0,.22);
+  z-index:10000;pointer-events:none;text-align:left;
+}
+.region-pin[data-tooltip]:hover::before{
+  content:"";position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#1a2410;z-index:10000;pointer-events:none;
+}
 .rp-name{font-size:11px;font-weight:700;color:#1a2410;white-space:nowrap;}
 .rp-chg{font-size:13px;font-weight:800;line-height:1.3;}
 .rp-chg.up{color:#c02828;}.rp-chg.down{color:#1a8a1a;}.rp-chg.flat{color:#6a1e9a;}
@@ -3727,6 +3738,9 @@ function drawProvinces(){
         });
       }
       bindPathDomEvents(layer,{
+        title: provinceActive
+          ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시군 · 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
+          : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:e=>{
           layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
           if(farmMapActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
@@ -3923,6 +3937,9 @@ function drawCities(sido){
       });
       layer.on("add",()=>{try{layer.bringToFront();}catch(e){}});
       bindPathDomEvents(layer,{
+        title: detailD
+          ? `${name} ${ITEMS[curItem]?.name||"작물"} · ${detailD.avg_price?Math.round(detailD.avg_price).toLocaleString()+"원":"가격 수집 중"}`
+          : `${name} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:enterCityDom,
         move:e=>moveMapTooltip(e),
         leave:leaveCityDom,
@@ -4023,6 +4040,15 @@ function bindPathDomEvents(layer,handlers){
     el.dataset.fmDomBound="1";
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
+    if(handlers.title){
+      el.setAttribute("title",handlers.title);
+      el.setAttribute("aria-label",handlers.title);
+      if(!el.querySelector?.("title")){
+        const titleEl=document.createElementNS("http://www.w3.org/2000/svg","title");
+        titleEl.textContent=handlers.title;
+        el.appendChild(titleEl);
+      }
+    }
     const enter=e=>handlers.enter?.(e);
     const move=e=>handlers.move?.(e);
     const leave=e=>handlers.leave?.(e);
@@ -4250,7 +4276,8 @@ function makePinHtml(name,d,sidoKR){
   const pinTitle=(text)=>String(text||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   if(isHorizonBlocked(curItem,curPeriod)){
     const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
-    return`<div class="region-pin" title="${pinTitle(`${name} ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`)}">
+    const title=pinTitle(`${name} ${price?price.toLocaleString()+"원":"가격 수집 중"} · 검증 대기`);
+    return`<div class="region-pin" title="${title}" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div class="rp-price" style="color:#9a6a20">${price?price.toLocaleString()+"원":"가격 수집 중"}</div>
       <div class="rp-chg flat">검증 대기</div>
@@ -4269,14 +4296,18 @@ function makePinHtml(name,d,sidoKR){
     const fctColor=fctPct>0?'#c02828':fctPct<0?'#1a8a1a':'#9aaa8a';
     const bottomStr=isCurrent?((activePct>0?'+':'')+activePct.toFixed(1)+'% vs평균'):((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
     const bottomColor=isCurrent?pctColor:fctColor;
-    return`<div class="region-pin" title="${pinTitle(`${name} ${mainLabel} ${pm.toLocaleString()}원/${unit} · ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`)}">
+    const title=pinTitle(`${name} ${mainLabel} ${pm.toLocaleString()}원/${unit} · ${subLabel} ${ps.toLocaleString()}원 · ${bottomStr}`);
+    return`<div class="region-pin" title="${title}" data-tooltip="${title}">
       <div class="rp-name">${name}</div>
       <div style="font-size:10px;font-weight:800;color:#1a2410;line-height:1.3">${mainLabel} ${pm.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>
       <div style="font-size:9px;font-weight:600;color:#7a8a6a;line-height:1.3">${subLabel} ${ps.toLocaleString()}원</div>
       <div style="font-size:9px;font-weight:700;color:${bottomColor}">${bottomStr}</div>
     </div>`;
   }
-  if(!d)return`<div class="region-pin" title="${pinTitle(`${name} · 대표 산지 검증 데이터 부족`)}"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
+  if(!d){
+    const title=pinTitle(`${name} · 대표 산지 검증 데이터 부족`);
+    return`<div class="region-pin" title="${title}" data-tooltip="${title}"><div class="rp-name">${name}</div><div class="rp-price" style="color:#9aaa8a">—</div></div>`;
+  }
   const chg=d.price_vs_avg||0;
   const sign=chg>0?'+':'';
   const cls=chg>5?'up':chg<-5?'down':'flat';
@@ -4286,7 +4317,8 @@ function makePinHtml(name,d,sidoKR){
   const fctPct=periodForecastPct(chg,curPeriod);
   const modeLabel=ctx.primaryShort;
   const fctStr=isCurrent?`${sign}${chg.toFixed(1)}%`:((fctPct>0?'+':'')+fctPct.toFixed(1)+'% 예측');
-  return`<div class="region-pin" title="${pinTitle(`${name} ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`)}">
+  const title=pinTitle(`${name} ${modeLabel} ${predP?predP.toLocaleString()+"원/"+unit:"가격 수집 중"} · ${fctStr}`);
+  return`<div class="region-pin" title="${title}" data-tooltip="${title}">
     <div class="rp-name">${name}</div>
     ${predP?`<div class="rp-price">${modeLabel} ${predP.toLocaleString()}원<span style="font-size:7px;color:#9aaa8a;font-weight:500">/${unit}</span></div>`:''}
     <div class="rp-chg ${cls}">${fctStr}</div>
