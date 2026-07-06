@@ -49,6 +49,10 @@ However, these were still dependent on event order and whether the exact SVG/mar
   - the full province GeoJSON is about 7.5MB and could leave production waiting at the map loading overlay,
   - the light province file is about 0.52MB,
   - the first nationwide price/production map now loads the light file, while the full source file remains in the repo.
+- Added `drawProvinceFallbackMap()`:
+  - if province GeoJSON rendering throws, the map no longer stays blank,
+  - it draws price-colored circle regions from `SIDO_CENTER`, item metadata, and regional price data,
+  - it keeps custom hover popups and click-through to the top available city detail.
 - Added the light province asset to launch readiness static-asset checks.
 - Added the delegated hover fragment to `scripts/verify_launch_readiness.py` so the launch checker catches accidental removal.
 
@@ -67,6 +71,7 @@ However, these were still dependent on event order and whether the exact SVG/mar
   - crop pin hover displayed `#map-tooltip` at 390px width,
   - toggling `재배 면적 -> 가격 예측 -> 팜맵 on/off` kept 17 crop paths and 4 pins visible.
 - Production browser QA before the light file change showed the app still waiting at "지도 데이터 로딩 중" with 0 paths/pins, so the light province file is a launch-critical performance fix rather than only a polish item.
+- Local browser QA after fallback wiring showed loading hidden, 17 crop paths, 4 price pins, no native `title`, and no Leaflet tooltip.
 
 ## Remaining Notes
 
