@@ -4458,6 +4458,12 @@ function bindMarkerDomEvents(marker,handlers){
     el.dataset.fmDomBound="1";
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
+    if(handlers.html) el.setAttribute?.("data-fm-tooltip-html",handlers.html);
+    el.querySelectorAll?.(".region-pin").forEach(child=>{
+      FM_TOOLTIP_HANDLERS.set(child,handlers);
+      child.__fmTooltipHandlers=handlers;
+      if(handlers.html) child.setAttribute("data-fm-tooltip-html",handlers.html);
+    });
     const enter=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.enter?.(e);};
     const move=e=>handlers.move?.(e);
     const leave=e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) handlers.leave?.(e);};
@@ -4503,7 +4509,7 @@ function bindPathDomEvents(layer,handlers){
       el.removeAttribute("title");
       el.setAttribute("aria-label",handlers.title);
       el.setAttribute("data-tooltip",handlers.title);
-      el.setAttribute("data-fm-tooltip-html",mapFallbackTooltipHtml(handlers.title));
+      el.setAttribute("data-fm-tooltip-html",handlers.html||mapFallbackTooltipHtml(handlers.title));
       el.querySelectorAll?.("title").forEach(titleEl=>titleEl.remove());
     }
     const enter=e=>handlers.enter?.(e);
