@@ -46,3 +46,6 @@
 - `docs/AI_SESSION_84_ITEM_READINESS_GATE.md`
   - 2026-07-06 item-level forecast readiness gate.
   - Covers the new readiness audit script, item/horizon scoring, 20-crop candidate results, and next integration work for public artifact filtering.
+- `docs/AI_SESSION_85_READINESS_PREDICTION_FILTER.md`
+  - 2026-07-06 readiness-based prediction filtering.
+  - Covers wiring item/horizon readiness into prediction and explanation artifacts, daily promotion integration, and public filtering behavior.

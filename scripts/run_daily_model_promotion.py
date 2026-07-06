@@ -144,6 +144,30 @@ def main() -> int:
         ],
     )
 
+    readiness_path = REPO_ROOT / "data" / "diagnostics" / f"item_forecast_readiness_{date_tag}_{_safe_artifact_label(args.artifact_label)}.json"
+    ok &= _run_step(
+        steps,
+        "item_readiness",
+        [
+            sys.executable,
+            "scripts/audit_item_forecast_readiness.py",
+            "--date",
+            args.date,
+            "--start",
+            _one_year_before(run_date),
+            "--training-table",
+            str(feature_path),
+            "--models-dir",
+            str(models_dir),
+            "--model-prefix",
+            approved_prefix,
+            "--horizons",
+            ",".join(str(horizon) for horizon in horizons),
+            "--output",
+            str(readiness_path),
+        ],
+    )
+
     warn_quality_path = None
     hold_quality_path = None
     if not args.skip_robustness:
@@ -193,12 +217,12 @@ def main() -> int:
     ok &= _run_step(
         steps,
         "predict_warn",
-        _predict_command(feature_path, models_dir, approved_prefix, prediction_quality_path, horizons, warn_predictions),
+        _predict_command(feature_path, models_dir, approved_prefix, prediction_quality_path, readiness_path, horizons, warn_predictions),
     )
     ok &= _run_step(
         steps,
         "predict_strict",
-        _predict_command(feature_path, models_dir, approved_prefix, strict_quality_path, horizons, strict_predictions),
+        _predict_command(feature_path, models_dir, approved_prefix, strict_quality_path, readiness_path, horizons, strict_predictions),
     )
     ok &= _run_step(
         steps,
@@ -223,6 +247,7 @@ def main() -> int:
             "feature_table": str(feature_path),
             "models_dir": str(models_dir),
             "quality": str(quality_path),
+            "readiness": str(readiness_path),
             "warn_predictions": str(warn_predictions),
             "strict_predictions": str(strict_predictions),
             "warn_explanations": str(warn_explanations),
@@ -243,6 +268,13 @@ def _parse_horizons(raw: str) -> list[int]:
 def _safe_artifact_label(raw: str) -> str:
     label = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in raw.strip())
     return label or "daily"
+
+
+def _one_year_before(value: date) -> str:
+    try:
+        return value.replace(year=value.year - 1).isoformat()
+    except ValueError:
+        return value.replace(year=value.year - 1, day=28).isoformat()
 
 
 def _run_step(
@@ -288,6 +320,7 @@ def _predict_command(
     models_dir: Path,
     prefix: str,
     quality_path: Path,
+    readiness_path: Path,
     horizons: list[int],
     output: Path,
 ) -> list[str]:
@@ -302,7 +335,10 @@ def _predict_command(
         prefix,
         "--quality-report",
         str(quality_path),
+        "--readiness-report",
+        str(readiness_path),
         "--only-candidates",
+        "--only-readiness-candidates",
         "--horizons",
         ",".join(str(horizon) for horizon in horizons),
         "--output",

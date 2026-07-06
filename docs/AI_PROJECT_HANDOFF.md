@@ -24,6 +24,18 @@ Latest result:
 - The 15 newly added crops were marked `hold` because their KOSIS/KMA/FarmMap/context coverage is not verified enough for trusted public forecasts.
 - The next production step is to use this readiness report to filter public forecast artifacts by item and horizon.
 
+## Latest Update - 2026-07-06 Session 85
+
+See `docs/AI_SESSION_85_READINESS_PREDICTION_FILTER.md`.
+
+Latest result:
+
+- `scripts/predict_price_horizons.py` now accepts item-level readiness reports.
+- Prediction artifacts now carry `held_out`, `available`, `readiness_status`, `readiness_reasons`, and `readiness_gate` per item/horizon.
+- `scripts/explain_price_horizon_predictions.py` preserves those readiness fields in explanation artifacts.
+- `scripts/run_daily_model_promotion.py` now creates an item readiness report and passes it into warn/strict prediction generation.
+- Against the 20-crop Agromarket candidate, public-available horizons are limited to the better-mapped original crops and specific passing horizons.
+
 마지막 업데이트: 2026-07-02 KST (세션13)
 
 ## 프로젝트 목적
