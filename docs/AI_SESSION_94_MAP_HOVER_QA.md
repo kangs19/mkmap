@@ -23,6 +23,7 @@ but no usable handler reference.
   - This keeps hover cards active after map redraw, layer changes, and province/city drilldown.
   - The map hover fallback now also listens in document capture phase for `mousemove`, `pointermove`, `mouseover`, and `pointerover`.
   - This avoids relying only on Leaflet/SVG event bubbling when a path or marker swallows the event before it reaches `#map`.
+  - Hover fallback now checks both the WeakMap registry and the DOM node's stored handler reference.
 
 ## Local Browser QA
 
@@ -30,6 +31,7 @@ Local desktop viewport: 1280 x 720
 
 - Hovering a visible map path showed `#map-tooltip`.
 - Capture-phase fallback was present in the loaded HTML.
+- DOM-node handler fallback was present in the loaded HTML.
 - Tooltip stayed within viewport bounds.
 - Console error buffer was empty.
 

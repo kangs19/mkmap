@@ -4067,17 +4067,17 @@ function setupMapHoverFallback(){
   const handleHoverMove=e=>{
     if(!mapEl.contains(e.target)) return;
     const path=findHoverTargetAtPoint(e.clientX,e.clientY);
-    const handlers=path?FM_TOOLTIP_HANDLERS.get(path):null;
+    const handlers=path?(FM_TOOLTIP_HANDLERS.get(path)||path.__fmTooltipHandlers):null;
     if(path&&handlers){
       if(__fmHoverPathEl!==path){
-        const prevHandlers=__fmHoverPathEl?FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl):null;
+        const prevHandlers=__fmHoverPathEl?(FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers):null;
         prevHandlers?.leave?.(e);
         __fmHoverPathEl=path;
         handlers.enter?.(e);
       }
       handlers.move?.(e);
     }else if(__fmHoverPathEl){
-      FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
+      (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers)?.leave?.(e);
       __fmHoverPathEl=null;
     }
   };
@@ -4086,7 +4086,7 @@ function setupMapHoverFallback(){
     document.addEventListener(type,handleHoverMove,{capture:true,passive:true});
   });
   mapEl.addEventListener("mouseleave",e=>{
-    if(__fmHoverPathEl) FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
+    if(__fmHoverPathEl) (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers)?.leave?.(e);
     __fmHoverPathEl=null;
   },{passive:true});
 }
