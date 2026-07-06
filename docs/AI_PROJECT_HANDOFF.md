@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 94
+
+See `docs/AI_SESSION_94_MAP_HOVER_QA.md`.
+
+Latest result:
+
+- Reproduced the map hover complaint in browser QA.
+- Found stale DOM-bound map nodes could keep `data-fm-dom-bound="1"` without a usable tooltip handler, causing redraw/drilldown hover cards to stop appearing.
+- Updated marker/path DOM binding to rebind stale nodes.
+- Local browser QA confirmed visible map-path hover now shows `#map-tooltip` without console errors.
+- Production province/city drilldown hover still needs final confirmation after deploy.
+
 ## Latest Update - 2026-07-06 Session 93
 
 See `docs/AI_SESSION_93_AUTH_MOBILE_POLISH.md`.

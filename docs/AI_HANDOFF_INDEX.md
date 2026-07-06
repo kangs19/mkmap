@@ -73,3 +73,6 @@
 - `docs/AI_SESSION_93_AUTH_MOBILE_POLISH.md`
   - 2026-07-06 auth mobile polish.
   - Covers mobile auth touch target sizing, Korean browser title, and local mobile browser verification.
+- `docs/AI_SESSION_94_MAP_HOVER_QA.md`
+  - 2026-07-06 map hover QA.
+  - Covers stale map DOM hover binding, tooltip rebind behavior, and production drilldown verification plan.

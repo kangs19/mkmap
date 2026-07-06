@@ -3977,7 +3977,8 @@ function bindMarkerDomEvents(marker,handlers){
       setTimeout(()=>bind(attempt+1),50);
       return;
     }
-    if(!el||el.dataset.fmDomBound==="1") return;
+    if(!el) return;
+    if(el.dataset.fmDomBound==="1"&&el.__fmTooltipHandlers) return;
     el.dataset.fmDomBound="1";
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
@@ -4017,7 +4018,8 @@ function bindPathDomEvents(layer,handlers){
       setTimeout(()=>bind(attempt+1),50);
       return;
     }
-    if(!el||el.dataset.fmDomBound==="1") return;
+    if(!el) return;
+    if(el.dataset.fmDomBound==="1"&&el.__fmTooltipHandlers) return;
     el.dataset.fmDomBound="1";
     FM_TOOLTIP_HANDLERS.set(el,handlers);
     el.__fmTooltipHandlers=handlers;
