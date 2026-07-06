@@ -18,6 +18,7 @@ COPY metadata/ ./metadata/
 COPY mkmap_meta/ ./mkmap_meta/
 COPY scripts/ ./scripts/
 COPY config/ ./config/
+COPY legal/ ./legal/
 COPY map_standalone.html ./map_standalone.html
 COPY index.html ./index.html
 
