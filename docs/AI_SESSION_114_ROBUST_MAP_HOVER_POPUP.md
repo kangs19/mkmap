@@ -51,6 +51,7 @@ However, these were still dependent on event order and whether the exact SVG/mar
   - the first nationwide price/production map now loads the light file, while the full source file remains in the repo.
 - Added `drawProvinceFallbackMap()`:
   - if province GeoJSON rendering throws, the map no longer stays blank,
+  - if GeoJSON loading stays pending for more than 4.5 seconds, the fallback map is drawn automatically,
   - it draws price-colored circle regions from `SIDO_CENTER`, item metadata, and regional price data,
   - it keeps custom hover popups and click-through to the top available city detail.
 - Added the light province asset to launch readiness static-asset checks.

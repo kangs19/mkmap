@@ -13,7 +13,7 @@ Latest result:
 - Removed duplicate native tooltip paths: browser `title`, SVG `<title>`, Leaflet `bindTooltip`, and the old black CSS pseudo tooltip for region pins.
 - Price/production map layer toggles now force a regional-price refresh and redraw, so the `가격 예측` layer does not disappear after switching filters.
 - Added `/static/skorea_provinces_light.json` and made the first province map load use it instead of the 7.5MB full province file, so production does not sit on "지도 데이터 로딩 중" before price regions appear.
-- Added `drawProvinceFallbackMap()` so even if GeoJSON rendering throws in a browser, the user still sees price-colored crop regions/pins from item metadata and can hover/click into detail.
+- Added `drawProvinceFallbackMap()` so even if GeoJSON loading stalls or rendering throws in a browser, the user still sees price-colored crop regions/pins from item metadata and can hover/click into detail.
 - Local browser QA confirmed `#map-tooltip` appears when hovering a crop pin, with no Leaflet tooltip or native title left on crop map layers.
 - Local FastAPI browser QA confirmed `재배 면적 -> 가격 예측 -> 팜맵 on/off` keeps crop regions and price pins visible.
 - Added the delegated hover fallback fragment to launch readiness checks.
