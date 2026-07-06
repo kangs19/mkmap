@@ -29,8 +29,9 @@
 
 - 로컬 코드와 GitHub CI는 정상이다.
 - Railway 공개 서버는 최신 코드가 반영되어 KST 날짜 기준으로 응답한다.
-- 하지만 운영 DB에는 2026-07-01 예측/신호 데이터가 아직 들어가지 않아 공개 API의 예측 결과가 비어 있다.
-- 원격 admin pipeline 실행에는 Railway `ADMIN_KEY`가 필요하다. 로컬 `.env`에는 현재 `ADMIN_KEY`가 없다.
+- `https://mk-map.com` 기준 출시 체크는 12/12 통과했다.
+- 운영 데이터는 2026-07-06 기준 signals, dashboard cards, item forecast API가 응답한다.
+- 남은 공개 홍보 리스크는 `https://www.mk-map.com` 인증서/도메인 불일치다. 사용자가 `www`를 입력할 가능성이 있으면 Railway custom domain/DNS 또는 리다이렉트를 설정해야 한다.
 
 ## Latest Model/Data Session
 
@@ -124,3 +125,6 @@
 - `docs/AI_SESSION_110_PROMOTION_READY_UI_AUDIT.md`
   - 2026-07-06 promotion-ready UI audit.
   - Covers local frontend vendor assets, disabled beta control removal, onclick/duplicate-id audit, and launch UI smoke coverage.
+- `docs/AI_SESSION_111_PUBLIC_PROMOTION_QA_COPY.md`
+  - 2026-07-06 public promotion QA copy.
+  - Covers unknown item-code frontend guard, removal of sample/beta launch copy, legal terms polish, browser hover QA, and the remaining `www` domain risk.

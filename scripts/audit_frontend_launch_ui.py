@@ -16,6 +16,15 @@ CRITICAL_EXTERNAL_PATTERNS = [
     "https://fonts.googleapis.com",
 ]
 
+PUBLIC_COPY_BLOCKLIST = [
+    "샘플 데이터",
+    "프로토타입",
+    "prototype",
+    "베타 운영",
+    "베타 기능",
+    "공개 초안",
+]
+
 
 def main() -> int:
     html = INDEX_PATH.read_text(encoding="utf-8")
@@ -29,9 +38,10 @@ def main() -> int:
     duplicate_ids = sorted({id_value for id_value in ids if ids.count(id_value) > 1})
     critical_external = [pattern for pattern in CRITICAL_EXTERNAL_PATTERNS if pattern in html]
     disabled_beta_controls = re.findall(r'class="[^"]*\bdisabled\b[^"]*"[^>]*title="([^"]*)"', html)
+    public_copy_hits = [pattern for pattern in PUBLIC_COPY_BLOCKLIST if pattern.lower() in html.lower()]
 
     report: dict[str, Any] = {
-        "ok": not missing_onclick and not duplicate_ids and not critical_external,
+        "ok": not missing_onclick and not duplicate_ids and not critical_external and not public_copy_hits,
         "index_path": str(INDEX_PATH),
         "summary": {
             "onclick_function_count": len(onclick_calls),
@@ -40,11 +50,13 @@ def main() -> int:
             "duplicate_id_count": len(duplicate_ids),
             "critical_external_dependency_count": len(critical_external),
             "disabled_beta_control_count": len(disabled_beta_controls),
+            "public_copy_issue_count": len(public_copy_hits),
         },
         "missing_onclick": missing_onclick,
         "duplicate_ids": duplicate_ids,
         "critical_external_dependencies": critical_external,
         "disabled_beta_controls": disabled_beta_controls,
+        "public_copy_issues": public_copy_hits,
     }
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if report["ok"] else 1

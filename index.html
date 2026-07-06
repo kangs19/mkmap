@@ -1128,7 +1128,7 @@ function renderMiniCards(){
   const RC_C={normal:"#3ab878",caution:"#f4b942",warning:"#e0882a",high:"#e05050"};
   const hasLive=Object.keys(LIVE_ITEMS).length>0;
   const noDataNotice=hasLive?"":
-    `<div class="mc-nodata-notice">⏳ AI 예측 데이터가 아직 없습니다.<br>지도는 참고용 샘플 데이터로 표시됩니다.</div>`;
+    `<div class="mc-nodata-notice">⏳ 오늘 예측 신호를 확인하는 중입니다.<br>지도는 확보된 산지·가격 기준으로 먼저 표시됩니다.</div>`;
   document.getElementById("mini-cards").innerHTML=Object.entries(ITEMS).map(([k,it])=>{
     const isLive=!!LIVE_ITEMS[k];
     return`<div onclick="selectItem('${k}')" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border);">
@@ -2225,6 +2225,10 @@ async function fetchLiveData(){
     }
     items.forEach(it=>{
       if(!it.item_code) return;
+      if(!ITEMS[it.item_code]){
+        console.warn("등록되지 않은 품목 신호를 건너뜁니다:",it.item_code);
+        return;
+      }
       const prob=it.up_probability??it.up_probability_14d??null;
       const dir=prob>0.55?"up":prob<0.45?"down":"neutral";
       LIVE_ITEMS[it.item_code]={

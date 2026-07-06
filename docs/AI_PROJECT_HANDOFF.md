@@ -1,5 +1,19 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 111
+
+See `docs/AI_SESSION_111_PUBLIC_PROMOTION_QA_COPY.md`.
+
+Latest result:
+
+- Treated the current site as public-promotion ready, not prototype/MVP QA.
+- Added a frontend guard so unknown/test item codes from live signals cannot break rendering.
+- Removed public sample-data fallback wording from the main map.
+- Removed beta/draft wording from `/terms`.
+- Extended `scripts/audit_frontend_launch_ui.py` to fail when prototype/beta/sample public copy is reintroduced.
+- Local browser QA confirmed province-level and drilldown city-level hover popups appear.
+- Production launch readiness passed 12/12 on `https://mk-map.com`; remaining launch risk is only `www.mk-map.com` certificate/domain setup.
+
 ## Latest Update - 2026-07-06 Session 110
 
 See `docs/AI_SESSION_110_PROMOTION_READY_UI_AUDIT.md`.
