@@ -2925,7 +2925,7 @@ function showRegionDetail(name,code,d){
   if(marketBasis){
     const m=priceCtx.market;
     const date=m.date?` · ${m.date}`:"";
-    marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b>${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span><br><span>${priceCtx.priceSourceNote||""}</span>`;
+    marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b>${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span><br><span> ${priceCtx.priceSourceNote||""}</span>`;
   }
   const chgEl=document.getElementById("rp-chg");
   if(pv&&mainChg!==0){
