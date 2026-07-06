@@ -1,5 +1,19 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 115
+
+See `docs/AI_SESSION_115_FAILSAFE_PRICE_MAP_OVERLAY.md`.
+
+Latest result:
+
+- Responded to the production-facing report that map filter states could still leave the user seeing only the base map with no price prediction information.
+- Rebuilt `renderStaticMapOverlay()` as an independent DOM safety overlay that does not depend on the richer Leaflet helper/render chain.
+- The overlay draws province-level price bubbles directly in `#map` using static province centers and available regional/national prices.
+- Static bubbles include direct custom hover handlers, so `#map-tooltip` can appear even before or outside the Leaflet GeoJSON path render path.
+- `drawProvinces()` now removes the static overlay only after real paths or pins exist, so a stalled boundary render no longer erases the safety map first.
+- Local browser QA confirmed 17 paths, 4 price pins, visible price text, and `#map-tooltip` on mouse hover.
+- Smoke suite passed.
+
 ## Latest Update - 2026-07-06 Session 114
 
 See `docs/AI_SESSION_114_ROBUST_MAP_HOVER_POPUP.md`.

@@ -951,6 +951,63 @@ const SIDO_CENTER={
   "KR-45":[35.7175,127.1530],"KR-46":[34.8679,126.9910],"KR-47":[36.4919,128.8889],"KR-48":[35.4606,128.2132],
   "KR-49":[33.4996,126.5312],
 };
+function staticMapPoint(lat,lng){
+  const x=Math.max(5,Math.min(95,((lng-125.6)/(130.2-125.6))*100));
+  const y=Math.max(5,Math.min(95,((38.7-lat)/(38.7-33.0))*100));
+  return {x,y};
+}
+function renderStaticMapOverlay(reason=""){
+  try{
+    const mapEl=document.getElementById("map");
+    if(!mapEl) return;
+    document.getElementById("fm-static-map-overlay")?.remove();
+    const overlay=document.createElement("div");
+    overlay.id="fm-static-map-overlay";
+    overlay.style.cssText="position:absolute;inset:0;z-index:650;pointer-events:none;";
+    const item=(typeof curItem!=="undefined"&&curItem)||"cabbage";
+    const itemName=(typeof ITEMS!=="undefined"&&ITEMS[item]?.name)||"작물";
+    const regionMap=(typeof LIVE_REGIONAL_PRICES!=="undefined"&&LIVE_REGIONAL_PRICES[item]?.sido_avg)||{};
+    const national=(typeof LIVE_NATIONAL_PRICES!=="undefined"&&Number(LIVE_NATIONAL_PRICES[item]))||0;
+    const pctColor=(pct)=>{
+      if(pct>=20) return "#c92a1d";
+      if(pct>=10) return "#e07a12";
+      if(pct<=-20) return "#0756b8";
+      if(pct<=-10) return "#147cc2";
+      return "#5fb95f";
+    };
+    Object.entries(SIDO_CENTER).forEach(([sido,coord])=>{
+      try{
+        const [lat,lng]=coord;
+        const name=SIDO_SHORT[sido]||sido;
+        const rp=regionMap[name]||regionMap[sido]||null;
+        const price=Math.round(Number(rp?.wholesale||rp?.retail||national||0));
+        const pct=Math.round(Number(rp?.vs_national_pct||0)*10)/10;
+        const p=staticMapPoint(lat,lng);
+        const bubble=document.createElement("button");
+        bubble.type="button";
+        bubble.className="region-pin fm-static-map-bubble";
+        bubble.setAttribute("data-tooltip",`${name} ${itemName} 가격 예측`);
+        bubble.style.cssText=`position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;background:${pctColor(pct)};border:3px dashed rgba(20,60,20,.55);box-shadow:0 8px 22px rgba(0,0,0,.2);pointer-events:auto;font-size:13px;font-weight:900;color:#14220f;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;`;
+        bubble.innerHTML=`<span>${name}</span><small style="font-size:10px;font-weight:800">${price?price.toLocaleString()+"원":"확인중"}</small>`;
+        const priceText=price?`${price.toLocaleString()}원`:"가격 확인 중";
+        const pctText=`${pct>0?"+":""}${pct.toFixed(1)}%`;
+        const verdict=pct>=20?"전국 평균보다 많이 높아 가격 부담이 큽니다.":pct>=10?"전국 평균보다 높은 편이라 상승 부담을 봐야 합니다.":pct<=-20?"전국 평균보다 많이 낮아 약세 신호가 큽니다.":pct<=-10?"전국 평균보다 낮은 편이라 하락 압력이 있습니다.":"전국 평균과 비슷한 안정 구간입니다.";
+        const html=`<div class="rhc"><div class="rhc-header"><div class="rhc-title">${name} ${itemName}</div><span class="rhc-badge normal">가격예측</span></div><div style="font-size:13px;line-height:1.65"><b>도매가</b> ${priceText}<br><b>전국 평균 대비</b> ${pctText}<br>${verdict}</div></div>`;
+        bubble.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
+        bubble.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
+        bubble.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
+        bubble.addEventListener("click",e=>showMapTooltip(html,e),{passive:true});
+        overlay.appendChild(bubble);
+      }catch(err){
+        console.warn("[map] static bubble skipped",sido,err);
+      }
+    });
+    mapEl.appendChild(overlay);
+    if(reason) console.warn("[map] static overlay rendered:",reason);
+  }catch(err){
+    console.warn("[map] static overlay failed",err);
+  }
+}
 const GEO="/static/";
 const GEO_CDN="https://cdn.jsdelivr.net/gh/kangs19/mkmap@main/map_viewer/static/";
 const NEWS_BY_ITEM={
@@ -1045,7 +1102,7 @@ window.onload=async()=>{
     map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
     setTimeout(()=>map_.invalidateSize(),120);
     document.getElementById("loading").style.display="none";
-    drawProvinceFallbackMap("initial_price_summary");
+    renderStaticMapOverlay("initial_price_summary");
   }catch(e){
     document.getElementById("loading").innerHTML=`<div style="text-align:center;padding:18px"><div style="font-size:28px;margin-bottom:10px">!</div><div style="font-size:14px;color:#1a2410;font-weight:900">지도를 여는 중 문제가 생겼습니다</div><div style="font-size:12px;color:#6a7a5a;margin-top:6px">${e.message||e}</div></div>`;
     return;
@@ -1106,7 +1163,7 @@ window.onload=async()=>{
   const geoFallbackTimer=setTimeout(()=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin,#map .leaflet-overlay-pane path.leaflet-interactive").length;
     if(!visibleCropLayer&&map_){
-      drawProvinceFallbackMap("geojson_load_timeout");
+      renderStaticMapOverlay("geojson_load_timeout");
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
   },4500);
@@ -3840,24 +3897,22 @@ function drawProvinceFallbackMap(reason=""){
     };
     const name=SIDO_SHORT[sido]||sido;
     const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):(provinceActive?modeColor(ents,sido):regionalPriceColor(sido)))||"#6fb86a";
-    const radius=provinceActive?Math.max(22000,Math.min(72000,26000+ents.length*6500+(d.production_pct||0)*900)):34000;
-    const circle=L.circle(center,{
-      radius,
-      color:"rgba(0,0,0,.38)",
-      weight:2.4,
-      fillColor:fill,
-      fillOpacity:.82,
-      renderer:mapVectorRenderer,
-      dashArray:"6 3",
-    }).addTo(provLayer);
+    const bubbleSize=provinceActive?Math.max(54,Math.min(96,56+ents.length*5+(d.production_pct||0)*1.2)):58;
+    const bubble=L.marker(center,{icon:L.divIcon({
+      html:`<div class="region-pin fm-fallback-bubble" data-tooltip="${name}" style="width:${bubbleSize}px;height:${bubbleSize}px;border-radius:50%;background:${fill};opacity:.78;border:3px dashed rgba(20,60,20,.55);display:flex;align-items:center;justify-content:center;color:#14220f;font-weight:900;font-size:13px;box-shadow:0 8px 22px rgba(0,0,0,.18)">${name}</div>`,
+      className:"",
+      iconSize:[bubbleSize,bubbleSize],
+      iconAnchor:[bubbleSize/2,bubbleSize/2],
+    })}).addTo(provLayer);
     const html=makeHoverCard(provinceActive?`${name} (${ents.length}개 산지)`:name,d,sido);
     const title=`${name} ${ITEMS[curItem]?.name||"작물"} · ${provinceActive?`${ents.length}개 산지`:"지역 도매가"} · 현재 평균 ${d?.avg_price?d.avg_price.toLocaleString()+"원":"가격 수집 중"}`;
-    bindLayerHoverTooltip(circle,title);
-    circle.on({
-      mouseover:e=>{circle.setStyle({weight:3.5,color:"#1a3d66",fillOpacity:.94});showMapTooltip(html,e);},
-      mousemove:e=>moveMapTooltip(e),
-      mouseout:()=>{circle.setStyle({weight:2.4,color:"rgba(0,0,0,.38)",fillOpacity:.82});hideMapTooltip();},
+    bindLayerHoverTooltip(bubble,title);
+    bindMarkerDomEvents(bubble,{
+      enter:e=>showMapTooltip(html,e),
+      move:e=>moveMapTooltip(e),
+      leave:()=>hideMapTooltip(),
       click:()=>{hideMapTooltip();if(d._topCity)showRegionDetail(d._topCity.name,d._topCity.code,d._topCity);}
+
     });
     const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(name,d,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
     bindLayerHoverTooltip(pin,title);
@@ -3972,6 +4027,9 @@ function drawProvinces(){
       });
     }catch(e){}
   });
+  if(document.querySelectorAll("#map .region-pin,#map .leaflet-overlay-pane path.leaflet-interactive").length){
+    document.getElementById("fm-static-map-overlay")?.remove();
+  }
 }
 
 // 탐색 단계: "national" → "province" → "city"
