@@ -94,6 +94,65 @@ async def test_signals_today_uses_latest_forecast_when_today_is_empty(client):
 
 
 @pytest.mark.asyncio
+async def test_public_signal_region_names_prefer_canonical_kr_code(client):
+    item_code = "test_public_region_name_crop"
+    base_date = kst_today()
+    cache.delete("signals:today")
+    cache.delete("report:today")
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(RegionSignal).where(RegionSignal.item_code == item_code))
+        await db.execute(delete(Forecast).where(Forecast.item_code == item_code))
+        await db.execute(delete(Item).where(Item.item_code == item_code))
+        db.add(Item(
+            item_code=item_code,
+            item_name="public region name crop",
+            category="test",
+            wholesale_unit="1kg",
+            is_active=True,
+        ))
+        db.add(Forecast(
+            item_code=item_code,
+            base_date=base_date,
+            model_version="test_public_region_name",
+            horizon_days=14,
+            direction_14d="up",
+            up_probability_14d=0.77,
+            surge_probability_14d=0.21,
+            volatility_risk_30d="high",
+            confidence="medium",
+        ))
+        db.add(RegionSignal(
+            item_code=item_code,
+            region_code="KR-46",
+            region_name="?꾨씪?⑤룄",
+            date=base_date,
+            risk_score=91.0,
+            risk_level="high",
+            supply_shock=0.2,
+            price_effect="up",
+            weather_summary={},
+            market_summary={},
+            summary_text="test summary",
+        ))
+        await db.commit()
+
+    today = await client.get("/api/v1/signals/today")
+    assert today.status_code == 200
+    item = next(x for x in today.json()["items"] if x["item_code"] == item_code)
+    assert item["hotspot_region"] == "전남"
+
+    cards = await client.get(f"/api/v1/dashboard/cards?target_date={base_date}&limit=50")
+    assert cards.status_code == 200
+    card = next(x for x in cards.json()["cards"] if x["item_code"] == item_code)
+    assert card["risk"]["hotspot_region"] == "전남"
+
+    alerts = await client.get(f"/api/v1/alerts/high-risk?target_date={base_date}&min_risk_score=70&min_up_probability=0.6")
+    assert alerts.status_code == 200
+    alert = next(x for x in alerts.json()["alerts"] if x["item_code"] == item_code)
+    assert alert["region_name"] == "전남"
+
+
+@pytest.mark.asyncio
 async def test_regional_price_endpoint_normalizes_garlic_unit_outlier(client):
     item_code = "garlic"
     base_date = date(2026, 7, 3)

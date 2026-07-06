@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 90
+
+See `docs/AI_SESSION_90_BETA_QA_REGION_ENCODING.md`.
+
+Latest result:
+
+- Ran a production beta QA pass as a user: top navigation, period button, map pin drilldown, and right detail panel worked without console errors.
+- Found public API region-name mojibake in `hotspot_region` values.
+- Added canonical public region-name mapping for `KR-*` region codes.
+- Public signal/dashboard/alert/report APIs now prefer clean Korean names such as `전남`, `경북`, and `제주` when the region code is known.
+- Added regression coverage for canonical region names in public API payloads.
+- Local API tests, smoke suite, and whitespace checks passed.
+
 ## Latest Update - 2026-07-06 Session 89
 
 See `docs/AI_SESSION_89_READINESS_COUNT_CONSISTENCY.md`.

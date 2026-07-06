@@ -61,3 +61,6 @@
 - `docs/AI_SESSION_89_READINESS_COUNT_CONSISTENCY.md`
   - 2026-07-06 readiness count consistency.
   - Covers the shared frontend public-horizon predicate and top explanation/statistics count fixes.
+- `docs/AI_SESSION_90_BETA_QA_REGION_ENCODING.md`
+  - 2026-07-06 beta QA region encoding.
+  - Covers live beta user-flow checks and public API region-name mojibake sanitization.

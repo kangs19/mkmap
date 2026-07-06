@@ -14,6 +14,33 @@ from app.timezone import kst_today
 
 router = APIRouter(tags=["signals"])
 
+PUBLIC_REGION_NAMES = {
+    "KR-11": "서울",
+    "KR-26": "부산",
+    "KR-27": "대구",
+    "KR-28": "인천",
+    "KR-29": "광주",
+    "KR-30": "대전",
+    "KR-31": "울산",
+    "KR-36": "세종",
+    "KR-41": "경기",
+    "KR-42": "강원",
+    "KR-43": "충북",
+    "KR-44": "충남",
+    "KR-45": "전북",
+    "KR-46": "전남",
+    "KR-47": "경북",
+    "KR-48": "경남",
+    "KR-49": "제주",
+}
+
+
+def _public_region_name(region_code: str | None, region_name: str | None) -> str | None:
+    """Prefer canonical public region names when old DB rows contain mojibake."""
+    if region_code in PUBLIC_REGION_NAMES:
+        return PUBLIC_REGION_NAMES[region_code]
+    return region_name
+
 
 @router.get("/api/v1/items/{item_code}/regions/{region_code}/signal",
             response_model=RegionSignalResponse)
@@ -44,7 +71,7 @@ async def get_region_signal(
     return RegionSignalResponse(
         item_code=signal.item_code,
         region_code=signal.region_code,
-        region_name=signal.region_name,
+        region_name=_public_region_name(signal.region_code, signal.region_name),
         risk_score=signal.risk_score,
         risk_level=signal.risk_level,
         supply_shock=signal.supply_shock,
@@ -78,7 +105,7 @@ async def get_item_signals(
         "signals": [
             {
                 "region_code": s.region_code,
-                "region_name": s.region_name,
+                "region_name": _public_region_name(s.region_code, s.region_name),
                 "risk_score": s.risk_score,
                 "risk_level": s.risk_level,
                 "supply_shock": s.supply_shock,
@@ -126,7 +153,7 @@ async def get_today_signals(db: AsyncSession = Depends(get_db)):
             item_max_risk[s.item_code] = {
                 "risk_score": s.risk_score,
                 "risk_level": s.risk_level,
-                "hotspot_region": s.region_name,
+                "hotspot_region": _public_region_name(s.region_code, s.region_name),
             }
 
     items_out = []
@@ -305,7 +332,7 @@ def _dashboard_card(
             "score": hotspot.risk_score if hotspot else None,
             "level": hotspot.risk_level if hotspot else None,
             "price_effect": hotspot.price_effect if hotspot else None,
-            "hotspot_region": hotspot.region_name if hotspot else None,
+            "hotspot_region": _public_region_name(hotspot.region_code, hotspot.region_name) if hotspot else None,
             "summary": hotspot.summary_text if hotspot else None,
         },
         "price": {
@@ -366,7 +393,7 @@ def _high_risk_alert(
         "item_code": signal.item_code,
         "item_name": item.item_name if item else ITEM_NAMES.get(signal.item_code, signal.item_code),
         "region_code": signal.region_code,
-        "region_name": signal.region_name,
+        "region_name": _public_region_name(signal.region_code, signal.region_name),
         "severity": severity,
         "triggered_rules": triggered_rules,
         "risk": {
@@ -429,7 +456,7 @@ async def get_today_report(db: AsyncSession = Depends(get_db)):
     for s in signals:
         if s.item_code not in item_hotspot or s.risk_score > item_hotspot[s.item_code]["risk_score"]:
             item_hotspot[s.item_code] = {
-                "region_name": s.region_name,
+                "region_name": _public_region_name(s.region_code, s.region_name),
                 "risk_score": s.risk_score,
                 "risk_level": s.risk_level,
                 "summary": s.summary_text,
