@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 108
+
+See `docs/AI_SESSION_108_LEGAL_PAGES_AND_SIGNUP_CONSENT.md`.
+
+Latest result:
+
+- Added launch-draft legal pages: `/privacy` and `/terms`.
+- Added legal links to the right default panel and auth modal.
+- Signup now requires agreement to terms and privacy policy on both frontend and backend.
+- Added legal URLs to sitemap.
+- Local smoke suite and backend API tests passed.
+
 ## Latest Update - 2026-07-06 Session 107
 
 See `docs/AI_SESSION_107_TREND_REASON_COMPACT_DETAILS.md`.

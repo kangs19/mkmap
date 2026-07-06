@@ -147,6 +147,7 @@ class RegisterIn(BaseModel):
     region: str | None = None
     phone: str | None = None       # 휴대폰 인증 시
     phone_token: str | None = None # 휴대폰 인증완료 토큰
+    terms_accepted: bool = False
 
     @field_validator("email")
     @classmethod
@@ -173,6 +174,11 @@ class PhoneVerifyIn(BaseModel):
 # ── 엔드포인트 ───────────────────────────────────────────
 @router.post("/register")
 async def register(body: RegisterIn, db: AsyncSession = Depends(get_db)):
+    if not body.terms_accepted:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "terms_required", "message": "이용약관과 개인정보처리방침에 동의해 주세요."},
+        )
     if body.role not in ("general", "farmer", "trader"):
         raise HTTPException(status_code=400, detail={"error": "invalid_role"})
     dup = (await db.execute(

@@ -70,6 +70,7 @@ async def test_auth_error_messages_are_public_korean(client):
         "password": "12345678",
         "nickname": "농가QA",
         "role": "farmer",
+        "terms_accepted": True,
     })
     assert farmer.status_code == 400
     assert farmer.json()["detail"]["error"] == "phone_required"

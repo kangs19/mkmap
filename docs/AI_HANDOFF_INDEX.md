@@ -115,3 +115,6 @@
 - `docs/AI_SESSION_107_TREND_REASON_COMPACT_DETAILS.md`
   - 2026-07-06 trend reason compact details.
   - Covers compact trend group judgments and collapsible detailed reasons in the selected-region forecast tab.
+- `docs/AI_SESSION_108_LEGAL_PAGES_AND_SIGNUP_CONSENT.md`
+  - 2026-07-06 legal pages and signup consent.
+  - Covers `/privacy`, `/terms`, sitemap links, frontend legal links, and signup consent validation.

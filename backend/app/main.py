@@ -291,6 +291,32 @@ async def forecast_explanation():
     return JSONResponse({"error": "forecast explanation not found"}, status_code=404)
 
 
+@app.get("/privacy")
+@app.get("/privacy.html")
+async def privacy_policy():
+    candidates = [
+        Path(__file__).parent.parent.parent / "legal" / "privacy.html",
+        Path("/app/legal/privacy.html"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="text/html")
+    return JSONResponse({"error": "privacy policy not found"}, status_code=404)
+
+
+@app.get("/terms")
+@app.get("/terms.html")
+async def terms_of_service():
+    candidates = [
+        Path(__file__).parent.parent.parent / "legal" / "terms.html",
+        Path("/app/legal/terms.html"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return FileResponse(str(p), media_type="text/html")
+    return JSONResponse({"error": "terms not found"}, status_code=404)
+
+
 @app.get("/")
 async def root():
     p = Path(__file__).parent.parent.parent / "index.html"
@@ -311,6 +337,8 @@ async def sitemap():
         f"<url><loc>{base}/</loc><lastmod>{today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>",
         f"<url><loc>{base}/performance</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>",
         f"<url><loc>{base}/forecast-explanation</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>",
+        f"<url><loc>{base}/privacy</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>",
+        f"<url><loc>{base}/terms</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>",
     ]
     for code in _SITEMAP_ITEMS:
         urls.append(
