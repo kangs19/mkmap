@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 110
+
+See `docs/AI_SESSION_110_PROMOTION_READY_UI_AUDIT.md`.
+
+Latest result:
+
+- Raised QA from prototype/MVP to promotion-ready public-user checks.
+- Localized Leaflet and Chart.js runtime assets under `/static/vendor/` so the map does not depend on `unpkg.com` or `jsdelivr.net`.
+- Removed Google Fonts runtime dependency and added Korean system font fallbacks.
+- Removed visible disabled beta controls from the launch map filter.
+- Replaced several browser `alert()` messages with in-app toast notifications.
+- Added `scripts/audit_frontend_launch_ui.py` and included it in the smoke suite.
+
 ## Latest Update - 2026-07-06 Session 109
 
 See `docs/AI_SESSION_109_LAUNCH_READINESS_CHECKER.md`.

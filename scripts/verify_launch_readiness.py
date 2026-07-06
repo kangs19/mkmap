@@ -96,18 +96,29 @@ def check_home_shell(base_url: str, timeout_seconds: int) -> dict[str, Any]:
         "terms_link": "/terms",
         "signup_terms_payload": "terms_accepted",
         "signup_consent": "am-legal-consent",
+        "local_leaflet_css": "/static/vendor/leaflet/leaflet.css",
+        "local_leaflet_js": "/static/vendor/leaflet/leaflet.js",
+        "local_chart_js": "/static/vendor/chartjs/chart.umd.min.js",
         "hover_fallback": "bindLayerHoverTooltip",
         "trend_group_judgment": "trendGroupJudgment",
         "korean_title": "팜맵",
     }
     missing = [name for name, fragment in required_fragments.items() if fragment not in body]
+    external_runtime_dependencies = [
+        fragment for fragment in (
+            "https://unpkg.com/leaflet",
+            "https://cdn.jsdelivr.net/npm/chart.js",
+            "https://fonts.googleapis.com",
+        )
+        if fragment in body
+    ]
     return make_check(
         "home_shell",
         "/",
-        not missing,
-        "ok" if not missing else "missing_fragment",
+        not missing and not external_runtime_dependencies,
+        "ok" if not missing and not external_runtime_dependencies else "external_dependency" if external_runtime_dependencies else "missing_fragment",
         http_status=response["http_status"],
-        details={"missing": missing},
+        details={"missing": missing, "external_runtime_dependencies": external_runtime_dependencies},
     )
 
 
@@ -143,6 +154,10 @@ def check_sitemap_legal_urls(base_url: str, timeout_seconds: int) -> dict[str, A
 
 def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, Any]:
     required = [
+        ("leaflet_css", "static/vendor/leaflet/leaflet.css", 10_000, ".leaflet-container"),
+        ("leaflet_js", "static/vendor/leaflet/leaflet.js", 100_000, "L.Map"),
+        ("chart_js", "static/vendor/chartjs/chart.umd.min.js", 100_000, "Chart"),
+        ("leaflet_marker", "static/vendor/leaflet/images/marker-icon.png", 1_000, None),
         ("provinces", "static/skorea_provinces.json", 100_000, '"FeatureCollection"'),
         ("municipalities", "static/skorea_municipalities_simple.json", 100_000, '"FeatureCollection"'),
         ("city_agri_data", "static/city_agri_data.json", 1_000, "cabbage"),
@@ -151,7 +166,10 @@ def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, An
     ok = True
     for label, path, min_bytes, fragment in required:
         response = fetch_text(base_url, path, timeout_seconds)
-        item_ok = response["ok"] and len(response.get("body", "")) >= min_bytes and fragment in response.get("body", "")
+        byte_count = response.get("body_bytes", len(response.get("body", "")))
+        item_ok = response["ok"] and byte_count >= min_bytes
+        if fragment:
+            item_ok = item_ok and fragment in response.get("body", "")
         ok = ok and item_ok
         details.append({
             "label": label,
@@ -159,7 +177,7 @@ def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, An
             "ok": item_ok,
             "status": response["status"],
             "http_status": response.get("http_status"),
-            "bytes": len(response.get("body", "")),
+            "bytes": byte_count,
         })
     return make_check(
         "map_static_assets",
@@ -376,12 +394,28 @@ def fetch(
 
     try:
         with urlopen(request, timeout=timeout_seconds) as response:
-            body = response.read().decode("utf-8", errors="replace")
-            return {"ok": True, "status": "ok", "http_status": response.status, "body": body, "url": url}
+            raw_body = response.read()
+            body = raw_body.decode("utf-8", errors="replace")
+            return {
+                "ok": True,
+                "status": "ok",
+                "http_status": response.status,
+                "body": body,
+                "body_bytes": len(raw_body),
+                "url": url,
+            }
     except HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
+        raw_body = exc.read()
+        body = raw_body.decode("utf-8", errors="replace")
         if exc.code in expected:
-            return {"ok": True, "status": "ok", "http_status": exc.code, "body": body, "url": url}
+            return {
+                "ok": True,
+                "status": "ok",
+                "http_status": exc.code,
+                "body": body,
+                "body_bytes": len(raw_body),
+                "url": url,
+            }
         return {"ok": False, "status": f"http_{exc.code}", "http_status": exc.code, "body_preview": body[:500], "url": url}
     except URLError as exc:
         return {"ok": False, "status": "url_error", "error": str(exc.reason), "url": url}

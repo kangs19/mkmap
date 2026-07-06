@@ -13,6 +13,7 @@ FAST_CHECKS = [
     ("external mapping validation", ["scripts/validate_external_mappings.py"]),
     ("text encoding health", ["scripts/check_text_encoding_health.py"]),
     ("API service catalog smoke", ["scripts/smoke_api_services.py"]),
+    ("frontend launch UI audit", ["scripts/audit_frontend_launch_ui.py"]),
     ("price model smoke", ["scripts/smoke_price_model_pipeline.py"]),
 ]
 
@@ -55,6 +56,7 @@ PY_COMPILE_TARGETS = [
     "scripts/predict_price_horizons.py",
     "scripts/explain_price_horizon_predictions.py",
     "scripts/run_live_api_diagnostics.py",
+    "scripts/audit_frontend_launch_ui.py",
     "scripts/verify_public_api_outputs.py",
     "scripts/verify_launch_readiness.py",
     "scripts/test_live_at_market_settlement.py",

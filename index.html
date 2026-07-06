@@ -4,10 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MK-MAP 농산물 가격 예측</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css"/>
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#f2f4ef;--surface:#ffffff;--card:#f7f9f4;--border:#d8e0cc;
@@ -17,7 +16,7 @@
   --header:#ffffff;--shadow:0 1px 4px rgba(40,60,20,.1);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;background:var(--bg);color:var(--text);}
 
 /* ── FARM MAP HEADER ── */
 #fm-header{
@@ -105,7 +104,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 /* ── MAP ── */
 #map{flex:1;min-width:0;}
 .leaflet-container{background:#e8e4dc;}
-.leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR',sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
+.leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
 .fm-hover-leaflet-tooltip{font-size:12px!important;line-height:1.55!important;max-width:300px!important;white-space:normal!important;}
 .fm-native-tip-title{font-weight:900;color:#17210f;margin-bottom:3px;}
 .fm-native-tip-line{font-weight:700;color:#4d5c40;}
@@ -503,10 +502,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'production')"><input type="checkbox" onchange="handleLayer(this,'production')"> <span>재배 면적</span></div>
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'price')"><input type="checkbox" checked onchange="handleLayer(this,'price')"> <span>가격 예측</span></div>
         <div class="fm-layer-item active" onclick="toggleLayerRow(event,'weather')"><input type="checkbox" checked onchange="handleLayer(this,'weather')"> <span>기상 정보</span></div>
-        <div class="fm-layer-item disabled" title="현장 제보 기반 병해충 지도는 베타 준비 중입니다"><input type="checkbox" disabled> <span>병해충 위험</span><em class="fm-beta-tag">BETA</em></div>
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'farmmap')"><input type="checkbox" onchange="handleLayer(this,'farmmap')"> <span>팜맵 농지분류</span></div>
         <div class="fm-layer-item" onclick="toggleLayerRow(event,'market')"><input type="checkbox" onchange="handleLayer(this,'market')"> <span>도매시장 위치</span></div>
-        <div class="fm-layer-item disabled" title="토양 API/필지 데이터 연동 전까지 지도 표시는 비활성화합니다"><input type="checkbox" disabled> <span>토양 정보</span><em class="fm-beta-tag">BETA</em></div>
       </div>
       <div style="font-size:10px;color:var(--text);line-height:1.45;margin-top:7px">가격 색상을 기본으로 봅니다. 기상 정보는 지도 위 배지로 겹쳐 표시되며, 비·고온·저온 신호가 있으면 수확과 물류 판단에 함께 봅니다.</div>
       <div id="farmmap-layer-note" style="display:none;font-size:10px;color:var(--muted);line-height:1.55;margin-top:7px;background:#f7fbfa;border:1px solid var(--border);border-radius:8px;padding:8px 9px">
@@ -2892,15 +2889,15 @@ async function fetchComments(){
 }
 
 async function cmLike(id){
-  if(!cmUser){alert("로그인이 필요합니다.");return;}
+  if(!cmUser){showToast("로그인이 필요합니다.");return;}
   const r=await fetch(`/api/v1/community/comments/${id}/like`,{method:"POST",headers:cmHeaders(false)});
   if(r.ok) fetchComments();
 }
 async function cmReport(id){
-  if(!cmUser){alert("로그인이 필요합니다.");return;}
+  if(!cmUser){showToast("로그인이 필요합니다.");return;}
   if(!confirm("이 댓글을 신고하시겠습니까?"))return;
   await fetch(`/api/v1/community/comments/${id}/report`,{method:"POST",headers:cmHeaders(false)});
-  alert("신고가 접수되었습니다.");
+  showToast("신고가 접수되었습니다.");
 }
 async function cmDelete(id){
   if(!confirm("댓글을 삭제하시겠습니까?"))return;
@@ -2984,8 +2981,8 @@ async function submitFieldReport(){
   };
   const r=await fetch("/api/v1/community/field-reports",{method:"POST",headers:cmHeaders(true),body:JSON.stringify(body)});
   const d=await r.json();
-  if(r.ok){closeFieldReport();alert("제보해 주셔서 감사합니다!");fetchFieldSummary();}
-  else alert(d.detail?.message||"등록에 실패했습니다.");
+  if(r.ok){closeFieldReport();showToast("제보해 주셔서 감사합니다.");fetchFieldSummary();}
+  else showToast(d.detail?.message||"등록에 실패했습니다.");
 }
 
 async function fetchFieldSummary(){

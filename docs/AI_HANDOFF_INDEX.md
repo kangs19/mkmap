@@ -121,3 +121,6 @@
 - `docs/AI_SESSION_109_LAUNCH_READINESS_CHECKER.md`
   - 2026-07-06 launch readiness checker.
   - Covers public production checks for health, app shell, legal pages, auth gates, weather, signals, dashboard cards, and item forecast APIs.
+- `docs/AI_SESSION_110_PROMOTION_READY_UI_AUDIT.md`
+  - 2026-07-06 promotion-ready UI audit.
+  - Covers local frontend vendor assets, disabled beta control removal, onclick/duplicate-id audit, and launch UI smoke coverage.
