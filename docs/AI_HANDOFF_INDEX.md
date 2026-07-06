@@ -134,3 +134,6 @@
 - `docs/AI_SESSION_113_PRICE_LAYER_FARMMAP_PRIORITY.md`
   - 2026-07-06 price layer FarmMap priority.
   - Covers the map style priority fix so `가격 예측` crop regions remain visible when the FarmMap overlay is enabled.
+- `docs/AI_SESSION_114_ROBUST_MAP_HOVER_POPUP.md`
+  - 2026-07-06 robust map hover popup.
+  - Covers delegated document-level hover fallback for Leaflet SVG regions and marker pins, plus launch-readiness coverage.

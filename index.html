@@ -104,6 +104,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic'
 /* ── MAP ── */
 #map{flex:1;min-width:0;}
 .leaflet-container{background:#e8e4dc;}
+.leaflet-interactive{pointer-events:auto!important;}
+.leaflet-marker-icon{pointer-events:auto!important;}
 .leaflet-tooltip{background:white!important;border:1px solid var(--border)!important;color:var(--text)!important;border-radius:8px!important;font-size:11px!important;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif!important;box-shadow:0 4px 16px rgba(40,60,20,.15)!important;padding:8px 11px!important;}
 .fm-hover-leaflet-tooltip{font-size:12px!important;line-height:1.55!important;max-width:300px!important;white-space:normal!important;}
 .fm-native-tip-title{font-weight:900;color:#17210f;margin-bottom:3px;}
@@ -4126,6 +4128,8 @@ function bindPathDomEvents(layer,handlers){
     if(handlers.title){
       el.setAttribute("title",handlers.title);
       el.setAttribute("aria-label",handlers.title);
+      el.setAttribute("data-tooltip",handlers.title);
+      el.setAttribute("data-fm-tooltip-html",mapFallbackTooltipHtml(handlers.title));
       if(!el.querySelector?.("title")){
         const titleEl=document.createElementNS("http://www.w3.org/2000/svg","title");
         titleEl.textContent=handlers.title;
@@ -4161,6 +4165,7 @@ function bindPathDomEvents(layer,handlers){
   setTimeout(()=>bind(),0);
 }
 let __fmHoverPathEl=null;
+let __fmDelegatedHoverEl=null;
 function findHoverTargetAtPoint(x,y){
   const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
   for(const raw of els){
@@ -4218,21 +4223,38 @@ function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
   if(!mapEl||mapEl.dataset.fmHoverFallback==="1") return;
   mapEl.dataset.fmHoverFallback="1";
-  const handleHoverMove=e=>{
-    if(!mapEl.contains(e.target)) return;
-    const path=findHoverTargetAtPoint(e.clientX,e.clientY);
-    const handlers=path?(FM_TOOLTIP_HANDLERS.get(path)||path.__fmTooltipHandlers||fallbackTooltipHandlersFor(path)):null;
-    if(path&&handlers){
-      if(__fmHoverPathEl!==path){
-        const prevHandlers=__fmHoverPathEl?(FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers):null;
+  const forceShowFromElement=(path,e)=>{
+    const handlers=path?(FM_TOOLTIP_HANDLERS.get(path)||path.__fmTooltipHandlers):null;
+    if(handlers){
+      if(__fmDelegatedHoverEl!==path){
+        const prevHandlers=__fmDelegatedHoverEl?(FM_TOOLTIP_HANDLERS.get(__fmDelegatedHoverEl)||__fmDelegatedHoverEl.__fmTooltipHandlers):null;
         prevHandlers?.leave?.(e);
-        __fmHoverPathEl=path;
+        __fmDelegatedHoverEl=path;
         handlers.enter?.(e);
       }
       handlers.move?.(e);
-    }else if(__fmHoverPathEl){
-      (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers||fallbackTooltipHandlersFor(__fmHoverPathEl))?.leave?.(e);
-      __fmHoverPathEl=null;
+      return true;
+    }
+    const html=path?.getAttribute?.("data-fm-tooltip-html");
+    const title=mapFallbackTitle(path);
+    if(html||title){
+      __fmDelegatedHoverEl=path;
+      showMapTooltip(html||mapFallbackTooltipHtml(title),e);
+      return true;
+    }
+    return false;
+  };
+  const handleHoverMove=e=>{
+    if(!mapEl.contains(e.target)&&!e.target?.closest?.("#map")) return;
+    const path=findHoverTargetAtPoint(e.clientX,e.clientY);
+    if(path&&forceShowFromElement(path,e)){
+      __fmHoverPathEl=path;
+    }else if(__fmHoverPathEl||__fmDelegatedHoverEl){
+      if(__fmHoverPathEl){
+        (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers||fallbackTooltipHandlersFor(__fmHoverPathEl))?.leave?.(e);
+      }
+      __fmHoverPathEl=null;__fmDelegatedHoverEl=null;
+      hideMapTooltip();
     }
   };
   ["mousemove","pointermove","mouseover","pointerover"].forEach(type=>{
@@ -4242,8 +4264,17 @@ function setupMapHoverFallback(){
   });
   mapEl.addEventListener("mouseleave",e=>{
     if(__fmHoverPathEl) (FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)||__fmHoverPathEl.__fmTooltipHandlers||fallbackTooltipHandlersFor(__fmHoverPathEl))?.leave?.(e);
-    __fmHoverPathEl=null;
-  },{passive:true});
+    __fmHoverPathEl=null;__fmDelegatedHoverEl=null;
+    hideMapTooltip();
+    },{passive:true});
+  document.addEventListener("mouseover",e=>{
+    const path=e.target?.closest?.("#map .leaflet-marker-icon,#map .leaflet-interactive");
+    if(path) forceShowFromElement(path,e);
+  },{capture:true,passive:true});
+  document.addEventListener("mousemove",e=>{
+    const path=e.target?.closest?.("#map .leaflet-marker-icon,#map .leaflet-interactive");
+    if(path) forceShowFromElement(path,e);
+  },{capture:true,passive:true});
 }
 function showMapTooltip(html, e){
   const tip=document.getElementById('map-tooltip');

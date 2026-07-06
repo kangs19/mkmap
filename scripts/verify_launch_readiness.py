@@ -101,6 +101,7 @@ def check_home_shell(base_url: str, timeout_seconds: int) -> dict[str, Any]:
         "local_leaflet_js": "/static/vendor/leaflet/leaflet.js",
         "local_chart_js": "/static/vendor/chartjs/chart.umd.min.js",
         "hover_fallback": "bindLayerHoverTooltip",
+        "delegated_hover_fallback": "data-fm-tooltip-html",
         "trend_group_judgment": "trendGroupJudgment",
         "korean_title": "팜맵",
     }

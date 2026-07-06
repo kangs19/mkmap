@@ -1,5 +1,18 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 114
+
+See `docs/AI_SESSION_114_ROBUST_MAP_HOVER_POPUP.md`.
+
+Latest result:
+
+- Responded to repeated user report that map hover popups still did not appear.
+- Added a stronger delegated document-level hover fallback for Leaflet SVG regions and marker pins.
+- SVG paths now carry `data-fm-tooltip-html` fallback content.
+- CSS now forces pointer events on Leaflet interactive paths and marker icons.
+- Local browser QA confirmed `#map-tooltip` appears when hovering both a province SVG region and a crop pin.
+- Added the delegated hover fallback fragment to launch readiness checks.
+
 ## Latest Update - 2026-07-06 Session 113
 
 See `docs/AI_SESSION_113_PRICE_LAYER_FARMMAP_PRIORITY.md`.
