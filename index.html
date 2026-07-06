@@ -2287,7 +2287,7 @@ async function fetchAndRenderTrend(itemCode, days){
   }
 
   if(reasons.length){
-    const groups=(data.reason_groups&&data.reason_groups.length?data.reason_groups.map(g=>({
+    const rawGroups=(data.reason_groups&&data.reason_groups.length?data.reason_groups.map(g=>({
       key:g.direction||g.key||"neutral",
       title:g.title||"",
       hint:g.hint||"",
@@ -2297,27 +2297,38 @@ async function fetchAndRenderTrend(itemCode, days){
       {key:"down",title:"하락 압력",hint:"값을 낮출 수 있는 요인"},
       {key:"neutral",title:"확인할 변수",hint:"방향보다 점검이 필요한 요인"},
     ].map(g=>({...g,items:reasons.filter(r=>(r.direction||"neutral")===g.key)}))).filter(g=>g.items.length);
+    const groups=compactTrendGroups(rawGroups);
     html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
     html+=groups.map(g=>{
       const col=dirColors[g.key]||"#6a1e9a";
       const bg=dirBg[g.key]||"#f5f0ff";
       return`<div style="background:${bg};border:1px solid ${col}22;border-radius:8px;padding:9px 11px">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px">
-          <span style="font-size:12px;font-weight:900;color:${col}">${g.title}</span>
-          <span style="font-size:10px;color:#6a7a5a;font-weight:700">${g.hint}</span>
+          <span style="font-size:13px;font-weight:900;color:${col}">${trendDirectionIcon(g.key)} ${g.title} <span style="font-size:11px;color:${col};opacity:.75">요약 ${g.items.length}개</span></span>
+          <span style="font-size:11px;color:#6a7a5a;font-weight:700">${g.hint}</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-bottom:7px">
+          ${g.items.map(r=>`<div style="display:flex;align-items:center;gap:6px;background:white;border:1px solid ${col}18;border-radius:8px;padding:7px 8px;min-height:42px">
+            <span style="font-size:17px;line-height:1">${trendReasonIcon(r)}</span>
+            <div style="min-width:0">
+              <div style="font-size:12px;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.label||"요인"}</div>
+              <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${trendReasonShortText(r)}</div>
+            </div>
+          </div>`).join("")}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
         ${g.items.map(r=>{
       const col=dirColors[r.direction]||"#6a1e9a";
       const icon=r.direction==="up"?"↑":r.direction==="down"?"↓":"→";
       const body=r.description||r.message||"";
-      return`<div style="background:white;border:1px solid ${col}18;border-radius:7px;padding:8px 9px">
+      return`<div style="background:white;border:1px solid ${col}18;border-radius:7px;padding:7px 9px">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap">
-          <span style="font-size:15px;font-weight:800;color:${col}">${icon}</span>
-          <span style="font-size:13px;font-weight:800;color:var(--text)">${r.label||""}</span>
-          ${r.direction_label?`<span style="font-size:11px;font-weight:700;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
+          <span style="font-size:15px;font-weight:900;color:${col}">${icon}</span>
+          <span style="font-size:13px;font-weight:900;color:var(--text)">${trendReasonIcon(r)} ${r.label||""}</span>
+          ${r.count>1?`<span style="font-size:10px;font-weight:900;color:${col};background:${bg};border-radius:10px;padding:2px 6px">${r.count}개 묶음</span>`:""}
+          ${r.direction_label?`<span style="font-size:11px;font-weight:800;color:${col};margin-left:auto">${r.direction_label}</span>`:""}
         </div>
-        <div style="font-size:12px;color:var(--text);line-height:1.65">${body}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.6">${body}</div>
       </div>`;
         }).join("")}
         </div>
@@ -2334,6 +2345,60 @@ async function fetchAndRenderTrend(itemCode, days){
   }
 
   el.innerHTML=html||`<div style="font-size:10px;color:var(--muted)">분석 정보 없음</div>`;
+}
+
+function trendDirectionIcon(key){
+  return key==="up"?"▲":key==="down"?"▼":"●";
+}
+function trendReasonCategory(reason={}){
+  const text=`${reason.label||""} ${reason.description||reason.message||""}`.toLowerCase();
+  if(/기상|날씨|폭염|한파|비|강수|태풍|재해|저온|고온/.test(text)) return "weather";
+  if(/출하|수확|생육|작황|산지|물량|공급/.test(text)) return "supply";
+  if(/재고|창고|저장/.test(text)) return "stock";
+  if(/수입|중국|대체/.test(text)) return "import";
+  if(/도매|소매|가격|시세|시장|거래/.test(text)) return "market";
+  return "etc";
+}
+function trendReasonIcon(reason={}){
+  const icons={weather:"☁",supply:"🌱",stock:"📦",import:"↔",market:"₩",etc:"•"};
+  return icons[trendReasonCategory(reason)]||icons.etc;
+}
+function trendReasonShortText(reason={}){
+  const text=(reason.description||reason.message||"").replace(/\s+/g," ").trim();
+  if(!text) return reason.direction_label||"판단 요인";
+  return text.length>34?text.slice(0,34)+"...":text;
+}
+function trendReasonDedupKey(reason={}){
+  const label=(reason.label||"").replace(/\s+/g," ").trim();
+  const category=trendReasonCategory(reason);
+  const direction=reason.direction||"neutral";
+  return `${direction}|${category}|${label}`;
+}
+function mergeTrendReasons(items=[]){
+  const map=new Map();
+  items.forEach(item=>{
+    const key=trendReasonDedupKey(item);
+    const body=(item.description||item.message||"").replace(/\s+/g," ").trim();
+    if(!map.has(key)){
+      map.set(key,{...item,count:1,_bodies:body?[body]:[]});
+      return;
+    }
+    const prev=map.get(key);
+    prev.count+=1;
+    if(body&&!prev._bodies.includes(body)) prev._bodies.push(body);
+  });
+  return Array.from(map.values()).map(item=>{
+    const bodies=(item._bodies||[]).filter(Boolean);
+    const merged=bodies.slice(0,2).join(" ");
+    const extra=bodies.length>2?` 같은 성격의 신호 ${bodies.length-2}개를 더 묶었습니다.`:"";
+    const countNote=item.count>1?` 중복·유사 신호 ${item.count}개를 하나로 묶었습니다.`:"";
+    const description=(merged||item.description||item.message||"")+extra+countNote;
+    const { _bodies, ...rest }=item;
+    return {...rest,description};
+  }).sort((a,b)=>(b.count||1)-(a.count||1));
+}
+function compactTrendGroups(groups=[]){
+  return groups.map(g=>({...g,items:mergeTrendReasons(g.items||[])})).filter(g=>g.items.length);
 }
 
 function trendDecisionSummary({direction,prob,reasons,phaseLabel}){

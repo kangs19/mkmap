@@ -1430,3 +1430,25 @@ Production caution:
   - `rg` confirmed only one canonical risk function set remains.
 - Detailed handoff:
   - `docs/AI_SESSION_98_RISK_JUDGMENT_COPY.md`
+
+## Session 99 - Trend Signal Compaction (2026-07-06)
+
+- Cleaned `가격 예측 > 기간별 가격 동향 분석` in `index.html`.
+- Added a frontend compaction layer for repeated trend reasons:
+  - direction,
+  - category,
+  - label.
+- Similar or duplicate reasons are now merged into one item with an `n개 묶음` badge.
+- Added compact icon summaries before the detailed reason cards.
+- Category icons cover:
+  - weather/disaster,
+  - shipment/growth/supply,
+  - stock/storage,
+  - import/substitute supply,
+  - market/price.
+- This reduces the mechanical "상승 압력" list feeling, especially for cabbage-like cases with many same-direction signals.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_99_TREND_SIGNAL_COMPACTION.md`

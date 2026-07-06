@@ -88,3 +88,6 @@
 - `docs/AI_SESSION_98_RISK_JUDGMENT_COPY.md`
   - 2026-07-06 risk judgment copy cleanup.
   - Covers readable risk text, duplicate risk function cleanup, current-state judgment wording, and validation.
+- `docs/AI_SESSION_99_TREND_SIGNAL_COMPACTION.md`
+  - 2026-07-06 trend signal compaction.
+  - Covers repeated trend reason merging, icon summaries, grouped pressure signals, and validation.
