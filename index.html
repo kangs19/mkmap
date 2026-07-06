@@ -1045,6 +1045,7 @@ window.onload=async()=>{
     map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
     setTimeout(()=>map_.invalidateSize(),120);
     document.getElementById("loading").style.display="none";
+    drawProvinceFallbackMap("initial_price_summary");
   }catch(e){
     document.getElementById("loading").innerHTML=`<div style="text-align:center;padding:18px"><div style="font-size:28px;margin-bottom:10px">!</div><div style="font-size:14px;color:#1a2410;font-weight:900">지도를 여는 중 문제가 생겼습니다</div><div style="font-size:12px;color:#6a7a5a;margin-top:6px">${e.message||e}</div></div>`;
     return;
