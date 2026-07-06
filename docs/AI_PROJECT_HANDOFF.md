@@ -1389,3 +1389,26 @@ Production caution:
 
 - The 15 new metadata items are draft/model-candidate items, not public production-approved forecast items.
 - They have KAMIS price data, but KMA/KOSIS/FarmMap/Agromarket context still needs verification before public prediction confidence is acceptable.
+
+## Session 97 - Cultivation And Market Panel Cleanup (2026-07-06)
+
+- Cleaned the right-panel `재배·시장` tab in `index.html`.
+- Removed duplicate `rp-coverage-note` / `rp-neighbor-note` render blocks that repeatedly showed coverage caveats.
+- Added a judgment-first sentence above the market cards so the panel says how to interpret the selected region before showing numeric cards.
+- Kept the useful cards:
+  - national shipment rank,
+  - national share,
+  - province share,
+  - price influence judgment,
+  - same-province shipment ranking,
+  - monthly shipment concentration,
+  - basis market/current price.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Browser note:
+  - local page loaded through `http://127.0.0.1:8765`,
+  - current browser wrapper limited automated map/detail click verification,
+  - follow-up should manually or fully Playwright-check the detail panel after deploy.
+- Detailed handoff:
+  - `docs/AI_SESSION_97_MARKET_PANEL_CLEANUP.md`

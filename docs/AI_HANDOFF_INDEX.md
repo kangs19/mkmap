@@ -82,3 +82,6 @@
 - `docs/AI_SESSION_96_PRICE_LABEL_CONSISTENCY.md`
   - 2026-07-06 price label consistency.
   - Covers current-vs-forecast labeling across map pins, SVG path titles, and the right detail panel.
+- `docs/AI_SESSION_97_MARKET_PANEL_CLEANUP.md`
+  - 2026-07-06 cultivation and market panel cleanup.
+  - Covers duplicate right-panel render cleanup, judgment-first market copy, validation, and follow-up QA.
