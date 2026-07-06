@@ -1305,7 +1305,6 @@ window.onload=async()=>{
     map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
     syncAlwaysOnLayers();
     loadMarketLayer();
-    map_.on("zoomend moveend",()=>renderProvincePriceLabelOverlay());
     setTimeout(()=>map_.invalidateSize(),120);
     document.getElementById("loading").style.display="none";
   }catch(e){
@@ -4132,43 +4131,6 @@ function provinceDatumForSido(sido,ents){
   };
 }
 
-function cropEntriesForSidoCode(sido){
-  const itemData=CITY_DATA[curItem]&&Object.keys(CITY_DATA[curItem]).length?CITY_DATA[curItem]:(CITY_DATA.cabbage||{});
-  return Object.entries(itemData).filter(([,d])=>d?.province_code===sido&&isActiveCropCity(d));
-}
-
-function renderProvincePriceLabelOverlay(){
-  const old=document.getElementById("fm-price-label-overlay");
-  if(old) old.remove();
-  if(!map_||viewLevel!=="province"||!activeLayers.has("price")) return;
-  const mapEl=document.getElementById("map");
-  if(!mapEl) return;
-  const overlay=document.createElement("div");
-  overlay.id="fm-price-label-overlay";
-  overlay.style.cssText="position:absolute;inset:0;z-index:675;pointer-events:none;";
-  Object.entries(SIDO_CENTER).forEach(([sido,latlng])=>{
-    const ents=cropEntriesForSidoCode(sido);
-    if(!ents.length) return;
-    const d=provinceDatumForSido(sido,ents);
-    if(!d?.avg_price) return;
-    const p=map_.latLngToContainerPoint(latlng);
-    const name=SIDO_SHORT[sido]||sido;
-    const wrap=document.createElement("div");
-    wrap.style.cssText=`position:absolute;left:${p.x}px;top:${p.y}px;transform:translate(-50%,-50%);pointer-events:auto;`;
-    wrap.innerHTML=makePinHtml(name,d,sido);
-    const pin=wrap.querySelector(".region-pin");
-    const html=makeHoverCard(`${name} (${ents.length}개 시·군)`,d,sido);
-    if(pin){
-      pin.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
-      pin.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
-      pin.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
-      pin.addEventListener("click",e=>{hideMapTooltip();zoomProvinceByCode(sido);},{passive:true});
-    }
-    overlay.appendChild(wrap);
-  });
-  mapEl.appendChild(overlay);
-}
-
 function drawProvinceFallbackMap(reason=""){
   if(!map_||!window.L) return;
   if(provLayer)map_.removeLayer(provLayer);
@@ -4339,7 +4301,7 @@ function drawProvinces(){
   if(activeLayers.has("price")){
     Object.entries(SIDO_CENTER).forEach(([sido,center])=>{
       if(pinnedSidos.has(sido)) return;
-      const ents=cropEntriesForSido(cd,sido);
+      const ents=Object.entries(cd).filter(([,d])=>d?.province_code===sido&&isActiveCropCity(d));
       if(!ents.length||!isActiveCropProvince(ents)) return;
       try{
         const pinD=provinceDatumForSido(sido,ents);
@@ -4357,8 +4319,6 @@ function drawProvinces(){
       }catch(e){console.warn("[map] fallback province pin skipped",sido,e);}
     });
   }
-  if(provPinLayer) provPinLayer.clearLayers();
-  renderProvincePriceLabelOverlay();
   document.getElementById("fm-static-map-overlay")?.remove();
   document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
 }
