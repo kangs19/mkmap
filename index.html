@@ -1021,13 +1021,15 @@ function provinceStaticDatum(sido){
   };
   return {ents,rp,d};
 }
-function geoFeatureToSvgPath(feature){
-  if(!map_||!feature?.geometry) return "";
+function geoFeatureToSvgPath(feature,width,height){
+  if(!feature?.geometry) return "";
   const convertRing=(ring)=>{
     if(!Array.isArray(ring)||!ring.length) return "";
     return ring.map((coord,idx)=>{
-      const pt=map_.latLngToContainerPoint([coord[1],coord[0]]);
-      return `${idx?"L":"M"}${Math.round(pt.x*10)/10},${Math.round(pt.y*10)/10}`;
+      const pct=staticMapPoint(coord[1],coord[0]);
+      const x=(pct.x/100)*(width||1);
+      const y=(pct.y/100)*(height||1);
+      return `${idx?"L":"M"}${Math.round(x*10)/10},${Math.round(y*10)/10}`;
     }).join(" ")+" Z";
   };
   const g=feature.geometry;
@@ -1051,12 +1053,14 @@ function renderStaticProvinceShapeOverlay(geo,reason=""){
     svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;";
     const labels=document.createElement("div");
     labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
+    const width=mapEl.clientWidth||1;
+    const height=mapEl.clientHeight||1;
     let rendered=0;
     geo.features.forEach(f=>{
       try{
         const sido=getSido(f);
         if(!sido) return;
-        const pathD=geoFeatureToSvgPath(f);
+        const pathD=geoFeatureToSvgPath(f,width,height);
         if(!pathD) return;
         const {ents,d}=provinceStaticDatum(sido);
         const name=SIDO_SHORT[sido]||sido;
@@ -1082,7 +1086,8 @@ function renderStaticProvinceShapeOverlay(geo,reason=""){
         if(active||price){
           const center=SIDO_CENTER[sido];
           if(center){
-            const pt=map_.latLngToContainerPoint(center);
+            const pctPt=staticMapPoint(center[0],center[1]);
+            const pt={x:(pctPt.x/100)*width,y:(pctPt.y/100)*height};
             const label=document.createElement("button");
             label.type="button";
             label.className="fm-static-shape-label";
