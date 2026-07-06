@@ -4214,7 +4214,7 @@ function renderDirectProvincePricePins(cd){
       }
       const name=SIDO_SHORT[sido]||sido;
       const title=`${name} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${pinD.avg_price?Math.round(pinD.avg_price).toLocaleString()+"원":"가격 수집 중"}`;
-      const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(name,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
+      const pin=L.marker(center,{icon:L.divIcon({html:makeMapPricePinHtml(name,pinD,sido),className:'',iconSize:[118,66],iconAnchor:[59,33]})});
       bindLayerHoverTooltip(pin,title);
       pin.addTo(provPinLayer);
       bindMarkerDomEvents(pin,{
@@ -4225,6 +4225,26 @@ function renderDirectProvincePricePins(cd){
       });
     }catch(e){console.warn("[map] direct province price pin skipped",sido,e);}
   });
+}
+
+function makeMapPricePinHtml(name,d,sidoKR){
+  const safe=String(name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const unit=(ITEMS[curItem]?.unit)||"";
+  const price=Number(d?.avg_price||0);
+  const change=Number(d?.price_vs_avg||0);
+  const periodScale=curPeriod>7?Math.min(3,Math.sqrt(curPeriod/7)):1;
+  const pct=Number.isFinite(change)?change*periodScale:0;
+  const isUp=pct>0;
+  const isDown=pct<0;
+  const pctText=Number.isFinite(pct)?`${pct>0?"+":""}${pct.toFixed(1)}% ${curPeriod>7?"예측":"vs 평균"}`:"예측 확인";
+  const pctColor=isUp?"#c02828":isDown?"#16851f":"#6a1e9a";
+  const priceText=price?`${Math.round(price).toLocaleString()}원`:"가격 수집 중";
+  const title=`${safe} 도매가 ${priceText}${unit?"/"+unit:""} ${pctText}`;
+  return `<div class="region-pin fm-map-price-pin" data-tooltip="${title}">
+    <div class="rp-name">${safe}</div>
+    <div class="rp-price">도 ${priceText}<span style="font-size:7px;color:#9aaa8a;font-weight:500">${unit?"/"+unit:""}</span></div>
+    <div class="rp-chg" style="color:${pctColor}">${pctText}</div>
+  </div>`;
 }
 
 function drawProvinces(){
