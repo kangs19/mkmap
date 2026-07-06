@@ -16,6 +16,7 @@ Date: 2026-07-06 KST
 - `/` contains the production app shell, legal links, signup consent checkbox, `terms_accepted` signup payload, map hover fallback code, and compact trend judgment code.
 - `/privacy` and `/terms` return HTTP 200 with readable Korean legal content.
 - `/sitemap.xml` includes `/privacy` and `/terms`.
+- `/static/skorea_provinces.json`, `/static/skorea_municipalities_simple.json`, and `/static/city_agri_data.json` are present and large enough to render the map.
 - `POST /api/v1/auth/register` without `terms_accepted` returns `terms_required` before account creation.
 - Invalid login returns HTTP 401 with Korean-facing message text.
 - `/api/v1/map/weather`, `/api/v1/signals/today`, `/api/v1/dashboard/cards`, and `/api/v1/items/cabbage/forecast` are populated.
@@ -57,3 +58,10 @@ python scripts\verify_launch_readiness.py --base-url https://mk-map.com --json-o
 - Do not add admin-only checks to this script. It is intentionally safe to run without secrets.
 - Keep data freshness checks light. Deep model quality belongs in model/backtest audit scripts.
 - If this script fails after deployment, treat it as a release gate before opening public signup.
+
+## Follow-Up Patch
+
+- A user reported that the map did not appear even though API checks passed.
+- Root risk: the app initialized the Leaflet map after public data fetches and rendered the full loading overlay until the large GeoJSON boundary files finished loading.
+- Local fix: initialize the base Leaflet map first, hide the full loading overlay immediately after base map creation, then load administrative boundaries in the background.
+- If boundary files fail, the app now keeps the base map visible and shows a toast instead of leaving the full loading overlay on screen.

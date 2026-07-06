@@ -7,10 +7,11 @@ See `docs/AI_SESSION_109_LAUNCH_READINESS_CHECKER.md`.
 Latest result:
 
 - Added a public launch-readiness checker: `scripts/verify_launch_readiness.py`.
-- It verifies production health, app shell, legal pages, sitemap, signup terms gate, Korean login error, weather, signals, dashboard cards, and item forecast APIs.
+- It verifies production health, app shell, legal pages, sitemap, map static files, signup terms gate, Korean login error, weather, signals, dashboard cards, and item forecast APIs.
 - Rebuilt `/privacy` and `/terms` HTML as readable Korean UTF-8 launch-draft documents.
 - Added the new script to the smoke-suite py_compile target list.
 - Initial production run passed 10/11 before the local legal-page rewrite; rerun after deployment should pass all checks.
+- Follow-up: map initialization now shows the base map before the large GeoJSON boundaries finish loading, so slow boundary downloads do not leave the user staring at a blocking loading overlay.
 
 ## Latest Update - 2026-07-06 Session 108
 

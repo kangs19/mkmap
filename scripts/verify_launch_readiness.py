@@ -36,6 +36,7 @@ def main() -> int:
         check_privacy_page(base_url, args.timeout_seconds),
         check_terms_page(base_url, args.timeout_seconds),
         check_sitemap_legal_urls(base_url, args.timeout_seconds),
+        check_map_static_assets(base_url, args.timeout_seconds),
         check_register_terms_gate(base_url, args.timeout_seconds),
         check_invalid_login_message(base_url, args.timeout_seconds),
         check_weather_map(base_url, args.timeout_seconds),
@@ -137,6 +138,35 @@ def check_sitemap_legal_urls(base_url: str, timeout_seconds: int) -> dict[str, A
         timeout_seconds,
         "sitemap_legal_urls",
         ["/privacy", "/terms"],
+    )
+
+
+def check_map_static_assets(base_url: str, timeout_seconds: int) -> dict[str, Any]:
+    required = [
+        ("provinces", "static/skorea_provinces.json", 100_000, '"FeatureCollection"'),
+        ("municipalities", "static/skorea_municipalities_simple.json", 100_000, '"FeatureCollection"'),
+        ("city_agri_data", "static/city_agri_data.json", 1_000, "cabbage"),
+    ]
+    details = []
+    ok = True
+    for label, path, min_bytes, fragment in required:
+        response = fetch_text(base_url, path, timeout_seconds)
+        item_ok = response["ok"] and len(response.get("body", "")) >= min_bytes and fragment in response.get("body", "")
+        ok = ok and item_ok
+        details.append({
+            "label": label,
+            "path": "/" + path,
+            "ok": item_ok,
+            "status": response["status"],
+            "http_status": response.get("http_status"),
+            "bytes": len(response.get("body", "")),
+        })
+    return make_check(
+        "map_static_assets",
+        "/static/{map files}",
+        ok,
+        "ok" if ok else "missing_static_asset",
+        details={"assets": details},
     )
 
 
