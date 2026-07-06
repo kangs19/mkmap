@@ -45,6 +45,11 @@ The original static overlay also depended on richer map helper functions. If any
 - Local FastAPI browser QA on `http://127.0.0.1:8108/` after the follow-up fix:
   - after a 9 second wait, the map still had 17 paths and 4 real pins,
   - hover popup displayed correctly on a visible price pin.
+- Follow-up after user clarified the desired map is the filled administrative-region map, not round fallback bubbles:
+  - the light province GeoJSON can contain mojibake in `properties.name`,
+  - `getSido()` now resolves province identity from the stable numeric province `code` first,
+  - name-based lookup remains only as a fallback,
+  - local browser QA confirmed the filled province paths render again with 17 interactive paths, 4 real price label pins, and no static round overlay.
 - `python scripts\run_smoke_suite.py --timeout-seconds 120` passed.
 
 ## Next Check
