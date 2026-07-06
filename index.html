@@ -176,6 +176,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic'
 .rhc-grid b{display:block;font-size:14px;line-height:1.15;color:#1a2410;margin-bottom:4px;white-space:normal;word-break:keep-all;}
 .rhc-grid small{display:block;font-size:10px;line-height:1.25;color:#6a7a5a;}
 .rhc-note{border-left:3px solid #2f8a1f;background:#f7fbf3;border-radius:6px;padding:8px 9px;font-size:12px;line-height:1.5;color:#1f2d18;}
+.rhc-mini{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.rhc-mini div{background:#fff;border:1px solid #e7ecd9;border-radius:6px;padding:6px 7px;font-size:11px;line-height:1.35;color:#56634b;}
+.rhc-mini b{display:block;font-size:12px;color:#1a2410;margin-bottom:2px;}
+.rhc-market{margin-top:8px;padding:7px 8px;border-radius:7px;background:#fbfcf8;border:1px dashed #d7e3ca;font-size:11px;line-height:1.45;color:#4c5b42;}
+.rhc-market b{color:#1a2410;}
 
 /* ── RIGHT PANEL ── */
 #fm-right{
@@ -4235,22 +4240,43 @@ function renderDirectProvincePricePins(cd){
 
 function makeMapPricePinHoverHtml(name,d,sidoKR){
   const safe=String(name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const unit=(ITEMS[curItem]?.unit)||"";
-  const price=Number(d?.avg_price||0);
+  const item=ITEMS[curItem]||{};
+  const unit=item.unit||"";
+  const priceCtx=getRegionPriceContext(d,sidoKR);
+  const price=Number(priceCtx?.currentPrice||d?.avg_price||0);
   const change=Number(d?.price_vs_avg||0);
   const periodScale=curPeriod>7?Math.min(3,Math.sqrt(curPeriod/7)):1;
   const pct=Number.isFinite(change)?change*periodScale:0;
-  const direction=pct>3?"오를 가능성이 큽니다":pct<-3?"내릴 가능성이 큽니다":"큰 변동 신호는 약합니다";
+  const direction=pct>8?"상승 압력이 강합니다":pct>3?"오를 가능성이 있습니다":pct<-8?"하락 압력이 강합니다":pct<-3?"내릴 가능성이 있습니다":"큰 변동 신호는 약합니다";
   const pctColor=pct>0?"#c02828":pct<0?"#16851f":"#6a1e9a";
   const share=d?.production_pct?`${Math.round(d.production_pct)}%`:d?.shipment_ton?`${Math.round(d.shipment_ton).toLocaleString()}톤`:"수집 중";
+  const shipment=d?.shipment_ton?`${Math.round(d.shipment_ton).toLocaleString()}톤`:"확인 중";
+  const yoy=Number(d?.shipment_yoy);
+  const yoyText=Number.isFinite(yoy)&&yoy!==0?`${yoy>0?"+":""}${yoy.toFixed(1)}%`:"확인 중";
+  const harvest=Number(d?.harvest_rate);
+  const harvestText=Number.isFinite(harvest)&&harvest>0?`${harvest.toFixed(0)}%`:"확인 중";
+  const riskScore=Number(d?.risk_score);
+  const riskText=Number.isFinite(riskScore)?`${riskScore}점 · ${riskLvlText(d?.risk_level||"normal")}`:riskLvlText(d?.risk_level||"normal");
+  const market=priceCtx?.market||marketBasisFor(null,sidoKR,d);
+  const marketName=String(market?.name||"기준 도매시장").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const marketDate=market?.date?` · ${market.date}`:"";
+  const supplyPhrase=Number.isFinite(yoy)&&yoy>10?"출하가 전년보다 늘어 가격 상승을 일부 눌러줄 수 있습니다.":Number.isFinite(yoy)&&yoy<-5?"출하가 전년보다 줄어 공급 부담이 있습니다.":"출하 흐름은 큰 이상 신호가 약합니다.";
+  const finalNote=`${direction}. ${supplyPhrase}`;
   return `<div class="rhc">
-    <div class="rhc-header"><div><span class="rhc-title">${safe}</span><div class="rhc-sub">선택 기간 기준 가격 판단</div></div><span class="rhc-badge">지도 정보</span></div>
+    <div class="rhc-header"><div><span class="rhc-title">${safe}</span><div class="rhc-sub">${item.name||"작물"} · ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 기준 판단</div></div><span class="rhc-badge normal">지도 정보</span></div>
     <div class="rhc-grid">
       <div><b>${price?Math.round(price).toLocaleString()+"원":"가격 수집 중"}</b><small>도매 기준${unit?"/"+unit:""}</small></div>
       <div><b style="color:${pctColor}">${pct>0?"+":""}${pct.toFixed(1)}%</b><small>${curPeriod>7?"예측 변화":"전국 평균 대비"}</small></div>
       <div><b>${share}</b><small>산지 비중</small></div>
     </div>
-    <div class="rhc-note">${direction}. 오른쪽 패널에서 근거와 시장 정보를 같이 확인하세요.</div>
+    <div class="rhc-mini">
+      <div><b>${shipment}</b>확인 출하량</div>
+      <div><b>${yoyText}</b>전년 대비 출하</div>
+      <div><b>${harvestText}</b>수확 진행률</div>
+      <div><b>${riskText}</b>가격 변동 주의도</div>
+    </div>
+    <div class="rhc-market"><b>기준 시장</b> ${marketName}${marketDate}</div>
+    <div class="rhc-note">${finalNote}</div>
   </div>`;
 }
 
