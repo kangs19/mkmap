@@ -1392,19 +1392,16 @@ window.onload=async()=>{
 
   const provinceGeoPromise=fetchGeo("skorea_provinces_light.json");
   const cityGeoPromise=fetchGeo("skorea_municipalities_simple.json");
-  const geoFallbackTimer=setTimeout(()=>{
+  const ensurePriceAreaFallback=(reason)=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
-    if(!visibleCropLayer){
-      renderEmergencyProvinceAreaOverlay("geojson_load_timeout_immediate");
-      provinceGeoPromise
-        .then(g=>{
-          provGeo=g;
-          renderStaticProvinceShapeOverlay(g,"geojson_load_timeout");
-        })
-        .catch(()=>renderStaticProvinceShapeOverlay({type:"FeatureCollection",features:[]},"geojson_load_timeout_no_geo"));
+    const existingAreaLayer=document.querySelectorAll(`#${STATIC_SHAPE_OVERLAY_ID} path`).length;
+    if(!visibleCropLayer&&!existingAreaLayer){
+      renderEmergencyProvinceAreaOverlay(reason);
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB85C\uB529\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
-  },4500);
+  };
+  const geoFallbackTimer=setTimeout(()=>ensurePriceAreaFallback("geojson_load_timeout_immediate"),4500);
+  [7000,11000,16000].forEach(ms=>setTimeout(()=>ensurePriceAreaFallback(`geojson_watchdog_${ms}`),ms));
   Promise.all([
     provinceGeoPromise,
     cityGeoPromise,
@@ -1416,8 +1413,9 @@ window.onload=async()=>{
     nameProp=["name","SIG_KOR_NM"].find(k=>s[k])||"name";
     try{
       drawProvinces();
+      setTimeout(()=>ensurePriceAreaFallback("post_geo_render_empty"),200);
     }catch(err){
-      renderStaticProvinceShapeOverlay(p,err.message||err);
+      renderEmergencyProvinceAreaOverlay(err.message||err);
       showToast("\uC9C0\uB3C4 \uACBD\uACC4 \uB80C\uB354\uB9C1\uC774 \uC9C0\uC5F0\uB418\uC5B4 \uAC00\uACA9 \uC608\uCE21 \uC694\uC57D \uC9C0\uB3C4\uB85C \uBA3C\uC800 \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
     }
   }).catch(e=>{
