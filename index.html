@@ -225,6 +225,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fm-weather-marker{border:2px solid;border-radius:12px;padding:5px 8px;font-size:12px;font-weight:900;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;gap:4px;line-height:1;}
 .fm-weather-marker-icon{font-size:15px;line-height:1;}
 .fm-weather-marker small{font-size:10px;color:#667;font-weight:800;}
+.fm-weather-judgment{display:flex;gap:10px;align-items:flex-start;background:#f7fbfa;border:1px solid var(--border);border-radius:9px;padding:10px 11px;margin-top:8px;}
+.fm-weather-judgment-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid;}
+.fm-weather-judgment-body{min-width:0;flex:1;}
+.fm-weather-judgment-title{font-size:13px;font-weight:900;color:var(--text);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.fm-weather-judgment-meta{font-size:11px;color:var(--muted);line-height:1.5;margin-top:3px;}
+.fm-weather-judgment-text{font-size:13px;color:var(--text);line-height:1.6;margin-top:5px;}
 /* 2-column middle section */
 .fm-mid-row{display:flex;border-bottom:1px solid var(--border);}
 .fm-mid-col{flex:1;padding:13px 16px;background:white;}
@@ -626,6 +632,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
               </div>
               <div style="font-size:10px;color:var(--muted)">현재 <span id="rp-cur-price-label">평균가</span> <b style="color:var(--text)" id="rp-cur-price">—</b></div>
               <div class="fm-market-basis" id="rp-market-basis">시장 기준 —</div>
+              <div id="rp-weather-judgment" class="fm-weather-judgment" style="display:none"></div>
             </div>
           </div>
           <div class="fm-chart-wrap">
@@ -922,6 +929,7 @@ let LIVE_SIGNALS={},LIVE_ITEMS={},LIVE_REPORT={},LIVE_HORIZONS={},LIVE_HORIZON_P
 let LIVE_BASE_DATE=null,LIVE_ITEM_COUNT=0;
 let LIVE_REGIONAL_PRICES={}; // {item_code: {sido_avg:{서울:{wholesale,retail,vs_national_pct},...}, national_avg_wholesale, base_date}}
 let LIVE_SHIPMENT_SHARE={}; // {item_code: {시도:출하비중%}} — 경매 산지 기반 실제 출하비중
+let LIVE_WEATHER_MAP=null,LIVE_WEATHER_BY_REGION={}; // /api/v1/map/weather cache
 let priceViewMode="wholesale"; // "wholesale" | "retail"
 const PRIORITY_ITEMS=["cabbage","onion","garlic","radish","green_onion"];
 let LIVE_NATIONAL_PRICES={}; // {item_code: latestPrice} — 가락시장 최신가
@@ -942,9 +950,7 @@ async function updateHeaderWeather(){
   if(!el) return;
   el.textContent="기상 데이터 수집 중";
   try{
-    const r=await fetch("/api/v1/map/weather");
-    if(!r.ok) throw new Error("weather api");
-    const data=await r.json();
+    const data=await fetchWeatherMapData();
     const regs=(data.regions||[]).filter(x=>Number.isFinite(Number(x.avg_temp)));
     if(!regs.length){
       el.textContent="기상 데이터 없음";
@@ -1414,6 +1420,18 @@ function weatherRegionPosition(){
     "KR-31":[35.54,129.31],"KR-36":[36.48,127.29],
   };
 }
+async function fetchWeatherMapData(){
+  if(LIVE_WEATHER_MAP) return LIVE_WEATHER_MAP;
+  const r=await fetch("/api/v1/map/weather");
+  if(!r.ok) throw new Error("weather api");
+  const data=await r.json();
+  LIVE_WEATHER_MAP=data;
+  LIVE_WEATHER_BY_REGION={};
+  (data.regions||[]).forEach(reg=>{
+    if(reg.region_code) LIVE_WEATHER_BY_REGION[reg.region_code]=reg;
+  });
+  return data;
+}
 function weatherState(reg){
   const precip=Number(reg.precipitation)||0;
   const temp=Number(reg.avg_temp);
@@ -1424,6 +1442,52 @@ function weatherState(reg){
   if(Number.isFinite(anom)&&anom<=-3) return {icon:"☁",label:"저온",color:"#4f75a8",bg:"#f1f6ff",judge:"평년보다 낮은 기온으로 생육 지연 가능성이 있습니다."};
   if(Number.isFinite(anom)&&anom>=3) return {icon:"☀",label:"고온",color:"#b86010",bg:"#fff7e8",judge:"평년보다 높은 기온이 생육 속도와 품질에 영향을 줄 수 있습니다."};
   return {icon:"🌤",label:"보통",color:"#2e6b2e",bg:"#eef8ee",judge:"현재 기상은 가격 변동의 주된 압력으로 보이지 않습니다."};
+}
+function weatherForDetailRegion(d={}){
+  const code=d.province_code||PROV_NAME_MAP[d.sido]||d.sido;
+  return code?LIVE_WEATHER_BY_REGION[code]||null:null;
+}
+function regionWeatherPriceJudgment(reg,d={}){
+  if(!reg) return "지역 기상 데이터가 아직 없어 가격 판단에는 기상 요인을 보수적으로만 반영합니다.";
+  const wx=weatherState(reg);
+  const yoy=Number(d.shipment_yoy);
+  const harvest=Number(d.harvest_rate);
+  const supplyNote=Number.isFinite(yoy)&&yoy<0
+    ? "이미 출하가 줄어든 지역이라 기상 악화가 겹치면 상승 압력이 커질 수 있습니다."
+    : Number.isFinite(harvest)&&harvest<80
+      ? "수확 진행률이 낮은 편이라 날씨가 나쁘면 출하 시점이 더 늦어질 수 있습니다."
+      : "출하 지표가 안정적이면 단기 가격 영향은 제한적으로 봅니다.";
+  if(wx.label==="비") return `${wx.judge} ${supplyNote}`;
+  if(wx.label==="폭염"||wx.label==="고온") return `${wx.judge} 품질 저하나 저장성 부담이 생기면 상품 가격 차이가 벌어질 수 있습니다.`;
+  if(wx.label==="한파"||wx.label==="저온") return `${wx.judge} 생육 지연이 길어지면 출하 공백으로 가격이 흔들릴 수 있습니다.`;
+  return `${wx.judge} ${supplyNote}`;
+}
+function renderRegionWeatherJudgment(d={},name=""){
+  const box=document.getElementById("rp-weather-judgment");
+  if(!box) return;
+  const reg=weatherForDetailRegion(d);
+  if(!reg){
+    box.style.display="flex";
+    box.innerHTML=`<div class="fm-weather-judgment-icon" style="background:#f1f1ed;border-color:#cfcfc8;color:#6a7a5a">?</div>
+      <div class="fm-weather-judgment-body">
+        <div class="fm-weather-judgment-title">기상 판단 <span class="fm-data-tag none">수집 중</span></div>
+        <div class="fm-weather-judgment-text">이 지역의 기상 데이터가 아직 연결되지 않았습니다. 가격 판단은 출하·시장 신호를 우선 봅니다.</div>
+      </div>`;
+    fetchWeatherMapData().then(()=>{
+      if(curDetailData?.code===d.code||curDetailData?.d===d) renderRegionWeatherJudgment(d,name);
+    }).catch(()=>{});
+    return;
+  }
+  const wx=weatherState(reg);
+  const anom=reg.temp_anomaly;
+  const anomStr=anom!=null?(anom>0?`+${anom}℃`:`${anom}℃`):"평년대비 -";
+  box.style.display="flex";
+  box.innerHTML=`<div class="fm-weather-judgment-icon" style="background:${wx.bg};border-color:${wx.color};color:${wx.color}">${wx.icon}</div>
+    <div class="fm-weather-judgment-body">
+      <div class="fm-weather-judgment-title">${reg.region_name||name||"지역"} 기상 판단 <span style="color:${wx.color}">${wx.label}</span></div>
+      <div class="fm-weather-judgment-meta">기온 ${reg.avg_temp??"-"}℃ · ${anomStr} · 강수 ${reg.precipitation??0}mm · 습도 ${reg.humidity??"-"}%</div>
+      <div class="fm-weather-judgment-text">${regionWeatherPriceJudgment(reg,d)}</div>
+    </div>`;
 }
 function weatherSummary(regions=[]){
   const valid=regions.filter(r=>r&&r.avg_temp!=null);
@@ -1442,9 +1506,7 @@ function weatherSummary(regions=[]){
 async function loadWeatherLayer(){
   removeWeatherLayer();
   try{
-    const r=await fetch("/api/v1/map/weather");
-    if(!r.ok) throw new Error("no weather");
-    const d=await r.json();
+    const d=await fetchWeatherMapData();
     const REGION_POS=weatherRegionPosition();
     const baseDate=d.base_date||"최신";
     weatherMarkerLayer=L.layerGroup();
@@ -3003,6 +3065,7 @@ function showRegionDetail(name,code,d){
     const date=m.date?` · ${m.date}`:"";
     marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b>${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span><br><span> ${priceCtx.priceSourceNote||""}</span>`;
   }
+  renderRegionWeatherJudgment(d,name);
   const chgEl=document.getElementById("rp-chg");
   if(pv&&mainChg!==0){
     chgEl.textContent=(mainChg>0?"+":"")+mainChg.toFixed(1)+"% "+(mainChg>0?"↑":"↓");

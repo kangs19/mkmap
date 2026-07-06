@@ -97,3 +97,6 @@
 - `docs/AI_SESSION_101_WEATHER_LAYER_VISIBILITY.md`
   - 2026-07-06 weather layer visibility.
   - Covers weather badge markers, weather state judgment, map legend summary, duplicate function cleanup, and validation.
+- `docs/AI_SESSION_102_WEATHER_DETAIL_JUDGMENT.md`
+  - 2026-07-06 weather detail judgment.
+  - Covers selected-region weather judgment cards, shared weather cache, crop-aware weather interpretation, and validation.

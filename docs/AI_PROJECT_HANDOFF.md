@@ -1518,3 +1518,30 @@ Production caution:
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
 - Detailed handoff:
   - `docs/AI_SESSION_101_WEATHER_LAYER_VISIBILITY.md`
+
+## Session 102 - Weather Detail Judgment (2026-07-06)
+
+- Connected weather data to the right-side `가격 예측` detail panel in `index.html`.
+- Added the `rp-weather-judgment` card under the current price/market basis area.
+- Added shared weather cache:
+  - `LIVE_WEATHER_MAP`,
+  - `LIVE_WEATHER_BY_REGION`,
+  - `fetchWeatherMapData`.
+- `updateHeaderWeather` and `loadWeatherLayer` now share the same weather API cache.
+- Added selected-region weather interpretation helpers:
+  - `weatherForDetailRegion`,
+  - `regionWeatherPriceJudgment`,
+  - `renderRegionWeatherJudgment`.
+- The selected region panel now shows:
+  - weather state,
+  - temperature,
+  - temperature anomaly,
+  - precipitation,
+  - humidity,
+  - a crop/price judgment sentence.
+- Weather judgment considers shipment YoY and harvest rate so it can say whether bad weather is likely to increase price pressure, delay shipment, or remain limited.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_102_WEATHER_DETAIL_JUDGMENT.md`
