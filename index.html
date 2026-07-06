@@ -722,6 +722,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
             </div>
             <div class="fm-source-note" id="rp-coverage-note" style="margin-top:10px"></div>
             <div class="fm-source-note" id="rp-neighbor-note" style="margin-top:7px"></div>
+            <div id="rp-weather-market-judgment" class="fm-weather-judgment" style="display:none"></div>
           </div>
           <div id="rp-farmmap-section" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#f7fbfa">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -1510,6 +1511,48 @@ function renderRegionWeatherJudgment(d={},name=""){
       <div class="fm-weather-judgment-meta">기온 ${reg.avg_temp??"-"}℃ · ${anomStr} · 강수 ${reg.precipitation??0}mm · 습도 ${reg.humidity??"-"}%</div>
       <div class="fm-weather-judgment-text">${regionWeatherPriceJudgment(reg,d)}</div>
     </div>`;
+}
+function regionWeatherCultivationJudgment(reg,d={}){
+  if(!reg) return "지역 기상 데이터가 아직 없어 수확·출하 판단은 현재 확보된 산지 지표만 기준으로 봅니다.";
+  const wx=weatherState(reg);
+  const yoy=Number(d.shipment_yoy);
+  const harvest=Number(d.harvest_rate);
+  const harvestNote=Number.isFinite(harvest)&&harvest<75
+    ? "수확 진행률이 낮아 작업 가능일이 줄면 출하가 뒤로 밀릴 가능성이 있습니다."
+    : Number.isFinite(yoy)&&yoy<0
+      ? "전년보다 출하가 줄어든 상태라 작은 기상 변수도 물량 변동으로 이어질 수 있습니다."
+      : "출하 흐름은 비교적 안정적으로 보이며, 기상 급변 여부를 계속 확인하면 됩니다.";
+  if(wx.label==="비") return `비가 이어지면 수확·선별·운송 일정이 동시에 늦어질 수 있습니다. ${harvestNote}`;
+  if(wx.label==="폭염"||wx.label==="고온") return `고온 구간에서는 품질 저하와 저장 손실을 먼저 봐야 합니다. ${harvestNote}`;
+  if(wx.label==="한파"||wx.label==="저온") return `저온 구간에서는 생육 속도와 작업 가능 시간이 줄어드는지가 핵심입니다. ${harvestNote}`;
+  return `현재 기상은 재배·출하 쪽 부담이 크지 않은 편입니다. ${harvestNote}`;
+}
+function renderMarketWeatherJudgment(d={},name=""){
+  const box=document.getElementById("rp-weather-market-judgment");
+  if(!box) return;
+  const reg=weatherForDetailRegion(d);
+  if(!reg){
+    box.style.display="flex";
+    box.innerHTML=`<div class="fm-weather-judgment-icon" style="background:#f1f1ed;border-color:#cfcfc8;color:#6a7a5a">?</div>
+      <div class="fm-weather-judgment-body">
+        <div class="fm-weather-judgment-title">재배·출하 기상 판단 <span class="fm-data-tag none">수집 중</span></div>
+        <div class="fm-weather-judgment-text">이 지역의 기상 데이터가 아직 연결되지 않았습니다. 지금은 출하량과 시장 흐름을 우선 봅니다.</div>
+      </div>`;
+    fetchWeatherMapData().then(()=>{
+      if(curDetailData?.code===d.code||curDetailData?.d===d) renderMarketWeatherJudgment(d,name);
+    }).catch(()=>{});
+    return;
+  }
+  const wx=weatherState(reg);
+  const anom=reg.temp_anomaly;
+  const anomStr=anom!=null?(anom>0?`+${anom}°C`:`${anom}°C`):"평년대비 -";
+  box.style.display="flex";
+  box.innerHTML=`<div class="fm-weather-judgment-icon" style="background:${wx.bg};border-color:${wx.color};color:${wx.color}">${wx.icon}</div>
+      <div class="fm-weather-judgment-body">
+        <div class="fm-weather-judgment-title">${weatherRegionLabel(reg,name)} 재배·출하 기상 판단 <span style="color:${wx.color}">${wx.label}</span></div>
+        <div class="fm-weather-judgment-meta">기온 ${reg.avg_temp??"-"}°C · ${anomStr} · 강수 ${reg.precipitation??0}mm · 습도 ${reg.humidity??"-"}%</div>
+        <div class="fm-weather-judgment-text">${regionWeatherCultivationJudgment(reg,d)}</div>
+      </div>`;
 }
 function weatherSummary(regions=[]){
   const valid=regions.filter(r=>r&&r.avg_temp!=null);
@@ -3089,6 +3132,7 @@ function showRegionDetail(name,code,d){
     marketBasis.innerHTML=`${priceCtx.primaryLabel} 기준 <b>${m.name}</b>${date} <span class="fm-data-tag ${m.source==="실측"?"live":"model"}">${m.source}</span><br><span> ${priceCtx.priceSourceNote||""}</span>`;
   }
   renderRegionWeatherJudgment(d,name);
+  renderMarketWeatherJudgment(d,name);
   const chgEl=document.getElementById("rp-chg");
   if(pv&&mainChg!==0){
     chgEl.textContent=(mainChg>0?"+":"")+mainChg.toFixed(1)+"% "+(mainChg>0?"↑":"↓");

@@ -1,5 +1,16 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 104
+
+See `docs/AI_SESSION_104_WEATHER_MARKET_TAB.md`.
+
+Latest result:
+
+- Added a selected-region weather judgment card to the `재배·시장` tab.
+- The price tab continues to judge price impact, while the new market tab card judges cultivation/shipment impact from the same weather data.
+- The new judgment uses rain, heat, cold, harvest progress, and shipment-year-over-year context to produce a practical read.
+- Local whitespace and smoke validation passed.
+
 ## Latest Update - 2026-07-06 Session 96
 
 See `docs/AI_SESSION_96_PRICE_LABEL_CONSISTENCY.md`.

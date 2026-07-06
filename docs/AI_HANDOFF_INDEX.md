@@ -103,3 +103,6 @@
 - `docs/AI_SESSION_103_MAP_HOVER_TITLE_FALLBACK.md`
   - 2026-07-06 map hover title fallback.
   - Covers final title/data-tooltip based custom popup fallback for SVG map regions and markers.
+- `docs/AI_SESSION_104_WEATHER_MARKET_TAB.md`
+  - 2026-07-06 weather judgment in cultivation/market tab.
+  - Covers the new selected-region cultivation/shipment weather card, shared weather fallback reuse, and validation.
