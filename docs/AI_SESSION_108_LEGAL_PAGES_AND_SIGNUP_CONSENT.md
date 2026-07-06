@@ -24,6 +24,7 @@ Checked current Korean privacy-policy guidance before drafting:
 - Added FastAPI routes:
   - `/privacy`, `/privacy.html`
   - `/terms`, `/terms.html`
+- Added `/privacy`, `/privacy.html`, `/terms`, `/terms.html` to the public API-key bypass list so the legal pages remain accessible when `REQUIRE_API_KEY=true`.
 - Added legal URLs to `sitemap.xml`.
 - Added frontend legal links:
   - default right-panel bottom;
@@ -46,6 +47,7 @@ Checked current Korean privacy-policy guidance before drafting:
 - `python -m py_compile backend\app\main.py backend\app\routers\auth_user.py` passed.
 - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
 - `$env:PYTHONPATH='backend'; pytest backend\tests\test_api.py -q` passed: 38 tests.
+- Follow-up auth gate check after adding public legal paths also passed with `py_compile` and the same backend test suite.
 
 ## Next Work
 
