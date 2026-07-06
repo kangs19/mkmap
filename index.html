@@ -4133,7 +4133,8 @@ function provinceDatumForSido(sido,ents){
 }
 
 function cropEntriesForSidoCode(sido){
-  return Object.entries(CITY_DATA[curItem]||{}).filter(([,d])=>d?.province_code===sido&&isActiveCropCity(d));
+  const itemData=CITY_DATA[curItem]&&Object.keys(CITY_DATA[curItem]).length?CITY_DATA[curItem]:(CITY_DATA.cabbage||{});
+  return Object.entries(itemData).filter(([,d])=>d?.province_code===sido&&isActiveCropCity(d));
 }
 
 function renderProvincePriceLabelOverlay(){
@@ -4147,7 +4148,7 @@ function renderProvincePriceLabelOverlay(){
   overlay.style.cssText="position:absolute;inset:0;z-index:675;pointer-events:none;";
   Object.entries(SIDO_CENTER).forEach(([sido,latlng])=>{
     const ents=cropEntriesForSidoCode(sido);
-    if(!ents.length||!isActiveCropProvince(ents)) return;
+    if(!ents.length) return;
     const d=provinceDatumForSido(sido,ents);
     if(!d?.avg_price) return;
     const p=map_.latLngToContainerPoint(latlng);
