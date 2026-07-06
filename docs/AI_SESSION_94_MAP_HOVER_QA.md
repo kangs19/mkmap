@@ -21,12 +21,15 @@ but no usable handler reference.
 - `index.html`
   - `bindMarkerDomEvents(...)` and `bindPathDomEvents(...)` now rebind when the DOM node has a stale bound flag but no stored tooltip handler.
   - This keeps hover cards active after map redraw, layer changes, and province/city drilldown.
+  - The map hover fallback now also listens in document capture phase for `mousemove`, `pointermove`, `mouseover`, and `pointerover`.
+  - This avoids relying only on Leaflet/SVG event bubbling when a path or marker swallows the event before it reaches `#map`.
 
 ## Local Browser QA
 
 Local desktop viewport: 1280 x 720
 
 - Hovering a visible map path showed `#map-tooltip`.
+- Capture-phase fallback was present in the loaded HTML.
 - Tooltip stayed within viewport bounds.
 - Console error buffer was empty.
 

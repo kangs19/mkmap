@@ -9,6 +9,7 @@ Latest result:
 - Reproduced the map hover complaint in browser QA.
 - Found stale DOM-bound map nodes could keep `data-fm-dom-bound="1"` without a usable tooltip handler, causing redraw/drilldown hover cards to stop appearing.
 - Updated marker/path DOM binding to rebind stale nodes.
+- Added a document capture-phase hover fallback so Leaflet/SVG event bubbling is not the only path to show hover cards.
 - Local browser QA confirmed visible map-path hover now shows `#map-tooltip` without console errors.
 - Production province/city drilldown hover still needs final confirmation after deploy.
 

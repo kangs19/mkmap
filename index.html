@@ -4064,7 +4064,8 @@ function setupMapHoverFallback(){
   const mapEl=document.getElementById("map");
   if(!mapEl||mapEl.dataset.fmHoverFallback==="1") return;
   mapEl.dataset.fmHoverFallback="1";
-  mapEl.addEventListener("mousemove",e=>{
+  const handleHoverMove=e=>{
+    if(!mapEl.contains(e.target)) return;
     const path=findHoverTargetAtPoint(e.clientX,e.clientY);
     const handlers=path?FM_TOOLTIP_HANDLERS.get(path):null;
     if(path&&handlers){
@@ -4079,7 +4080,11 @@ function setupMapHoverFallback(){
       FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
       __fmHoverPathEl=null;
     }
-  },{passive:true});
+  };
+  ["mousemove","pointermove","mouseover","pointerover"].forEach(type=>{
+    mapEl.addEventListener(type,handleHoverMove,{passive:true});
+    document.addEventListener(type,handleHoverMove,{capture:true,passive:true});
+  });
   mapEl.addEventListener("mouseleave",e=>{
     if(__fmHoverPathEl) FM_TOOLTIP_HANDLERS.get(__fmHoverPathEl)?.leave?.(e);
     __fmHoverPathEl=null;
