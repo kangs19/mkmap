@@ -4218,13 +4218,34 @@ function renderDirectProvincePricePins(cd){
       bindLayerHoverTooltip(pin,title);
       pin.addTo(provPinLayer);
       bindMarkerDomEvents(pin,{
-        enter:e=>showMapTooltip(makeHoverCard(`${name} (${ents.length}개 시·군)`,pinD,sido),e),
+        enter:e=>showMapTooltip(makeMapPricePinHoverHtml(`${name} (${ents.length}개 시·군)`,pinD,sido),e),
         move:e=>moveMapTooltip(e),
         leave:()=>hideMapTooltip(),
         click:()=>{hideMapTooltip();zoomProvinceByCode(sido);}
       });
     }catch(e){console.warn("[map] direct province price pin skipped",sido,e);}
   });
+}
+
+function makeMapPricePinHoverHtml(name,d,sidoKR){
+  const safe=String(name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const unit=(ITEMS[curItem]?.unit)||"";
+  const price=Number(d?.avg_price||0);
+  const change=Number(d?.price_vs_avg||0);
+  const periodScale=curPeriod>7?Math.min(3,Math.sqrt(curPeriod/7)):1;
+  const pct=Number.isFinite(change)?change*periodScale:0;
+  const direction=pct>3?"오를 가능성이 큽니다":pct<-3?"내릴 가능성이 큽니다":"큰 변동 신호는 약합니다";
+  const pctColor=pct>0?"#c02828":pct<0?"#16851f":"#6a1e9a";
+  const share=d?.production_pct?`${Math.round(d.production_pct)}%`:d?.shipment_ton?`${Math.round(d.shipment_ton).toLocaleString()}톤`:"수집 중";
+  return `<div class="rhc">
+    <div class="rhc-header"><div><span class="rhc-title">${safe}</span><div class="rhc-sub">선택 기간 기준 가격 판단</div></div><span class="rhc-badge">지도 정보</span></div>
+    <div class="rhc-grid">
+      <div><b>${price?Math.round(price).toLocaleString()+"원":"가격 수집 중"}</b><small>도매 기준${unit?"/"+unit:""}</small></div>
+      <div><b style="color:${pctColor}">${pct>0?"+":""}${pct.toFixed(1)}%</b><small>${curPeriod>7?"예측 변화":"전국 평균 대비"}</small></div>
+      <div><b>${share}</b><small>산지 비중</small></div>
+    </div>
+    <div class="rhc-note">${direction}. 오른쪽 패널에서 근거와 시장 정보를 같이 확인하세요.</div>
+  </div>`;
 }
 
 function makeMapPricePinHtml(name,d,sidoKR){
