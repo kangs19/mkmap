@@ -1058,6 +1058,7 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
     labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
     let rendered=0;
     Object.entries(SIDO_CENTER).forEach(([sido,center],idx)=>{
+      try{
       const {ents,rp,d}=provinceStaticDatum(sido);
       if(!ents.length||!isActiveCropProvince(ents)) return;
       const pct=staticMapPoint(center[0],center[1]);
@@ -1073,7 +1074,11 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
       const forecastPct=periodForecastPct(Number(d?.price_vs_avg||rp?.vs_national_pct||0),curPeriod);
       const sign=forecastPct>0?"+":"";
       const forecastColor=forecastPct>=0?"#c02828":"#1a8a1a";
-      const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null)||modeColor(ents,sido)||"rgba(130,50,210,.68)";
+      const fill=forecastPct>=20?"rgba(210,38,28,.74)"
+        :forecastPct>=10?"rgba(224,122,18,.70)"
+        :forecastPct<=-20?"rgba(0,82,180,.72)"
+        :forecastPct<=-10?"rgba(20,124,194,.70)"
+        :"rgba(88,170,86,.70)";
       const priceText=wholesale?`도 ${wholesale.toLocaleString()}원${unit?`/${unit}`:""}`:"도매가 확인중";
       const retailText=retail?`소 ${retail.toLocaleString()}원`:"";
       const forecastText=Number.isFinite(forecastPct)?`${sign}${forecastPct.toFixed(1)}% 예측`:"예측 확인중";
@@ -1102,6 +1107,9 @@ function renderEmergencyProvinceAreaOverlay(reason=""){
       label.addEventListener("click",e=>showMapTooltip(html,e),{passive:true});
       labels.appendChild(label);
       rendered+=1;
+      }catch(regionErr){
+        console.warn("[map] emergency province region skipped",sido,regionErr);
+      }
     });
     if(!rendered){
       renderStaticProvinceShapeOverlay({type:"FeatureCollection",features:[]},`${reason||"emergency"}_no_active_crop`);
