@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 113
+
+See `docs/AI_SESSION_113_PRICE_LAYER_FARMMAP_PRIORITY.md`.
+
+Latest result:
+
+- Fixed the left map filter interaction where selecting `가격 예측` could still leave crop areas visually hidden by the FarmMap layer.
+- Price/production crop regions now have higher style priority than FarmMap land-use colors.
+- FarmMap remains as a secondary border/dash overlay on active crop areas.
+- Local browser QA confirmed active crop areas and pins remain visible with both `가격 예측` and `팜맵 농지분류` enabled.
+- Smoke suite passed.
+
 ## Latest Update - 2026-07-06 Session 112
 
 See `docs/AI_SESSION_112_PRICE_MAP_FORECAST_VISIBILITY.md`.

@@ -131,3 +131,6 @@
 - `docs/AI_SESSION_112_PRICE_MAP_FORECAST_VISIBILITY.md`
   - 2026-07-06 price map forecast visibility.
   - Covers regional price API Korean key repair, launch readiness regional-price check, safer price pin rendering, and clearer map price status copy.
+- `docs/AI_SESSION_113_PRICE_LAYER_FARMMAP_PRIORITY.md`
+  - 2026-07-06 price layer FarmMap priority.
+  - Covers the map style priority fix so `가격 예측` crop regions remain visible when the FarmMap overlay is enabled.

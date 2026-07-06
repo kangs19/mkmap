@@ -3674,7 +3674,6 @@ function applyForecast(basePrice,days,localPct=0){
 }
 
 function modeColor(ents, sido){
-  if(isFarmMapLayerOn()) return farmMapLanduseColor(farmMapForSidoCode(sido));
   if(!ents.length) return"rgba(80,80,60,.18)";
   if(curMode==="production"){
     const tot=ents.reduce((s,[,d])=>s+(d.area_ha||0),0);
@@ -3702,7 +3701,6 @@ function modeColor(ents, sido){
   return priceColor(periodForecastPct(avg,curPeriod));
 }
 function modeCityColor(d){
-  if(isFarmMapLayerOn()&&d?._farmmapLanduse) return farmMapLanduseColor(d._farmmapLanduse);
   if(!d) return"rgba(80,80,60,.18)";
   if(curMode==="production") return prodColor(d.area_ha||0);
   if(curMode==="risk")       return d.risk_score!=null?riskColor(d.risk_score):"rgba(80,80,60,.18)";
@@ -3763,10 +3761,11 @@ function drawProvinces(){
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
       const ents=cropEntriesForPrefix(cd,pfx);
       const fm=farmMapForSidoCode(sido);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:(ents.length&&isActiveCropProvince(ents))?3.4:2.2,color:(ents.length&&isActiveCropProvince(ents))?"#267a18":"rgba(20,70,60,.55)",fillOpacity:1,dashArray:(ents.length&&isActiveCropProvince(ents))?"8 4 2 4":"5 3"};
-      if(!ents.length||!isActiveCropProvince(ents))return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
+      const active=ents.length&&isActiveCropProvince(ents);
+      if(!active&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
+      if(!active)return{fillColor:"rgba(80,80,60,.12)",weight:1,color:"rgba(80,80,60,.22)",fillOpacity:1,dashArray:"3"};
       const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
-      return{fillColor:rpColor||modeColor(ents,sido),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      return{fillColor:rpColor||modeColor(ents,sido),weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -3819,7 +3818,7 @@ function drawProvinces(){
           : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`,
         enter:e=>{
           layer.setStyle({weight:3,color:(provinceActive||farmMapActive)?"#1a3d66":"rgba(80,80,60,.35)",fillOpacity:(provinceActive||farmMapActive)?0.95:0.35});
-          if(farmMapActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
+          if(farmMapActive&&!provinceActive) showMapTooltip(makeFarmMapHoverCard(pname||farmMapSidoName(sido),fm),e);
           else showMapTooltip(makeHoverCard(provinceActive?`${pname} (${ents.length}개 시·군)`:pname,provinceD,sido),e);
         },
         move:e=>moveMapTooltip(e),
@@ -3946,9 +3945,9 @@ function drawCities(sido){
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
       const d=activeCodes.has(code)?cd[code]:null;
       const fm=farmMapForCity(sido,f.properties[nameProp]||code);
-      if(isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:d?3.4:2.2,color:d?"#267a18":"rgba(20,70,60,.55)",fillOpacity:1,dashArray:d?"8 4 2 4":"5 3"};
+      if(!d&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
       if(!d)return{fillColor:"rgba(80,80,60,.18)",weight:1,color:"rgba(80,80,60,.25)",fillOpacity:1,dashArray:"2"};
-      return{fillColor:modeCityColor(d),weight:2.5,color:"rgba(0,0,0,.35)",fillOpacity:1};
+      return{fillColor:modeCityColor(d),weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
     },
     onEachFeature:(f,layer)=>{
       const code=String(f.properties[codeProp]||"").replace(/\D/g,"").substring(0,5);
@@ -3977,7 +3976,7 @@ function drawCities(sido){
       const enterCity=e=>{
         const isSelected=curDetailData?.code===code;
         e.target.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
-        if(isFarmMapLayerOn()&&fm)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
+        if(isFarmMapLayerOn()&&fm&&!d)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
         else showCityTooltip(name,d,e);
       };
       const leaveCity=e=>{
@@ -3987,7 +3986,7 @@ function drawCities(sido){
       const enterCityDom=e=>{
         const isSelected=curDetailData?.code===code;
         layer.setStyle({weight:isSelected?3.5:2.5,color:isSelected?"#267a18":"#1a3d66",fillOpacity:isSelected?1:.97});
-        if(isFarmMapLayerOn()&&fm)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
+        if(isFarmMapLayerOn()&&fm&&!d)showMapTooltip(makeFarmMapHoverCard(name,fm),e);
         else showCityTooltip(name,d,e);
       };
       const leaveCityDom=()=>{
