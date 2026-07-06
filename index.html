@@ -1303,6 +1303,8 @@ window.onload=async()=>{
       {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map_);
     // 남한 경계에 딱 맞게
     map_.fitBounds([[33.0,125.8],[38.6,130.0]],{padding:[10,10]});
+    syncAlwaysOnLayers();
+    loadMarketLayer();
     setTimeout(()=>map_.invalidateSize(),120);
     document.getElementById("loading").style.display="none";
   }catch(e){
@@ -1651,7 +1653,7 @@ function renderDashboardPanel(){
   `);
 }
 // ── 레이어 상태 ──────────────────────────────────────────────────────────
-const activeLayers=new Set(["price","weather"]);
+const activeLayers=new Set(["price","weather","market"]);
 let weatherMarkerLayer=null, weatherInfoControl=null, marketMarkerLayer=null;
 let FARMMAP_LANDUSE=null, FARMMAP_LANDUSE_BY_CODE={}, FARMMAP_LANDUSE_BY_CITY={};
 let FARMMAP_CAPACITY={}, FARMMAP_CAPACITY_BY_CODE={};
@@ -1680,6 +1682,10 @@ function showToast(msg){
 // ── 레이어·기간 ───────────────────────────────────────────────────────────
 function toggleLayerRow(event,layer){
   if(event.target && event.target.tagName==="INPUT") return;
+  if(layer==="market"){
+    showToast("도매시장 위치는 항상 표시합니다");
+    return;
+  }
   const input=event.currentTarget.querySelector("input[type=checkbox]");
   if(!input) return;
   input.checked=!input.checked;
@@ -1687,12 +1693,12 @@ function toggleLayerRow(event,layer){
 }
 
 function handleLayer(el,layer){
-  if(layer==="production"||layer==="price"){
-    const other=layer==="price"?"production":"price";
-    if(!el.checked&&!activeLayers.has(other)){
-      el.checked=true;
-      activeLayers.add(layer);
-    }
+  if(layer==="market"){
+    el.checked=true;
+    activeLayers.add("market");
+    el.closest(".fm-layer-item")?.classList.add("active");
+    loadMarketLayer();
+    return;
   }
   el.closest(".fm-layer-item").classList.toggle("active",el.checked);
   if(el.checked) activeLayers.add(layer); else activeLayers.delete(layer);
@@ -1701,7 +1707,7 @@ function handleLayer(el,layer){
 
 function applyLayer(layer,on,el){
   if(layer==="production"||layer==="price"){
-    curMode=activeLayers.has("production")&&!activeLayers.has("price")?"production":"price";
+    curMode=activeLayers.has("price")?"price":"production";
     if(!activeLayers.has("production")&&!activeLayers.has("price")){
       activeLayers.add("price");
       curMode="price";
@@ -1715,7 +1721,7 @@ function applyLayer(layer,on,el){
   } else if(layer==="weather"){
     on ? loadWeatherLayer() : removeWeatherLayer();
   } else if(layer==="market"){
-    on ? loadMarketLayer() : removeMarketLayer();
+    loadMarketLayer();
   } else if(layer==="farmmap"){
     const note=document.getElementById("farmmap-layer-note");
     if(note) note.style.display=on?"block":"none";
@@ -1729,6 +1735,15 @@ function applyLayer(layer,on,el){
       activeLayers.delete(layer);
       showToast(`${layer==="pest"?"병해충 위험":"토양 정보"} 데이터는 준비 중입니다`);
     }
+  }
+}
+
+function syncAlwaysOnLayers(){
+  activeLayers.add("market");
+  const marketInput=document.querySelector(`input[onchange*="market"]`);
+  if(marketInput){
+    marketInput.checked=true;
+    marketInput.closest(".fm-layer-item")?.classList.add("active");
   }
 }
 
@@ -4082,6 +4097,36 @@ function provinceDatumFromEntries(ents){
   };
 }
 
+function provinceDatumForSido(sido,ents){
+  const base=provinceDatumFromEntries(ents);
+  const rp=getRegionalSidoData(SIDO_SHORT[sido]||sido);
+  const gap=currentWholesaleGapPct(curItem,sido);
+  if(base){
+    const livePrice=_normalizeRegionalPrice(rp?.wholesale,curItem)||_normalizeRegionalPrice(rp?.retail,curItem);
+    if(livePrice) base.avg_price=Math.round(Number(livePrice));
+    if(Number.isFinite(Number(gap))) base.price_vs_avg=Math.round(Number(gap)*10)/10;
+    base._regionalPriceOnly=false;
+    return base;
+  }
+  const price=_normalizeRegionalPrice(rp?.wholesale,curItem)||_normalizeRegionalPrice(rp?.retail,curItem)||LIVE_NATIONAL_PRICES[curItem]||0;
+  if(!rp&&!price) return null;
+  const pct=Number.isFinite(Number(gap))?Number(gap):Number(rp?.vs_national_pct||0);
+  return {
+    avg_price:Math.round(Number(price)||0),
+    price_vs_avg:Math.round(Number(pct||0)*10)/10,
+    shipment_ton:0,
+    shipment_yoy:0,
+    area_ha:0,
+    production_pct:0,
+    rank:null,
+    risk_level:Math.abs(Number(pct)||0)>=20?'high':Math.abs(Number(pct)||0)>=10?'warning':'normal',
+    risk_score:Math.round(Math.min(100,Math.abs(Number(pct)||0)*3+25)),
+    _cities:"지역 도매가 기준",
+    _topCity:null,
+    _regionalPriceOnly:true,
+  };
+}
+
 function drawProvinceFallbackMap(reason=""){
   if(!map_||!window.L) return;
   if(provLayer)map_.removeLayer(provLayer);
@@ -4158,8 +4203,11 @@ function drawProvinces(){
       const active=ents.length&&isActiveCropProvince(ents);
       if(!active&&isFarmMapLayerOn()&&fm)return{fillColor:farmMapLanduseColor(fm),weight:2.2,color:"rgba(20,70,60,.55)",fillOpacity:.72,dashArray:"5 3"};
       if(!active)return{fillColor:"transparent",weight:0,color:"transparent",fillOpacity:0,opacity:0,interactive:false};
-      const rpColor=curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null;
-      return{fillColor:rpColor||modeColor(ents,sido),weight:isFarmMapLayerOn()&&fm?3.2:2.5,color:isFarmMapLayerOn()&&fm?"#267a18":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:isFarmMapLayerOn()&&fm?"8 4 2 4":null};
+      const priceOn=activeLayers.has("price");
+      const productionOn=activeLayers.has("production");
+      const rpColor=priceOn?regionalPriceColor(sido):null;
+      const farmOverlay=isFarmMapLayerOn()&&fm;
+      return{fillColor:rpColor||modeColor(ents,sido),weight:farmOverlay||productionOn?3.2:2.5,color:farmOverlay?"#267a18":productionOn?"#2f7a1d":"rgba(0,0,0,.35)",fillOpacity:1,dashArray:farmOverlay?"8 4 2 4":productionOn?"7 4":null};
     },
     onEachFeature:(f,layer)=>{
       const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
@@ -4176,7 +4224,7 @@ function drawProvinces(){
       const topCity=ents.length?ents.reduce((a,b)=>((b[1].production_weight||0)>(a[1].production_weight||0)?b:a)):null;
       const provinceActive=ents.length&&isActiveCropProvince(ents);
       const farmMapActive=isFarmMapLayerOn()&&!!fm;
-      const provinceD=ents.length?{
+      const fallbackProvinceD=ents.length?{
         avg_price:Math.round(avgPrice)||LIVE_NATIONAL_PRICES[curItem]||0,
         price_vs_avg:Math.round(avgChg*10)/10,
         shipment_ton:tot,
@@ -4188,6 +4236,7 @@ function drawProvinces(){
         risk_score:Math.round(Math.abs(avgChg)*3+30),
         _cities:ents.map(([,c])=>c.name).join('·'),
       }:null;
+      const provinceD=provinceDatumForSido(sido,ents)||fallbackProvinceD;
       const provinceTooltipTitle=provinceActive
         ? `${pname} ${ITEMS[curItem]?.name||"작물"} · ${ents.length}개 시·군 · 현재 평균 ${provinceD?.avg_price?provinceD.avg_price.toLocaleString()+"원":"가격 수집 중"}`
         : `${pname} · ${ITEMS[curItem]?.name||"작물"} 대표 산지 검증 데이터 부족`;
@@ -4226,12 +4275,12 @@ function drawProvinces(){
   provGeo.features.forEach(f=>{
     const sido=getSido(f),pfx=SIDO_PREFIX[sido]||"";
     const ents=cropEntriesForPrefix(cd,pfx);
+    if(!activeLayers.has("price"))return;
     if(!ents.length||!isActiveCropProvince(ents))return;
     try{
       const center=L.geoJSON(f).getBounds().getCenter();
-      const avgChg=ents.reduce((s,[,d])=>s+d.price_vs_avg,0)/ents.length;
-      const avgPrice=ents.reduce((s,[,d])=>s+(d.avg_price||0),0)/ents.length;
-      const pinD={avg_price:Math.round(avgPrice),price_vs_avg:Math.round(avgChg*10)/10};
+      const pinD=provinceDatumForSido(sido,ents);
+      if(!pinD?.avg_price)return;
       const pin=L.marker(center,{icon:L.divIcon({html:makePinHtml(SIDO_SHORT[sido]||sido,pinD,sido),className:'',iconSize:[110,58],iconAnchor:[55,29]})});
       bindLayerHoverTooltip(pin,`${SIDO_SHORT[sido]||sido} ${ITEMS[curItem]?.name||"작물"} · 현재 평균 ${pinD?.avg_price?Math.round(pinD.avg_price).toLocaleString()+"원":"가격 수집 중"}`);
       pin.addTo(provPinLayer);
@@ -4241,7 +4290,7 @@ function drawProvinces(){
         leave:()=>hideMapTooltip(),
         click:()=>{hideMapTooltip();zoomProv(f,sido,f.properties.name||sido);}
       });
-    }catch(e){}
+    }catch(e){console.warn("[map] province pin skipped",sido,e);}
   });
   document.getElementById("fm-static-map-overlay")?.remove();
   document.getElementById(STATIC_SHAPE_OVERLAY_ID)?.remove();
