@@ -2603,6 +2603,7 @@ async function fetchNationalPrice(item_code){
       const latest=Number(rows[rows.length-1].price);
       const regionalAvg=Number(LIVE_REGIONAL_PRICES[item_code]?.national_avg_wholesale||0);
       LIVE_NATIONAL_PRICES[item_code]=regionalAvg&&latest/regionalAvg>8?regionalAvg:latest;
+      if(regionalAvg&&latest/regionalAvg>8&&!curDetailData) renderDefaultPanel();
     }
   }catch(e){}
 }
@@ -2677,6 +2678,7 @@ async function fetchRegionalPrices(item_code){
       const national=Number(LIVE_NATIONAL_PRICES[item_code]||0);
       if(regionalAvg&&(!national||national/regionalAvg>8)){
         LIVE_NATIONAL_PRICES[item_code]=regionalAvg;
+        if(!curDetailData) renderDefaultPanel();
       }
       updateRegionalStatus(item_code);
     }
