@@ -1053,55 +1053,56 @@ function renderStaticProvinceShapeOverlay(geo,reason=""){
     labels.style.cssText="position:absolute;inset:0;pointer-events:none;";
     let rendered=0;
     geo.features.forEach(f=>{
-      const sido=getSido(f);
-      if(!sido) return;
-      const pathD=geoFeatureToSvgPath(f);
-      if(!pathD) return;
-      const {ents,d}=provinceStaticDatum(sido);
-      const name=SIDO_SHORT[sido]||sido;
-      const active=ents.length&&isActiveCropProvince(ents);
-      const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null)||modeColor(ents,sido)||"rgba(130,50,210,.56)";
-      const path=document.createElementNS("http://www.w3.org/2000/svg","path");
-      path.setAttribute("d",pathD);
-      path.setAttribute("fill",fill);
-      path.setAttribute("stroke",active?"rgba(0,0,0,.48)":"rgba(80,80,60,.25)");
-      path.setAttribute("stroke-width",active?"2.4":"1.2");
-      path.setAttribute("stroke-linejoin","round");
-      path.setAttribute("class","fm-static-shape-path leaflet-interactive");
-      path.style.pointerEvents="auto";
-      const html=makeHoverCard(active?`${name} (${ents.length}개 산지)`:name,d,sido);
-      path.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
-      path.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
-      path.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
-      path.addEventListener("click",e=>{showMapTooltip(html,e);},{passive:true});
-      svg.appendChild(path);
-      if(active||d?.avg_price){
-        const center=SIDO_CENTER[sido];
-        if(center){
-          const pt=map_.latLngToContainerPoint(center);
-          const label=document.createElement("button");
-          label.type="button";
-          label.className="fm-static-shape-label";
-          const pct=periodForecastPct(d?.price_vs_avg||0,curPeriod);
-          const sign=pct>0?"+":"";
-          label.style.cssText=`position:absolute;left:${Math.round(pt.x)}px;top:${Math.round(pt.y)}px;transform:translate(-50%,-50%);min-width:86px;max-width:112px;padding:9px 10px;border:1px solid #d9ded0;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 3px 12px rgba(0,0,0,.22);pointer-events:auto;font-size:12px;line-height:1.25;text-align:center;font-weight:900;color:#1a2410;`;
-          label.innerHTML=`<div>${name}</div><div style="font-size:11px">도 ${Math.round(d?.avg_price||0).toLocaleString()}원</div><div style="font-size:11px;color:${pct>=0?'#c02828':'#1a8a1a'}">${pct!=null?`${sign}${pct.toFixed(1)}% 예측`:"예측 확인"}</div>`;
-          label.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
-          label.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
-          label.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
-          label.addEventListener("click",e=>showMapTooltip(html,e),{passive:true});
-          labels.appendChild(label);
+      try{
+        const sido=getSido(f);
+        if(!sido) return;
+        const pathD=geoFeatureToSvgPath(f);
+        if(!pathD) return;
+        const {ents,d}=provinceStaticDatum(sido);
+        const name=SIDO_SHORT[sido]||sido;
+        const active=ents.length&&isActiveCropProvince(ents);
+        const fill=(curMode!=="production"&&curMode!=="risk"?regionalPriceColor(sido):null)||modeColor(ents,sido)||"rgba(130,50,210,.56)";
+        const price=Math.round(Number(d?.avg_price||0));
+        const pct=periodForecastPct(Number(d?.price_vs_avg||0),curPeriod);
+        const sign=pct>0?"+":"";
+        const html=`<div class="rhc"><div class="rhc-header"><div class="rhc-title">${name} ${ITEMS[curItem]?.name||"작물"}</div><span class="rhc-badge normal">지도 정보</span></div><div style="font-size:13px;line-height:1.65"><b>도매가</b> ${price?price.toLocaleString()+"원":"확인 중"}<br><b>예측</b> ${pct!=null?`${sign}${pct.toFixed(1)}%`:"확인 중"}<br>${active?`${ents.length}개 대표 산지 기준입니다.`:"지역 가격 기준으로 표시합니다."}</div></div>`;
+        const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+        path.setAttribute("d",pathD);
+        path.setAttribute("fill",fill);
+        path.setAttribute("stroke",active?"rgba(0,0,0,.48)":"rgba(80,80,60,.25)");
+        path.setAttribute("stroke-width",active?"2.4":"1.2");
+        path.setAttribute("stroke-linejoin","round");
+        path.setAttribute("class","fm-static-shape-path leaflet-interactive");
+        path.style.pointerEvents="auto";
+        path.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
+        path.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
+        path.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
+        path.addEventListener("click",e=>{showMapTooltip(html,e);},{passive:true});
+        svg.appendChild(path);
+        if(active||price){
+          const center=SIDO_CENTER[sido];
+          if(center){
+            const pt=map_.latLngToContainerPoint(center);
+            const label=document.createElement("button");
+            label.type="button";
+            label.className="fm-static-shape-label";
+            label.style.cssText=`position:absolute;left:${Math.round(pt.x)}px;top:${Math.round(pt.y)}px;transform:translate(-50%,-50%);min-width:86px;max-width:112px;padding:9px 10px;border:1px solid #d9ded0;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 3px 12px rgba(0,0,0,.22);pointer-events:auto;font-size:12px;line-height:1.25;text-align:center;font-weight:900;color:#1a2410;`;
+            label.innerHTML=`<div>${name}</div><div style="font-size:11px">도 ${price?price.toLocaleString():"확인중"}원</div><div style="font-size:11px;color:${pct>=0?'#c02828':'#1a8a1a'}">${pct!=null?`${sign}${pct.toFixed(1)}% 예측`:"예측 확인"}</div>`;
+            label.addEventListener("mouseenter",e=>showMapTooltip(html,e),{passive:true});
+            label.addEventListener("mousemove",e=>moveMapTooltip(e),{passive:true});
+            label.addEventListener("mouseleave",()=>hideMapTooltip(),{passive:true});
+            label.addEventListener("click",e=>showMapTooltip(html,e),{passive:true});
+            labels.appendChild(label);
+          }
         }
+        rendered+=1;
+      }catch(featureErr){
+        console.warn("[map] static province feature skipped",featureErr);
       }
-      rendered+=1;
     });
     overlay.appendChild(svg);
     overlay.appendChild(labels);
     mapEl.appendChild(overlay);
-    if(rendered){
-      map_.off("zoomend moveend resize",rerenderStaticProvinceShapeOverlay);
-      map_.on("zoomend moveend resize",rerenderStaticProvinceShapeOverlay);
-    }
     if(reason) console.warn("[map] static province shape overlay rendered:",reason,rendered);
   }catch(err){
     console.warn("[map] static province shape overlay failed",err);
