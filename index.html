@@ -1361,7 +1361,11 @@ window.onload=async()=>{
   }
 
   // city_agri_data.json 로드해서 CITY_DATA에 23개 품목 채우기
-  const cityDataPromise=fetch("/static/city_agri_data.json").then(r=>r.json()).then(raw=>{
+  const cityDataPromise=fetch("/static/city_agri_data.json").then(r=>{
+    if(!r.ok) throw new Error(`city_agri_data ${r.status}`);
+    return r.json();
+  }).then(raw=>{
+    if(!raw||typeof raw!=="object"||!Object.keys(raw).length) throw new Error("city_agri_data empty");
     for(const key of Object.keys(CITY_DATA)) CITY_DATA[key]={};
     CITY_DATA_SOURCE="static_kosis_seed";
     for(const [itemCode, cities] of Object.entries(raw)){
@@ -1385,9 +1389,8 @@ window.onload=async()=>{
       }
     }
   }).catch(e=>{
-    for(const key of Object.keys(CITY_DATA)) CITY_DATA[key]={};
-    CITY_DATA_SOURCE="unavailable";
-    console.warn("city_agri_data 로드 실패:",e.message);
+    CITY_DATA_SOURCE="embedded_seed";
+    console.warn("city_agri_data 로드 실패, 내장 산지 데이터를 유지합니다:",e.message);
   });
 
   const provinceGeoPromise=fetchGeo("skorea_provinces_light.json");
