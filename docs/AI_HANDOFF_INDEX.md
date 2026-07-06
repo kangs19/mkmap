@@ -55,3 +55,6 @@
 - `docs/AI_SESSION_87_PERIOD_READINESS_BUTTONS.md`
   - 2026-07-06 period readiness controls.
   - Covers blocked period buttons, public readiness notices, held-horizon forecast cells, and validation.
+- `docs/AI_SESSION_88_MAP_READINESS_SURFACES.md`
+  - 2026-07-06 map readiness surfaces.
+  - Covers map color fallback, pin/hover readiness short-circuiting, and validation.

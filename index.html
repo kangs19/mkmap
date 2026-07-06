@@ -3218,6 +3218,7 @@ function redrawMap(){
   else if(curProv)drawCities(curProv.sido);
 }
 function priceColor(pct){
+  if(pct==null||!Number.isFinite(Number(pct)))return"rgba(120,130,105,.34)";
   if(pct>=20)return"rgba(210,20,20,.78)";
   if(pct>=10)return"rgba(215,90,0,.75)";
   if(pct>=-10)return"rgba(130,50,210,.72)";
@@ -3495,6 +3496,7 @@ function horizonRowChangePct(row){
   return null;
 }
 function periodForecastPct(localPct,days){
+  if(isHorizonBlocked(curItem,days)) return null;
   const modelPct=horizonModelPct(days);
   if(modelPct!=null) return Math.max(-45,Math.min(45,modelPct));
   const local=Number.isFinite(localPct)?localPct:0;
@@ -3506,8 +3508,11 @@ function periodForecastPct(localPct,days){
 }
 // 현재가에 기간 예측 반영한 가격 계산
 function applyForecast(basePrice,days,localPct=0){
+  if(isHorizonBlocked(curItem,days)) return null;
   if(!basePrice||days<=7) return basePrice;
-  return Math.round(basePrice*(1+periodForecastPct(localPct,days)/100));
+  const pct=periodForecastPct(localPct,days);
+  if(pct==null) return null;
+  return Math.round(basePrice*(1+pct/100));
 }
 
 function modeColor(ents, sido){
@@ -4159,6 +4164,14 @@ function makePinHtml(name,d,sidoKR){
   const rp=ctx.rp;
   const isCurrent=(curPeriod<=7);
   const unit=ctx.unit;
+  if(isHorizonBlocked(curItem,curPeriod)){
+    const price=ctx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
+    return`<div class="region-pin">
+      <div class="rp-name">${name}</div>
+      <div class="rp-price" style="color:#9a6a20">${price?price.toLocaleString()+"원":"가격 수집 중"}</div>
+      <div class="rp-chg flat">검증 대기</div>
+    </div>`;
+  }
   if(rp){
     const mainPrice=ctx.currentPrice;
     const subPrice=ctx.secondaryPrice;
@@ -4201,6 +4214,25 @@ function makeHoverCard(name,d,sidoKR){
   const priceCtx=getRegionPriceContext(d,sidoKR);
   const rp=priceCtx.rp;
   const market=priceCtx.market;
+  if(isHorizonBlocked(curItem,curPeriod)){
+    const current=priceCtx.currentPrice||d?.avg_price||LIVE_NATIONAL_PRICES[curItem]||null;
+    return`<div class="rhc">
+      <div class="rhc-header">
+        <div>
+          <span class="rhc-title">${name}</span>
+          <div style="font-size:10px;color:#6a7a5a;margin-top:1px">${it.name} ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 판단</div>
+        </div>
+        <span class="rhc-badge warning">검증 대기</span>
+      </div>
+      <div style="background:#fff8e8;border:1px solid #e7c992;border-radius:9px;padding:9px 11px;margin:8px 0;color:#6a4a10;font-size:11px;line-height:1.55">
+        <b>아직 공개 예측으로 쓰지 않습니다.</b><br>${horizonBlockedMessage(curItem,curPeriod)}
+      </div>
+      <div style="font-size:11px;color:#3a4a2a;line-height:1.55">
+        현재 기준 가격: <b>${current?current.toLocaleString()+"원":"수집 중"}</b><br>
+        영향 시장: <b>${market.name}</b>
+      </div>
+    </div>`;
+  }
   if(!d&&!rp)return`<div class="rhc"><div class="rhc-header"><span class="rhc-title">${name}</span></div><div style="font-size:11px;color:#6a7a5a;padding:8px 0;line-height:1.55">현재 ${it.name} 대표 산지 메타에는 포함되지 않은 지역입니다.<br>출하하지 않는다는 뜻은 아니며, 작물별 출하량·재배면적 검증 데이터가 아직 부족한 상태입니다.</div></div>`;
   const chg=priceCtx.activePct||(d?.price_vs_avg)||0;
   const riskMap={normal:{l:'정상',c:'normal'},caution:{l:'주의',c:'caution'},warning:{l:'경고',c:'warning'},high:{l:'위험',c:'high'}};

@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 88
+
+See `docs/AI_SESSION_88_MAP_READINESS_SURFACES.md`.
+
+Latest result:
+
+- Map forecast colors now fall back to a neutral color when the selected item/period is not public-ready.
+- Map pins now show `검증 대기` instead of creating a synthetic future price for blocked periods.
+- Map hover cards now show the public readiness reason and current/base price only for blocked periods.
+- The same readiness gate is now shared by period buttons, compact forecast cells, map pins, and map hover cards.
+- Local validation passed with whitespace check, smoke suite, and backend forecast/API tests.
+
 ## Latest Update - 2026-07-06 Session 87
 
 See `docs/AI_SESSION_87_PERIOD_READINESS_BUTTONS.md`.
