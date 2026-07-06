@@ -1264,10 +1264,12 @@ window.onload=async()=>{
     console.warn("city_agri_data 로드 실패:",e.message);
   });
 
+  const provinceGeoPromise=fetchGeo("skorea_provinces_light.json");
+  const cityGeoPromise=fetchGeo("skorea_municipalities_simple.json");
   const geoFallbackTimer=setTimeout(()=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
     if(!visibleCropLayer&&map_){
-      fetchGeo("skorea_provinces_light.json")
+      provinceGeoPromise
         .then(g=>{
           provGeo=g;
           renderStaticProvinceShapeOverlay(g,"geojson_load_timeout");
@@ -1277,8 +1279,8 @@ window.onload=async()=>{
     }
   },4500);
   Promise.all([
-    fetchGeo("skorea_provinces_light.json"),
-    fetchGeo("skorea_municipalities_simple.json"),
+    provinceGeoPromise,
+    cityGeoPromise,
     cityDataPromise,
   ]).then(([p,c])=>{
     provGeo=p;cityGeo=c;

@@ -56,6 +56,7 @@ The original static overlay also depended on richer map helper functions. If any
   - hover/click still use the custom `#map-tooltip` path.
 - Removed the initial round-bubble render path from normal page boot.
 - Changed the delayed GeoJSON timeout fallback to fetch `skorea_provinces_light.json` and render the filled SVG province overlay first; round bubbles are now only a last-resort fallback if that fetch fails.
+- Reused the initial province GeoJSON Promise for the timeout fallback, so delayed city data or the full `Promise.all` chain cannot force the map into the round-bubble fallback while the province boundary file is already available.
 - `python scripts\run_smoke_suite.py --timeout-seconds 120` passed.
 
 ## Next Check
