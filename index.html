@@ -3824,19 +3824,18 @@ function drawProvinceFallbackMap(reason=""){
     const ents=cropEntriesForPrefix(cd,SIDO_PREFIX[sido]||"");
     const provinceActive=ents.length&&isActiveCropProvince(ents);
     const rp=getRegionalSidoData(SIDO_SHORT[sido]||sido);
-    if(!provinceActive&&!rp) return;
     activeCount+=1;
     const d=provinceActive?provinceDatumFromEntries(ents):{
-      avg_price:Math.round(Number(rp.wholesale||rp.retail||0)),
-      price_vs_avg:Math.round(Number(rp.vs_national_pct||0)*10)/10,
+      avg_price:Math.round(Number(rp?.wholesale||rp?.retail||LIVE_NATIONAL_PRICES[curItem]||0)),
+      price_vs_avg:Math.round(Number(rp?.vs_national_pct||0)*10)/10,
       shipment_ton:0,
       shipment_yoy:0,
       area_ha:0,
       production_pct:0,
       rank:null,
-      risk_level:Math.abs(Number(rp.vs_national_pct||0))>20?'high':Math.abs(Number(rp.vs_national_pct||0))>10?'warning':'normal',
-      risk_score:Math.round(Math.abs(Number(rp.vs_national_pct||0))*3+25),
-      _cities:"지역 도매가 기준",
+      risk_level:Math.abs(Number(rp?.vs_national_pct||0))>20?'high':Math.abs(Number(rp?.vs_national_pct||0))>10?'warning':'normal',
+      risk_score:Math.round(Math.abs(Number(rp?.vs_national_pct||0))*3+25),
+      _cities:rp?"지역 도매가 기준":"요약 지도 기준",
       _topCity:null,
     };
     const name=SIDO_SHORT[sido]||sido;
