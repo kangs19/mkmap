@@ -289,3 +289,23 @@ python scripts\verify_public_api_outputs.py --strict
 - 보류
 - 실패 원인
 - 다음 액션
+
+## Latest Map Recovery Priority (2026-07-06)
+
+Completed:
+
+- Restored the live map to real crop-region administrative polygons in commit `9691379`.
+- Removed the production path that showed nationwide emergency oval/circle fallback shapes.
+- Fixed the recursive horizon blocker that could crash map rendering.
+- Verified production cabbage map:
+  - real polygon paths: 4,
+  - labels: 4,
+  - static shape overlay: 0,
+  - fallback bubbles: 0,
+  - hover popup: working.
+
+Next:
+
+- Check province-to-city drilldown hover behavior with the same real-polygon rule.
+- Rework map layer combinations so price forecast, cultivation area, weather, FarmMap, and market markers do not hide each other unexpectedly.
+- Keep public map behavior strict: verified crop polygons first; no approximate nationwide blob fallback.

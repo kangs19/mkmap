@@ -1722,3 +1722,26 @@ Production caution:
   - `python scripts\run_smoke_suite.py --timeout-seconds 300` passed.
 - Detailed handoff:
   - `docs/AI_SESSION_103_MAP_HOVER_TITLE_FALLBACK.md`
+
+## Session 116 - Crop Polygon Map Restore (2026-07-06)
+
+- Restored the public real-time map to the intended crop-region polygon display.
+- Fixed the map render crash caused by recursive `isHorizonBlocked(itemCode, nearest.days)`.
+- Removed the normal-load emergency oval/static shape overlay path that was drawing nationwide blob/circle fallback shapes.
+- Normal province rendering now clears stale static overlays first.
+- Non-crop provinces are transparent in the price crop layer, so only verified active crop regions are emphasized.
+- Production verification on `https://mk-map.com/?qa=9691379` confirmed:
+  - 4 real Leaflet crop polygon paths for cabbage,
+  - 4 price labels,
+  - no static shape overlay,
+  - no fallback bubbles,
+  - hover popup working on the map label/region.
+- Important product rule:
+  - Do not reintroduce nationwide oval/circle fallback as a public substitute for crop polygons.
+  - If GeoJSON fails, fix the GeoJSON/Leaflet path or show a clear loading/error state.
+- Verification:
+  - `git diff --check` passed.
+  - `python scripts\audit_frontend_launch_ui.py` passed.
+  - `python scripts\run_smoke_suite.py --timeout-seconds 120` passed.
+- Detailed handoff:
+  - `docs/AI_SESSION_116_CROP_POLYGON_RESTORE.md`
