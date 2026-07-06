@@ -1367,6 +1367,7 @@ window.onload=async()=>{
   const geoFallbackTimer=setTimeout(()=>{
     const visibleCropLayer=document.querySelectorAll("#map .region-pin:not(.fm-static-map-bubble),#map .leaflet-overlay-pane path.leaflet-interactive").length;
     if(!visibleCropLayer&&map_){
+      renderEmergencyProvinceAreaOverlay("geojson_load_timeout_immediate");
       provinceGeoPromise
         .then(g=>{
           provGeo=g;
