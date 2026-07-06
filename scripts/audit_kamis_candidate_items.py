@@ -76,6 +76,7 @@ def main() -> int:
 
     ui_items = parse_ui_items(INDEX_HTML_PATH)
     existing_items = {path.stem for path in (REPO_ROOT / "metadata" / "items").glob("*.json")}
+    existing_kamis_mappings = load_existing_kamis_mappings()
     if args.items:
         wanted = set(args.items)
         ui_items = [item for item in ui_items if item.item_code in wanted]
@@ -90,6 +91,28 @@ def main() -> int:
     for ui_item in ui_items:
         candidates = rows_by_name.get(ui_item.item_name, [])
         if not candidates:
+            existing_mapping = existing_kamis_mappings.get(ui_item.item_code)
+            if existing_mapping:
+                results.append(
+                    {
+                        "item_code": ui_item.item_code,
+                        "item_name": ui_item.item_name,
+                        "status": "already_mapped",
+                        "already_mapped": True,
+                        "candidate_count": len(existing_mapping.get("variants", [])),
+                        "tested_variants": [],
+                        "best_variant": {
+                            "category_code": existing_mapping.get("itemcategorycode"),
+                            "itemcode": existing_mapping.get("itemcode"),
+                            "kindcode": _primary_kindcode(existing_mapping),
+                            "kind_name": _primary_kind_name(existing_mapping),
+                            "source": "metadata/items",
+                        },
+                        "best_feature_count": None,
+                        "notes": "No exact UI-name KAMIS codebook match, but metadata already contains a KAMIS mapping.",
+                    }
+                )
+                continue
             results.append(
                 {
                     "item_code": ui_item.item_code,
@@ -159,6 +182,37 @@ def parse_ui_items(path: Path) -> list[UiItem]:
     for item_code, item_name in re.findall(r"^\s*([A-Za-z0-9_]+)\s*:\s*\{name:\"([^\"]+)\"", body, flags=re.M):
         items.append(UiItem(item_code=item_code, item_name=item_name))
     return items
+
+
+def load_existing_kamis_mappings() -> dict[str, dict[str, object]]:
+    mappings: dict[str, dict[str, object]] = {}
+    for path in sorted((REPO_ROOT / "metadata" / "items").glob("*.json")):
+        try:
+            item = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        mapping = item.get("external_mappings", {}).get("kamis_price")
+        if isinstance(mapping, dict) and mapping.get("itemcode"):
+            mappings[str(item.get("item_code") or path.stem)] = mapping
+    return mappings
+
+
+def _primary_kindcode(mapping: dict[str, object]) -> str | None:
+    variant = _primary_variant(mapping)
+    return str(variant.get("kindcode")) if variant else None
+
+
+def _primary_kind_name(mapping: dict[str, object]) -> str | None:
+    variant = _primary_variant(mapping)
+    return str(variant.get("kind_name")) if variant else None
+
+
+def _primary_variant(mapping: dict[str, object]) -> dict[str, object] | None:
+    variants = [variant for variant in mapping.get("variants", []) if isinstance(variant, dict)]
+    if not variants:
+        return None
+    primary = [variant for variant in variants if variant.get("primary")]
+    return primary[0] if primary else variants[0]
 
 
 def parse_kamis_codebook(path: Path) -> list[KamisCodeRow]:

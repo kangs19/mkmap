@@ -1,5 +1,17 @@
 # MK-MAP Project Handoff
 
+## Latest Update - 2026-07-06 Session 83
+
+See `docs/AI_SESSION_83_AGROMARKET_20ITEMS.md`.
+
+Latest result:
+
+- Agromarket regional price data was collected successfully for all 20 metadata crops.
+- `scripts/audit_kamis_candidate_items.py` now recognizes existing metadata KAMIS mappings when UI labels do not exactly match KAMIS official item names.
+- A 20-crop Agromarket candidate model was trained/backtested for 1, 14, 30, 90, and 180 day horizons.
+- The candidate was not promoted. All horizons kept the existing checked baseline because temporal backtest stability was weaker than the baseline.
+- Public production should keep the current checked baseline active. The 20-crop candidate outputs are experimental until KOSIS, KMA, FarmMap, and per-item reliability coverage are verified.
+
 마지막 업데이트: 2026-07-02 KST (세션13)
 
 ## 프로젝트 목적

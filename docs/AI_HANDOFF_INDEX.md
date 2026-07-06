@@ -40,3 +40,6 @@
 - `docs/AI_SESSION_82_ITEM_EXPANSION_20.md`
   - 2026-07-06 candidate expansion from 5 to 20 metadata items.
   - Covers KAMIS candidate audit, generated draft metadata, 20-item KAMIS collection, 20-item model backtest, promotion failure reasons, and next data-enrichment work.
+- `docs/AI_SESSION_83_AGROMARKET_20ITEMS.md`
+  - 2026-07-06 Agromarket regional price collection for 20 crops.
+  - Covers KAMIS audit alias handling, Agromarket regional data collection, 20-crop model rerun, promotion result, and why the candidate is still experimental.
