@@ -61,6 +61,18 @@ def main() -> int:
             [sys.executable, "scripts/collect_live_price_features.py", "--date", args.date, "--days-back", str(args.price_days_back)],
         )
         run_step(
+            "Collect AgroMarket auction variant and import-share features",
+            [
+                sys.executable,
+                "scripts/collect_agromarket_auction_features.py",
+                "--date",
+                args.date,
+                "--days-back",
+                "30",
+            ],
+            soft_fail=True,
+        )
+        run_step(
             "Collect KOSIS production",
             [sys.executable, "scripts/collect_live_production_features.py", "--date", args.date, "--year", str(year)],
         )

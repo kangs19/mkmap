@@ -2,13 +2,13 @@
   "cabbage": {
     "season_spring": ["봄배추", "봄"],
     "season_highland": ["고냉지배추", "고랭지배추", "여름배추", "여름(고랭지)", "고랭지"],
-    "season_autumn": ["김장(가을)배추", "가을배추", "가을"],
+    "season_autumn": ["김장배추", "가을배추", "가을"],
     "season_winter": ["월동배추", "월동"],
     "stored": ["저장배추"],
     "processed": ["절임배추"],
     "wrap": ["쌈배추"],
     "imported": ["배추(수입)", "수입"],
-    "other": ["기타배추", "생채용 배추", "기타"]
+    "other": ["기타배추", "얼갈이배추", "기타"]
   },
   "radish": {
     "season_spring": ["봄무", "봄"],
@@ -19,6 +19,7 @@
     "bunched": ["다발무"],
     "processed": ["무말랭이"],
     "colored": ["자색무"],
+    "imported": ["무(수입)", "수입"],
     "other": ["기타무", "기타"]
   },
   "onion": {
@@ -39,16 +40,71 @@
     "other": ["기타대파"]
   },
   "garlic": {
-    "peeled_daeseo": ["깐마늘 대서", "깐마늘(대서)", "햇깐마늘(대서)"],
-    "peeled_namdo": ["깐마늘(남도)", "햇깐마늘(남도)"],
-    "fresh_hanji": ["햇마늘 한지"],
-    "fresh_daeseo": ["햇마늘 대서"],
-    "stored_hanji": ["저장형 한지"],
-    "stored_daeseo": ["저장형 대서"],
+    "peeled_daeseo": ["깐마늘 대서", "깐마늘(대서)", "깐마늘대서", "피마늘(대서)"],
+    "peeled_namdo": ["깐마늘 남도", "깐마늘(남도)", "피마늘(남도)"],
+    "fresh_hanji": ["햇마늘 한지", "햇마늘(한지)"],
+    "fresh_daeseo": ["햇마늘 대서", "햇마늘(대서)"],
+    "stored_hanji": ["저장형 한지", "저장마늘 한지"],
+    "stored_daeseo": ["저장형 대서", "저장마늘 대서"],
     "six_clove": ["육쪽마늘"],
     "green": ["풋마늘"],
     "stem": ["마늘쫑"],
-    "imported": ["수입", "마늘쫑(수입)", "냉동마늘(수입)"],
+    "imported": ["마늘(수입)", "마늘쫑(수입)", "냉동마늘(수입)", "수입"],
     "other": ["기타마늘"]
+  },
+  "tomato": {
+    "general": ["토마토", "토마토(일반)"],
+    "cherry": ["방울토마토", "대추방울"],
+    "imported": ["토마토(수입)", "방울토마토(수입)", "수입"],
+    "other": ["기타토마토", "기타"]
+  },
+  "cucumber": {
+    "general": ["오이", "오이(일반)"],
+    "white": ["백다다기"],
+    "cucumber_chung": ["취청"],
+    "imported": ["오이(수입)", "수입"],
+    "other": ["기타오이", "기타"]
+  },
+  "chamoe": {
+    "general": ["참외"],
+    "imported": ["참외(수입)", "수입"],
+    "other": ["기타참외", "기타"]
+  },
+  "watermelon": {
+    "general": ["수박"],
+    "imported": ["수박(수입)", "수입"],
+    "other": ["기타수박", "기타"]
+  },
+  "potato": {
+    "general": ["감자"],
+    "stored": ["저장감자"],
+    "imported": ["감자(수입)", "수입"],
+    "other": ["기타감자", "기타"]
+  },
+  "apple": {
+    "general": ["사과"],
+    "imported": ["사과(수입)", "수입"],
+    "other": ["기타사과", "기타"]
+  },
+  "pear": {
+    "general": ["배"],
+    "imported": ["배(수입)", "수입"],
+    "other": ["기타배", "기타"]
+  },
+  "grape": {
+    "general": ["포도"],
+    "imported": ["포도(수입)", "수입"],
+    "other": ["기타포도", "기타"]
+  },
+  "fresh_pepper": {
+    "general": ["풋고추"],
+    "green": ["청고추"],
+    "imported": ["풋고추(수입)", "수입"],
+    "other": ["기타풋고추", "기타"]
+  },
+  "pepper": {
+    "general": ["홍고추", "건고추"],
+    "imported": ["고추(수입)", "건고추(수입)", "수입"],
+    "other": ["기타고추", "기타"]
   }
 }

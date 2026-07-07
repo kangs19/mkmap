@@ -23,7 +23,23 @@ from mkmap_meta.storage import dated_path, write_json
 
 BASE_URL = "http://211.237.50.150:7080/openapi"
 GRID_ID = "Grid_20240625000000000654_1"
-DEFAULT_ITEMS = ["cabbage", "radish", "onion", "green_onion", "garlic"]
+DEFAULT_ITEMS = [
+    "cabbage",
+    "radish",
+    "onion",
+    "green_onion",
+    "garlic",
+    "tomato",
+    "cucumber",
+    "chamoe",
+    "watermelon",
+    "potato",
+    "apple",
+    "pear",
+    "grape",
+    "fresh_pepper",
+    "pepper",
+]
 DEFAULT_MARKETS = ["110001"]
 VARIANT_GROUP_PATH = REPO_ROOT / "config" / "item_variant_groups.json"
 
@@ -33,6 +49,16 @@ AUCTION_CODES = {
     "onion": {"large": "12", "mid": "01"},
     "green_onion": {"large": "12", "mid": "02"},
     "garlic": {"large": "12", "mid": "09"},
+    "tomato": {"large": "08", "mid": "03"},
+    "cucumber": {"large": "09", "mid": "01"},
+    "chamoe": {"large": "08", "mid": "02"},
+    "watermelon": {"large": "08", "mid": "01"},
+    "potato": {"large": "05", "mid": "01"},
+    "apple": {"large": "06", "mid": "01"},
+    "pear": {"large": "06", "mid": "02"},
+    "grape": {"large": "06", "mid": "03"},
+    "fresh_pepper": {"large": "12", "mid": "05"},
+    "pepper": {"large": "12", "mid": "08"},
 }
 
 
