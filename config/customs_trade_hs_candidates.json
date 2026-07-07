@@ -1,0 +1,181 @@
+{
+  "source": {
+    "provider": "Korea Customs Service",
+    "item_trade_endpoint": "http://apis.data.go.kr/1220000/Itemtrade/getItemtradeList",
+    "country_item_trade_endpoint": "http://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList",
+    "required_env": ["DATA_GO_KR_API_KEY"],
+    "verified_at": "2026-07-07",
+    "audit_output": "data/audits/customs_trade/customs_trade_feature_audit_202507_202606.json"
+  },
+  "feature_policy": {
+    "primary_use": "import_export_pressure",
+    "recommended_horizons": ["4w", "2m", "3m"],
+    "limited_horizons": ["1w", "2w", "3w"],
+    "feature_candidates": [
+      "import_weight_1m_kg",
+      "import_weight_3m_avg_kg",
+      "import_weight_yoy_pct",
+      "import_unit_value_usd_per_kg",
+      "dominant_origin_country",
+      "origin_concentration_pct",
+      "export_weight_1m_kg"
+    ],
+    "notes": "Customs trade data is monthly, so it is strongest as a medium-term supply pressure feature rather than an intraday or one-week signal."
+  },
+  "items": {
+    "cabbage": {
+      "display_name": "배추",
+      "hs_prefixes": ["070490"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "배추 rows exist, but the HS prefix also groups nearby brassica items such as cabbage variants. Filter by statKor before training."
+    },
+    "radish": {
+      "display_name": "무",
+      "hs_prefixes": ["070690"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Rows exist with large import volume, but the prefix includes several root vegetables. Use statKor filtering."
+    },
+    "onion": {
+      "display_name": "양파",
+      "hs_prefixes": ["070310"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Large recent import volume and clear onion/shallot family mapping."
+    },
+    "green_onion": {
+      "display_name": "대파",
+      "hs_prefixes": ["070390"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Rows exist, but leek and similar allium items can be mixed. Use statKor filtering."
+    },
+    "garlic": {
+      "display_name": "마늘",
+      "hs_prefixes": ["070320"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear garlic mapping and recent import rows."
+    },
+    "potato": {
+      "display_name": "감자",
+      "hs_prefixes": ["070190"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "High import volume and useful medium-term substitution pressure."
+    },
+    "sweet_potato": {
+      "display_name": "고구마",
+      "hs_prefixes": ["071420"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear sweet-potato mapping, though volume is smaller than onion/carrot/potato."
+    },
+    "pepper": {
+      "display_name": "건고추",
+      "hs_prefixes": ["090421", "090422"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Dried/crushed pepper rows exist. Keep separate from fresh pepper in the model."
+    },
+    "fresh_pepper": {
+      "display_name": "풋고추",
+      "hs_prefixes": ["070960"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Fresh pepper rows exist, but bell pepper and other pepper categories can be mixed."
+    },
+    "tomato": {
+      "display_name": "토마토",
+      "hs_prefixes": ["070200"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear mapping, but recent import volume is near zero. Treat as low-pressure feature unless imports spike."
+    },
+    "cucumber": {
+      "display_name": "오이",
+      "hs_prefixes": ["070700"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Mapping exists, but recent import volume is near zero. Useful mainly as a spike detector."
+    },
+    "chamoe": {
+      "display_name": "참외",
+      "hs_prefixes": ["080719"],
+      "mapping_confidence": "low",
+      "feature_readiness": "reference_only_hs_too_broad",
+      "reason": "The HS prefix is a melon-family bucket. Do not train directly until exact statKor filtering is locked."
+    },
+    "watermelon": {
+      "display_name": "수박",
+      "hs_prefixes": ["080711"],
+      "mapping_confidence": "high",
+      "feature_readiness": "no_recent_import_rows",
+      "reason": "Rows exist but import weight is zero in the tested window. Use as no-import baseline."
+    },
+    "carrot": {
+      "display_name": "당근",
+      "hs_prefixes": ["070610"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Very large import volume and strong substitution pressure candidate."
+    },
+    "spinach": {
+      "display_name": "시금치",
+      "hs_prefixes": ["070970"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear mapping with low but nonzero import volume."
+    },
+    "lettuce": {
+      "display_name": "상추",
+      "hs_prefixes": ["070511", "070519"],
+      "mapping_confidence": "medium",
+      "feature_readiness": "usable_after_hs_name_review",
+      "reason": "Lettuce rows exist, but category split should be reviewed before training."
+    },
+    "perilla": {
+      "display_name": "깻잎",
+      "hs_prefixes": ["070999"],
+      "mapping_confidence": "low",
+      "feature_readiness": "reference_only_hs_too_broad",
+      "reason": "The prefix is a broad other-vegetables bucket. Use only after exact item-name filtering."
+    },
+    "sesame": {
+      "display_name": "참깨",
+      "hs_prefixes": ["120740"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Large import volume and clear mapping."
+    },
+    "apple": {
+      "display_name": "사과",
+      "hs_prefixes": ["080810"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear mapping but near-zero import volume; use as a weak feature or import-spike detector."
+    },
+    "pear": {
+      "display_name": "배",
+      "hs_prefixes": ["080830"],
+      "mapping_confidence": "high",
+      "feature_readiness": "no_recent_import_rows",
+      "reason": "Rows exist but import weight is zero in the tested window."
+    },
+    "grape": {
+      "display_name": "포도",
+      "hs_prefixes": ["080610"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Large seasonal import volume and clear mapping."
+    },
+    "strawberry": {
+      "display_name": "딸기",
+      "hs_prefixes": ["081010"],
+      "mapping_confidence": "high",
+      "feature_readiness": "ready_for_import_pressure_feature",
+      "reason": "Clear mapping but near-zero recent import volume; use as a weak feature or import-spike detector."
+    }
+  }
+}
