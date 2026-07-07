@@ -6088,7 +6088,7 @@ function renderDashboardPanel(){
   window.fmShareCoverageForItem=shareCoverageForItem;
 })();
 </script>
-<script>
+<script type="text/plain" data-disabled="xui-renderer-override">
 /* Final visible UI pass: remove helper prose and make cards self-explanatory. */
 (function(){
   const style=document.createElement("style");
@@ -6391,6 +6391,74 @@ function renderDashboardPanel(){
     if(window.activeTopView==="explain") window.renderExplanationPanel?.();
     if(window.activeTopView==="dashboard") window.renderDashboardPanel?.();
   },1200);
+})();
+</script>
+<script>
+/* Final microcopy cleanup: keep existing data renderers, hide prose-only helpers. */
+(function(){
+  const style=document.createElement("style");
+  style.textContent=`
+    .fm-xui-hidden{display:none!important}
+    .fm-signal-help,
+    .fm-readable-note,
+    .fm-source-note,
+    .fm-market-insight-note,
+    .rhc-note{display:none!important}
+    .fm-brief-card{padding:10px!important}
+    .fm-brief-title{font-size:16px!important}
+    .fm-brief-value{font-size:18px!important}
+    .fm-data-tag{font-size:11px!important}
+  `;
+  document.head.appendChild(style);
+
+  const prosePatterns=[
+    "이 숫자는",
+    "뜻입니다",
+    "설명",
+    "연결되지 않았습니다",
+    "반영했습니다",
+    "계산했습니다",
+    "확인하세요",
+    "보세요",
+    "표시됩니다",
+    "기준입니다",
+    "자료 미확인",
+    "수집된 지역",
+    "클릭하면 가격",
+    "색이 진한 지역"
+  ];
+
+  function hideIfProse(el){
+    if(!el || el.classList?.contains("fm-xui-hidden")) return;
+    const text=(el.innerText||el.textContent||"").trim();
+    if(!text) return;
+    if(prosePatterns.some(p=>text.includes(p))) {
+      el.classList.add("fm-xui-hidden");
+    }
+  }
+
+  function compactMicrocopy(){
+    const regional=document.querySelector("#regional-price-status");
+    if(regional && regional.nextElementSibling) regional.nextElementSibling.classList.add("fm-xui-hidden");
+    const layerControls=document.querySelector("#layer-controls");
+    if(layerControls && layerControls.nextElementSibling && !layerControls.nextElementSibling.id) layerControls.nextElementSibling.classList.add("fm-xui-hidden");
+    const farmNote=document.querySelector("#farmmap-layer-note");
+    if(farmNote) farmNote.classList.add("fm-xui-hidden");
+    const rightHint=document.querySelector("#right-hint > div:last-child");
+    if(rightHint) rightHint.classList.add("fm-xui-hidden");
+
+    document.querySelectorAll(
+      ".fm-signal-help,.fm-readable-note,.fm-source-note,.fm-market-insight-note,.rhc-note,.fm-brief-note,.fm-check-item div:last-child,.fm-decision-body"
+    ).forEach(el=>{
+      const text=(el.innerText||el.textContent||"").trim();
+      if(text.length>95 || prosePatterns.some(p=>text.includes(p))) el.classList.add("fm-xui-hidden");
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded",compactMicrocopy);
+  const observer=new MutationObserver(()=>compactMicrocopy());
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  setInterval(compactMicrocopy,1500);
 })();
 </script>
 </body>
