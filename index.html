@@ -5785,7 +5785,7 @@ function renderDashboardPanel(){
   `);
 }
 </script>
-<script>
+<script type="text/plain" data-disabled="legacy-decision-copy">
 /* Decision-copy overrides: keep probability, price change, and data coverage separate. */
 (function(){
   const style=document.createElement("style");
@@ -6086,6 +6086,311 @@ function renderDashboardPanel(){
 
   window.fmProbabilityText=probabilityText;
   window.fmShareCoverageForItem=shareCoverageForItem;
+})();
+</script>
+<script>
+/* Final visible UI pass: remove helper prose and make cards self-explanatory. */
+(function(){
+  const style=document.createElement("style");
+  style.textContent=`
+    .fm-xui-hidden{display:none!important}
+    .fm-brief-card{padding:10px!important}
+    .fm-brief-title{font-size:16px!important}
+    .fm-brief-value{font-size:18px!important}
+    .fm-pill-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .fm-xui-pill{display:inline-flex;align-items:center;gap:4px;border:1px solid #d8e5ce;background:#f8fbf5;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:900;color:#24321a;white-space:nowrap}
+    .fm-xui-pill.red{color:#c02828;border-color:#f0b4b4;background:#fff4f4}
+    .fm-xui-pill.green{color:#1a8a1a;border-color:#bfe3bf;background:#f2fff2}
+    .fm-xui-pill.orange{color:#b86010;border-color:#efd0a8;background:#fff8ec}
+    .fm-xui-statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+    .fm-xui-stat{border:1px solid #dfe8d4;background:#fbfdf8;border-radius:8px;padding:8px;min-width:0}
+    .fm-xui-stat span{display:block;font-size:11px;font-weight:800;color:#617354;margin-bottom:2px}
+    .fm-xui-stat b{display:block;font-size:15px;color:#17240f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .fm-xui-card{border:1px solid #dfe8d4;background:#fff;border-radius:8px;padding:10px}
+    .fm-xui-hero{border:1px solid #dfe8d4;border-left:5px solid #267a18;background:#fbfdf8;border-radius:8px;padding:12px}
+    .fm-xui-hero-title{font-size:22px;font-weight:950;color:#14240e;margin-bottom:8px}
+    .fm-xui-market{font-size:12px;font-weight:900;color:#55664c;margin-top:8px}
+    .fm-xui-small{font-size:12px;font-weight:800;color:#66755e}
+    .rhc .rhc-coverage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+    .rhc .rhc-coverage div{background:#f8fbf5;border:1px solid #dfe8d4;border-radius:7px;padding:7px;font-size:11px;color:#526348;line-height:1.35}
+    .rhc .rhc-coverage b{display:block;font-size:14px;color:#1a2410;margin-bottom:2px}
+    .rhc .rhc-note,.fm-signal-help,.fm-readable-note{display:none!important}
+    @media(max-width:900px){.fm-xui-statgrid,.rhc .rhc-coverage{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  function hideStaticHelp(){
+    const regional=document.querySelector("#regional-price-status");
+    if(regional && regional.nextElementSibling) regional.nextElementSibling.classList.add("fm-xui-hidden");
+    const layerControls=document.querySelector("#layer-controls");
+    if(layerControls && layerControls.nextElementSibling && !layerControls.nextElementSibling.id) layerControls.nextElementSibling.classList.add("fm-xui-hidden");
+    const farmNote=document.querySelector("#farmmap-layer-note");
+    if(farmNote) farmNote.classList.add("fm-xui-hidden");
+    const rightHint=document.querySelector("#right-hint > div:last-child");
+    if(rightHint) rightHint.classList.add("fm-xui-hidden");
+    document.querySelectorAll(".fm-source-note,.fm-market-insight-note").forEach(el=>el.classList.add("fm-xui-hidden"));
+  }
+
+  function esc(v){
+    return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function won(v){
+    const n=Number(v);
+    return Number.isFinite(n)&&n>0 ? `${Math.round(n).toLocaleString()}원` : "수집 중";
+  }
+  function ton(v){
+    const n=Number(v)||0;
+    if(n>=10000) return `${(n/10000).toFixed(1)}만 톤`;
+    if(n>=1000) return `${(n/1000).toFixed(1)}천 톤`;
+    if(n>0) return `${Math.round(n).toLocaleString()}톤`;
+    return "수집 중";
+  }
+  function pct(v){
+    const n=Number(v);
+    return Number.isFinite(n) ? `${n>0?"+":""}${n.toFixed(1)}%` : "보류";
+  }
+  function riskLabel(level){
+    return ({normal:"정상",caution:"주의",warning:"경고",high:"위험"}[level]||"정상");
+  }
+  function riskTone(level){
+    return ({normal:"green",caution:"orange",warning:"orange",high:"red"}[level]||"green");
+  }
+  function regionsOf(itemCode){
+    return Object.values((window.CITY_DATA||{})[itemCode]||{}).filter(window.isActiveCropCity||(()=>true));
+  }
+  function shipmentOf(itemCode){
+    return regionsOf(itemCode).reduce((sum,row)=>sum+(Number(row.shipment_ton||row.production_ton)||0),0);
+  }
+  function coverageOf(itemCode){
+    const shares=(window.LIVE_SHIPMENT_SHARE||{})[itemCode]||{};
+    const vals=Object.values(shares).map(Number).filter(Number.isFinite);
+    if(vals.length) return `${vals.reduce((a,b)=>a+b,0).toFixed(1)}%`;
+    const meta=regionsOf(itemCode).reduce((sum,row)=>sum+(Number(row.production_pct)||0),0);
+    return meta>0 ? `${Math.min(100,meta).toFixed(0)}%` : "미확인";
+  }
+  function importBadge(itemCode){
+    const sensitive=new Set(["garlic","onion","green_onion","carrot","sesame","pepper","fresh_pepper"]);
+    return sensitive.has(itemCode) ? {label:"수입 변수",tone:"orange"} : {label:"국내 중심",tone:"green"};
+  }
+  function probability(prob){
+    const p=Number(prob);
+    if(!Number.isFinite(p)) return {label:"방향 대기",tone:"orange",color:"#b86010"};
+    if(p>=0.58) return {label:`상승 가능성 ${Math.round(p*100)}%`,tone:"red",color:"#c02828"};
+    if(p<=0.42) return {label:`하락 가능성 ${Math.round((1-p)*100)}%`,tone:"green",color:"#1a8a1a"};
+    return {label:`보합권 ${Math.round(p*100)}%`,tone:"",color:"#6a1e9a"};
+  }
+  function changeOf(itemCode,days){
+    const model=Number(window.horizonModelPct?.(days,itemCode));
+    const live=(window.LIVE_ITEMS||{})[itemCode]||{};
+    const livePct=Number(live.chg_pct);
+    if(Number.isFinite(model)&&Math.abs(model)>=0.05) return model;
+    if(Number.isFinite(livePct)&&Math.abs(livePct)>=0.05) return livePct*Math.min(1.5,Number(days||28)/28);
+    const prob=Number(live.up_prob);
+    if(Number.isFinite(prob)&&Math.abs(prob-0.5)<0.08) return 0;
+    return null;
+  }
+  function periodName(days){
+    return (window.PERIOD_LABEL||{})[days] || `${days}일`;
+  }
+  function stat(label,value,color){
+    return `<div class="fm-xui-stat"><span>${label}</span><b style="${color?`color:${color}`:""}">${value}</b></div>`;
+  }
+  function rows(){
+    return Object.entries(window.ITEMS||{}).map(([k,it])=>{
+      const live=(window.LIVE_ITEMS||{})[k]||{};
+      const regions=regionsOf(k);
+      const chg=changeOf(k,window.curPeriod||28);
+      const score=Number(live.risk_score||0);
+      return {
+        k,it,live,regions,chg,score,
+        prob:probability(live.up_prob),
+        price:(window.LIVE_NATIONAL_PRICES||{})[k]||0,
+        shipment:shipmentOf(k),
+        coverage:coverageOf(k),
+        imp:importBadge(k)
+      };
+    }).filter(r=>r.price||r.regions.length||Number.isFinite(Number(r.live.up_prob))||r.score)
+      .sort((a,b)=>(b.score||0)-(a.score||0)||Math.abs(Number(b.chg)||0)-Math.abs(Number(a.chg)||0));
+  }
+
+  window.renderDefaultPanel=function(){
+    hideStaticHelp();
+    const ranked=rows();
+    const top=ranked[0];
+    const dateEl=document.getElementById("brief-date");
+    if(dateEl){
+      const d=new Date();
+      dateEl.textContent=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} · 예측 ${window.LIVE_BASE_DATE||"수집 중"}`;
+    }
+    const summary=document.getElementById("brief-summary");
+    if(summary){
+      summary.innerHTML=top
+        ? `<div class="fm-pill-row"><b>${top.it.emoji} ${top.it.name}</b><span class="fm-xui-pill ${top.prob.tone}">${top.prob.label}</span><span class="fm-xui-pill">${periodName(window.curPeriod||28)} ${pct(top.chg)}</span><span class="fm-xui-pill">산지 ${top.regions.length}곳</span></div>`
+        : `<div class="fm-pill-row"><b>데이터 수집 중</b><span class="fm-xui-pill orange">가격 대기</span><span class="fm-xui-pill orange">산지 대기</span></div>`;
+    }
+    const list=document.getElementById("brief-risk-list");
+    if(list){
+      list.innerHTML=ranked.slice(0,6).map(r=>{
+        const color=Number(r.chg)>0?"#c02828":Number(r.chg)<0?"#1a8a1a":"#6a1e9a";
+        return `<div onclick="selectItem('${r.k}')" class="fm-brief-card" style="background:#fff;border:1px solid #dfe8d4">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="font-size:21px">${r.it.emoji}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span class="fm-brief-title">${r.it.name}</span>
+                <span class="fm-xui-pill ${riskTone(r.live.risk_level)}">${riskLabel(r.live.risk_level)}</span>
+              </div>
+              <div class="fm-pill-row" style="margin-top:6px">
+                <span class="fm-xui-pill ${r.prob.tone}">${r.prob.label}</span>
+                <span class="fm-xui-pill" style="color:${color}">${periodName(window.curPeriod||28)} ${pct(r.chg)}</span>
+              </div>
+              <div class="fm-xui-statgrid">
+                ${stat("기준가",won(r.price))}
+                ${stat("산지",`${r.regions.length}곳`)}
+                ${stat("물량",ton(r.shipment))}
+                ${stat("비중",r.coverage)}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+    const prices=document.getElementById("brief-prices");
+    if(prices){
+      prices.innerHTML=ranked.slice(0,6).map(r=>{
+        const color=Number(r.chg)>0?"#c02828":Number(r.chg)<0?"#1a8a1a":"#6a1e9a";
+        return `<div onclick="selectItem('${r.k}')" class="fm-brief-card" style="background:#fbfdf8;border:1px solid #dfe8d4;padding:9px">
+          <div style="display:flex;justify-content:space-between;gap:8px"><b>${r.it.emoji} ${r.it.name}</b><span class="fm-xui-small" style="color:${color}">${pct(r.chg)}</span></div>
+          <div class="fm-brief-value">${won(r.price)}</div>
+          <div class="fm-pill-row"><span class="fm-xui-pill ${r.prob.tone}">${r.prob.label}</span></div>
+        </div>`;
+      }).join("");
+    }
+    const status=document.getElementById("brief-data-status");
+    if(status){
+      const current=ranked.find(r=>r.k===window.curItem)||top;
+      status.innerHTML=current ? `<div class="fm-xui-statgrid">
+        ${stat("선택 작물",`${current.it.emoji} ${current.it.name}`)}
+        ${stat("표시 산지",`${current.regions.length}곳`)}
+        ${stat("확인 물량",ton(current.shipment))}
+        ${stat("수입 변수",current.imp.label,current.imp.tone==="orange"?"#b86010":"#1a8a1a")}
+      </div>` : "";
+    }
+  };
+
+  window.renderExplanationPanel=function(){
+    hideStaticHelp();
+    const item=(window.ITEMS||{})[window.curItem]||{emoji:"",name:"작물",unit:""};
+    const live=(window.LIVE_ITEMS||{})[window.curItem]||{};
+    const regions=regionsOf(window.curItem);
+    const shipment=shipmentOf(window.curItem);
+    const prob=probability(live.up_prob);
+    const chg=changeOf(window.curItem,window.curPeriod||28);
+    const color=Number(chg)>0?"#c02828":Number(chg)<0?"#1a8a1a":"#6a1e9a";
+    const imp=importBadge(window.curItem);
+    const periodCards=[7,14,21,28,60,90].map(days=>{
+      const v=changeOf(window.curItem,days);
+      const c=Number(v)>0?"#c02828":Number(v)<0?"#1a8a1a":"#6a1e9a";
+      return `<div class="fm-xui-card"><div class="fm-xui-small">${periodName(days)}</div><b style="font-size:18px;color:${c}">${pct(v)}</b></div>`;
+    }).join("");
+    window.showTopPanel?.(`
+      <div class="fm-top-card">
+        <div class="fm-xui-hero" style="border-left-color:${color}">
+          <div class="fm-xui-hero-title">${item.emoji} ${item.name} · ${periodName(window.curPeriod||28)} 판단</div>
+          <div class="fm-pill-row">
+            <span class="fm-xui-pill ${prob.tone}">${prob.label}</span>
+            <span class="fm-xui-pill" style="color:${color}">예상 ${pct(chg)}</span>
+            <span class="fm-xui-pill">기준가 ${won((window.LIVE_NATIONAL_PRICES||{})[window.curItem])}</span>
+          </div>
+          <div class="fm-xui-statgrid">
+            ${stat("대표 산지",`${regions.length}곳`)}
+            ${stat("확인 물량",ton(shipment))}
+            ${stat("전국 비중",coverageOf(window.curItem))}
+            ${stat("수입 변수",imp.label,imp.tone==="orange"?"#b86010":"#1a8a1a")}
+          </div>
+        </div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-sec-title" style="font-size:17px">기간별 예상</div>
+        <div class="fm-period-cards">${periodCards}</div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-sec-title" style="font-size:17px">오늘 볼 순서</div>
+        <div class="fm-xui-statgrid">
+          ${stat("1 가격",`${periodName(window.curPeriod||28)} ${pct(chg)}`,color)}
+          ${stat("2 산지",`${regions.length}곳 · ${ton(shipment)}`)}
+          ${stat("3 시장",`기준가 ${won((window.LIVE_NATIONAL_PRICES||{})[window.curItem])}`)}
+          ${stat("4 변수",imp.label,imp.tone==="orange"?"#b86010":"#1a8a1a")}
+        </div>
+      </div>
+    `);
+  };
+
+  window.renderDashboardPanel=function(){
+    hideStaticHelp();
+    const ranked=rows();
+    const watch=ranked.slice(0,5);
+    const rise=ranked.slice().sort((a,b)=>(Number(b.chg)||0)-(Number(a.chg)||0)).slice(0,5);
+    const fall=ranked.slice().sort((a,b)=>(Number(a.chg)||0)-(Number(b.chg)||0)).slice(0,5);
+    function pick(r,value,color){
+      return `<div class="fm-market-pick" onclick="fmSelectMapItem('${r.k}')"><b><span>${r.it.emoji} ${r.it.name}</span><span style="color:${color}">${value}</span></b><small>${won(r.price)} · 산지 ${r.regions.length}곳 · 물량 ${ton(r.shipment)}</small></div>`;
+    }
+    window.showTopPanel?.(`
+      <div class="fm-top-card">
+        <div class="fm-xui-hero">
+          <div class="fm-xui-hero-title">전국 작물 통계</div>
+          <div class="fm-xui-statgrid">
+            ${stat("가격 수집",`${Object.keys(window.LIVE_NATIONAL_PRICES||{}).length}품목`)}
+            ${stat("지도 산지",`${ranked.filter(r=>r.regions.length).length}품목`)}
+            ${stat("상승 후보",`${ranked.filter(r=>Number(r.chg)>0).length}품목`,"#c02828")}
+            ${stat("하락 후보",`${ranked.filter(r=>Number(r.chg)<0).length}품목`,"#1a8a1a")}
+          </div>
+        </div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-market-groups">
+          <div class="fm-market-group"><h3>먼저 볼 품목</h3>${watch.map(r=>pick(r,r.prob.label,r.prob.color)).join("")}</div>
+          <div class="fm-market-group"><h3>상승 쪽</h3>${rise.map(r=>pick(r,pct(r.chg),Number(r.chg)>0?"#c02828":"#6a1e9a")).join("")}</div>
+          <div class="fm-market-group"><h3>하락 쪽</h3>${fall.map(r=>pick(r,pct(r.chg),Number(r.chg)<0?"#1a8a1a":"#6a1e9a")).join("")}</div>
+        </div>
+      </div>
+    `);
+  };
+
+  window.makeMapPricePinHoverHtml=function(name,d,sidoKR){
+    const item=(window.ITEMS||{})[window.curItem]||{name:"작물",unit:""};
+    const priceCtx=window.getRegionPriceContext?.(d,sidoKR)||{};
+    const price=Number(priceCtx.currentPrice||d?.avg_price||0);
+    const chg=changeOf(window.curItem,window.curPeriod||28);
+    const prob=probability((window.LIVE_ITEMS||{})[window.curItem]?.up_prob);
+    const market=priceCtx.market||window.marketBasisFor?.(null,sidoKR,d)||{};
+    const shipment=Number(d?.shipment_ton||d?.production_ton||0);
+    const share=d?.production_pct?`${Math.round(d.production_pct)}%`:coverageOf(window.curItem);
+    const yoy=Number(d?.shipment_yoy);
+    const color=Number(chg)>0?"#c02828":Number(chg)<0?"#1a8a1a":"#6a1e9a";
+    return `<div class="rhc">
+      <div class="rhc-header"><div><span class="rhc-title">${esc(name)} ${esc(item.name)}</span><div class="rhc-sub">${periodName(window.curPeriod||28)} 판단</div></div><span class="rhc-badge normal">지도</span></div>
+      <div class="rhc-grid">
+        <div><b>${won(price)}</b><small>도매가${item.unit?`/${esc(item.unit)}`:""}</small></div>
+        <div><b style="color:${prob.color}">${prob.label.replace(" 가능성","")}</b><small>방향</small></div>
+        <div><b style="color:${color}">${pct(chg)}</b><small>예상</small></div>
+      </div>
+      <div class="rhc-coverage">
+        <div><b>${ton(shipment)}</b>확인 물량</div>
+        <div><b>${share}</b>전국 비중</div>
+        <div><b>${Number.isFinite(yoy)?pct(yoy):"미확인"}</b>전년 대비</div>
+        <div><b>${esc(market.name||"기준시장")}</b>${esc(market.date||"")}</div>
+      </div>
+    </div>`;
+  };
+
+  document.addEventListener("DOMContentLoaded",hideStaticHelp);
+  setTimeout(()=>{
+    hideStaticHelp();
+    if(typeof window.curDetailData==="undefined" || !window.curDetailData) window.renderDefaultPanel?.();
+    if(window.activeTopView==="explain") window.renderExplanationPanel?.();
+    if(window.activeTopView==="dashboard") window.renderDashboardPanel?.();
+  },1200);
 })();
 </script>
 </body>
