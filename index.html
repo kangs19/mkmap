@@ -5812,7 +5812,7 @@ function renderDashboardPanel(){
   }
   function fmtPctKo(n){
     const v=Number(n);
-    if(!Number.isFinite(v)) return "확인 중";
+    if(!Number.isFinite(v)) return "산출 보류";
     return `${v>0?"+":""}${v.toFixed(1)}%`;
   }
   function fmtWonKo(n){
@@ -5860,10 +5860,12 @@ function renderDashboardPanel(){
   }
   function expectedChangeForItem(itemCode,days){
     const pct=Number(horizonModelPct(days,itemCode));
-    if(Number.isFinite(pct)) return pct;
     const live=LIVE_ITEMS[itemCode]||{};
+    const liveChg=Number(live.chg_pct);
+    if(Number.isFinite(pct)&&Math.abs(pct)>=0.05) return pct;
+    if(Number.isFinite(liveChg)&&Math.abs(liveChg)>=0.05) return liveChg*Math.min(1.5,Number(days||28)/28);
     const prob=Number(live.up_prob);
-    if(Number.isFinite(prob)) return (prob-0.5)*20*Math.min(1.5,Number(days||28)/28);
+    if(Number.isFinite(prob)&&Math.abs(prob-0.5)<0.08) return 0;
     return null;
   }
 
@@ -5889,7 +5891,7 @@ function renderDashboardPanel(){
     if(summary){
       if(top){
         const p=probabilityText(top.prob);
-        summary.innerHTML=`<b>${top.it.name}</b>을 먼저 확인하세요. ${p.main}, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락은 <b>${fmtPctKo(top.chg)}</b>입니다. 확률은 방향 판단이고, 등락률은 예상 가격 변화입니다.`;
+        summary.innerHTML=`<b>${top.it.name}</b> 먼저 확인하세요. ${p.main}, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락률은 <b>${fmtPctKo(top.chg)}</b>입니다. 확률은 방향 판단이고, 등락률은 가격 변화 예상치입니다.`;
       }else{
         summary.textContent="가격과 예측 데이터를 불러오는 중입니다. 숫자가 확인된 품목만 우선순위에 올립니다.";
       }
@@ -5911,7 +5913,7 @@ function renderDashboardPanel(){
                 <span class="fm-brief-pill" style="color:${koRiskColor(riskLevel)};border:1px solid ${koRiskColor(riskLevel)}44">${koRisk(riskLevel)}</span>
               </div>
               <div class="fm-prob-line" style="color:${p.color}">${p.main}</div>
-              <div class="fm-change-line" style="color:${chgColor}">${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락 ${fmtPctKo(r.chg)}</div>
+              <div class="fm-change-line" style="color:${chgColor}">${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락률 ${fmtPctKo(r.chg)}</div>
               <div class="fm-brief-note">${p.sub}</div>
               <div class="fm-brief-note">대표 산지 ${r.regions.length}곳 · 확인 물량 ${fmtTonKo(r.shipment)} · 커버 ${coverage.label}</div>
             </div>
@@ -5968,7 +5970,7 @@ function renderDashboardPanel(){
     const imp=importContextForItem(curItem);
     const prob=probabilityText(live.up_prob);
     const pct=expectedChangeForItem(curItem,curPeriod);
-    const action=typeof fmActionFromPct==="function"?fmActionFromPct(pct):{title:"확인",action:"흐름을 확인하세요",desc:"",color:"#6a1e9a"};
+    const action=Number.isFinite(Number(pct))&&typeof fmActionFromPct==="function"?fmActionFromPct(pct):{title:"방향 신호만 확인",action:"가격은 무리해서 단정하지 마세요",desc:"방향 가능성은 잡혔지만, 기간별 등락률은 아직 공개할 만큼 안정적이지 않습니다.",color:"#6a1e9a"};
     const periodRows=[7,14,21,28,60,90].map(days=>({days,periodLabel:PERIOD_LABEL[days]||`${days}일`,pct:expectedChangeForItem(curItem,days),blocked:isHorizonBlocked(curItem,days)}));
     const avgYoy=regions.length?regions.reduce((s,d)=>s+(Number(d.shipment_yoy)||0),0)/regions.length:null;
     showTopPanel(`
@@ -5977,12 +5979,12 @@ function renderDashboardPanel(){
         <div class="fm-decision-hero" style="border-left-color:${action.color}">
           <div class="fm-decision-kicker">오늘 결론</div>
           <div class="fm-decision-title">${item.name}은 ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 기준 <span style="color:${action.color}">${action.title}</span></div>
-          <div class="fm-decision-body"><b>${prob.main}</b>, 예상 등락은 <b>${fmtPctKo(pct)}</b>입니다. 확률은 방향 판단이고 등락률은 가격 변화 예상치라서 서로 다른 숫자입니다.</div>
+          <div class="fm-decision-body"><b>${prob.main}</b>, 예상 등락률은 <b>${fmtPctKo(pct)}</b>입니다. 확률은 방향 판단이고 등락률은 가격 변화 예상치라서 서로 다른 숫자입니다.</div>
         </div>
         <div class="fm-action-grid">
           ${fmMiniMetric("현재 도매 기준가",fmtWonKo(basePrice),`${item.unit||"기준 단위"} 기준`)}
           ${fmMiniMetric("방향 가능성",prob.main,prob.sub,prob.color)}
-          ${fmMiniMetric("예상 등락률",fmtPctKo(pct),`${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 가격 변화 예상`,Number(pct)>0?"#c02828":Number(pct)<0?"#1a8a1a":"#6a1e9a")}
+          ${fmMiniMetric("예상 등락률",fmtPctKo(pct),Number.isFinite(Number(pct))?`${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 가격 변화 예상`:"방향 신호는 있으나 등락률은 보류",Number(pct)>0?"#c02828":Number(pct)<0?"#1a8a1a":"#6a1e9a")}
         </div>
         <div class="fm-coverage-strip">
           <div class="fm-coverage-box"><b>${regions.length}곳</b><span>현재 지도에 표시되는 확인 대표 산지입니다. 미표시 지역은 출하 없음이 아니라 자료 미확인일 수 있습니다.</span></div>
@@ -5997,7 +5999,7 @@ function renderDashboardPanel(){
       <div class="fm-top-card">
         <div class="fm-sec-title" style="font-size:16px">오늘 확인할 것</div>
         <div class="fm-check-list">
-          <div class="fm-check-item"><div class="fm-check-mark">1</div><div><b>가격</b><br>현재 기준가는 ${fmtWonKo(basePrice)}이고, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락은 ${fmtPctKo(pct)}입니다.</div></div>
+          <div class="fm-check-item"><div class="fm-check-mark">1</div><div><b>가격</b><br>현재 기준가는 ${fmtWonKo(basePrice)}이고, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락률은 ${fmtPctKo(pct)}입니다.</div></div>
           <div class="fm-check-item"><div class="fm-check-mark">2</div><div><b>물량</b><br>확인 대표 산지는 ${regions.length}곳, 합산 물량은 ${fmtTonKo(shipment)}입니다. ${Number.isFinite(avgYoy)?`전년 대비 평균 ${fmtPctKo(avgYoy)}입니다.`:"전년 대비 출하 변화는 아직 확인 중입니다."}</div></div>
           <div class="fm-check-item"><div class="fm-check-mark">3</div><div><b>수입·대체 공급</b><br>${imp.note} 수입 비중이 연결되기 전까지는 국내 산지와 도매시장 가격 중심으로만 판단합니다.</div></div>
         </div>
@@ -6029,7 +6031,7 @@ function renderDashboardPanel(){
         <div class="fm-decision-hero" style="border-left-color:${top?.prob.color||"#267a18"}">
           <div class="fm-decision-kicker">오늘 먼저 볼 품목</div>
           <div class="fm-decision-title">${top?`${top.it.name}을 먼저 확인하세요`:"데이터 수집 중입니다"}</div>
-          <div class="fm-decision-body">${top?`${top.prob.main}, 4주 예상 등락은 <b>${fmtPctKo(top.pct)}</b>입니다. 대표 산지 ${top.regions.length}곳, 물량 커버는 ${top.coverage.label}입니다.`:"가격·산지·출하 데이터를 불러오면 우선순위를 보여줍니다."}</div>
+          <div class="fm-decision-body">${top?`${top.prob.main}, 4주 예상 등락률은 <b>${fmtPctKo(top.pct)}</b>입니다. 대표 산지 ${top.regions.length}곳, 물량 커버는 ${top.coverage.label}입니다.`:"가격·산지·출하 데이터를 불러오면 우선순위를 보여줍니다."}</div>
         </div>
         <div class="fm-action-grid">
           ${fmMiniMetric("가격 수집 품목",Object.keys(LIVE_NATIONAL_PRICES).length,"도매 기준가 확인")}
