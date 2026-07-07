@@ -13,6 +13,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_HORIZONS = (1, 14, 30, 90, 180, 365)
 
+CUSTOMS_TRADE_FEATURES = (
+    "customs_trade_available",
+    "customs_mapping_confidence",
+    "customs_import_weight_log",
+    "customs_import_value_log",
+    "customs_import_unit_value_norm",
+    "customs_export_weight_log",
+    "customs_net_import_weight_log",
+    "customs_import_mom_change",
+    "customs_import_yoy_change",
+    "customs_import_3m_pressure",
+)
+
 COMPACT_90D_FEATURES = (
     "price_pct_of_hist_mean",
     "change_1d",
@@ -37,6 +50,7 @@ COMPACT_90D_FEATURES = (
     "agromarket_auction_stored_share",
     "agromarket_auction_processed_share",
     "agromarket_auction_imported_share",
+    *CUSTOMS_TRADE_FEATURES,
 )
 
 
@@ -76,6 +90,19 @@ def main() -> int:
     ok = True
 
     if not args.skip_train:
+        _run_step(
+            steps,
+            "collect_customs_trade_features",
+            [
+                sys.executable,
+                "scripts/collect_customs_trade_features.py",
+                "--date",
+                args.date,
+                "--start-month",
+                "2024-01",
+            ],
+            allow_exit_codes={0, 1},
+        )
         ok &= _run_step(
             steps,
             "build_training_table",

@@ -63,6 +63,19 @@ ITEM_SPECIFIC_FEATURES = [
     "green_onion_august_14d_down_pressure",
 ]
 
+CUSTOMS_TRADE_FEATURES = [
+    "customs_trade_available",
+    "customs_mapping_confidence",
+    "customs_import_weight_log",
+    "customs_import_value_log",
+    "customs_import_unit_value_norm",
+    "customs_export_weight_log",
+    "customs_net_import_weight_log",
+    "customs_import_mom_change",
+    "customs_import_yoy_change",
+    "customs_import_3m_pressure",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build item-level price time-series training rows.")
@@ -78,6 +91,7 @@ def main() -> int:
     connector = CachedPriceConnector()
     rows: list[dict[str, Any]] = []
     supply_by_month = _monthly_supply_context_features()
+    customs_by_item = _customs_trade_features_by_item()
     farmmap_features_by_item = load_farmmap_capacity_features_by_item()
 
     for item_code in sorted(registry.all_items()):
@@ -94,6 +108,7 @@ def main() -> int:
                 agromarket_by_date,
                 weather_by_date,
                 supply_by_month,
+                customs_by_item.get(item_code, {}),
                 farmmap_features_by_item.get(item_code, default_farmmap_capacity_features()),
                 min_history=args.min_history,
             )
@@ -144,6 +159,7 @@ def main() -> int:
         "weather_obs_norm",
         "supply_rain_reservoir_risk",
         "supply_weather_alert_insurance_risk",
+        *CUSTOMS_TRADE_FEATURES,
         *FARMMAP_FEATURE_COLUMNS,
         *ITEM_SPECIFIC_FEATURES,
         "target_next_change",
@@ -312,6 +328,35 @@ def _monthly_supply_context_features() -> dict[str, dict[str, float]]:
     }
 
 
+def _customs_trade_features_by_item() -> dict[str, dict[str, dict[str, float]]]:
+    """Load cached monthly customs trade features keyed by item and YYYY-MM."""
+    base = data_dir() / "features"
+    if not base.exists():
+        return {}
+
+    result: dict[str, dict[str, dict[str, float]]] = defaultdict(dict)
+    for path in sorted(base.glob("*/customs_trade_*.json")):
+        item_code = path.stem.removeprefix("customs_trade_")
+        rows = _safe_read_list(path)
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            base_date = _parse_date(row.get("base_date"))
+            if base_date is None:
+                continue
+            month_key = f"{base_date:%Y-%m}"
+            result[item_code][month_key] = {
+                "trade_available": _as_float(row.get("trade_available")),
+                "mapping_confidence_score": _as_float(row.get("mapping_confidence_score")),
+                "import_weight_kg": _as_float(row.get("import_weight_kg")),
+                "import_value_usd": _as_float(row.get("import_value_usd")),
+                "import_unit_value_usd_per_kg": _as_float(row.get("import_unit_value_usd_per_kg")),
+                "export_weight_kg": _as_float(row.get("export_weight_kg")),
+                "net_import_weight_kg": _as_float(row.get("net_import_weight_kg")),
+            }
+    return {item: months for item, months in result.items()}
+
+
 def _training_rows(
     item_code: str,
     series: list[tuple[date, float]],
@@ -319,6 +364,7 @@ def _training_rows(
     agromarket_by_date: dict[date, dict[str, float]],
     weather_by_date: dict[date, dict[str, float]],
     supply_by_month: dict[str, dict[str, float]],
+    customs_by_month: dict[str, dict[str, float]],
     farmmap_features: dict[str, float],
     min_history: int,
 ) -> list[dict[str, Any]]:
@@ -357,6 +403,7 @@ def _training_rows(
         ag_auction_volume_norm = _safe_log_norm(agromarket.get("auction_volume"))
         weather = weather_by_date.get(base_date, {})
         supply = supply_by_month.get(f"{base_date:%Y-%m}", {})
+        customs = _customs_trade_features(base_date, customs_by_month)
         item_specific = _item_specific_features(
             item_code=item_code,
             base_date=base_date,
@@ -414,6 +461,7 @@ def _training_rows(
                 "weather_obs_norm": round(min(float(weather.get("obs_count", 0.0)), 100.0) / 100.0, 6),
                 "supply_rain_reservoir_risk": round(float(supply.get("rain_reservoir_risk", 0.0)), 6),
                 "supply_weather_alert_insurance_risk": round(float(supply.get("weather_alert_insurance_risk", 0.0)), 6),
+                **customs,
                 **farmmap_row,
                 **item_specific,
                 "target_next_change": _pct_change(next_value, current),
@@ -430,6 +478,38 @@ def _horizon_targets(series: list[tuple[date, float]], idx: int, current: float)
         future_value = _future_value_on_or_after(series, idx, base_date + timedelta(days=days))
         targets[f"target_{days}d_change"] = _pct_change(future_value, current) if future_value is not None else None
     return targets
+
+
+def _customs_trade_features(base_date: date, customs_by_month: dict[str, dict[str, float]]) -> dict[str, float]:
+    feature_month = _add_months(base_date.year, base_date.month, -1)
+    prev_month = _add_months(feature_month[0], feature_month[1], -1)
+    yoy_month = _add_months(feature_month[0], feature_month[1], -12)
+    current = customs_by_month.get(_month_key(*feature_month), {})
+    previous = customs_by_month.get(_month_key(*prev_month), {})
+    yoy = customs_by_month.get(_month_key(*yoy_month), {})
+    prev_3_values = []
+    for delta in (1, 2, 3):
+        month = _add_months(feature_month[0], feature_month[1], -delta)
+        row = customs_by_month.get(_month_key(*month), {})
+        prev_3_values.append(float(row.get("import_weight_kg", 0.0)))
+
+    import_weight = float(current.get("import_weight_kg", 0.0))
+    previous_weight = float(previous.get("import_weight_kg", 0.0))
+    yoy_weight = float(yoy.get("import_weight_kg", 0.0))
+    prev_3_avg = mean(prev_3_values) if any(prev_3_values) else 0.0
+
+    return {
+        "customs_trade_available": round(float(current.get("trade_available", 0.0)), 6),
+        "customs_mapping_confidence": round(float(current.get("mapping_confidence_score", 0.0)), 6),
+        "customs_import_weight_log": _safe_log_norm(import_weight),
+        "customs_import_value_log": _safe_log_norm(float(current.get("import_value_usd", 0.0))),
+        "customs_import_unit_value_norm": round(min(float(current.get("import_unit_value_usd_per_kg", 0.0)), 20.0) / 20.0, 6),
+        "customs_export_weight_log": _safe_log_norm(float(current.get("export_weight_kg", 0.0))),
+        "customs_net_import_weight_log": _signed_log_norm(float(current.get("net_import_weight_kg", 0.0))),
+        "customs_import_mom_change": _bounded_pct_change(import_weight, previous_weight),
+        "customs_import_yoy_change": _bounded_pct_change(import_weight, yoy_weight),
+        "customs_import_3m_pressure": _bounded_pct_change(import_weight, prev_3_avg),
+    }
 
 
 def _item_specific_features(
@@ -584,6 +664,13 @@ def _pct_change(current: float, previous: float) -> float:
     return round((current - previous) / previous, 6)
 
 
+def _bounded_pct_change(current: float, previous: float, limit: float = 5.0) -> float:
+    if previous <= 0:
+        return 0.0
+    value = (current - previous) / previous
+    return round(max(-limit, min(limit, value)) / limit, 6)
+
+
 def _safe_read_list(path: Path) -> list[Any]:
     try:
         payload = read_json(path)
@@ -627,6 +714,22 @@ def _safe_log_norm(value: float | None) -> float:
     import math
 
     return round(math.log1p(value) / 20.0, 6)
+
+
+def _signed_log_norm(value: float) -> float:
+    import math
+
+    sign = -1.0 if value < 0 else 1.0
+    return round(sign * math.log1p(abs(value)) / 20.0, 6)
+
+
+def _add_months(year: int, month: int, delta: int) -> tuple[int, int]:
+    total = year * 12 + (month - 1) + delta
+    return total // 12, total % 12 + 1
+
+
+def _month_key(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
 
 
 def _auction_variant_share_features(raw: dict[str, Any]) -> dict[str, float]:

@@ -137,3 +137,9 @@
 - `docs/AI_SESSION_114_ROBUST_MAP_HOVER_POPUP.md`
   - 2026-07-06 robust map hover popup.
   - Covers delegated document-level hover fallback for Leaflet SVG regions and marker pins, plus launch-readiness coverage.
+- `docs/AI_SESSION_117_CUSTOMS_TRADE_AUDIT.md`
+  - 2026-07-07 customs import/export API audit.
+  - Covers verified Korea Customs Service endpoints, HS-prefix crop candidates, and feature-readiness decisions.
+- `docs/AI_SESSION_118_CUSTOMS_TRADE_MODEL_INTEGRATION.md`
+  - 2026-07-07 customs import/export feature integration.
+  - Covers the new customs collector, training-table feature wiring, model retraining, and the decision not to promote the candidate yet.
