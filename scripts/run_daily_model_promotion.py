@@ -13,17 +13,36 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_HORIZONS = (1, 14, 30, 90, 180, 365)
 
-CUSTOMS_TRADE_FEATURES = (
-    "customs_trade_available",
-    "customs_mapping_confidence",
-    "customs_import_weight_log",
-    "customs_import_value_log",
-    "customs_import_unit_value_norm",
-    "customs_export_weight_log",
-    "customs_net_import_weight_log",
-    "customs_import_mom_change",
-    "customs_import_yoy_change",
-    "customs_import_3m_pressure",
+CUSTOMS_TRADE_ITEMS = (
+    "apple",
+    "cabbage",
+    "carrot",
+    "cucumber",
+    "garlic",
+    "green_onion",
+    "lettuce",
+    "onion",
+    "pear",
+    "pepper",
+    "potato",
+    "sesame",
+    "spinach",
+    "sweet_potato",
+    "tomato",
+    "watermelon",
+)
+
+CUSTOMS_TRADE_METRICS = (
+    "import_weight_log",
+    "import_mom_change",
+    "import_yoy_change",
+    "import_3m_pressure",
+)
+
+CUSTOMS_TRADE_FEATURES = tuple(
+    f"customs_{item_code}_{metric}"
+    for item_code in CUSTOMS_TRADE_ITEMS
+    for metric in CUSTOMS_TRADE_METRICS
 )
 
 COMPACT_90D_FEATURES = (

@@ -143,3 +143,6 @@
 - `docs/AI_SESSION_118_CUSTOMS_TRADE_MODEL_INTEGRATION.md`
   - 2026-07-07 customs import/export feature integration.
   - Covers the new customs collector, training-table feature wiring, model retraining, and the decision not to promote the candidate yet.
+- `docs/AI_SESSION_119_CUSTOMS_TRADE_STABILITY.md`
+  - 2026-07-07 customs import/export stability pass.
+  - Covers item-gated customs features, stricter crop matching, latest-month fallback, and bounded customs prediction overlays.

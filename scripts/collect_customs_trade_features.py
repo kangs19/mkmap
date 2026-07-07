@@ -34,12 +34,14 @@ TRAINABLE_READINESS = {
 
 STATKOR_ALLOWLIST = {
     "cabbage": {"배추"},
+    "carrot": {"당근"},
     "radish": set(),
     "green_onion": {"대파"},
     "pepper": {"건조한 것(부수지도 잘게 부수지도 않은 것)", "부수거나 잘게 부순 것"},
     "fresh_pepper": set(),
     "cucumber": {"오이류(신선한 것이나 냉장한 것으로 한정한다)"},
     "lettuce": {"결구(結球) 상추"},
+    "tomato": {"방울토마토"},
 }
 
 

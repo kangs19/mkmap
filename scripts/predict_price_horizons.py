@@ -119,6 +119,8 @@ def main() -> int:
                 "risk_adjusted_change": prediction.get("risk_adjusted_change"),
                 "predicted_direction": prediction.get("predicted_direction"),
                 "risk_adjusted_direction": prediction.get("risk_adjusted_direction"),
+                "customs_trade_adjustment": prediction.get("customs_trade_adjustment"),
+                "customs_trade_overlay": prediction.get("customs_trade_overlay"),
                 "direction_threshold": prediction.get("direction_threshold"),
                 "up_probability": prediction.get(f"up_probability_{horizon}d"),
                 "surge_probability": prediction.get(f"surge_probability_{horizon}d"),

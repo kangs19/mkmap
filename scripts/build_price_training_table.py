@@ -63,17 +63,36 @@ ITEM_SPECIFIC_FEATURES = [
     "green_onion_august_14d_down_pressure",
 ]
 
+CUSTOMS_TRADE_ITEMS = [
+    "apple",
+    "cabbage",
+    "carrot",
+    "cucumber",
+    "garlic",
+    "green_onion",
+    "lettuce",
+    "onion",
+    "pear",
+    "pepper",
+    "potato",
+    "sesame",
+    "spinach",
+    "sweet_potato",
+    "tomato",
+    "watermelon",
+]
+
+CUSTOMS_TRADE_METRICS = [
+    "import_weight_log",
+    "import_mom_change",
+    "import_yoy_change",
+    "import_3m_pressure",
+]
+
 CUSTOMS_TRADE_FEATURES = [
-    "customs_trade_available",
-    "customs_mapping_confidence",
-    "customs_import_weight_log",
-    "customs_import_value_log",
-    "customs_import_unit_value_norm",
-    "customs_export_weight_log",
-    "customs_net_import_weight_log",
-    "customs_import_mom_change",
-    "customs_import_yoy_change",
-    "customs_import_3m_pressure",
+    f"customs_{item_code}_{metric}"
+    for item_code in CUSTOMS_TRADE_ITEMS
+    for metric in CUSTOMS_TRADE_METRICS
 ]
 
 
@@ -403,7 +422,7 @@ def _training_rows(
         ag_auction_volume_norm = _safe_log_norm(agromarket.get("auction_volume"))
         weather = weather_by_date.get(base_date, {})
         supply = supply_by_month.get(f"{base_date:%Y-%m}", {})
-        customs = _customs_trade_features(base_date, customs_by_month)
+        customs = _customs_item_feature_row(item_code, _customs_trade_features(base_date, customs_by_month))
         item_specific = _item_specific_features(
             item_code=item_code,
             base_date=base_date,
@@ -482,6 +501,9 @@ def _horizon_targets(series: list[tuple[date, float]], idx: int, current: float)
 
 def _customs_trade_features(base_date: date, customs_by_month: dict[str, dict[str, float]]) -> dict[str, float]:
     feature_month = _add_months(base_date.year, base_date.month, -1)
+    feature_month = _latest_customs_month_on_or_before(customs_by_month, feature_month)
+    if feature_month is None:
+        return {metric: 0.0 for metric in CUSTOMS_TRADE_METRICS}
     prev_month = _add_months(feature_month[0], feature_month[1], -1)
     yoy_month = _add_months(feature_month[0], feature_month[1], -12)
     current = customs_by_month.get(_month_key(*feature_month), {})
@@ -499,17 +521,41 @@ def _customs_trade_features(base_date: date, customs_by_month: dict[str, dict[st
     prev_3_avg = mean(prev_3_values) if any(prev_3_values) else 0.0
 
     return {
-        "customs_trade_available": round(float(current.get("trade_available", 0.0)), 6),
-        "customs_mapping_confidence": round(float(current.get("mapping_confidence_score", 0.0)), 6),
-        "customs_import_weight_log": _safe_log_norm(import_weight),
-        "customs_import_value_log": _safe_log_norm(float(current.get("import_value_usd", 0.0))),
-        "customs_import_unit_value_norm": round(min(float(current.get("import_unit_value_usd_per_kg", 0.0)), 20.0) / 20.0, 6),
-        "customs_export_weight_log": _safe_log_norm(float(current.get("export_weight_kg", 0.0))),
-        "customs_net_import_weight_log": _signed_log_norm(float(current.get("net_import_weight_kg", 0.0))),
-        "customs_import_mom_change": _bounded_pct_change(import_weight, previous_weight),
-        "customs_import_yoy_change": _bounded_pct_change(import_weight, yoy_weight),
-        "customs_import_3m_pressure": _bounded_pct_change(import_weight, prev_3_avg),
+        "trade_available": round(float(current.get("trade_available", 0.0)), 6),
+        "mapping_confidence": round(float(current.get("mapping_confidence_score", 0.0)), 6),
+        "import_weight_log": _safe_log_norm(import_weight),
+        "import_value_log": _safe_log_norm(float(current.get("import_value_usd", 0.0))),
+        "import_unit_value_norm": round(min(float(current.get("import_unit_value_usd_per_kg", 0.0)), 20.0) / 20.0, 6),
+        "export_weight_log": _safe_log_norm(float(current.get("export_weight_kg", 0.0))),
+        "net_import_weight_log": _signed_log_norm(float(current.get("net_import_weight_kg", 0.0))),
+        "import_mom_change": _bounded_pct_change(import_weight, previous_weight),
+        "import_yoy_change": _bounded_pct_change(import_weight, yoy_weight),
+        "import_3m_pressure": _bounded_pct_change(import_weight, prev_3_avg),
     }
+
+
+def _customs_item_feature_row(item_code: str, values: dict[str, float]) -> dict[str, float]:
+    row = {feature: 0.0 for feature in CUSTOMS_TRADE_FEATURES}
+    if item_code not in CUSTOMS_TRADE_ITEMS:
+        return row
+    for metric in CUSTOMS_TRADE_METRICS:
+        row[f"customs_{item_code}_{metric}"] = round(float(values.get(metric, 0.0)), 6)
+    return row
+
+
+def _latest_customs_month_on_or_before(
+    customs_by_month: dict[str, dict[str, float]],
+    month: tuple[int, int],
+) -> tuple[int, int] | None:
+    available: list[tuple[int, int]] = []
+    for key in customs_by_month:
+        try:
+            year, raw_month = key.split("-", 1)
+            available.append((int(year), int(raw_month)))
+        except (ValueError, TypeError):
+            continue
+    candidates = [candidate for candidate in available if candidate <= month]
+    return max(candidates) if candidates else None
 
 
 def _item_specific_features(

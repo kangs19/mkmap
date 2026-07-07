@@ -107,7 +107,8 @@ def _predict_row(
 
     risk_score = float(risk_overlay.get("max_risk_score", 0.0)) if risk_overlay else 0.0
     risk_adjustment = max(0.0, min(1.0, risk_score)) * risk_adjustment_scale
-    adjusted_prediction = prediction + risk_adjustment
+    customs_adjustment, customs_overlay = _customs_trade_adjustment(row, horizon_days)
+    adjusted_prediction = prediction + risk_adjustment + customs_adjustment
     direction_threshold = float(active_model.get("direction_threshold") or model.get("direction_threshold") or 0.015)
 
     if prediction > direction_threshold:
@@ -140,6 +141,7 @@ def _predict_row(
         "predicted_direction": direction,
         "direction_threshold": round(direction_threshold, 6),
         "risk_adjustment": round(risk_adjustment, 6),
+        "customs_trade_adjustment": round(customs_adjustment, 6),
         "risk_adjusted_change": round(adjusted_prediction, 6),
         "risk_adjusted_next_change": round(adjusted_prediction, 6),
         "risk_adjusted_direction": adjusted_direction,
@@ -153,6 +155,8 @@ def _predict_row(
     }
     if risk_overlay:
         result["risk_overlay"] = risk_overlay
+    if customs_overlay:
+        result["customs_trade_overlay"] = customs_overlay
     return result
 
 
@@ -170,6 +174,49 @@ def _standardize(value: float, stats: dict[str, object]) -> float:
     if std == 0:
         std = 1.0
     return (value - float(stats.get("mean") or 0.0)) / std
+
+
+def _customs_trade_adjustment(row: dict[str, str], horizon_days: int) -> tuple[float, dict[str, object] | None]:
+    if horizon_days < 30:
+        return 0.0, None
+
+    item_code = row["item_code"]
+    prefix = f"customs_{item_code}_"
+    import_weight = _row_float(row, prefix + "import_weight_log")
+    if import_weight <= 0:
+        return 0.0, None
+
+    pressure = (
+        _row_float(row, prefix + "import_3m_pressure") * 0.5
+        + _row_float(row, prefix + "import_yoy_change") * 0.3
+        + _row_float(row, prefix + "import_mom_change") * 0.2
+    )
+    pressure = max(-1.0, min(1.0, pressure))
+    scale = 0.012 if horizon_days <= 30 else 0.018 if horizon_days <= 90 else 0.024
+    # Import growth usually adds domestic downside pressure; import contraction
+    # removes substitute supply and can add upside pressure.
+    adjustment = -pressure * scale
+    overlay = {
+        "item_code": item_code,
+        "horizon_days": horizon_days,
+        "import_pressure_score": round(pressure, 6),
+        "adjustment": round(adjustment, 6),
+        "direction_effect": "down" if adjustment < -0.0005 else "up" if adjustment > 0.0005 else "neutral",
+        "basis": {
+            "import_weight_log": round(import_weight, 6),
+            "import_3m_pressure": round(_row_float(row, prefix + "import_3m_pressure"), 6),
+            "import_yoy_change": round(_row_float(row, prefix + "import_yoy_change"), 6),
+            "import_mom_change": round(_row_float(row, prefix + "import_mom_change"), 6),
+        },
+    }
+    return adjustment, overlay
+
+
+def _row_float(row: dict[str, str], key: str) -> float:
+    try:
+        return float(row.get(key) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _change_to_probability(change: float, calibration: dict[str, object], direction_threshold: float) -> float:
