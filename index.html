@@ -5785,5 +5785,305 @@ function renderDashboardPanel(){
   `);
 }
 </script>
+<script>
+/* Decision-copy overrides: keep probability, price change, and data coverage separate. */
+(function(){
+  const style=document.createElement("style");
+  style.textContent=`
+    .fm-signal-help{font-size:11px;color:#5f6f55;line-height:1.55;margin-top:6px;padding:7px 9px;background:#f8fbf5;border:1px solid #dfe8d4;border-radius:8px}
+    .fm-brief-card .fm-prob-line{font-size:13px;font-weight:900;margin-top:4px}
+    .fm-brief-card .fm-change-line{font-size:12px;font-weight:800;margin-top:2px}
+    .fm-coverage-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+    .fm-coverage-box{background:#fbfdf8;border:1px solid #dfe8d4;border-radius:8px;padding:9px;min-width:0}
+    .fm-coverage-box b{display:block;font-size:17px;color:#1a2410}
+    .fm-coverage-box span{display:block;font-size:11px;color:#64745b;line-height:1.45;margin-top:3px}
+    .rhc .rhc-coverage{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+    .rhc .rhc-coverage div{background:#f8fbf5;border:1px solid #dfe8d4;border-radius:7px;padding:7px;font-size:10px;color:#526348;line-height:1.4}
+    .rhc .rhc-coverage b{display:block;font-size:13px;color:#1a2410;margin-bottom:2px}
+    @media(max-width:900px){.fm-coverage-strip{grid-template-columns:1fr}.rhc .rhc-coverage{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+
+  function koRisk(level){
+    return ({normal:"정상",caution:"주의",warning:"경고",high:"위험"}[level]||"정상");
+  }
+  function koRiskColor(level){
+    return ({normal:"#1a8a1a",caution:"#a07010",warning:"#b86010",high:"#c02828"}[level]||"#1a8a1a");
+  }
+  function fmtPctKo(n){
+    const v=Number(n);
+    if(!Number.isFinite(v)) return "확인 중";
+    return `${v>0?"+":""}${v.toFixed(1)}%`;
+  }
+  function fmtWonKo(n){
+    const v=Number(n);
+    if(!Number.isFinite(v)||v<=0) return "수집 중";
+    return `${Math.round(v).toLocaleString()}원`;
+  }
+  function fmtTonKo(n){
+    const v=Number(n)||0;
+    if(v>=10000) return `${(v/10000).toFixed(1)}만 톤`;
+    if(v>=1000) return `${(v/1000).toFixed(1)}천 톤`;
+    if(v>0) return `${Math.round(v).toLocaleString()}톤`;
+    return "수집 중";
+  }
+  function itemRegions(itemCode){
+    return Object.values(CITY_DATA[itemCode]||{}).filter(isActiveCropCity);
+  }
+  function itemShipment(itemCode){
+    return itemRegions(itemCode).reduce((sum,row)=>sum+(Number(row.shipment_ton||row.production_ton)||0),0);
+  }
+  function itemShareMap(itemCode){
+    return LIVE_SHIPMENT_SHARE[itemCode]||{};
+  }
+  function shareCoverageForItem(itemCode){
+    const shares=itemShareMap(itemCode);
+    const vals=Object.values(shares).map(Number).filter(Number.isFinite);
+    if(vals.length) return {label:`${vals.reduce((a,b)=>a+b,0).toFixed(1)}%`,note:`최근 도매시장 출하점유율 ${vals.length}개 시도 집계`,available:true};
+    const rows=itemRegions(itemCode);
+    const total=itemShipment(itemCode);
+    const pctSum=rows.reduce((s,r)=>s+(Number(r.production_pct)||0),0);
+    if(pctSum>0) return {label:`${Math.min(100,pctSum).toFixed(0)}%`,note:`대표 산지 메타 비중 합산입니다. 전국 전체 물량 확정값은 아닙니다.`,available:false};
+    return {label:"판단 보류",note:"전국 대비 비중 데이터가 부족합니다.",available:false};
+  }
+  function importContextForItem(itemCode){
+    const sensitive=new Set(["garlic","onion","green_onion","carrot","sesame","pepper","fresh_pepper"]);
+    if(sensitive.has(itemCode)) return {label:"수입 변수 큼",note:"수입량 API 미연동이라 현재 예측 점수에는 아직 직접 반영하지 않았습니다.",tone:"#b86010"};
+    return {label:"수입 미반영",note:"수입/대체 공급 데이터는 아직 예측 점수에 직접 연결되지 않았습니다.",tone:"#6a7a5a"};
+  }
+  function probabilityText(prob){
+    const p=Number(prob);
+    if(!Number.isFinite(p)) return {main:"방향 가능성 수집 중",sub:"가격 상승률이 아니라 방향 확률을 따로 표시합니다.",color:"#6a7a5a"};
+    if(p>=0.58) return {main:`상승 가능성 ${Math.round(p*100)}%`,sub:"이 숫자는 가격이 그만큼 오른다는 뜻이 아닙니다.",color:"#c02828"};
+    if(p<=0.42) return {main:`하락 가능성 ${Math.round((1-p)*100)}%`,sub:"이 숫자는 가격 하락률이 아니라 방향 가능성입니다.",color:"#1a8a1a"};
+    return {main:`보합권 ${Math.round(p*100)}%`,sub:"상승과 하락 신호가 비슷합니다.",color:"#6a1e9a"};
+  }
+  function expectedChangeForItem(itemCode,days){
+    const pct=Number(horizonModelPct(days,itemCode));
+    if(Number.isFinite(pct)) return pct;
+    const live=LIVE_ITEMS[itemCode]||{};
+    const prob=Number(live.up_prob);
+    if(Number.isFinite(prob)) return (prob-0.5)*20*Math.min(1.5,Number(days||28)/28);
+    return null;
+  }
+
+  window.renderDefaultPanel=function(){
+    const now=new Date();
+    const dateStr=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,"0")}.${String(now.getDate()).padStart(2,"0")}`;
+    const elDate=document.getElementById("brief-date");
+    if(elDate) elDate.textContent=`${dateStr}${LIVE_BASE_DATE?` · 예측 기준 ${LIVE_BASE_DATE}`:" · 데이터 수집 중"}`;
+
+    const ranked=Object.entries(ITEMS).map(([k,it])=>{
+      const live=LIVE_ITEMS[k]||{};
+      const price=LIVE_NATIONAL_PRICES[k]||0;
+      const prob=live.up_prob;
+      const chg=expectedChangeForItem(k,curPeriod);
+      const score=Number(live.risk_score??0);
+      const regions=itemRegions(k);
+      return {k,it,live,price,prob,chg,score,regions,shipment:itemShipment(k),coverage:shareCoverageForItem(k)};
+    }).filter(r=>r.price||r.regions.length||Number.isFinite(Number(r.prob))||r.score)
+      .sort((a,b)=>(b.score||0)-(a.score||0)||Math.abs(Number(b.chg)||0)-Math.abs(Number(a.chg)||0));
+
+    const top=ranked[0];
+    const summary=document.getElementById("brief-summary");
+    if(summary){
+      if(top){
+        const p=probabilityText(top.prob);
+        summary.innerHTML=`<b>${top.it.name}</b>을 먼저 확인하세요. ${p.main}, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락은 <b>${fmtPctKo(top.chg)}</b>입니다. 확률은 방향 판단이고, 등락률은 예상 가격 변화입니다.`;
+      }else{
+        summary.textContent="가격과 예측 데이터를 불러오는 중입니다. 숫자가 확인된 품목만 우선순위에 올립니다.";
+      }
+    }
+
+    const list=document.getElementById("brief-risk-list");
+    if(list){
+      list.innerHTML=ranked.slice(0,6).map(r=>{
+        const p=probabilityText(r.prob);
+        const chgColor=Number(r.chg)>0?"#c02828":Number(r.chg)<0?"#1a8a1a":"#6a1e9a";
+        const riskLevel=r.live.risk_level||"normal";
+        const coverage=r.coverage;
+        return `<div onclick="selectItem('${r.k}')" class="fm-brief-card" style="background:#fff;border:1px solid #dfe8d4">
+          <div style="display:flex;gap:9px;align-items:flex-start">
+            <span style="font-size:18px">${r.it.emoji}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span class="fm-brief-title">${r.it.name}</span>
+                <span class="fm-brief-pill" style="color:${koRiskColor(riskLevel)};border:1px solid ${koRiskColor(riskLevel)}44">${koRisk(riskLevel)}</span>
+              </div>
+              <div class="fm-prob-line" style="color:${p.color}">${p.main}</div>
+              <div class="fm-change-line" style="color:${chgColor}">${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락 ${fmtPctKo(r.chg)}</div>
+              <div class="fm-brief-note">${p.sub}</div>
+              <div class="fm-brief-note">대표 산지 ${r.regions.length}곳 · 확인 물량 ${fmtTonKo(r.shipment)} · 커버 ${coverage.label}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="fm-brief-value">${fmtWonKo(r.price)}</div>
+              <div class="fm-brief-small">현재 기준가</div>
+            </div>
+          </div>
+        </div>`;
+      }).join("")+`<div class="fm-signal-help">위의 %는 두 종류입니다. <b>상승 가능성</b>은 방향 확률이고, <b>예상 등락</b>은 가격이 얼마나 움직일지 보는 값입니다.</div>`;
+    }
+
+    const prices=document.getElementById("brief-prices");
+    if(prices){
+      prices.innerHTML=ranked.slice(0,6).map(r=>{
+        const chg=expectedChangeForItem(r.k,curPeriod);
+        const col=Number(chg)>0?"#c02828":Number(chg)<0?"#1a8a1a":"#6a1e9a";
+        return `<div onclick="selectItem('${r.k}')" class="fm-brief-card" style="background:#fbfdf8;border:1px solid #dfe8d4;padding:8px 9px">
+          <div class="fm-brief-note" style="margin-top:0">${r.it.emoji} ${r.it.name}</div>
+          <div class="fm-brief-value" style="font-size:16px;margin:2px 0">${fmtWonKo(r.price)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="fm-brief-small" style="color:${col}">${PERIOD_LABEL[curPeriod]||curPeriod+"일"} ${fmtPctKo(chg)}</span>
+            <span class="fm-brief-small">${koRisk(r.live.risk_level||"normal")}</span>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    const status=document.getElementById("brief-data-status");
+    if(status){
+      const regionCount=itemRegions(curItem).length;
+      const coverage=shareCoverageForItem(curItem);
+      const imp=importContextForItem(curItem);
+      status.innerHTML=[
+        ["선택 품목 산지",`${regionCount}곳`,`현재 지도에 표시되는 곳은 확인된 대표 산지입니다.`,"model"],
+        ["물량 커버",coverage.label,coverage.note,coverage.available?"live":"model"],
+        ["수입 변수",imp.label,imp.note,"none"],
+        ["가격 기준",LIVE_REGIONAL_PRICES[curItem]?.sido_avg?`${Object.keys(LIVE_REGIONAL_PRICES[curItem].sido_avg).length}개 시도`:"수집 중","도매시장 실측 평균이 있으면 우선 사용합니다.","live"],
+      ].map(([label,value,note,tone])=>`<div style="display:grid;grid-template-columns:82px minmax(0,1fr) auto;gap:9px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:#f8fbf5">
+        <div style="font-size:12px;font-weight:900;color:var(--text)">${label}</div>
+        <div><div style="font-size:13px;font-weight:900;color:var(--text)">${value}</div><div style="font-size:11px;color:var(--muted);line-height:1.45">${note}</div></div>
+        <span class="fm-data-tag ${tone}">${tone==="live"?"실데이터":tone==="model"?"추정":"미반영"}</span>
+      </div>`).join("");
+    }
+  };
+
+  window.renderExplanationPanel=function(){
+    const item=ITEMS[curItem]||{emoji:"",name:"작물",unit:""};
+    const live=LIVE_ITEMS[curItem]||{};
+    const regions=itemRegions(curItem);
+    const basePrice=LIVE_NATIONAL_PRICES[curItem]||0;
+    const shipment=itemShipment(curItem);
+    const coverage=shareCoverageForItem(curItem);
+    const imp=importContextForItem(curItem);
+    const prob=probabilityText(live.up_prob);
+    const pct=expectedChangeForItem(curItem,curPeriod);
+    const action=typeof fmActionFromPct==="function"?fmActionFromPct(pct):{title:"확인",action:"흐름을 확인하세요",desc:"",color:"#6a1e9a"};
+    const periodRows=[7,14,21,28,60,90].map(days=>({days,periodLabel:PERIOD_LABEL[days]||`${days}일`,pct:expectedChangeForItem(curItem,days),blocked:isHorizonBlocked(curItem,days)}));
+    const avgYoy=regions.length?regions.reduce((s,d)=>s+(Number(d.shipment_yoy)||0),0)/regions.length:null;
+    showTopPanel(`
+      <div class="fm-top-card">
+        <div class="fm-top-title" style="font-size:20px">${item.emoji} ${item.name} 예측 판단</div>
+        <div class="fm-decision-hero" style="border-left-color:${action.color}">
+          <div class="fm-decision-kicker">오늘 결론</div>
+          <div class="fm-decision-title">${item.name}은 ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 기준 <span style="color:${action.color}">${action.title}</span></div>
+          <div class="fm-decision-body"><b>${prob.main}</b>, 예상 등락은 <b>${fmtPctKo(pct)}</b>입니다. 확률은 방향 판단이고 등락률은 가격 변화 예상치라서 서로 다른 숫자입니다.</div>
+        </div>
+        <div class="fm-action-grid">
+          ${fmMiniMetric("현재 도매 기준가",fmtWonKo(basePrice),`${item.unit||"기준 단위"} 기준`)}
+          ${fmMiniMetric("방향 가능성",prob.main,prob.sub,prob.color)}
+          ${fmMiniMetric("예상 등락률",fmtPctKo(pct),`${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 가격 변화 예상`,Number(pct)>0?"#c02828":Number(pct)<0?"#1a8a1a":"#6a1e9a")}
+        </div>
+        <div class="fm-coverage-strip">
+          <div class="fm-coverage-box"><b>${regions.length}곳</b><span>현재 지도에 표시되는 확인 대표 산지입니다. 미표시 지역은 출하 없음이 아니라 자료 미확인일 수 있습니다.</span></div>
+          <div class="fm-coverage-box"><b>${fmtTonKo(shipment)}</b><span>대표 산지 합산 물량입니다. 커버 판단: ${coverage.label} · ${coverage.note}</span></div>
+          <div class="fm-coverage-box"><b style="color:${imp.tone}">${imp.label}</b><span>${imp.note}</span></div>
+        </div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-sec-title" style="font-size:16px">기간별 가격 판단</div>
+        <div class="fm-period-cards">${periodRows.map(row=>fmPeriodDecisionCard(row)).join("")}</div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-sec-title" style="font-size:16px">오늘 확인할 것</div>
+        <div class="fm-check-list">
+          <div class="fm-check-item"><div class="fm-check-mark">1</div><div><b>가격</b><br>현재 기준가는 ${fmtWonKo(basePrice)}이고, ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 예상 등락은 ${fmtPctKo(pct)}입니다.</div></div>
+          <div class="fm-check-item"><div class="fm-check-mark">2</div><div><b>물량</b><br>확인 대표 산지는 ${regions.length}곳, 합산 물량은 ${fmtTonKo(shipment)}입니다. ${Number.isFinite(avgYoy)?`전년 대비 평균 ${fmtPctKo(avgYoy)}입니다.`:"전년 대비 출하 변화는 아직 확인 중입니다."}</div></div>
+          <div class="fm-check-item"><div class="fm-check-mark">3</div><div><b>수입·대체 공급</b><br>${imp.note} 수입 비중이 연결되기 전까지는 국내 산지와 도매시장 가격 중심으로만 판단합니다.</div></div>
+        </div>
+      </div>
+    `);
+  };
+
+  window.renderDashboardPanel=function(){
+    const rows=Object.entries(ITEMS).map(([k,it])=>{
+      const live=LIVE_ITEMS[k]||{};
+      const regions=itemRegions(k);
+      const shipment=itemShipment(k);
+      const pct=expectedChangeForItem(k,28);
+      const prob=probabilityText(live.up_prob);
+      const coverage=shareCoverageForItem(k);
+      const priority=Math.round((Number(live.risk_score)||0)+Math.abs(Number(pct)||0)*2+(shipment?10:0));
+      return {k,it,live,regions,shipment,pct,prob,coverage,priority,price:LIVE_NATIONAL_PRICES[k]||0};
+    }).filter(r=>r.price||r.regions.length||r.shipment||Number.isFinite(Number(r.pct)));
+    const watch=rows.slice().sort((a,b)=>b.priority-a.priority);
+    const rise=rows.slice().sort((a,b)=>(Number(b.pct)||0)-(Number(a.pct)||0));
+    const fall=rows.slice().sort((a,b)=>(Number(a.pct)||0)-(Number(b.pct)||0));
+    const top=watch[0];
+    function pick(r,value,note,color){
+      return `<div class="fm-market-pick" onclick="fmSelectMapItem('${r.k}')"><b><span>${r.it.emoji} ${r.it.name}</span><span style="color:${color}">${value}</span></b><small>${note}</small></div>`;
+    }
+    showTopPanel(`
+      <div class="fm-top-card">
+        <div class="fm-top-title" style="font-size:20px">시장 통계</div>
+        <div class="fm-decision-hero" style="border-left-color:${top?.prob.color||"#267a18"}">
+          <div class="fm-decision-kicker">오늘 먼저 볼 품목</div>
+          <div class="fm-decision-title">${top?`${top.it.name}을 먼저 확인하세요`:"데이터 수집 중입니다"}</div>
+          <div class="fm-decision-body">${top?`${top.prob.main}, 4주 예상 등락은 <b>${fmtPctKo(top.pct)}</b>입니다. 대표 산지 ${top.regions.length}곳, 물량 커버는 ${top.coverage.label}입니다.`:"가격·산지·출하 데이터를 불러오면 우선순위를 보여줍니다."}</div>
+        </div>
+        <div class="fm-action-grid">
+          ${fmMiniMetric("가격 수집 품목",Object.keys(LIVE_NATIONAL_PRICES).length,"도매 기준가 확인")}
+          ${fmMiniMetric("산지 표시 품목",rows.filter(r=>r.regions.length).length,"확인 대표 산지 기준")}
+          ${fmMiniMetric("수입 변수",rows.filter(r=>importContextForItem(r.k).label!=="수입 미반영").length,"아직 예측 점수에는 미반영","#b86010")}
+        </div>
+      </div>
+      <div class="fm-top-card">
+        <div class="fm-sec-title" style="font-size:16px">한눈에 보는 우선순위</div>
+        <div class="fm-market-groups">
+          <div class="fm-market-group"><h3>먼저 확인</h3>${watch.slice(0,4).map(r=>pick(r,`${r.priority}점`,`${r.prob.main} · 대표 산지 ${r.regions.length}곳 · 커버 ${r.coverage.label}`,r.prob.color)).join("")}</div>
+          <div class="fm-market-group"><h3>오를 압력</h3>${rise.slice(0,4).map(r=>pick(r,fmtPctKo(r.pct),`${r.prob.main} · 4주 예상 등락률입니다.`,Number(r.pct)>0?"#c02828":"#6a1e9a")).join("")}</div>
+          <div class="fm-market-group"><h3>내릴 압력</h3>${fall.slice(0,4).map(r=>pick(r,fmtPctKo(r.pct),`${r.prob.main} · 4주 예상 등락률입니다.`,Number(r.pct)<0?"#1a8a1a":"#6a1e9a")).join("")}</div>
+        </div>
+      </div>
+    `);
+  };
+
+  const previousHover=window.makeMapPricePinHoverHtml;
+  window.makeMapPricePinHoverHtml=function(name,d,sidoKR){
+    const item=ITEMS[curItem]||{};
+    const priceCtx=getRegionPriceContext(d,sidoKR);
+    const price=Number(priceCtx?.currentPrice||d?.avg_price||0);
+    const pct=expectedChangeForItem(curItem,curPeriod);
+    const prob=probabilityText(LIVE_ITEMS[curItem]?.up_prob);
+    const coverage=shareCoverageForItem(curItem);
+    const imp=importContextForItem(curItem);
+    const shipment=Number(d?.shipment_ton||d?.production_ton||0);
+    const share=d?.production_pct?`${Math.round(d.production_pct)}%`:coverage.label;
+    const yoy=Number(d?.shipment_yoy);
+    const market=priceCtx?.market||marketBasisFor(null,sidoKR,d);
+    const marketName=String(market?.name||"기준 도매시장").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const safe=String(name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return `<div class="rhc">
+      <div class="rhc-header"><div><span class="rhc-title">${safe}</span><div class="rhc-sub">${item.name||"작물"} · ${PERIOD_LABEL[curPeriod]||curPeriod+"일"} 판단</div></div><span class="rhc-badge normal">지도 정보</span></div>
+      <div class="rhc-grid">
+        <div><b>${fmtWonKo(price)}</b><small>도매 기준${item.unit?"/"+item.unit:""}</small></div>
+        <div><b style="color:${prob.color}">${prob.main.replace(" 가능성","")}</b><small>방향 확률</small></div>
+        <div><b style="color:${Number(pct)>0?"#c02828":Number(pct)<0?"#1a8a1a":"#6a1e9a"}">${fmtPctKo(pct)}</b><small>예상 등락률</small></div>
+      </div>
+      <div class="rhc-coverage">
+        <div><b>${fmtTonKo(shipment)}</b>이 지역 확인 물량</div>
+        <div><b>${share}</b>전국 대비 참고 비중</div>
+        <div><b>${Number.isFinite(yoy)?fmtPctKo(yoy):"확인 중"}</b>전년 대비 출하</div>
+        <div><b style="color:${imp.tone}">${imp.label}</b>${imp.note}</div>
+      </div>
+      <div class="rhc-market"><b>기준 시장</b> ${marketName}${market?.date?` · ${market.date}`:""}</div>
+      <div class="rhc-note">${prob.sub} 지도는 확인 대표 산지를 표시하며, 미표시 지역은 출하 없음으로 단정하지 않습니다.</div>
+    </div>`;
+  };
+
+  window.fmProbabilityText=probabilityText;
+  window.fmShareCoverageForItem=shareCoverageForItem;
+})();
+</script>
 </body>
 </html>
