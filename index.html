@@ -6408,6 +6408,8 @@ function renderDashboardPanel(){
     .fm-brief-title{font-size:16px!important}
     .fm-brief-value{font-size:18px!important}
     .fm-data-tag{font-size:11px!important}
+    .fm-market-pick small,
+    .fm-period-card small{display:none!important}
   `;
   document.head.appendChild(style);
 
@@ -6452,6 +6454,23 @@ function renderDashboardPanel(){
     ).forEach(el=>{
       const text=(el.innerText||el.textContent||"").trim();
       if(text.length>95 || prosePatterns.some(p=>text.includes(p))) el.classList.add("fm-xui-hidden");
+    });
+
+    document.querySelectorAll(".fm-action-card span").forEach(el=>{
+      const br=el.querySelector("br");
+      if(!br) return;
+      while(br.nextSibling) br.nextSibling.remove();
+      br.remove();
+    });
+    document.querySelectorAll(".fm-market-pick small,.fm-period-card small").forEach(el=>el.classList.add("fm-xui-hidden"));
+    document.querySelectorAll(".fm-decision-title,.fm-top-title").forEach(el=>{
+      el.textContent=el.textContent
+        .replace(/(.+?)(을|를) 먼저 보세요/g,"$1 우선 확인")
+        .replace(/먼저 보세요/g,"우선 확인");
+    });
+    document.querySelectorAll(".fm-check-item div:last-child").forEach(el=>{
+      const strong=el.querySelector("b");
+      if(strong) el.innerHTML=strong.outerHTML;
     });
   }
 
