@@ -5811,6 +5811,7 @@ function renderDashboardPanel(){
     return ({normal:"#1a8a1a",caution:"#a07010",warning:"#b86010",high:"#c02828"}[level]||"#1a8a1a");
   }
   function fmtPctKo(n){
+    if(n==null||n==="") return "산출 보류";
     const v=Number(n);
     if(!Number.isFinite(v)) return "산출 보류";
     return `${v>0?"+":""}${v.toFixed(1)}%`;
